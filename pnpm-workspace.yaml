@@ -3,4 +3,6 @@ packages:
   - development
 
 onlyBuiltDependencies:
+  - '@swc/core'
+  - core-js
   - esbuild

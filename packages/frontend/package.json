@@ -6,9 +6,5 @@
 	"type": "module",
 	"scripts": {
 	},
-	"packageManager": "pnpm@10.30.3",
-	"dependencies": {
-	},
-	"devDependencies": {
-	}
+	"packageManager": "pnpm@10.30.3"
 }

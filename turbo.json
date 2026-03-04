@@ -1,0 +1,12 @@
+{
+	"$schema": "https://turborepo.dev/schema.json",
+	"ui": "tui",
+	"tasks": {
+		"turbo:build": {},
+		"turbo:clean": {},
+		"turbo:develop": {
+			"cache": false,
+			"persistent": true
+		}
+	}
+}

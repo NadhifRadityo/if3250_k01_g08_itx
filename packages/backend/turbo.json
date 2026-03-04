@@ -1,0 +1,20 @@
+{
+	"$schema": "https://turborepo.dev/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"turbo:develop": {
+			"with": [
+				"turbo:develop:build",
+				"turbo:develop:start"
+			]
+		},
+		"turbo:develop:build": {
+			"cache": false,
+			"persistent": true
+		},
+		"turbo:develop:start": {
+			"cache": false,
+			"persistent": true
+		}
+	}
+}

@@ -5,13 +5,11 @@
 	"description": "",
 	"type": "module",
 	"scripts": {
-		"postgres": "tsx run-postgres.ts"
+		"develop:postgres": "tsx ./develop-postgres.ts",
+		"turbo:develop:postgres": "cross-env pnpm run develop:postgres"
 	},
 	"packageManager": "pnpm@10.30.3",
-	"dependencies": {
-		"commander": "^14.0.2",
-		"dax": "^0.44.2"
-	},
 	"devDependencies": {
+		"@if3250_k01_g08_itx/build-tools": "workspace:*"
 	}
 }

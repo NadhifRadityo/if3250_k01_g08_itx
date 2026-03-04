@@ -1,0 +1,15 @@
+{
+	"$schema": "https://turborepo.dev/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"turbo:develop": {
+			"with": [
+				"turbo:develop:postgres"
+			]
+		},
+		"turbo:develop:postgres": {
+			"cache": false,
+			"persistent": true
+		}
+	}
+}

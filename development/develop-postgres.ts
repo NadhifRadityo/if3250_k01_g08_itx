@@ -1,7 +1,7 @@
 import fs0 from "fs";
 import path from "path";
-import { Option, Command } from "commander";
-import $ from "dax";
+import { Option, Command } from "@if3250_k01_g08_itx/build-tools/commander";
+import { $ } from "@if3250_k01_g08_itx/build-tools/dax";
 
 const dataDirectory = path.resolve(import.meta.dirname, ".private", "postgres");
 

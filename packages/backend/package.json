@@ -5,23 +5,30 @@
 	"description": "",
 	"type": "module",
 	"scripts": {
-		"dev": "tsx watch index.ts",
-		"start": "tsx index.ts",
+		"build": "tsx ./scripts/build.ts",
+		"clean": "tsx ./scripts/clean.ts",
+		"develop:build": "tsx ./scripts/develop-build.ts",
+		"develop:start": "tsx ./scripts/develop-start.ts",
+		"turbo:build": "cross-env pnpm run build",
+		"turbo:clean": "cross-env pnpm run clean",
+		"turbo:develop:build": "cross-env pnpm run develop:build",
+		"turbo:develop:start": "cross-env pnpm run develop:start",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:push": "drizzle-kit push"
 	},
 	"packageManager": "pnpm@10.30.3",
 	"dependencies": {
+		"@dotenvx/dotenvx": "^1.52.0",
 		"@hono/node-server": "^1.19.10",
 		"@hono/zod-validator": "^0.7.6",
-		"dotenv": "^17.3.1",
 		"drizzle-orm": "^0.45.1",
 		"hono": "^4.12.5",
 		"postgres": "^3.4.8",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
+		"@if3250_k01_g08_itx/build-tools": "workspace:*",
 		"drizzle-kit": "^0.31.9"
 	}
 }
