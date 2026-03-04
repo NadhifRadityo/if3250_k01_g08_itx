@@ -1,0 +1,14 @@
+{
+	"name": "@if3250_k01_g08_itx/backend",
+	"private": true,
+	"version": "1.0.0",
+	"description": "",
+	"type": "module",
+	"scripts": {
+	},
+	"packageManager": "pnpm@10.30.3",
+	"dependencies": {
+	},
+	"devDependencies": {
+	}
+}
