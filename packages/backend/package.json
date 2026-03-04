@@ -5,10 +5,23 @@
 	"description": "",
 	"type": "module",
 	"scripts": {
+		"dev": "tsx watch index.ts",
+		"start": "tsx index.ts",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate": "drizzle-kit migrate",
+		"db:push": "drizzle-kit push"
 	},
 	"packageManager": "pnpm@10.30.3",
 	"dependencies": {
+		"@hono/node-server": "^1.19.10",
+		"@hono/zod-validator": "^0.7.6",
+		"dotenv": "^17.3.1",
+		"drizzle-orm": "^0.45.1",
+		"hono": "^4.12.5",
+		"postgres": "^3.4.8",
+		"zod": "^4.3.6"
 	},
 	"devDependencies": {
+		"drizzle-kit": "^0.31.9"
 	}
 }

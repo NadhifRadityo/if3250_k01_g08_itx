@@ -54,6 +54,17 @@ export const rootConfig = [
 			"no-constant-condition": ["warn", { "checkLoops": false }],
 			"object-shorthand": "off",
 			"require-await": "off",
+			"no-restricted-syntax": [
+				"error",
+				{
+					"selector": "BinaryExpression[operator='===']",
+					"message": "Use == instead of ==="
+				},
+				{
+					"selector": "BinaryExpression[operator='!==']",
+					"message": "Use != instead of !=="
+				}
+			],
 			"unused-imports/no-unused-imports": ["warn"],
 			"unused-imports/no-unused-vars": ["warn", {
 				vars: "all",

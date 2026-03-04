@@ -1,0 +1,17 @@
+{
+	"name": "@if3250_k01_g08_itx/development",
+	"private": true,
+	"version": "1.0.0",
+	"description": "",
+	"type": "module",
+	"scripts": {
+		"postgres": "tsx run-postgres.ts"
+	},
+	"packageManager": "pnpm@10.30.3",
+	"dependencies": {
+		"commander": "^14.0.2",
+		"dax": "^0.44.2"
+	},
+	"devDependencies": {
+	}
+}
