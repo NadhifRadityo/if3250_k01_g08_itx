@@ -11,6 +11,7 @@
 	"scripts": {
 		"eslint": "eslint",
 		"turbo": "turbo",
+		"build": "dotenvx run --convention nextjs -- pnpm run turbo turbo:build",
 		"dev": "dotenvx run --convention nextjs -- pnpm run turbo turbo:develop"
 	},
 	"packageManager": "pnpm@10.30.3",

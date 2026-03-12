@@ -19,7 +19,7 @@ const opts = cli.opts<{
 }>();
 
 async function resolvePgExecutable(name: string): Promise<string> {
-	if(opts.pgBin != null) {
+	if(opts.pgBin != null && opts.pgBin.length > 0) {
 		const resolved = path.join(opts.pgBin, name);
 		console.log(`Using explicit path: ${resolved}`);
 		return resolved;
