@@ -1,4 +1,15 @@
 {
 	"$schema": "https://turborepo.dev/schema.json",
-	"extends": ["//"]
+	"extends": ["//"],
+	"tasks": {
+		"turbo:develop": {
+			"with": [
+				"turbo:develop:dev"
+			]
+		},
+		"turbo:develop:dev": {
+			"cache": false,
+			"persistent": true
+		}
+	}
 }

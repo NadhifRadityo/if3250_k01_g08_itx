@@ -8,11 +8,20 @@ import { defineConfig } from "eslint/config";
 import globals from "globals";
 import eslintTypescript from "typescript-eslint";
 
-const gitignoreFile = path.join(import.meta.dirname, ".gitignore");
-const tsConfigFile = path.join(import.meta.dirname, "tsconfig.json");
-
-export const rootConfig = [
-	includeIgnoreFile(gitignoreFile),
+export default defineConfig([
+	includeIgnoreFile(path.join(import.meta.dirname, ".gitignore")),
+	{
+		languageOptions: {
+			parser: eslintTypescript.parser,
+			parserOptions: {
+				project: path.join(import.meta.dirname, "tsconfig.json"),
+				tsconfigRootDir: import.meta.dirname
+			},
+			globals: {
+				...globals.node
+			}
+		}
+	},
 	eslintJavascript.configs.recommended,
 	{ files: ["**/*.ts"], extends: [eslintTypescript.configs.recommended] },
 	eslintStylistic.configs.recommended,
@@ -146,21 +155,21 @@ export const rootConfig = [
 			"@stylistic/quote-props": "off",
 			"@stylistic/no-multi-spaces": ["warn", { ignoreEOLComments: true }]
 		}
-	}
-];
-
-export default defineConfig([
-	{
-		languageOptions: {
-			parser: eslintTypescript.parser,
-			parserOptions: {
-				project: tsConfigFile,
-				tsconfigRootDir: import.meta.dirname
-			},
-			globals: {
-				...globals.node
-			}
-		}
 	},
-	...rootConfig
+	{
+		files: ["development/**/*"],
+		extends: [(await import("./development/eslint.js")).default]
+	},
+	{
+		files: ["packages/build-tools/**/*"],
+		extends: [(await import("./packages/build-tools/eslint.js")).default]
+	},
+	{
+		files: ["packages/backend/**/*"],
+		extends: [(await import("./packages/backend/eslint.js")).default]
+	},
+	{
+		files: ["packages/frontend/**/*"],
+		extends: [(await import("./packages/frontend/eslint.js")).default]
+	}
 ]);

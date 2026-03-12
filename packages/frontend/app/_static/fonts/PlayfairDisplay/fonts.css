@@ -1,0 +1,119 @@
+/* Regular 400 */
+/* Medium 500 */
+/* Semi-Bold 600 */
+/* Bold 700 */
+/* Extra-Bold 800 */
+/* Black 900 */
+
+/* Styles: Regular, Italic */
+
+@font-face {
+	font-family: "PlayfairDisplay VF";
+	font-style: normal;
+	src: url("PlayfairDisplay-VariableFont_wght.woff2") format("woff2-variations"),
+		 url("PlayfairDisplay-VariableFont_wght.ttf") format("truetype-variations");
+}
+@font-face {
+	font-family: "PlayfairDisplay VF";
+	font-style: italic;
+	src: url("PlayfairDisplay-Italic-VariableFont_wght.woff2") format("woff2-variations"),
+		 url("PlayfairDisplay-Italic-VariableFont_wght.ttf") format("truetype-variations");
+}
+
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: normal;
+	font-weight: 400;
+	src: url("PlayfairDisplay-Regular.woff2") format("woff2"),
+		 url("PlayfairDisplay-Regular.woff") format("woff"),
+		 url("PlayfairDisplay-Regular.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: normal;
+	font-weight: 500;
+	src: url("PlayfairDisplay-Medium.woff2") format("woff2"),
+		 url("PlayfairDisplay-Medium.woff") format("woff"),
+		 url("PlayfairDisplay-Medium.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: normal;
+	font-weight: 600;
+	src: url("PlayfairDisplay-SemiBold.woff2") format("woff2"),
+		 url("PlayfairDisplay-SemiBold.woff") format("woff"),
+		 url("PlayfairDisplay-SemiBold.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: normal;
+	font-weight: 700;
+	src: url("PlayfairDisplay-Bold.woff2") format("woff2"),
+		 url("PlayfairDisplay-Bold.woff") format("woff"),
+		 url("PlayfairDisplay-Bold.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: normal;
+	font-weight: 800;
+	src: url("PlayfairDisplay-ExtraBold.woff2") format("woff2"),
+		 url("PlayfairDisplay-ExtraBold.woff") format("woff"),
+		 url("PlayfairDisplay-ExtraBold.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: normal;
+	font-weight: 900;
+	src: url("PlayfairDisplay-Black.woff2") format("woff2"),
+		 url("PlayfairDisplay-Black.woff") format("woff"),
+		 url("PlayfairDisplay-Black.ttf") format("truetype");
+}
+
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: italic;
+	font-weight: 400;
+	src: url("PlayfairDisplay-Italic.woff2") format("woff2"),
+		 url("PlayfairDisplay-Italic.woff") format("woff"),
+		 url("PlayfairDisplay-Italic.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: italic;
+	font-weight: 500;
+	src: url("PlayfairDisplay-MediumItalic.woff2") format("woff2"),
+		 url("PlayfairDisplay-MediumItalic.woff") format("woff"),
+		 url("PlayfairDisplay-MediumItalic.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: italic;
+	font-weight: 600;
+	src: url("PlayfairDisplay-SemiBoldItalic.woff2") format("woff2"),
+		 url("PlayfairDisplay-SemiBoldItalic.woff") format("woff"),
+		 url("PlayfairDisplay-SemiBoldItalic.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: italic;
+	font-weight: 700;
+	src: url("PlayfairDisplay-BoldItalic.woff2") format("woff2"),
+		 url("PlayfairDisplay-BoldItalic.woff") format("woff"),
+		 url("PlayfairDisplay-BoldItalic.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: italic;
+	font-weight: 800;
+	src: url("PlayfairDisplay-ExtraBoldItalic.woff2") format("woff2"),
+		 url("PlayfairDisplay-ExtraBoldItalic.woff") format("woff"),
+		 url("PlayfairDisplay-ExtraBoldItalic.ttf") format("truetype");
+}
+@font-face {
+	font-family: "PlayfairDisplay";
+	font-style: italic;
+	font-weight: 900;
+	src: url("PlayfairDisplay-BlackItalic.woff2") format("woff2"),
+		 url("PlayfairDisplay-BlackItalic.woff") format("woff"),
+		 url("PlayfairDisplay-BlackItalic.ttf") format("truetype");
+}

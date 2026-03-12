@@ -9,6 +9,7 @@
 		"development"
 	],
 	"scripts": {
+		"eslint": "eslint",
 		"turbo": "turbo"
 	},
 	"packageManager": "pnpm@10.30.3",
