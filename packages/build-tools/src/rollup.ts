@@ -8,5 +8,6 @@ export { default as commonjs } from "@rollup/plugin-commonjs";
 export * from "@rollup/plugin-node-resolve";
 export { default as nodeResolve } from "@rollup/plugin-node-resolve";
 export { importMetaAssets } from "@web/rollup-plugin-import-meta-assets";
+export { default as replace } from "@rollup/plugin-replace";
 export { bundleStats } from "rollup-plugin-bundle-stats";
 export { default as progress } from "rollup-plugin-progress";

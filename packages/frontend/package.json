@@ -8,7 +8,7 @@
 		"build": "next build --webpack",
 		"dev": "next dev",
 		"turbo:build": "cross-env pnpm run build",
-		"turbo:develop:dev": "cross-env pnpm run dev"
+		"turbo:develop:dev": "cross-env PORT=${APP_DEV_FRONTEND_PORT} pnpm run dev"
 	},
 	"packageManager": "pnpm@10.30.3",
 	"dependencies": {

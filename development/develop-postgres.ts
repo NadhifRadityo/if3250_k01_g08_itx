@@ -9,10 +9,12 @@ const cli = new Command()
 	.name("run-postgres")
 	.description("Initialize and start a local PostgreSQL instance for development")
 	.addOption(new Option("--pg-bin <path>", "Path to the PostgreSQL bin directory (containing initdb and postgres executables)"))
+	.addOption(new Option("--port <port>", "Port for the PostgreSQL server to listen on").default("5432").argParser(v => parseInt(v)))
 	.addOption(new Option("--init-only", "Only initialize the data directory, don't start the server").default(false))
 	.parse();
 const opts = cli.opts<{
 	pgBin?: string;
+	port: number;
 	initOnly: boolean;
 }>();
 
@@ -48,5 +50,6 @@ if(opts.initOnly) {
 	process.exit(0);
 }
 console.log(`Starting PostgreSQL server with data directory: ${dataDirectory}`);
+console.log(`Listening on port: ${opts.port}`);
 console.log("Press Ctrl+C to stop the server.\n");
-await $`${postgresPath} -D ${dataDirectory}`;
+await $`${postgresPath} -D ${dataDirectory} -p ${opts.port}`;

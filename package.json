@@ -10,10 +10,12 @@
 	],
 	"scripts": {
 		"eslint": "eslint",
-		"turbo": "turbo"
+		"turbo": "turbo",
+		"dev": "dotenvx run --convention nextjs -- pnpm run turbo turbo:develop"
 	},
 	"packageManager": "pnpm@10.30.3",
 	"devDependencies": {
+		"@dotenvx/dotenvx": "^1.52.0",
 		"@eslint/compat": "^2.0.2",
 		"@eslint/js": "^10.0.1",
 		"@stylistic/eslint-plugin": "^5.9.0",

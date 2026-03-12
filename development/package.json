@@ -6,7 +6,7 @@
 	"type": "module",
 	"scripts": {
 		"develop:postgres": "tsx ./develop-postgres.ts",
-		"turbo:develop:postgres": "cross-env pnpm run develop:postgres"
+		"turbo:develop:postgres": "cross-env pnpm run develop:postgres --pg-bin ${APP_DEV_POSTGRES_BIN} --port ${APP_DEV_POSTGRES_PORT}"
 	},
 	"packageManager": "pnpm@10.30.3",
 	"devDependencies": {

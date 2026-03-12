@@ -2,6 +2,14 @@
 	"$schema": "https://turborepo.dev/schema.json",
 	"extends": ["//"],
 	"tasks": {
+		"turbo:build": {
+			"env": [
+				"BACKEND_*"
+			],
+			"outputs": [
+				"dist/**"
+			]
+		},
 		"turbo:develop": {
 			"with": [
 				"turbo:develop:build",

@@ -13,7 +13,7 @@
 		"turbo:build": "cross-env pnpm run build",
 		"turbo:start": "cross-env pnpm run start",
 		"turbo:develop:build": "cross-env pnpm run develop:build",
-		"turbo:develop:start": "cross-env pnpm run develop:start",
+		"turbo:develop:start": "cross-env PORT=${APP_DEV_BACKEND_PORT} pnpm run develop:start",
 		"turbo:clean": "cross-env pnpm run clean",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
