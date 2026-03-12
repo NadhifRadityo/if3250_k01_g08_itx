@@ -3,4 +3,5 @@
 **/.env.local
 **/.env.*.local
 **/.turbo/
+**/.next/
 **/dist/

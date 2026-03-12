@@ -13,6 +13,7 @@ RUN npm install -g corepack
 COPY --from=prepare /app/out/json/ .
 RUN corepack prepare && pnpm install
 COPY --from=prepare /app/out/full/ .
+COPY --from=prepare /app/tsconfig.json ./tsconfig.json
 RUN pnpm run turbo turbo:build
 
 FROM base AS runner
