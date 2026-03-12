@@ -1,6 +1,6 @@
 import path from "path";
 import { Command } from "@if3250_k01_g08_itx/build-tools/commander";
-import { swc, json, watch, commonjs, progress, bundleStats, nodeResolve, importMetaAssets } from "@if3250_k01_g08_itx/build-tools/rollup";
+import { swc, json, watch, replace, commonjs, progress, bundleStats, nodeResolve, importMetaAssets } from "@if3250_k01_g08_itx/build-tools/rollup";
 
 const cli = new Command()
 	.parse();
@@ -21,6 +21,11 @@ const watcher = watch({
 			preferBuiltins: true
 		}),
 		importMetaAssets(),
+		replace({
+			preventAssignment: true,
+			values: Object.fromEntries(Object.entries(process.env).filter(([k]) => k.startsWith("BACKEND_"))
+				.map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)] as const))
+		}),
 		progress(),
 		bundleStats()
 	],
