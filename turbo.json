@@ -3,10 +3,11 @@
 	"ui": "tui",
 	"tasks": {
 		"turbo:build": {},
-		"turbo:clean": {},
+		"turbo:start": {},
 		"turbo:develop": {
 			"cache": false,
 			"persistent": true
-		}
+		},
+		"turbo:clean": {}
 	}
 }

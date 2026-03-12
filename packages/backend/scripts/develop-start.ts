@@ -8,7 +8,8 @@ const cli = new Command()
 	.parse();
 const cliOptions = cli.opts<object>();
 
-const bundleDir = path.join(import.meta.dirname, "../dist/development/bundle");
+const baseDirectory = path.join(import.meta.dirname, "..");
+const bundleDir = path.join(baseDirectory, "dist/development/bundle");
 const entryFile = path.join(bundleDir, "index.mjs");
 if(!fs0.existsSync(bundleDir))
 	await fs.mkdir(bundleDir, { recursive: true });
