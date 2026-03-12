@@ -3,6 +3,8 @@ import { serve, HttpBindings } from "@hono/node-server";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 
+import { route as routeEmployeeUsers } from "./routes/employee-users";
+
 dotevnx.config({ convention: "nextjs" });
 
 const app = new Hono<{ Bindings: HttpBindings }>();
@@ -10,6 +12,7 @@ const PORT = parseInt(process.env.PORT ?? "3000");
 
 app.use("*", logger());
 app.get("/health", c => c.json({ status: "ok", timestamp: new Date().toISOString() }));
+app.route("/employee-users", routeEmployeeUsers);
 
 const server = serve({
 	fetch: app.fetch,

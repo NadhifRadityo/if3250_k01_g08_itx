@@ -23,7 +23,7 @@ const compilation = await rollup({
 		importMetaAssets(),
 		replace({
 			preventAssignment: true,
-			values: Object.fromEntries(Object.entries(process.env)
+			values: Object.fromEntries(Object.entries(process.env).filter(([k]) => k.startsWith("BACKEND_"))
 				.map(([k, v]) => [`import.meta.env.${k}`, JSON.stringify(v)] as const))
 		}),
 		progress(),
