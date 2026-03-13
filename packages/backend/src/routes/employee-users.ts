@@ -64,7 +64,7 @@ route.post(
 				data: { ipAddress, userAgent, identity, reason: "max_attempt_reached", attempts: failedAttempts, maxAttempts: loginMaxAttempts }
 			});
 			return c.json({
-				error: "max attempt reached, contact admin",
+				error: "Login failed. Already reached maximum attempts, account is locked. Contact admin.",
 				attempts: { tried: failedAttempts, max: loginMaxAttempts }
 			}, 423);
 		}
@@ -79,11 +79,11 @@ route.post(
 			});
 			if(nextFailedAttempts >= loginMaxAttempts)
 				return c.json({
-					error: "max attempt reached, contact admin",
+					error: `Login failed. Already reached ${nextFailedAttempts} from ${loginMaxAttempts} attempts, account is locked. Contact admin.`,
 					attempts: { tried: nextFailedAttempts, max: loginMaxAttempts }
 				}, 423);
 			return c.json({
-				error: `login failed, has been trying ${nextFailedAttempts} of ${loginMaxAttempts} attempts`,
+				error: `Login failed ${nextFailedAttempts} attempts`,
 				attempts: { tried: nextFailedAttempts, max: loginMaxAttempts }
 			}, 401);
 		}
@@ -99,7 +99,7 @@ route.post(
 				event: "auth:login_attempt",
 				data: { ipAddress, userAgent, identity, reason: "session_exists", existingSessionId: existingSession.id }
 			});
-			return c.json({ error: "already logged in" }, 409);
+			return c.json({ error: "Already login, please contact your administrator" }, 409);
 		}
 		const now = new Date();
 		const [session] = await db

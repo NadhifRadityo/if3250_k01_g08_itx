@@ -5,6 +5,29 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { login } from "./page.actions";
 
+const labelClassName = "text-sm font-medium text-gray-700";
+const inputClassName = "w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3A8FC1]/40 focus:border-[#3A8FC1] transition";
+
+function Field({
+	label,
+	children,
+	action
+}: {
+	label: string;
+	children: React.ReactNode;
+	action?: React.ReactNode;
+}) {
+	return (
+		<div className="flex flex-col gap-1.5">
+			<div className="flex justify-between items-center">
+				<label className={labelClassName}>{label}</label>
+				{action}
+			</div>
+			{children}
+		</div>
+	);
+}
+
 export default function LoginPage() {
 	const router = useRouter();
 	const [showPassword, setShowPassword] = useState(false);
@@ -32,8 +55,13 @@ export default function LoginPage() {
 		}
 	}
 
+	async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		await handleLogin();
+	}
+
 	return (
-		<div className="flex flex-row h-screen w-full">
+		<div className="login-page flex flex-row h-screen w-full">
 			<div className="hidden md:block md:basis-[48%] lg:basis-[62%] shrink-0 relative overflow-hidden">
 				<img
 					src="/images/Login_bg.png"
@@ -55,39 +83,34 @@ export default function LoginPage() {
 						Masuk ke Akun
 					</h1>
 
-					<div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col gap-5">
-						<div className="flex flex-col gap-1.5">
-							<label className="text-sm font-medium text-gray-700">
-								Email
-							</label>
+					<form className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 flex flex-col gap-5" onSubmit={handleSubmit}>
+						<Field label="Email">
 							<input
 								type="email"
 								placeholder="Masukkan email anda"
 								value={email}
 								onChange={e => setEmail(e.target.value)}
-								className="w-full px-3 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3A8FC1]/40 focus:border-[#3A8FC1] transition"
+								className={inputClassName}
+								autoComplete="email"
 							/>
-						</div>
+						</Field>
 
-						<div className="flex flex-col gap-1.5">
-							<div className="flex justify-between items-center">
-								<label className="text-sm font-medium text-gray-700">
-									Password
-								</label>
-								<a
-									href="#"
-									className="text-sm text-[#3A8FC1] hover:underline"
-								>
+						<Field
+							label="Password"
+							action={(
+								<a href="#" className="text-sm text-[#3A8FC1] hover:underline">
 									Forgot password?
 								</a>
-							</div>
+							)}
+						>
 							<div className="relative">
 								<input
 									type={showPassword ? "text" : "password"}
 									placeholder="Masukkan kata sandi anda"
 									value={password}
 									onChange={e => setPassword(e.target.value)}
-									className="w-full px-3 py-2.5 pr-10 rounded-lg border border-gray-300 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3A8FC1]/40 focus:border-[#3A8FC1] transition"
+									className={`${inputClassName} pr-10`}
+									autoComplete="current-password"
 								/>
 								<button
 									type="button"
@@ -98,7 +121,7 @@ export default function LoginPage() {
 									{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
 								</button>
 							</div>
-						</div>
+						</Field>
 
 						{errorMessage != null && (
 							<p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -107,23 +130,34 @@ export default function LoginPage() {
 						)}
 
 						<button
-							type="button"
+							type="submit"
 							className="w-full py-2.5 rounded-lg bg-[#3A8FC1] hover:bg-[#2d7aaa] active:bg-[#256690] disabled:bg-[#7ab4d3] text-white text-sm font-semibold transition-colors duration-150"
-							onClick={handleLogin}
 							disabled={isSubmitting}
 						>
 							{isSubmitting ? "Loading..." : "Masuk"}
 						</button>
-					</div>
+					</form>
 
 					<p className="text-sm text-center text-gray-600">
 						Belum Punya Akun?{" "}
 						<a href="#" className="text-[#3A8FC1] font-medium hover:underline">
 							Buat Sekarang.
 						</a>
-					</p> 
+					</p>
 				</div>
 			</div>
+
+			<style jsx>{`
+				.login-page :is(input, textarea)::selection {
+					background: rgba(58, 143, 193, 0.35);
+					color: #111827;
+				}
+
+				.login-page :is(input, textarea)::-moz-selection {
+					background: rgba(58, 143, 193, 0.35);
+					color: #111827;
+				}
+			`}</style>
 		</div>
 	);
 }
