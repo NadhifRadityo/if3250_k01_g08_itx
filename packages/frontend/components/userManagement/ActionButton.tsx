@@ -51,14 +51,13 @@ export default function ActionButton({
 	type = "button",
 	...props
 }: ActionButtonProps) {
-	const resolvedVariant = variant ?? "filter";
-	const icon = iconByVariant[resolvedVariant];
-	const content = children ?? labelByVariant[resolvedVariant];
+	const icon = iconByVariant[variant];
+	const content = children ?? labelByVariant[variant];
 
 	return (
 		<button
 			type={type}
-			className={cn(actionButtonVariants({ variant: resolvedVariant }), className)}
+			className={cn(actionButtonVariants({ variant }), className)}
 			{...props}
 		>
 			{icon}

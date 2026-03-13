@@ -19,6 +19,7 @@ type UserDirectoryRowProps = {
 	hovered?: boolean;
 	tone?: "dark" | "light";
 	showMore?: boolean;
+	onToggleSelected?: () => void;
 };
 
 const roleLabel: Record<UserRole, string> = {
@@ -63,16 +64,17 @@ export default function UserDirectoryRow({
 	selected = false,
 	hovered = false,
 	tone = "dark",
-	showMore = true
+	showMore = true,
+	onToggleSelected
 }: UserDirectoryRowProps) {
 	const darkTone = tone == "dark";
 	const rowClassName = darkTone
 		? (hovered
 			? "border-[#D4DBE3] bg-[#D5DCE4] text-[#1E293B]"
-			: "border-b border-[#7E8A99] bg-transparent text-[#DDE3EA]")
+			: "border-b border-[#7E8A99] bg-transparent text-[#DDE3EA] transition-colors hover:bg-[#2A2F37]")
 		: (hovered
 			? "border-b border-[#D2DBE5] bg-[#E2EAF3] text-[#1F2A39]"
-			: "border-b border-[#D2DBE5] bg-[#ECF1F7] text-[#1F2A39]");
+			: "border-b border-[#D2DBE5] bg-[#FFFFFF] text-[#1F2A39] transition-colors hover:bg-[#DEE8F2]");
 	const checkboxClassName = selected
 		? "border-[#3A8FC1] bg-[#3A8FC1]"
 		: (darkTone
@@ -91,7 +93,7 @@ export default function UserDirectoryRow({
 	const timeClassName = darkTone ? (hovered ? "text-[#7B8694]" : "text-[#7D8796]") : "text-[#748296]";
 	const iconClassName = darkTone
 		? "inline-flex size-6 items-center justify-center rounded text-[#6B7280] transition-colors hover:bg-black/6 hover:text-[#374151] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A8FC1]/35"
-		: "inline-flex size-6 items-center justify-center rounded text-[#6B7482] transition-colors hover:bg-[#D3DCE7] hover:text-[#374151] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A8FC1]/35";
+		: "inline-flex size-6 items-center justify-center rounded text-[#6B7482] transition-all duration-150 hover:bg-[#C2CFDD] hover:text-[#243447] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A8FC1]/35";
 
 	return (
 		<div
@@ -100,7 +102,19 @@ export default function UserDirectoryRow({
 				rowClassName
 			)}
 		>
-			<div className={cn("size-3.5 rounded-[3px] border", checkboxClassName)} />
+			{onToggleSelected != null ? (
+				<button
+					type="button"
+					onClick={onToggleSelected}
+					aria-label={selected ? `Unselect ${name}` : `Select ${name}`}
+					className={cn(
+						"size-3.5 rounded-[3px] border transition-all duration-150 hover:scale-105 hover:border-[#3A8FC1] hover:bg-[#D8EBF8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A8FC1]/35",
+						checkboxClassName
+					)}
+				/>
+			) : (
+				<div className={cn("size-3.5 rounded-[3px] border", checkboxClassName)} />
+			)}
 
 			<div className="flex items-center gap-2.5">
 				<div className={cn("inline-flex size-8 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold uppercase", avatarClassName)}>
