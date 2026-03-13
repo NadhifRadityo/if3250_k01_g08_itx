@@ -1,13 +1,36 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import { login } from "./page.actions";
 
 export default function LoginPage() {
+	const router = useRouter();
 	const [showPassword, setShowPassword] = useState(false);
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [errorMessage, setErrorMessage] = useState<string | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	async function handleLogin() {
+		if(isSubmitting)
+			return;
+		setErrorMessage(null);
+		setIsSubmitting(true);
+		try {
+			const result = await login(email.trim(), password);
+			if(result.success) {
+				router.push("/");
+				return;
+			}
+			setErrorMessage(result.error);
+		} catch {
+			setErrorMessage("Login failed. Please try again.");
+		} finally {
+			setIsSubmitting(false);
+		}
+	}
 
 	return (
 		<div className="flex flex-row h-screen w-full">
@@ -77,12 +100,19 @@ export default function LoginPage() {
 							</div>
 						</div>
 
+						{errorMessage != null && (
+							<p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+								{errorMessage}
+							</p>
+						)}
+
 						<button
 							type="button"
-							className="w-full py-2.5 rounded-lg bg-[#3A8FC1] hover:bg-[#2d7aaa] active:bg-[#256690] text-white text-sm font-semibold transition-colors duration-150"
-							onClick={() => login(email, password)}
+							className="w-full py-2.5 rounded-lg bg-[#3A8FC1] hover:bg-[#2d7aaa] active:bg-[#256690] disabled:bg-[#7ab4d3] text-white text-sm font-semibold transition-colors duration-150"
+							onClick={handleLogin}
+							disabled={isSubmitting}
 						>
-							Masuk
+							{isSubmitting ? "Loading..." : "Masuk"}
 						</button>
 					</div>
 
