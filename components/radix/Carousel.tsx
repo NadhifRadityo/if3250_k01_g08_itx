@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
 /* eslint-disable no-restricted-syntax */
+/* eslint-disable @typescript-eslint/strict-boolean-expressions */
 "use client";
 
 import * as React from "react";
@@ -197,7 +197,7 @@ function CarouselPrevious({
 			onClick={scrollPrev}
 			{...props}
 		>
-			<ChevronLeftIcon />
+			<ChevronLeftIcon className="cn-rtl-flip" />
 			<span className="sr-only">Previous slide</span>
 		</Button>
 	);
@@ -227,7 +227,7 @@ function CarouselNext({
 			onClick={scrollNext}
 			{...props}
 		>
-			<ChevronRightIcon />
+			<ChevronRightIcon className="cn-rtl-flip" />
 			<span className="sr-only">Next slide</span>
 		</Button>
 	);

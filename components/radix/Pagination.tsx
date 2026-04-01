@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
-
 import * as React from "react";
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
 
@@ -29,7 +28,7 @@ function PaginationContent({
 	return (
 		<ul
 			data-slot="pagination-content"
-			className={cn("gap-1 flex items-center", className)}
+			className={cn("gap-0.5 flex items-center", className)}
 			{...props}
 		/>
 	);
@@ -69,18 +68,19 @@ function PaginationLink({
 
 function PaginationPrevious({
 	className,
+	text = "Previous",
 	...props
-}: React.ComponentProps<typeof PaginationLink>) {
+}: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
 	return (
 		<PaginationLink
 			aria-label="Go to previous page"
 			size="default"
-			className={cn("pl-2!", className)}
+			className={cn("pl-1.5!", className)}
 			{...props}
 		>
-			<ChevronLeftIcon data-icon="inline-start" />
+			<ChevronLeftIcon data-icon="inline-start" className="cn-rtl-flip" />
 			<span className="cn-pagination-previous-text hidden sm:block">
-				Previous
+				{text}
 			</span>
 		</PaginationLink>
 	);
@@ -88,17 +88,18 @@ function PaginationPrevious({
 
 function PaginationNext({
 	className,
+	text = "Next",
 	...props
-}: React.ComponentProps<typeof PaginationLink>) {
+}: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
 	return (
 		<PaginationLink
 			aria-label="Go to next page"
 			size="default"
-			className={cn("pr-2!", className)}
+			className={cn("pr-1.5!", className)}
 			{...props}
 		>
-			<span className="cn-pagination-next-text hidden sm:block">Next</span>
-			<ChevronRightIcon data-icon="inline-end" />
+			<span className="cn-pagination-next-text hidden sm:block">{text}</span>
+			<ChevronRightIcon data-icon="inline-end" className="cn-rtl-flip" />
 		</PaginationLink>
 	);
 }
@@ -112,7 +113,7 @@ function PaginationEllipsis({
 			aria-hidden
 			data-slot="pagination-ellipsis"
 			className={cn(
-				"size-9 items-center justify-center [&_svg:not([class*='size-'])]:size-4 flex items-center justify-center",
+				"size-8 items-center justify-center [&_svg:not([class*='size-'])]:size-4 flex items-center justify-center",
 				className
 			)}
 			{...props}

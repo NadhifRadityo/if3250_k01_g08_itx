@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
-
 import * as React from "react";
 import { Slot } from "radix-ui";
 import { ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
@@ -22,7 +21,7 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
 		<ol
 			data-slot="breadcrumb-list"
 			className={cn(
-				"text-muted-foreground gap-1.5 text-sm sm:gap-2.5 flex flex-wrap items-center break-words",
+				"text-muted-foreground gap-1.5 text-sm flex flex-wrap items-center wrap-break-word",
 				className
 			)}
 			{...props}
@@ -34,7 +33,7 @@ function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
 	return (
 		<li
 			data-slot="breadcrumb-item"
-			className={cn("gap-1.5 inline-flex items-center", className)}
+			className={cn("gap-1 inline-flex items-center", className)}
 			{...props}
 		/>
 	);
@@ -85,7 +84,7 @@ function BreadcrumbSeparator({
 			{...props}
 		>
 			{children ?? (
-				<ChevronRightIcon />
+				<ChevronRightIcon className="cn-rtl-flip" />
 			)}
 		</li>
 	);

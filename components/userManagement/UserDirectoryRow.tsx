@@ -1,5 +1,5 @@
 import * as React from "react";
-import { EyeIcon, EllipsisVerticalIcon, PencilIcon } from "lucide-react";
+import { EyeIcon, PencilIcon, EllipsisVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 
@@ -41,7 +41,7 @@ const statusClassName: Record<UserStatus, string> = {
 	rejected: "border-[#E8A8A8] bg-[#FFDCDC] text-[#A02020]"
 };
 
-function IconButton({ children, className }: { children: React.ReactNode; className?: string; }) {
+function IconButton({ children, className }: { children: React.ReactNode, className?: string }) {
 	return (
 		<button
 			type="button"
@@ -68,32 +68,32 @@ export default function UserDirectoryRow({
 	onToggleSelected
 }: UserDirectoryRowProps) {
 	const darkTone = tone == "dark";
-	const rowClassName = darkTone
-		? (hovered
-			? "border-[#D4DBE3] bg-[#D5DCE4] text-[#1E293B]"
-			: "border-b border-[#7E8A99] bg-transparent text-[#DDE3EA] transition-colors hover:bg-[#2A2F37]")
-		: (hovered
-			? "border-b border-[#D2DBE5] bg-[#E2EAF3] text-[#1F2A39]"
-			: "border-b border-[#D2DBE5] bg-[#FFFFFF] text-[#1F2A39] transition-colors hover:bg-[#DEE8F2]");
-	const checkboxClassName = selected
-		? "border-[#3A8FC1] bg-[#3A8FC1]"
-		: (darkTone
-			? (hovered ? "border-[#8D99A8] bg-transparent" : "border-[#E5E7EB] bg-[#F3F4F6]")
-			: "border-[#9AA7B8] bg-transparent");
-	const avatarClassName = darkTone
-		? (hovered ? "border-[#C6D7E5] bg-[#CAE7F6] text-[#3B86B8]" : "border-[#D6DCE5] bg-[#E5EBF2] text-[#3B86B8]")
-		: "border-[#C8D9E8] bg-[#D8ECF8] text-[#3B86B8]";
+	const rowClassName = darkTone ?
+		(hovered ?
+			"border-[#D4DBE3] bg-[#D5DCE4] text-[#1E293B]" :
+			"border-b border-[#7E8A99] bg-transparent text-[#DDE3EA] transition-colors hover:bg-[#2A2F37]") :
+		(hovered ?
+			"border-b border-[#D2DBE5] bg-[#E2EAF3] text-[#1F2A39]" :
+			"border-b border-[#D2DBE5] bg-[#FFFFFF] text-[#1F2A39] transition-colors hover:bg-[#DEE8F2]");
+	const checkboxClassName = selected ?
+		"border-[#3A8FC1] bg-[#3A8FC1]" :
+		(darkTone ?
+			(hovered ? "border-[#8D99A8] bg-transparent" : "border-[#E5E7EB] bg-[#F3F4F6]") :
+			"border-[#9AA7B8] bg-transparent");
+	const avatarClassName = darkTone ?
+		(hovered ? "border-[#C6D7E5] bg-[#CAE7F6] text-[#3B86B8]" : "border-[#D6DCE5] bg-[#E5EBF2] text-[#3B86B8]") :
+		"border-[#C8D9E8] bg-[#D8ECF8] text-[#3B86B8]";
 	const nameClassName = darkTone ? (hovered ? "text-[#27384B]" : "text-[#DDE5F0]") : "text-[#1D2A3A]";
 	const secondaryClassName = darkTone ? (hovered ? "text-[#7B8694]" : "text-[#7D8796]") : "text-[#748296]";
 	const idClassName = darkTone ? (hovered ? "text-[#7B8694]" : "text-[#6E7A8A]") : "text-[#7B8798]";
-	const roleClassName = darkTone
-		? (hovered ? "border-[#BFD2E2] bg-[#DCEFFC] text-[#3F8EBF]" : "border-[#C9D2DB] bg-[#E9EDF2] text-[#3F8EBF]")
-		: "border-[#BFD2E2] bg-[#DCEFFC] text-[#3F8EBF]";
+	const roleClassName = darkTone ?
+		(hovered ? "border-[#BFD2E2] bg-[#DCEFFC] text-[#3F8EBF]" : "border-[#C9D2DB] bg-[#E9EDF2] text-[#3F8EBF]") :
+		"border-[#BFD2E2] bg-[#DCEFFC] text-[#3F8EBF]";
 	const dateClassName = darkTone ? (hovered ? "text-[#344154]" : "text-[#D4DEE9]") : "text-[#334255]";
 	const timeClassName = darkTone ? (hovered ? "text-[#7B8694]" : "text-[#7D8796]") : "text-[#748296]";
-	const iconClassName = darkTone
-		? "inline-flex size-6 items-center justify-center rounded text-[#6B7280] transition-colors hover:bg-black/6 hover:text-[#374151] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A8FC1]/35"
-		: "inline-flex size-6 items-center justify-center rounded text-[#6B7482] transition-all duration-150 hover:bg-[#C2CFDD] hover:text-[#243447] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A8FC1]/35";
+	const iconClassName = darkTone ?
+		"inline-flex size-6 items-center justify-center rounded text-[#6B7280] transition-colors hover:bg-black/6 hover:text-[#374151] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A8FC1]/35" :
+		"inline-flex size-6 items-center justify-center rounded text-[#6B7482] transition-all duration-150 hover:bg-[#C2CFDD] hover:text-[#243447] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3A8FC1]/35";
 
 	return (
 		<div

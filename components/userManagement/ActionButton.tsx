@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon, SendIcon, SlidersHorizontalIcon } from "lucide-react";
+import { PlusIcon, SendIcon, ChevronLeftIcon, ChevronRightIcon, SlidersHorizontalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 

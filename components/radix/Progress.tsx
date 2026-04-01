@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
-
 "use client";
 
 import * as React from "react";
@@ -16,7 +15,7 @@ function Progress({
 		<ProgressPrimitive.Root
 			data-slot="progress"
 			className={cn(
-				"bg-muted h-1.5 rounded-full relative flex w-full items-center overflow-x-hidden",
+				"bg-muted h-1 rounded-full relative flex w-full items-center overflow-x-hidden",
 				className
 			)}
 			{...props}
