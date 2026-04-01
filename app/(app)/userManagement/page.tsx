@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDownIcon, InfoIcon, LockIcon, MailIcon, PhoneIcon, SearchIcon, XIcon } from "lucide-react";
+import { XIcon, InfoIcon, LockIcon, MailIcon, PhoneIcon, SearchIcon, ChevronDownIcon } from "lucide-react";
 
+import cn from "@/utils/cn";
 import ActionButton from "@/components/userManagement/ActionButton";
 import RoleBadge from "@/components/userManagement/RoleBadge";
 import TextAction from "@/components/userManagement/TextAction";
 import UserDirectoryRow from "@/components/userManagement/UserDirectoryRow";
-import cn from "@/utils/cn";
 
 const userRows = [
 	{
@@ -76,7 +76,7 @@ function Field({
 	);
 }
 
-function Input({ icon, className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode; }) {
+function Input({ icon, className, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { icon?: React.ReactNode }) {
 	return (
 		<div className="relative">
 			{icon ? <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9BA8B7]">{icon}</span> : null}
@@ -113,9 +113,9 @@ export default function UserManagementPage() {
 
 	const toggleUserSelection = (empId: string) => {
 		setSelectedUserIds(previous => (
-			previous.includes(empId)
-				? previous.filter(id => id != empId)
-				: [...previous, empId]
+			previous.includes(empId) ?
+				previous.filter(id => id != empId) :
+				[...previous, empId]
 		));
 	};
 
@@ -216,90 +216,90 @@ export default function UserManagementPage() {
 
 				<div className="w-full xl:sticky xl:top-5 xl:w-[380px] xl:shrink-0">
 					<aside className="rounded-lg border border-[#C8D2DE] bg-white shadow-[0_12px_24px_rgba(34,55,79,0.08)]">
-					<div className="flex items-start justify-between border-b border-[#E1E6EC] px-4 py-3">
-						<div>
-							<h2 className="text-[21px] font-semibold text-[#1D2E42]">Tambah Pengguna Baru</h2>
-							<p className="mt-0.5 max-w-[260px] text-xs text-[#7E8A99]">Isi formulir. Status akan dimulai Menunggu Persetujuan hingga diverifikasi.</p>
-						</div>
-						<button type="button" className="inline-flex size-7 items-center justify-center rounded text-[#7D8A99] hover:bg-[#EEF3F8]">
-							<XIcon className="size-4" />
-						</button>
-					</div>
-
-					<div className="space-y-4 px-4 py-3">
-						<div className="flex items-center justify-end gap-2">
-							<ActionButton variant="cancel" className="h-7 px-3 text-[9px]" />
-							<ActionButton variant="submit" className="h-7 px-4 text-[9px] shadow-none hover:shadow-none" />
+						<div className="flex items-start justify-between border-b border-[#E1E6EC] px-4 py-3">
+							<div>
+								<h2 className="text-[21px] font-semibold text-[#1D2E42]">Tambah Pengguna Baru</h2>
+								<p className="mt-0.5 max-w-[260px] text-xs text-[#7E8A99]">Isi formulir. Status akan dimulai Menunggu Persetujuan hingga diverifikasi.</p>
+							</div>
+							<button type="button" className="inline-flex size-7 items-center justify-center rounded text-[#7D8A99] hover:bg-[#EEF3F8]">
+								<XIcon className="size-4" />
+							</button>
 						</div>
 
-						<div className="rounded-md border border-[#CFE0EF] bg-[#EDF6FC] p-3 text-[11px] leading-snug text-[#4B6B89]">
-							<p className="flex items-start gap-1.5"><InfoIcon className="mt-0.5 size-3.5 shrink-0" />Sebagai <strong className="font-semibold text-[#2C4C6B]">Pembuat (Maker)</strong>, data yang dikirim akan berstatus <strong className="font-semibold text-[#2C4C6B]">Menunggu Persetujuan</strong> hingga diverifikasi oleh Penyetuju (Checker).</p>
-						</div>
-
-						<form className="space-y-3.5">
-							<div className="grid grid-cols-2 gap-3">
-								<Field label="Username" required>
-									<Input placeholder="cth: budi.w" />
-								</Field>
-								<Field label="ID Karyawan" required>
-									<Input placeholder="cth: EMP-2026" />
-								</Field>
+						<div className="space-y-4 px-4 py-3">
+							<div className="flex items-center justify-end gap-2">
+								<ActionButton variant="cancel" className="h-7 px-3 text-[9px]" />
+								<ActionButton variant="submit" className="h-7 px-4 text-[9px] shadow-none hover:shadow-none" />
 							</div>
 
-							<Field label="Nama Lengkap" required>
-								<Input placeholder="Nama lengkap" />
-							</Field>
-
-							<div className="grid grid-cols-2 gap-3">
-								<Field label="Alamat Email" required>
-									<Input icon={<MailIcon className="size-3.5" />} placeholder="pengguna@perusahaan.com" className="pl-8" />
-								</Field>
-								<Field label="Nomor Telepon">
-									<Input icon={<PhoneIcon className="size-3.5" />} placeholder="0812xxxxxx" className="pl-8" />
-								</Field>
+							<div className="rounded-md border border-[#CFE0EF] bg-[#EDF6FC] p-3 text-[11px] leading-snug text-[#4B6B89]">
+								<p className="flex items-start gap-1.5"><InfoIcon className="mt-0.5 size-3.5 shrink-0" />Sebagai <strong className="font-semibold text-[#2C4C6B]">Pembuat (Maker)</strong>, data yang dikirim akan berstatus <strong className="font-semibold text-[#2C4C6B]">Menunggu Persetujuan</strong> hingga diverifikasi oleh Penyetuju (Checker).</p>
 							</div>
 
-							<div className="h-px bg-[#E2E8EF]" />
+							<form className="space-y-3.5">
+								<div className="grid grid-cols-2 gap-3">
+									<Field label="Username" required>
+										<Input placeholder="cth: budi.w" />
+									</Field>
+									<Field label="ID Karyawan" required>
+										<Input placeholder="cth: EMP-2026" />
+									</Field>
+								</div>
 
-							<div className="grid grid-cols-2 gap-3">
-								<Field label="Grup Pengguna" required>
+								<Field label="Nama Lengkap" required>
+									<Input placeholder="Nama lengkap" />
+								</Field>
+
+								<div className="grid grid-cols-2 gap-3">
+									<Field label="Alamat Email" required>
+										<Input icon={<MailIcon className="size-3.5" />} placeholder="pengguna@perusahaan.com" className="pl-8" />
+									</Field>
+									<Field label="Nomor Telepon">
+										<Input icon={<PhoneIcon className="size-3.5" />} placeholder="0812xxxxxx" className="pl-8" />
+									</Field>
+								</div>
+
+								<div className="h-px bg-[#E2E8EF]" />
+
+								<div className="grid grid-cols-2 gap-3">
+									<Field label="Grup Pengguna" required>
+										<SelectInput defaultValue="" required>
+											<option value="" disabled>Pilih grup</option>
+											<option value="it-support">IT Support</option>
+											<option value="operasional">Operasional</option>
+											<option value="keuangan">Keuangan</option>
+										</SelectInput>
+									</Field>
+									<Field label="Supervisor" required>
+										<SelectInput defaultValue="" required>
+											<option value="" disabled>Pilih supervisor</option>
+											<option value="sri-wahyuni">Sri Wahyuni</option>
+											<option value="andri-setiawan">Andri Setiawan</option>
+											<option value="ratna-kusuma">Ratna Kusuma</option>
+										</SelectInput>
+									</Field>
+								</div>
+
+								<Field label="Maks. Percobaan Login" required>
+									<Input defaultValue="4" />
+								</Field>
+
+								<div className="h-px bg-[#E2E8EF]" />
+
+								<Field label="Kata Sandi Sementara" required>
+									<Input icon={<LockIcon className="size-3.5" />} placeholder="8-12 karakter, huruf besar, simbol" className="pl-8 pr-9" />
+									<p className="mt-1 text-[10px] text-[#8C97A6]">Harus mengandung huruf besar, huruf kecil, angka, dan simbol.</p>
+								</Field>
+
+								<Field label="Aktif" required>
 									<SelectInput defaultValue="" required>
-										<option value="" disabled>Pilih grup</option>
-										<option value="it-support">IT Support</option>
-										<option value="operasional">Operasional</option>
-										<option value="keuangan">Keuangan</option>
+										<option value="" disabled>Pilih</option>
+										<option value="aktif">Aktif</option>
+										<option value="nonaktif">Nonaktif</option>
 									</SelectInput>
 								</Field>
-								<Field label="Supervisor" required>
-									<SelectInput defaultValue="" required>
-										<option value="" disabled>Pilih supervisor</option>
-										<option value="sri-wahyuni">Sri Wahyuni</option>
-										<option value="andri-setiawan">Andri Setiawan</option>
-										<option value="ratna-kusuma">Ratna Kusuma</option>
-									</SelectInput>
-								</Field>
-							</div>
-
-							<Field label="Maks. Percobaan Login" required>
-								<Input defaultValue="4" />
-							</Field>
-
-							<div className="h-px bg-[#E2E8EF]" />
-
-							<Field label="Kata Sandi Sementara" required>
-								<Input icon={<LockIcon className="size-3.5" />} placeholder="8-12 karakter, huruf besar, simbol" className="pl-8 pr-9" />
-								<p className="mt-1 text-[10px] text-[#8C97A6]">Harus mengandung huruf besar, huruf kecil, angka, dan simbol.</p>
-							</Field>
-
-							<Field label="Aktif" required>
-								<SelectInput defaultValue="" required>
-									<option value="" disabled>Pilih</option>
-									<option value="aktif">Aktif</option>
-									<option value="nonaktif">Nonaktif</option>
-								</SelectInput>
-							</Field>
-						</form>
-					</div>
+							</form>
+						</div>
 					</aside>
 				</div>
 			</div>

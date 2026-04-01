@@ -7,6 +7,9 @@ import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
+import { CreditApplicationDefaultFieldMask, CreditApplicationFieldMasks, CreditApplicationImports, CreditApplications } from "./collections/CreditApplicationCollection";
+import { Users } from "./collections/UserCollection";
+import { UserTeams } from "./collections/UserTeamCollection";
 
 export default buildConfig({
 	secret: process.env.PAYLOAD_SECRET,
@@ -18,24 +21,25 @@ export default buildConfig({
 	sharp: sharp,
 	editor: lexicalEditor(),
 	globals: [
+		CreditApplicationDefaultFieldMask()
 	],
 	collections: [
+		Users(),
+		UserTeams(),
+		CreditApplicationImports(),
+		CreditApplications(),
+		CreditApplicationFieldMasks()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),
 		SearchPlugin({
 			collections: [
 				"users",
-				"products",
-				"product-categories",
-				"product-media",
-				"transaction-orders",
-				"transaction-payments",
-				"suggestions",
-				"media"
+				"user-teams",
+				"credit-application-imports",
+				"credit-applications"
 			]
 		}),
-		SearchProducts(),
 		EmptyableRequiredFieldValidationPlugin(),
 		SkipVirtualFieldValidationPlugin(),
 		InternalForceSelectPlugin(),

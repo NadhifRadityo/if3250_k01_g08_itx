@@ -1,9 +1,19 @@
 import "payload";
 import { BoldFeature, LinkFeature, validateUrl, ItalicFeature, ChecklistFeature, ParagraphFeature, SubscriptFeature, UnderlineFeature, InlineCodeFeature, OrderedListFeature, SuperscriptFeature, InlineToolbarFeature, StrikethroughFeature, UnorderedListFeature } from "@payloadcms/richtext-lexical";
-import { Field, Option, Payload, AccessResult, CollectionSlug, PayloadRequest } from "payload";
+import { Field, Option, Payload, CollectionSlug, PayloadRequest } from "payload";
 
 export { validate as isUuidValid } from "uuid";
 
+export const userAdmin = (user?: any): user is { role: "admin" } => user?.role != null && ["admin"].includes(user.role);
+export const userManager = (user?: any): user is { role: "admin" | "manager" } => user?.role != null && ["admin", "manager"].includes(user.role);
+export const userSupervisor = (user?: any): user is { role: "admin" | "manager" | "supervisor" } => user?.role != null && ["admin", "manager", "supervisor"].includes(user.role);
+export const userOfficer = (user?: any): user is (null | { role: "officer" }) => user?.role != null && user.role == "officer";
+export const roleLowerOrEqual = (role?: string | null) =>
+	role == "admin" ? ["admin", "manager", "supervisor", "officer"] :
+		role == "manager" ? ["manager", "supervisor", "officer"] :
+			role == "supervisor" ? ["supervisor", "officer"] :
+				role == "officer" ? ["officer"] :
+					[];
 export const effectiveDoc = (doc?: any, data?: any) => Object.assign({}, doc, data);
 export const shouldRevalidateDoc = (doc: { _status: "draft" | "published" }, previousDoc: { _status: "draft" | "published" }) =>
 	doc._status == "published" || previousDoc._status == "published";

@@ -269,7 +269,7 @@ export default async function withBuildMetadata(nextConfig = {}, { phase }) {
 				const gitignoreFiles = (await runCmd(options.base, "git", gitArgs(options.base, gitRoot, "ls-files", "*.gitignore")))
 					.split("\n").map(l => l.trim()).filter(f => f.length > 0);
 				const gitignoreEntries = (await Promise.all(gitignoreFiles.map(async f =>
-					(await fs.readFile(path.join(options.base, f), "utf-8")).split("\n").map(l => l.trim())
+					(await fs.readFile(path.join(options.base, f), "utf-8").catch(() => "")).split("\n").map(l => l.trim())
 						.filter(l => l.length > 0 && !l.startsWith("#")).map(p => path.posix.join(path.dirname(f), p))
 				))).flat();
 				ignore = mignore();

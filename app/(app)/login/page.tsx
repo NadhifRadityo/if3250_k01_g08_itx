@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+
 import { login } from "./page.actions";
 
 const labelClassName = "text-sm font-medium text-gray-700";
@@ -48,7 +49,7 @@ export default function LoginPage() {
 				return;
 			}
 			setErrorMessage(result.error);
-		} catch {
+		} catch{
 			setErrorMessage("Login failed. Please try again.");
 		} finally {
 			setIsSubmitting(false);
@@ -157,7 +158,8 @@ export default function LoginPage() {
 					background: rgba(58, 143, 193, 0.35);
 					color: #111827;
 				}
-			`}</style>
+			`}
+			</style>
 		</div>
 	);
 }

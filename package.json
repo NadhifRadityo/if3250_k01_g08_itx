@@ -46,6 +46,7 @@
 		"eslint": "^10.1.0",
 		"eslint-plugin-perfectionist": "^5.7.0",
 		"eslint-plugin-unused-imports": "^4.4.1",
+		"globals": "^17.4.0",
 		"ignore": "^7.0.5",
 		"postcss": "^8.5.8",
 		"sass": "^1.98.0",
