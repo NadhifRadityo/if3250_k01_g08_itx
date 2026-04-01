@@ -1,9 +1,5 @@
-packages:
-  - packages/*
-  - development
-
 onlyBuiltDependencies:
-  - '@swc/core'
-  - core-js
+  - '@parcel/watcher'
+  - '@tailwindcss/oxide'
   - esbuild
   - sharp

@@ -1,1 +1,0 @@
-ALTER TYPE "public"."employee_user_audit_log_events" ADD VALUE 'auth:login_attempt' BEFORE 'auth:login';

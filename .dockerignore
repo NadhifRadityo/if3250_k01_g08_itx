@@ -1,7 +1,0 @@
-**/.private/
-**/node_modules/
-**/.env.local
-**/.env.*.local
-**/.turbo/
-**/.next/
-**/dist/
