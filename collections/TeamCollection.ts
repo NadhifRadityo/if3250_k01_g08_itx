@@ -1,7 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { userManager, effectiveDoc } from "./shared";
-
 export const Teams = (): CollectionConfig => ({
 	slug: "teams",
 	labels: {
@@ -18,13 +16,6 @@ export const Teams = (): CollectionConfig => ({
 			},
 			validate: true
 		}
-	},
-	access: {
-		create: ({ req: { user } }) => userManager(user),
-		read: ({ req: { user } }) => userManager(user) ? true : user != null ? { or: [{ supervisor: { equals: user.id } }, { officers: { contains: user.id } }] } : false,
-		readVersions: ({ req: { user } }) => userManager(user),
-		update: ({ req: { user } }) => userManager(user),
-		delete: ({ req: { user } }) => userManager(user)
 	},
 	admin: {
 		useAsTitle: "name",
@@ -61,10 +52,6 @@ export const Teams = (): CollectionConfig => ({
 			required: true,
 			index: true,
 			defaultValue: () => new Date(),
-			access: {
-				// Make field read-only, except internal API
-				update: () => false
-			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
@@ -76,10 +63,6 @@ export const Teams = (): CollectionConfig => ({
 			label: "Created By",
 			type: "relationship",
 			relationTo: "users",
-			access: {
-				// Make field read-only, except internal API
-				update: () => false
-			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
@@ -154,51 +137,23 @@ export const Teams = (): CollectionConfig => ({
 		{
 			name: "reviewedAt",
 			label: "Reviewed At",
-			type: "date",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
-			},
-			admin: {
-				condition: (_, __, { user }) => userManager(user)
-			}
+			type: "date"
 		},
 		{
 			name: "reviewedBy",
 			label: "Reviewed By",
 			type: "relationship",
-			relationTo: "users",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
-			},
-			admin: {
-				condition: (_, __, { user }) => userManager(user)
-			}
+			relationTo: "users"
 		},
 		{
 			name: "reviewApproved",
 			label: "Review Approved",
-			type: "checkbox",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
-			},
-			admin: {
-				condition: (_, __, { user }) => userManager(user)
-			}
+			type: "checkbox"
 		},
 		{
 			name: "reviewComment",
 			label: "Review Comment",
-			type: "richText",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
-			},
-			admin: {
-				condition: (_, __, { user }) => userManager(user)
-			}
+			type: "richText"
 		}
 	]
 });

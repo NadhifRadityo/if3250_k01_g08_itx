@@ -3,8 +3,6 @@ import { SearchPluginConfig } from "@payloadcms/plugin-search/types";
 import { convertLexicalToPlaintext } from "@payloadcms/richtext-lexical/plaintext";
 import { Field, Where, Config, executeAccess, PayloadRequest, SanitizedConfig, CollectionConfig } from "payload";
 
-import { userAdmin } from "./shared";
-
 declare module "payload" {
 	export interface RequestContext {
 		searchPluginSyncedDocsSetMap?: Map<string, Set<string>>;
@@ -187,8 +185,6 @@ export const SearchPlugin = (
 				return searchOverrides?.fields?.({ defaultFields }) ?? defaultFields;
 			},
 			access: {
-				create: ({ req: { user } }) => userAdmin(user),
-				update: ({ req: { user } }) => userAdmin(user),
 				read: async ({ req }) => ({ or:
 					(await Promise.all(enabledCollections.map(async c => {
 						const collectionConfig = req.payload.config.collections.find(cc => cc.slug == c);
@@ -211,8 +207,6 @@ export const SearchPlugin = (
 						return prependFields(access);
 					}).filter(w => w != null)
 				}),
-				delete: ({ req: { user } }) => userAdmin(user),
-				admin: ({ req: { user } }) => userAdmin(user),
 				...searchOverrides?.access
 			},
 			admin: {

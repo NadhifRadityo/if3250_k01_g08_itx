@@ -230,9 +230,6 @@
 		font-synthesis-weight: none;
 		text-rendering: optimizeLegibility;
 	}
-	[data-radix-popper-content-wrapper] {
-		@apply z-49!;
-	}
 
 	@media (pointer: fine) {
 		*::-webkit-scrollbar {

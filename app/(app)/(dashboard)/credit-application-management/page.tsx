@@ -2,7 +2,7 @@ import { Card, CardTitle, CardHeader, CardContent, CardDescription } from "@/com
 
 export default function CreditApplicationManagementPage() {
 	return (
-		<main className="bg-muted/30 min-h-full p-4 md:p-6">
+		<main className="bg-muted/30 p-4 md:p-6">
 			<Card className="max-w-3xl">
 				<CardHeader>
 					<CardTitle>Credit Application Management</CardTitle>

@@ -1,7 +1,5 @@
 import { APIError, GlobalConfig, CollectionConfig } from "payload";
 
-import { userManager, userOfficer, effectiveDoc } from "./shared";
-
 export const CreditApplicationImports = (): CollectionConfig => ({
 	slug: "credit-application-imports",
 	labels: {
@@ -12,13 +10,6 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 	timestamps: true,
 	upload: {
 		staticDir: "uploads/credit-application-imports"
-	},
-	access: {
-		create: ({ req: { user } }) => userManager(user),
-		read: ({ req: { user } }) => userManager(user),
-		// Make field read-only, except internal API
-		update: () => false,
-		delete: ({ req: { user } }) => userManager(user)
 	},
 	admin: {
 		useAsTitle: "filename",
@@ -55,10 +46,6 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 			required: true,
 			index: true,
 			defaultValue: () => new Date(),
-			access: {
-				// Make field read-only, except internal API
-				update: () => false
-			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
@@ -70,10 +57,6 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 			label: "Created By",
 			type: "relationship",
 			relationTo: "users",
-			access: {
-				// Make field read-only, except internal API
-				update: () => false
-			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
@@ -125,51 +108,23 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 		{
 			name: "reviewedAt",
 			label: "Reviewed At",
-			type: "date",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
-			},
-			admin: {
-				condition: (_, __, { user }) => userManager(user)
-			}
+			type: "date"
 		},
 		{
 			name: "reviewedBy",
 			label: "Reviewed By",
 			type: "relationship",
-			relationTo: "users",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
-			},
-			admin: {
-				condition: (_, __, { user }) => userManager(user)
-			}
+			relationTo: "users"
 		},
 		{
 			name: "reviewApproved",
 			label: "Review Approved",
-			type: "checkbox",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
-			},
-			admin: {
-				condition: (_, __, { user }) => userManager(user)
-			}
+			type: "checkbox"
 		},
 		{
 			name: "reviewComment",
 			label: "Review Comment",
-			type: "richText",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
-			},
-			admin: {
-				condition: (_, __, { user }) => userManager(user)
-			}
+			type: "richText"
 		},
 		{
 			name: "creditApplications",
@@ -189,12 +144,6 @@ export const CreditApplications = (): CollectionConfig => ({
 	},
 	trash: true,
 	timestamps: true,
-	access: {
-		create: ({ req: { user } }) => userManager(user),
-		read: ({ req: { user } }) => userOfficer(user),
-		update: ({ req: { user } }) => userManager(user),
-		delete: ({ req: { user } }) => userManager(user)
-	},
 	admin: {
 		useAsTitle: "name",
 		listSearchableFields: ["name", "email", "addresses", "phoneNumbers", "whatsappNumber", "smsNumber", "collateralRegistryName", "collateralName", "collateralDescription", "assetName", "assetDescription", "remarks"],
@@ -230,10 +179,6 @@ export const CreditApplications = (): CollectionConfig => ({
 			required: true,
 			index: true,
 			defaultValue: () => new Date(),
-			access: {
-				// Make field read-only, except internal API
-				update: () => false
-			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
@@ -245,10 +190,6 @@ export const CreditApplications = (): CollectionConfig => ({
 			label: "Created By",
 			type: "relationship",
 			relationTo: "users",
-			access: {
-				// Make field read-only, except internal API
-				update: () => false
-			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
@@ -453,14 +394,6 @@ export const CreditApplicationFieldMasks = (): CollectionConfig => ({
 			validate: true
 		}
 	},
-	access: {
-		create: ({ req: { user } }) => userManager(user),
-		read: ({ req: { user } }) => userManager(user),
-		readVersions: ({ req: { user } }) => userManager(user),
-		update: ({ req: { user } }) => userManager(user),
-		delete: ({ req: { user } }) => userManager(user),
-		admin: ({ req: { user } }) => userManager(user)
-	},
 	hooks: {
 		beforeChange: [
 			({ req, operation, data }) => {
@@ -486,10 +419,6 @@ export const CreditApplicationFieldMasks = (): CollectionConfig => ({
 			required: true,
 			index: true,
 			defaultValue: () => new Date(),
-			access: {
-				// Make field read-only, except internal API
-				update: () => false
-			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
@@ -501,10 +430,6 @@ export const CreditApplicationFieldMasks = (): CollectionConfig => ({
 			label: "Created By",
 			type: "relationship",
 			relationTo: "users",
-			access: {
-				// Make field read-only, except internal API
-				update: () => false
-			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
@@ -639,11 +564,6 @@ export const CreditApplicationDefaultFieldMask = (): GlobalConfig => ({
 			},
 			validate: true
 		}
-	},
-	access: {
-		read: ({ req: { user } }) => userManager(user),
-		readVersions: ({ req: { user } }) => userManager(user),
-		update: ({ req: { user } }) => userManager(user)
 	},
 	hooks: {
 		beforeChange: [
