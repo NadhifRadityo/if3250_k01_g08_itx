@@ -11,6 +11,7 @@ import reactRegex from "@/utils/reactRegex";
 import useReactRegex from "@/utils/useReactRegex";
 import Comment from "@/components/Comment";
 import { Toaster } from "@/components/radix/Sonner";
+import { TooltipProvider } from "@/components/radix/Tooltip";
 
 import favicon16x16 from "./_static/favicons/favicon-16x16.ico";
 import favicon32x32 from "./_static/favicons/favicon-32x32.ico";
@@ -230,10 +231,12 @@ export default async function Root({
 							</Comment>
 						) : null}
 						<ThemeProvider {...theme}>
-							<Entry>
-								{Body.children.map(c => c(Child => (<Child />)))}
-								{withSonner ? (<Toaster />) : null}
-							</Entry>
+							<TooltipProvider>
+								<Entry>
+									{Body.children.map(c => c(Child => (<Child />)))}
+									{withSonner ? (<Toaster />) : null}
+								</Entry>
+							</TooltipProvider>
 						</ThemeProvider>
 					</Body>
 				))}

@@ -1,6 +1,6 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { userAdmin, userManager, effectiveDoc, userSupervisor, roleLowerOrEqual, extractEmailDomain } from "./shared";
+import { userAdmin, userManager, effectiveDoc, userSupervisor, roleLowerOrEqual } from "./shared";
 
 export const Users = (): CollectionConfig => ({
 	slug: "users",
@@ -46,19 +46,19 @@ export const Users = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "email",
-		listSearchableFields: ["email", "name", "role", "reviewComment"],
-		defaultColumns: ["email", "name", "role", "updatedAt", "reviewedBy", "reviewComment"]
+		listSearchableFields: ["email", "name", "role"],
+		defaultColumns: ["email", "name", "role", "updatedAt"]
 	},
 	hooks: {
 		beforeChange: [
 			({ req, operation, data }) => {
 				if(req.user == null) return;
-				if(data.deletedAt)
-					data = { ...data, deletedBy: req.user.id };
+				if(data.deletedAt != null)
+					data = { deletedBy: req.user.id, ...data };
 				if(operation == "create")
-					data = { ...data, createdBy: req.user.id, updatedBy: req.user.id };
+					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
 				if(operation == "update")
-					data = { ...data, updatedBy: req.user.id };
+					data = { updatedBy: req.user.id, ...data };
 				return data;
 			}
 		],
@@ -196,11 +196,12 @@ export const Users = (): CollectionConfig => ({
 			required: true,
 			index: true,
 			defaultValue: "officer",
-			access: {
-				create: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data)),
-				read: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data)),
-				update: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data))
-			},
+			// TODO: Investigate this
+			// access: {
+			// 	create: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data)),
+			// 	read: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data)),
+			// 	update: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data))
+			// },
 			hooks: {
 				beforeChange: [
 					async ({ req, req: { payload, context } }) => {
@@ -370,6 +371,233 @@ export const Users = (): CollectionConfig => ({
 			relationTo: "users"
 		},
 		{
+			name: "stagedUser",
+			label: "Staged User",
+			type: "relationship",
+			relationTo: "staged-users"
+		}
+	]
+});
+
+export const StagedUsers = (): CollectionConfig => ({
+	slug: "staged-users",
+	labels: {
+		singular: "Staged User",
+		plural: "Staged Users"
+	},
+	trash: true,
+	timestamps: true,
+	versions: {
+		maxPerDoc: 0,
+		drafts: {
+			autosave: {
+				showSaveDraftButton: true
+			},
+			validate: true
+		}
+	},
+	access: {
+		// Allow admin users to create/read/update/delete/admin admin/manager/supervisor/officer users
+		// Allow manager users to create/read/update/delete/admin manager/supervisor/officer users (can only delete local users)
+		// Allow supervisor users to read/admin supervisor/officer
+		// Allow officer users to read/update their own
+		create: ({ req: { user } }) =>
+			userManager(user) ?
+				{ role: { in: roleLowerOrEqual(user.role) } } :
+				false,
+		read: ({ req: { user } }) =>
+			userSupervisor(user) ?
+				{ role: { in: roleLowerOrEqual(user.role) } } :
+				user != null ?
+					{ id: { equals: user.id } } :
+					false,
+		update: ({ req: { user } }) =>
+			userManager(user) ?
+				{ role: { in: roleLowerOrEqual(user.role) } } :
+				user != null ?
+					{ id: { equals: user.id } } :
+					false,
+		delete: ({ req: { user } }) =>
+			userManager(user) ?
+				{ role: { in: roleLowerOrEqual(user.role) } } :
+				false,
+		admin: ({ req: { user } }) => userSupervisor(user)
+	},
+	admin: {
+		useAsTitle: "email",
+		listSearchableFields: ["email", "name", "role", "reviewComment"],
+		defaultColumns: ["email", "name", "role", "updatedAt", "reviewedBy", "reviewComment"]
+	},
+	hooks: {
+		beforeChange: [
+			({ req, operation, data }) => {
+				if(req.user == null) return;
+				if(data.deletedAt != null)
+					data = { deletedBy: req.user.id, ...data };
+				if(operation == "create")
+					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
+				if(operation == "update")
+					data = { updatedBy: req.user.id, ...data };
+				return data;
+			}
+		],
+		beforeDelete: [
+			() => {
+				throw new APIError("Cannot hard delete a user", 400, undefined, true);
+			}
+		]
+	},
+	fields: [
+		{
+			name: "createdAt",
+			label: "Created At",
+			type: "date",
+			required: true,
+			index: true,
+			defaultValue: () => new Date(),
+			access: {
+				// Make field read-only, except internal API
+				update: () => false
+			},
+			admin: {
+				hidden: true,
+				disableBulkEdit: true,
+				readOnly: true
+			}
+		},
+		{
+			name: "createdBy",
+			label: "Created By",
+			type: "relationship",
+			relationTo: "users",
+			access: {
+				// Make field read-only, except internal API
+				update: () => false,
+			},
+			admin: {
+				hidden: true,
+				disableBulkEdit: true,
+				readOnly: true
+			},
+		},
+		{
+			name: "updatedAt",
+			label: "Updated At",
+			type: "date",
+			required: true,
+			index: true,
+			defaultValue: () => new Date(),
+			admin: {
+				hidden: true,
+				disableBulkEdit: true
+			}
+		},
+		{
+			name: "updatedBy",
+			label: "updated By",
+			type: "relationship",
+			relationTo: "users",
+			admin: {
+				hidden: true,
+				disableBulkEdit: true
+			}
+		},
+		{
+			name: "deletedAt",
+			label: "Deleted At",
+			type: "date",
+			index: true,
+			access: {
+				// Only allow operation from manager users
+				update: ({ req: { user } }) => userManager(user)
+			},
+			admin: {
+				hidden: true,
+				disableBulkEdit: true
+			},
+			hooks: {
+				beforeChange: [
+					// Prevent admin user self-trash
+					({ previousValue, value, data, originalDoc, req: { user } }) => {
+						const doc = effectiveDoc(originalDoc, data);
+						if(doc.id == user?.id && doc.role == "admin" && previousValue == null && value != null)
+							throw new APIError("Cannot trash admin user by itself", 400, undefined, true);
+					}
+				]
+			}
+		},
+		{
+			name: "deletedBy",
+			label: "deleted By",
+			type: "relationship",
+			relationTo: "users",
+			admin: {
+				hidden: true,
+				disableBulkEdit: true
+			}
+		},
+		{
+			name: "email",
+			label: "Email",
+			type: "email",
+			required: true,
+			index: true,
+			unique: true,
+			admin: {
+				disableBulkEdit: true,
+				readOnly: true
+			}
+		},
+		{
+			name: "role",
+			label: "Role",
+			type: "select",
+			options: [
+				{ value: "admin", label: "Admin" },
+				{ value: "manager", label: "Manager" },
+				{ value: "supervisor", label: "Supervisor" },
+				{ value: "officer", label: "Officer" }
+			],
+			required: true,
+			index: true,
+			defaultValue: "officer",
+			access: {
+				create: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data)),
+				read: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data)),
+				update: ({ data, doc: originalDoc, req: { user } }) => user == null ? false : (doc => doc.role != null ? roleLowerOrEqual(user.role).includes(doc.role) : false)(effectiveDoc(originalDoc, data))
+			}
+		},
+		{
+			name: "initialPassword",
+			label: "Initial Password",
+			type: "text",
+			access: {
+				// Allow create/read/update access if it's user owned or if user is admin
+				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userAdmin(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
+				read: ({ data, doc: originalDoc, req: { user } }) => (doc => userAdmin(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
+				update: ({ data, doc: originalDoc, req: { user } }) => (doc => userAdmin(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data))
+			}
+		},
+		{
+			name: "name",
+			label: "Name",
+			type: "text",
+			required: true
+		},
+		{
+			name: "employeeId",
+			label: "Employee ID",
+			type: "text",
+			required: true,
+			unique: true
+		},
+		{
+			name: "supervisor",
+			label: "Supervisor",
+			type: "relationship",
+			relationTo: "users"
+		},
+		{
 			name: "reviewedAt",
 			label: "Reviewed At",
 			type: "date",
@@ -395,8 +623,8 @@ export const Users = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "reviewAprroved",
-			label: "Review Aprroved",
+			name: "reviewApproved",
+			label: "Review Approved",
 			type: "checkbox",
 			access: {
 				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),

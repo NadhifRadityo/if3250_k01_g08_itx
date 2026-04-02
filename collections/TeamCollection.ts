@@ -1,12 +1,12 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { userAdmin, userManager, effectiveDoc, userSupervisor, roleLowerOrEqual, extractEmailDomain } from "./shared";
+import { userManager, effectiveDoc } from "./shared";
 
-export const UserTeams = (): CollectionConfig => ({
-	slug: "user-teams",
+export const Teams = (): CollectionConfig => ({
+	slug: "teams",
 	labels: {
-		singular: "User Team",
-		plural: "User Teams"
+		singular: "Team",
+		plural: "Teams"
 	},
 	trash: true,
 	timestamps: true,
@@ -21,7 +21,7 @@ export const UserTeams = (): CollectionConfig => ({
 	},
 	access: {
 		create: ({ req: { user } }) => userManager(user),
-		read: ({ req: { user } }) => userManager(user) ? true : { or: [{ supervisor: { equals: user.id } }, { officers: { contains: user.id } }] },
+		read: ({ req: { user } }) => userManager(user) ? true : user != null ? { or: [{ supervisor: { equals: user.id } }, { officers: { contains: user.id } }] } : false,
 		readVersions: ({ req: { user } }) => userManager(user),
 		update: ({ req: { user } }) => userManager(user),
 		delete: ({ req: { user } }) => userManager(user)
@@ -35,18 +35,18 @@ export const UserTeams = (): CollectionConfig => ({
 		beforeChange: [
 			({ req, operation, data }) => {
 				if(req.user == null) return;
-				if(data.deletedAt)
-					data = { ...data, deletedBy: req.user.id };
+				if(data.deletedAt != null)
+					data = { deletedBy: req.user.id, ...data };
 				if(operation == "create")
-					data = { ...data, createdBy: req.user.id, updatedBy: req.user.id };
+					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
 				if(operation == "update")
-					data = { ...data, updatedBy: req.user.id };
+					data = { updatedBy: req.user.id, ...data };
 				return data;
 			}
 		],
 		beforeDelete: [
 			() => {
-				throw new APIError("Cannot hard delete a user team", 400, undefined, true);
+				throw new APIError("Cannot hard delete a team", 400, undefined, true);
 			}
 		]
 	},
@@ -78,13 +78,13 @@ export const UserTeams = (): CollectionConfig => ({
 			relationTo: "users",
 			access: {
 				// Make field read-only, except internal API
-				update: () => false,
+				update: () => false
 			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
 				readOnly: true
-			},
+			}
 		},
 		{
 			name: "updatedAt",
@@ -177,8 +177,8 @@ export const UserTeams = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "reviewAprroved",
-			label: "Review Aprroved",
+			name: "reviewApproved",
+			label: "Review Approved",
 			type: "checkbox",
 			access: {
 				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),

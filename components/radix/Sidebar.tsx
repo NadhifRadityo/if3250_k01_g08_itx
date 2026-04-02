@@ -8,7 +8,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
-import { useIsMobile } from "@/registry/bases/radix/hooks/use-mobile";
+import useIsMobile from "@/utils/useIsMobile";
 
 import { Button } from "./Button";
 import { Input } from "./Input";

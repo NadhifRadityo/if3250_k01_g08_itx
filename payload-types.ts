@@ -68,7 +68,8 @@ export interface Config {
   blocks: {};
   collections: {
     users: User;
-    'user-teams': UserTeam;
+    'staged-users': StagedUser;
+    teams: Team;
     'credit-application-imports': CreditApplicationImport;
     'credit-applications': CreditApplication;
     'credit-application-field-masks': CreditApplicationFieldMask;
@@ -87,7 +88,8 @@ export interface Config {
   };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
-    'user-teams': UserTeamsSelect<false> | UserTeamsSelect<true>;
+    'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
+    teams: TeamsSelect<false> | TeamsSelect<true>;
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
@@ -161,24 +163,7 @@ export interface User {
   name: string;
   employeeId: string;
   supervisor?: (string | null) | User;
-  reviewedAt?: string | null;
-  reviewedBy?: (string | null) | User;
-  reviewAprroved?: boolean | null;
-  reviewComment?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
+  stagedUser?: (string | null) | StagedUser;
   enableAPIKey: boolean;
   apiKey?: string | null;
   apiKeyIndex?: string | null;
@@ -199,9 +184,47 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "user-teams".
+ * via the `definition` "staged-users".
  */
-export interface UserTeam {
+export interface StagedUser {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  email: string;
+  role: 'admin' | 'manager' | 'supervisor' | 'officer';
+  initialPassword?: string | null;
+  name: string;
+  employeeId: string;
+  supervisor?: (string | null) | User;
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "teams".
+ */
+export interface Team {
   id: string;
   createdAt: string;
   createdBy?: (string | null) | User;
@@ -214,7 +237,7 @@ export interface UserTeam {
   officers: (string | User)[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
-  reviewAprroved?: boolean | null;
+  reviewApproved?: boolean | null;
   reviewComment?: {
     root: {
       type: string;
@@ -246,7 +269,7 @@ export interface CreditApplicationImport {
   deletedBy?: (string | null) | User;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
-  reviewAprroved?: boolean | null;
+  reviewApproved?: boolean | null;
   reviewComment?: {
     root: {
       type: string;
@@ -431,8 +454,12 @@ export interface Search {
         value: string | User;
       }
     | {
-        relationTo: 'user-teams';
-        value: string | UserTeam;
+        relationTo: 'staged-users';
+        value: string | StagedUser;
+      }
+    | {
+        relationTo: 'teams';
+        value: string | Team;
       }
     | {
         relationTo: 'credit-application-imports';
@@ -443,7 +470,8 @@ export interface Search {
         value: string | CreditApplication;
       };
   doc_users?: (string | null) | User;
-  'doc_user-teams'?: (string | null) | UserTeam;
+  'doc_staged-users'?: (string | null) | StagedUser;
+  doc_teams?: (string | null) | Team;
   'doc_credit-application-imports'?: (string | null) | CreditApplicationImport;
   'doc_credit-applications'?: (string | null) | CreditApplication;
   content: string;
@@ -580,8 +608,12 @@ export interface PayloadLockedDocument {
         value: string | User;
       } | null)
     | ({
-        relationTo: 'user-teams';
-        value: string | UserTeam;
+        relationTo: 'staged-users';
+        value: string | StagedUser;
+      } | null)
+    | ({
+        relationTo: 'teams';
+        value: string | Team;
       } | null)
     | ({
         relationTo: 'credit-application-imports';
@@ -660,10 +692,7 @@ export interface UsersSelect<T extends boolean = true> {
   name?: T;
   employeeId?: T;
   supervisor?: T;
-  reviewedAt?: T;
-  reviewedBy?: T;
-  reviewAprroved?: T;
-  reviewComment?: T;
+  stagedUser?: T;
   enableAPIKey?: T;
   apiKey?: T;
   apiKeyIndex?: T;
@@ -684,9 +713,32 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "user-teams_select".
+ * via the `definition` "staged-users_select".
  */
-export interface UserTeamsSelect<T extends boolean = true> {
+export interface StagedUsersSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  email?: T;
+  role?: T;
+  initialPassword?: T;
+  name?: T;
+  employeeId?: T;
+  supervisor?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "teams_select".
+ */
+export interface TeamsSelect<T extends boolean = true> {
   createdAt?: T;
   createdBy?: T;
   updatedAt?: T;
@@ -698,7 +750,7 @@ export interface UserTeamsSelect<T extends boolean = true> {
   officers?: T;
   reviewedAt?: T;
   reviewedBy?: T;
-  reviewAprroved?: T;
+  reviewApproved?: T;
   reviewComment?: T;
   _status?: T;
 }
@@ -715,7 +767,7 @@ export interface CreditApplicationImportsSelect<T extends boolean = true> {
   deletedBy?: T;
   reviewedAt?: T;
   reviewedBy?: T;
-  reviewAprroved?: T;
+  reviewApproved?: T;
   reviewComment?: T;
   creditApplications?: T;
   url?: T;
@@ -814,7 +866,8 @@ export interface SearchSelect<T extends boolean = true> {
   priority?: T;
   doc?: T;
   doc_users?: T;
-  'doc_user-teams'?: T;
+  'doc_staged-users'?: T;
+  doc_teams?: T;
   'doc_credit-application-imports'?: T;
   'doc_credit-applications'?: T;
   content?: T;

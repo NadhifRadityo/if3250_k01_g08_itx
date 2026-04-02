@@ -1,5 +1,6 @@
-import { APIError, CollectionConfig, GlobalConfig } from "payload";
-import { effectiveDoc, userManager, userOfficer } from "./shared";
+import { APIError, GlobalConfig, CollectionConfig } from "payload";
+
+import { userManager, userOfficer, effectiveDoc } from "./shared";
 
 export const CreditApplicationImports = (): CollectionConfig => ({
 	slug: "credit-application-imports",
@@ -15,7 +16,8 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 	access: {
 		create: ({ req: { user } }) => userManager(user),
 		read: ({ req: { user } }) => userManager(user),
-		update: ({ req: { user } }) => userManager(user),
+		// Make field read-only, except internal API
+		update: () => false,
 		delete: ({ req: { user } }) => userManager(user)
 	},
 	admin: {
@@ -24,13 +26,10 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 		defaultColumns: ["filename", "filesize", "creditApplications", "updatedAt", "reviewedBy", "reviewComment"]
 	},
 	hooks: {
-		// FIXME: Technically this collection should not be edited. If an entry is invalid, then the whole file must be reuploaded.
-		// Thus creates a new entry instead. Although if it's already approved and imported to credit-applications collection, then 
-		// the entries may be edited independently, regardless the initial imported values.
 		beforeChange: [
 			({ req, operation, data }) => {
 				if(req.user == null) return;
-				if(data.deletedAt)
+				if(data.deletedAt != null)
 					data = { ...data, deletedBy: req.user.id };
 				if(operation == "create")
 					data = { ...data, createdBy: req.user.id, updatedBy: req.user.id };
@@ -41,7 +40,7 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 		],
 		beforeDelete: [
 			() => {
-				throw new APIError("Cannot hard delete a user team", 400, undefined, true);
+				throw new APIError("Cannot hard delete a credit application import", 400, undefined, true);
 			}
 		]
 	},
@@ -73,13 +72,13 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 			relationTo: "users",
 			access: {
 				// Make field read-only, except internal API
-				update: () => false,
+				update: () => false
 			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
 				readOnly: true
-			},
+			}
 		},
 		{
 			name: "updatedAt",
@@ -149,8 +148,8 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "reviewAprroved",
-			label: "Review Aprroved",
+			name: "reviewApproved",
+			label: "Review Approved",
 			type: "checkbox",
 			access: {
 				create: ({ data, doc: originalDoc, req: { user } }) => (doc => userManager(user) || doc.id == user?.id)(effectiveDoc(originalDoc, data)),
@@ -202,23 +201,21 @@ export const CreditApplications = (): CollectionConfig => ({
 		defaultColumns: ["import", "name", "email", "addresses", "phoneNumbers", "whatsappNumber", "smsNumber", "collateralRegistryName", "collateralName", "collateralDescription", "assetName", "assetDescription", "period", "installment", "downPayment", "plafond", "vendor", "remarks"]
 	},
 	hooks: {
-		// FIXME: should this be reviewed too? It's implicitly reviewed when the import file was reviewed, but idk.
-		// It may be useful for when individual entries are edited after their import.
 		beforeChange: [
 			({ req, operation, data }) => {
 				if(req.user == null) return;
-				if(data.deletedAt)
-					data = { ...data, deletedBy: req.user.id };
+				if(data.deletedAt != null)
+					data = { deletedBy: req.user.id, ...data };
 				if(operation == "create")
-					data = { ...data, createdBy: req.user.id, updatedBy: req.user.id };
+					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
 				if(operation == "update")
-					data = { ...data, updatedBy: req.user.id };
+					data = { updatedBy: req.user.id, ...data };
 				return data;
 			}
 		],
 		beforeDelete: [
 			() => {
-				throw new APIError("Cannot hard delete a user team", 400, undefined, true);
+				throw new APIError("Cannot hard delete a credit application", 400, undefined, true);
 			}
 		]
 	},
@@ -250,13 +247,13 @@ export const CreditApplications = (): CollectionConfig => ({
 			relationTo: "users",
 			access: {
 				// Make field read-only, except internal API
-				update: () => false,
+				update: () => false
 			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
 				readOnly: true
-			},
+			}
 		},
 		{
 			name: "updatedAt",
@@ -468,15 +465,15 @@ export const CreditApplicationFieldMasks = (): CollectionConfig => ({
 		beforeChange: [
 			({ req, operation, data }) => {
 				if(req.user == null) return;
-				if(data.deletedAt)
-					data = { ...data, deletedBy: req.user.id };
+				if(data.deletedAt != null)
+					data = { deletedBy: req.user.id, ...data };
 				if(operation == "create")
-					data = { ...data, createdBy: req.user.id, updatedBy: req.user.id };
+					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
 				if(operation == "update")
-					data = { ...data, updatedBy: req.user.id };
+					data = { updatedBy: req.user.id, ...data };
 				return data;
 			}
-		],
+		]
 	},
 	fields: [
 		// timestamps: createdAt
@@ -506,13 +503,13 @@ export const CreditApplicationFieldMasks = (): CollectionConfig => ({
 			relationTo: "users",
 			access: {
 				// Make field read-only, except internal API
-				update: () => false,
+				update: () => false
 			},
 			admin: {
 				hidden: true,
 				disableBulkEdit: true,
 				readOnly: true
-			},
+			}
 		},
 		{
 			name: "updatedAt",
@@ -651,12 +648,12 @@ export const CreditApplicationDefaultFieldMask = (): GlobalConfig => ({
 	hooks: {
 		beforeChange: [
 			({ req, data }) => {
-				data = { ...data, updatedAt: new Date() };
+				data = { updatedAt: new Date(), ...data };
 				if(req.user != null)
-					data = { ...data, updatedBy: req.user.id };
+					data = { updatedBy: req.user.id, ...data };
 				return data;
 			}
-		],
+		]
 	},
 	fields: [
 		// timestamps: updatedAt

@@ -4,7 +4,7 @@ import { EyeIcon, PencilIcon, EllipsisVerticalIcon } from "lucide-react";
 import cn from "@/utils/cn";
 
 type UserStatus = "active" | "pending" | "rejected";
-type UserRole = "administrator" | "officer" | "checker" | "field-agent";
+type UserRole = "admin" | "manager" | "supervisor" | "officer";
 
 type UserDirectoryRowProps = {
 	name: string;
@@ -23,10 +23,10 @@ type UserDirectoryRowProps = {
 };
 
 const roleLabel: Record<UserRole, string> = {
-	administrator: "Administrator",
-	officer: "Officer",
-	checker: "Checker",
-	"field-agent": "Field Agent"
+	admin: "Administrator",
+	manager: "Manager",
+	supervisor: "Supervisor",
+	officer: "Officer"
 };
 
 const statusLabel: Record<UserStatus, string> = {

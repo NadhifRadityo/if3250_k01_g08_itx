@@ -72,13 +72,13 @@
 	--font-sans: var(--font-sans);
 	--font-serif: var(--font-serif);
 	--font-mono: var(--font-mono);
-	--radius-sm: calc(var(--radius) - 4px);
-	--radius-md: calc(var(--radius) - 2px);
+	--radius-sm: calc(var(--radius) * 0.6);
+	--radius-md: calc(var(--radius) * 0.8);
 	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) + 4px);
-	--radius-2xl: calc(var(--radius) + 8px);
-	--radius-3xl: calc(var(--radius) + 12px);
-	--radius-4xl: calc(var(--radius) + 16px);
+	--radius-xl: calc(var(--radius) * 1.4);
+	--radius-2xl: calc(var(--radius) * 1.8);
+	--radius-3xl: calc(var(--radius) * 2.2);
+	--radius-4xl: calc(var(--radius) * 2.6);
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
 	--color-card: var(--card);
@@ -111,6 +111,12 @@
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-ring: var(--sidebar-ring);
+	--color-surface: var(--surface);
+	--color-surface-foreground: var(--surface-foreground);
+	--color-code: var(--code);
+	--color-code-foreground: var(--code-foreground);
+	--color-code-highlight: var(--code-highlight);
+	--color-code-number: var(--code-number);
 	--color-selection: var(--selection);
 	--color-selection-foreground: var(--selection-foreground);
 }
@@ -124,7 +130,7 @@
 		--font-mono: "JetBrainsMono VF", "JetBrainsMono";
 		--radius: 0.625rem;
 
-		:where([data-theme="light"]) {
+		&:where([data-theme="light"]), :where([data-theme="light"]) {
 			--background: oklch(1 0 0);
 			--foreground: oklch(0.145 0 0);
 			--card: oklch(1 0 0);
@@ -157,10 +163,16 @@
 			--sidebar-accent-foreground: oklch(0.205 0 0);
 			--sidebar-border: oklch(0.922 0 0);
 			--sidebar-ring: oklch(0.708 0 0);
+			--surface: oklch(0.98 0 0);
+			--surface-foreground: var(--foreground);
+			--code: var(--surface);
+			--code-foreground: var(--surface-foreground);
+			--code-highlight: oklch(0.96 0 0);
+			--code-number: oklch(0.56 0 0);
 			--selection: color-mix(in oklab, oklch(73.113% 0.14626 248.362) 40%, transparent);
 			--selection-foreground: oklch(0.145 0 0);
 		}
-		:where([data-theme="dark"]) {
+		&:where([data-theme="dark"]), :where([data-theme="dark"]) {
 			--background: oklch(0.145 0 0);
 			--foreground: oklch(0.985 0 0);
 			--card: oklch(0.205 0 0);
@@ -193,6 +205,12 @@
 			--sidebar-accent-foreground: oklch(0.985 0 0);
 			--sidebar-border: oklch(0.269 0 0);
 			--sidebar-ring: oklch(0.439 0 0);
+			--surface: oklch(0.98 0 0);
+			--surface-foreground: var(--foreground);
+			--code: var(--surface);
+			--code-foreground: var(--surface-foreground);
+			--code-highlight: oklch(0.96 0 0);
+			--code-number: oklch(0.56 0 0);
 			--selection: color-mix(in oklab, oklch(73.113% 0.14626 248.362) 40%, transparent);
 			--selection-foreground: oklch(0.985 0 0);
 		}

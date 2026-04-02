@@ -3,13 +3,13 @@ import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
 
+import { CreditApplications, CreditApplicationImports, CreditApplicationFieldMasks, CreditApplicationDefaultFieldMask } from "./collections/CreditApplicationCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
+import { Teams } from "./collections/TeamCollection";
+import { Users, StagedUsers } from "./collections/UserCollection";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
-import { CreditApplicationDefaultFieldMask, CreditApplicationFieldMasks, CreditApplicationImports, CreditApplications } from "./collections/CreditApplicationCollection";
-import { Users } from "./collections/UserCollection";
-import { UserTeams } from "./collections/UserTeamCollection";
 
 export default buildConfig({
 	secret: process.env.PAYLOAD_SECRET,
@@ -25,7 +25,8 @@ export default buildConfig({
 	],
 	collections: [
 		Users(),
-		UserTeams(),
+		StagedUsers(),
+		Teams(),
 		CreditApplicationImports(),
 		CreditApplications(),
 		CreditApplicationFieldMasks()
@@ -35,7 +36,8 @@ export default buildConfig({
 		SearchPlugin({
 			collections: [
 				"users",
-				"user-teams",
+				"staged-users",
+				"teams",
 				"credit-application-imports",
 				"credit-applications"
 			]

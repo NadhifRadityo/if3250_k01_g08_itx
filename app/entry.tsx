@@ -6,16 +6,6 @@ import cn from "@/utils/cn";
 
 export default function Entry({ children }: { children: React.ReactNode }) {
 	useEffect(() => {
-		console.log(
-			"%cMade from scratch with %c❤ %cby Nadhif Radityo.\n" +
-			"%cFollow my github: https://github.com/NadhifRadityo/",
-			"color: rgb(221 184 92); font-family:'Arial', 'Sans-serif'; font-size: 25px; font-weight: 900;",
-			"color: rgb(220 38 38); font-family:'Arial', 'Sans-serif'; font-size: 30px; font-weight: 900;",
-			"color: rgb(221 184 92); font-family:'Arial', 'Sans-serif'; font-size: 25px; font-weight: 900;",
-			"color: rgb(221 184 92); font-family:'Arial', 'Sans-serif'; font-size: 20px; font-weight: 900;"
-		);
-	}, []);
-	useEffect(() => {
 		const elementStyle = cn(
 			"not-print:clip-path-[polygon(0%_0%,100%_0%,100%_100%,0%_100%)]",
 			"not-print:[filter:var(--selection-computed-filter,)_blur(2px)]"

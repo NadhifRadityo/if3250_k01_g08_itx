@@ -1,4 +1,15 @@
 {
 	"files.insertFinalNewline": true,
-	"typescript.tsdk": "node_modules/typescript/lib"
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"tailwindCSS.experimental.configFile": "app/root.css",
+	"files.associations": {
+		"*.css": "tailwindcss"
+	},
+	"tailwindCSS.experimental.classRegex": [
+		["\\b\\w*(?:[Ss]tyles?|[Cc]lasses?|[Cc]lassNames?|[Cc]lassLists?)\\b\\s*=\\s*[\"'`]([^\"'`]*)[\"'`]"],
+		["\\b\\w*(?:[Ss]tyles?|[Cc]lasses?|[Cc]lassNames?|[Cc]lassLists?)\\b\\s*=\\s*{{([^;]*)}}", "\\s*?[\"'`]([^\"'`]*).*?:"],
+		["(?:[Ss]tyles?|[Cc]lasses?|[Cc]lassNames?|[Cc]lassLists?)\\s*:\\s*{([\\s\\S]*?)}", "\\s?[\\w].*:\\s*?[\"'`]([^\"'`]*).*?,?\\s?"],
+		["(?:twMerge|twJoin|clsx|cva)\\(([^;]*)[\\);]", "[`'\"`]([^'\"`;]*)[`'\"`]"],
+		["classList\\.(?:add|remove|toggle)\\(([^)]*)\\)", "(?:'|\"|`)([^\"'`]*)(?:'|\"|`)"]
+	]
 }
