@@ -38,6 +38,23 @@ export const EmptyableRequiredFieldValidationPlugin = () => {
 			}
 			if(
 				("required" in field && field.required == true) &&
+				("hasMany" in field && field.hasMany == true) &&
+				field.type == "select"
+			) {
+				const nextValidation = field.validate ?? validations[field.type];
+				if(nextValidation != null) {
+					field.validate = (value: any, options: any) => {
+						return optionalPromise(nextValidation(value, options), validation => {
+							const t = (options.req as PayloadRequest).t;
+							if(value != null && validation == t("validation:required"))
+								return true;
+							return validation;
+						});
+					};
+				}
+			}
+			if(
+				("required" in field && field.required == true) &&
 				field.type == "richText"
 			) {
 				if(typeof field.defaultValue != "undefined") {

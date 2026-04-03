@@ -7,7 +7,9 @@
 	"scripts": {
 		"build": "next build --webpack",
 		"dev": "next dev",
-		"seed:admin": "payload run ./scripts/seedAdmin.ts"
+		"db:reset": "payload run ./scripts/resetDatabase.ts",
+		"seed:admin": "payload run ./scripts/seedAdmin.ts",
+		"seed:example": "payload run ./scripts/seedExample.ts"
 	},
 	"packageManager": "pnpm@10.30.3",
 	"dependencies": {

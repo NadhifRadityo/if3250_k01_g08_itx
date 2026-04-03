@@ -8,6 +8,8 @@ import payloadConfig from "@payload-config";
 import type { Role, User, StagedUser } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
+const RELATION_SEARCH_LIMIT = 20;
+const ROLE_LOOKUP_LIMIT = 20;
 const sortableFields = new Set<UserManagementSortField>([
 	"createdAt",
 	"updatedAt",
@@ -487,19 +489,27 @@ async function findRolesByIds(payload: Payload, user: User, ids: string[]): Prom
 	return map;
 }
 
-async function findActiveRoleOptions(payload: Payload, user: User): Promise<UserRoleOption[]> {
+async function searchActiveRoleOptions(payload: Payload, user: User, keyword: string, limit: number = RELATION_SEARCH_LIMIT): Promise<UserRoleOption[]> {
+	const normalizedKeyword = keyword.trim();
+	const normalizedKeywordLower = normalizedKeyword.toLowerCase();
+	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+		{ name: { like: normalizedKeyword } },
+		{ level: { equals: normalizedKeywordLower } }
+	] : [];
+
 	const result = await payload.find({
 		collection: "roles",
 		user,
 		overrideAccess: false,
 		pagination: false,
 		depth: 0,
-		limit: 200,
+		limit,
 		sort: "name",
 		where: {
 			and: [
 				{ _status: { equals: "published" } },
-				{ deletedAt: { exists: false } }
+				{ deletedAt: { exists: false } },
+				...(keywordFilters.length > 0 ? [{ or: keywordFilters }] : [])
 			]
 		},
 		select: {
@@ -513,6 +523,42 @@ async function findActiveRoleOptions(payload: Payload, user: User): Promise<User
 		name: doc.name,
 		level: doc.level
 	}));
+}
+
+async function findActiveSupervisorRoleIds(payload: Payload, user: User): Promise<string[]> {
+	const result = await payload.find({
+		collection: "roles",
+		user,
+		overrideAccess: false,
+		pagination: false,
+		depth: 0,
+		limit: ROLE_LOOKUP_LIMIT,
+		sort: "name",
+		where: {
+			and: [
+				{ _status: { equals: "published" } },
+				{ deletedAt: { exists: false } },
+				{ level: { equals: "supervisor" } }
+			]
+		},
+		select: {
+			name: true,
+			level: true
+		}
+	});
+
+	return result.docs.map(doc => String(doc.id));
+}
+
+function buildUserKeywordFilters(keyword: string): Where[] {
+	const normalizedKeyword = keyword.trim();
+	if(normalizedKeyword.length == 0)
+		return [];
+	return [
+		{ email: { like: normalizedKeyword } },
+		{ name: { like: normalizedKeyword } },
+		{ employeeId: { like: normalizedKeyword } }
+	];
 }
 
 function toPayloadSort(sort: UserManagementSortToken[]): string {
@@ -538,20 +584,21 @@ function toPayloadSort(sort: UserManagementSortToken[]): string {
 	}).join(",");
 }
 
-export async function listUserRoleOptionsAction(): Promise<UserRoleOption[]> {
+export async function searchUserRoleOptionsAction(keyword: string): Promise<UserRoleOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	return findActiveRoleOptions(payload, user);
+	return searchActiveRoleOptions(payload, user, keyword);
 }
 
-export async function listUserReviewerOptionsAction(): Promise<UserReviewerOption[]> {
+export async function searchUserReviewerOptionsAction(keyword: string): Promise<UserReviewerOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const keywordFilters = buildUserKeywordFilters(keyword);
 
 	const result = await payload.find({
 		collection: "users",
@@ -559,12 +606,17 @@ export async function listUserReviewerOptionsAction(): Promise<UserReviewerOptio
 		overrideAccess: false,
 		pagination: false,
 		depth: 0,
-		limit: 500,
+		limit: RELATION_SEARCH_LIMIT,
 		sort: "name",
 		select: {
 			name: true,
 			email: true
-		}
+		},
+		...(keywordFilters.length > 0 ? {
+			where: {
+				or: keywordFilters
+			}
+		} : {})
 	});
 
 	return result.docs.map(doc => ({
@@ -677,18 +729,11 @@ export async function searchUserSupervisorsAction(keyword: string): Promise<Arra
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const supervisorRoleIds = (await findActiveRoleOptions(payload, user))
-		.filter(role => role.level == "supervisor")
-		.map(role => role.id);
+	const supervisorRoleIds = await findActiveSupervisorRoleIds(payload, user);
 	if(supervisorRoleIds.length == 0)
 		return [];
 
-	const normalizedKeyword = keyword.trim();
-	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
-		{ email: { like: normalizedKeyword } },
-		{ name: { like: normalizedKeyword } },
-		{ employeeId: { like: normalizedKeyword } }
-	] : [];
+	const keywordFilters = buildUserKeywordFilters(keyword);
 
 	const result = await payload.find({
 		collection: "users",
@@ -696,7 +741,7 @@ export async function searchUserSupervisorsAction(keyword: string): Promise<Arra
 		overrideAccess: false,
 		pagination: false,
 		depth: 0,
-		limit: 100,
+		limit: RELATION_SEARCH_LIMIT,
 		sort: "name",
 		where: {
 			and: [
@@ -826,6 +871,31 @@ export async function queryStagedUsersAction({ keyword, sort, filters, filterCom
 		hasNextPage: stagedFindResult.hasNextPage,
 		hasPreviousPage: stagedFindResult.hasPrevPage
 	};
+}
+
+type QueryStagedUsersSharedInput = Omit<QueryStagedUsersInput, "mode">;
+
+export async function queryStagedUsersViewerAction(input: QueryStagedUsersSharedInput): Promise<QueryStagedUsersOutput> {
+	return queryStagedUsersAction({
+		...input,
+		mode: "editor",
+		includeSoftDeleted: false
+	});
+}
+
+export async function queryStagedUsersEditorAction(input: QueryStagedUsersSharedInput): Promise<QueryStagedUsersOutput> {
+	return queryStagedUsersAction({
+		...input,
+		mode: "editor"
+	});
+}
+
+export async function queryStagedUsersApproverAction(input: QueryStagedUsersSharedInput): Promise<QueryStagedUsersOutput> {
+	return queryStagedUsersAction({
+		...input,
+		mode: "approver",
+		includeSoftDeleted: false
+	});
 }
 
 export async function resolveStagedUserRelationColumnsAction({ rows, columns }: ResolveStagedUserRelationColumnsInput): Promise<ResolveStagedUserRelationColumnsOutput> {

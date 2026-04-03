@@ -5,18 +5,53 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { Team } from "@/payload-types";
+import type { Role } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
-const sortableFields = new Set<TeamManagementSortField>([
+const RELATION_SEARCH_LIMIT = 20;
+const roleLevelValues = ["admin", "manager", "supervisor", "officer"] as const;
+const roleMenuValues = [
+	"user-management-viewer",
+	"user-management-editor",
+	"user-management-approver",
+	"role-management-viewer",
+	"role-management-editor",
+	"role-management-approver",
+	"team-management-viewer",
+	"team-management-editor",
+	"team-management-approver"
+] as const;
+const roleLevelLabelMap: Record<RoleLevel, string> = {
+	admin: "Admin",
+	manager: "Manager",
+	supervisor: "Supervisor",
+	officer: "Officer"
+};
+const roleMenuLabelMap: Record<RoleMenu, string> = {
+	"user-management-viewer": "User Management - Viewer",
+	"user-management-editor": "User Management - Editor",
+	"user-management-approver": "User Management - Approver",
+	"role-management-viewer": "Role Management - Viewer",
+	"role-management-editor": "Role Management - Editor",
+	"role-management-approver": "Role Management - Approver",
+	"team-management-viewer": "Team Management - Viewer",
+	"team-management-editor": "Team Management - Editor",
+	"team-management-approver": "Team Management - Approver"
+};
+
+export type RoleLevel = Role["level"];
+export type RoleMenu = Role["menus"][number];
+
+const roleLevelSet = new Set<RoleLevel>(roleLevelValues);
+const roleMenuSet = new Set<RoleMenu>(roleMenuValues);
+
+const sortableFields = new Set<RoleManagementSortField>([
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
 	"name",
-	"supervisorName",
-	"supervisorEmail",
-	"officerNames",
-	"officerEmails",
+	"level",
+	"menus",
 	"reviewedAt",
 	"reviewedByName",
 	"reviewApproved",
@@ -24,10 +59,10 @@ const sortableFields = new Set<TeamManagementSortField>([
 	"status",
 	"reviewCommentText"
 ]);
-const filterableColumns = new Set<TeamManagementFilterColumn>([
+const filterableColumns = new Set<RoleManagementFilterColumn>([
 	"name",
-	"supervisor",
-	"officers",
+	"level",
+	"menus",
 	"createdAt",
 	"createdBy",
 	"updatedAt",
@@ -38,7 +73,7 @@ const filterableColumns = new Set<TeamManagementFilterColumn>([
 	"reviewedBy",
 	"reviewApproved"
 ]);
-const filterOperators = new Set<TeamManagementFilterOperator>([
+const filterOperators = new Set<RoleManagementFilterOperator>([
 	"equals",
 	"not_equals",
 	"contains",
@@ -51,15 +86,15 @@ const filterOperators = new Set<TeamManagementFilterOperator>([
 	"greater_than_equal",
 	"less_than_equal"
 ]);
-const dateFilterColumns = new Set<TeamManagementFilterColumn>([
+const dateFilterColumns = new Set<RoleManagementFilterColumn>([
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
 	"reviewedAt"
 ]);
-const booleanFilterColumns = new Set<TeamManagementFilterColumn>(["reviewApproved"]);
+const booleanFilterColumns = new Set<RoleManagementFilterColumn>(["reviewApproved"]);
 
-type ReviewCommentValue = NonNullable<Team["reviewComment"]>;
+type ReviewCommentValue = NonNullable<Role["reviewComment"]>;
 const defaultReviewComment: ReviewCommentValue = {
 	root: {
 		type: "root",
@@ -80,66 +115,57 @@ const defaultReviewComment: ReviewCommentValue = {
 	}
 };
 
-export type TeamManagementTabMode = "editor" | "approver";
-export type TeamManagementSortField =
-	| "createdAt"
-	| "updatedAt"
-	| "deletedAt"
-	| "name"
-	| "supervisorName"
-	| "supervisorEmail"
-	| "officerNames"
-	| "officerEmails"
-	| "reviewedAt"
-	| "reviewedByName"
-	| "reviewApproved"
-	| "requestType"
-	| "status"
-	| "reviewCommentText";
-export type TeamManagementSortToken = `${"+" | "-"}${TeamManagementSortField}`;
-export type TeamManagementFilterColumn =
-	| "name"
-	| "supervisor"
-	| "officers"
-	| "createdAt"
-	| "createdBy"
-	| "updatedAt"
-	| "updatedBy"
-	| "deletedAt"
-	| "deletedBy"
-	| "reviewedAt"
-	| "reviewedBy"
-	| "reviewApproved";
-export type TeamManagementFilterOperator =
-	| "equals"
-	| "not_equals"
-	| "contains"
-	| "not_contains"
-	| "in"
-	| "not_in"
-	| "exists"
-	| "greater_than"
-	| "less_than"
-	| "greater_than_equal"
-	| "less_than_equal";
-export type TeamManagementFilterCombinator = "and" | "or";
-export type TeamManagementFilterInput = {
-	column: TeamManagementFilterColumn;
-	operator: TeamManagementFilterOperator;
+export type RoleManagementTabMode = "editor" | "approver";
+export type RoleManagementSortField = "createdAt" |
+	"updatedAt" |
+	"deletedAt" |
+	"name" |
+	"level" |
+	"menus" |
+	"reviewedAt" |
+	"reviewedByName" |
+	"reviewApproved" |
+	"requestType" |
+	"status" |
+	"reviewCommentText";
+export type RoleManagementSortToken = `${"+" | "-"}${RoleManagementSortField}`;
+export type RoleManagementFilterColumn = "name" |
+	"level" |
+	"menus" |
+	"createdAt" |
+	"createdBy" |
+	"updatedAt" |
+	"updatedBy" |
+	"deletedAt" |
+	"deletedBy" |
+	"reviewedAt" |
+	"reviewedBy" |
+	"reviewApproved";
+export type RoleManagementFilterOperator = "equals" |
+	"not_equals" |
+	"contains" |
+	"not_contains" |
+	"in" |
+	"not_in" |
+	"exists" |
+	"greater_than" |
+	"less_than" |
+	"greater_than_equal" |
+	"less_than_equal";
+export type RoleManagementFilterCombinator = "and" | "or";
+export type RoleManagementFilterInput = {
+	column: RoleManagementFilterColumn;
+	operator: RoleManagementFilterOperator;
 	value?: string | Array<string | boolean> | boolean | null;
-	joinWithPrevious?: TeamManagementFilterCombinator;
+	joinWithPrevious?: RoleManagementFilterCombinator;
 };
 
-export type TeamTableRow = {
+export type RoleTableRow = {
 	id: string;
 	name: string;
-	supervisorId: string | null;
-	supervisorName: string;
-	supervisorEmail: string;
+	level: RoleLevel;
+	menus: RoleMenu[];
 	isSoftDeleted: boolean;
-	officerIds: string[];
-	officerNames: string[];
-	officerEmails: string[];
 	createdById: string | null;
 	createdBy: string;
 	updatedById: string | null;
@@ -157,92 +183,82 @@ export type TeamTableRow = {
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type TeamRelationColumn =
-	| "supervisorName"
-	| "supervisorEmail"
-	| "officerNames"
-	| "officerEmails"
-	| "reviewedByName"
-	| "createdBy"
-	| "updatedBy"
-	| "deletedBy";
+export type RoleRelationColumn = "reviewedByName" |
+	"createdBy" |
+	"updatedBy" |
+	"deletedBy";
 
-export type ResolveTeamRelationColumnsInput = {
-	rows: Array<Pick<TeamTableRow, "id" | "supervisorId" | "officerIds" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
-	columns: TeamRelationColumn[];
+export type ResolveRoleRelationColumnsInput = {
+	rows: Array<Pick<RoleTableRow, "id" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
+	columns: RoleRelationColumn[];
 };
 
-export type ResolveTeamRelationColumnsOutput = Array<{
+export type ResolveRoleRelationColumnsOutput = Array<{
 	id: string;
-	values: Partial<Record<TeamRelationColumn, string>>;
+	values: Partial<Record<RoleRelationColumn, string>>;
 }>;
 
-export type QueryTeamsInput = {
+export type QueryRolesInput = {
 	keyword: string;
 	sort: string[];
-	filters?: TeamManagementFilterInput[];
-	filterCombinator?: TeamManagementFilterCombinator;
+	filters?: RoleManagementFilterInput[];
+	filterCombinator?: RoleManagementFilterCombinator;
 	page: number;
 	limit: number;
-	mode: TeamManagementTabMode;
+	mode: RoleManagementTabMode;
 	includeSoftDeleted?: boolean;
 };
 
-export type QueryTeamsOutput = {
-	docs: TeamTableRow[];
+export type QueryRolesOutput = {
+	docs: RoleTableRow[];
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
 	hasPreviousPage: boolean;
 };
 
-export type SearchTeamAssignableUsersOutput = {
-	supervisors: Array<{ id: string, name: string, email: string }>;
-	officers: Array<{ id: string, name: string, email: string }>;
-};
-
-export type TeamReviewerOption = {
+export type RoleFilterUserOption = {
 	id: string;
 	name: string;
 	email: string;
 };
 
-export type UpsertTeamRequestInput = {
-	teamId?: string;
+export type UpsertRoleRequestInput = {
+	roleId?: string;
 	name: string;
-	supervisorId: string;
-	officerIds: string[];
+	level: RoleLevel;
+	menus: RoleMenu[];
 };
 
-export type ReviewTeamRequestInput = {
-	teamId: string;
+export type ReviewRoleRequestInput = {
+	roleId: string;
 	decision: "approve" | "reject";
 	reason?: string;
 };
 
-export type TeamRequestReviewDiffItem = {
-	field: "name" | "supervisor" | "officers" | "deletedAt";
+export type RoleRequestReviewDiffItem = {
+	field: "name" | "level" | "menus" | "deletedAt";
 	label: string;
 	previousValue: string;
 	requestedValue: string;
 	changed: boolean;
 };
 
-export type TeamRequestReviewDiffOutput = {
+export type RoleRequestReviewDiffOutput = {
 	requestId: string;
 	requestType: "Create" | "Update" | "Delete";
-	items: TeamRequestReviewDiffItem[];
+	items: RoleRequestReviewDiffItem[];
 	changedCount: number;
 };
 
-type SortFieldKey = TeamManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
+type SortFieldKey = RoleManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
 
-function normalizeSortTokens(sort: string[]): TeamManagementSortToken[] {
+function normalizeSortTokens(sort: string[]): RoleManagementSortToken[] {
 	const prefixed = sort
 		.map(token => token.trim())
 		.filter(token => token.length > 0)
 		.map(token => token.startsWith("+") || token.startsWith("-") ? token : `+${token}`)
-		.filter(token => sortableFields.has(token.slice(1) as TeamManagementSortField)) as TeamManagementSortToken[];
+		.filter(token => sortableFields.has(token.slice(1) as RoleManagementSortField)) as RoleManagementSortToken[];
 	const deduplicated = prefixed.filter((token, index, source) =>
 		index == source.findIndex(candidate => candidate.slice(1) == token.slice(1))
 	);
@@ -264,12 +280,41 @@ function parseBooleanValue(value: unknown): boolean | null {
 	return null;
 }
 
-function normalizeScalarFilterValue(column: TeamManagementFilterColumn, rawValue: unknown): string | boolean | null {
+function normalizeRoleLevelValue(value: unknown): RoleLevel | null {
+	if(typeof value != "string")
+		return null;
+	const normalized = value.trim().toLowerCase() as RoleLevel;
+	return roleLevelSet.has(normalized) ? normalized : null;
+}
+
+function normalizeRoleMenuValue(value: unknown): RoleMenu | null {
+	if(typeof value != "string")
+		return null;
+	const normalized = value.trim().toLowerCase() as RoleMenu;
+	return roleMenuSet.has(normalized) ? normalized : null;
+}
+
+function normalizeRoleMenuValues(value: unknown): RoleMenu[] {
+	if(!Array.isArray(value))
+		return [];
+	const normalized = value
+		.map(normalizeRoleMenuValue)
+		.filter((menu): menu is RoleMenu => menu != null);
+	return normalized.filter((menu, index) => normalized.indexOf(menu) == index);
+}
+
+function normalizeScalarFilterValue(column: RoleManagementFilterColumn, rawValue: unknown): string | boolean | null {
 	if(rawValue == null)
 		return null;
 
 	if(booleanFilterColumns.has(column))
 		return parseBooleanValue(rawValue);
+
+	if(column == "level")
+		return normalizeRoleLevelValue(rawValue);
+
+	if(column == "menus")
+		return normalizeRoleMenuValue(rawValue);
 
 	if(typeof rawValue != "string")
 		return null;
@@ -286,11 +331,11 @@ function normalizeScalarFilterValue(column: TeamManagementFilterColumn, rawValue
 	return trimmed;
 }
 
-function normalizeFilters(filters: TeamManagementFilterInput[] | undefined, fallbackCombinator: TeamManagementFilterCombinator): TeamManagementFilterInput[] {
+function normalizeFilters(filters: RoleManagementFilterInput[] | undefined, fallbackCombinator: RoleManagementFilterCombinator): RoleManagementFilterInput[] {
 	if(filters == null)
 		return [];
 
-	const normalized: TeamManagementFilterInput[] = [];
+	const normalized: RoleManagementFilterInput[] = [];
 	for(const filter of filters) {
 		if(filter == null || !filterableColumns.has(filter.column) || !filterOperators.has(filter.operator))
 			continue;
@@ -336,7 +381,7 @@ function normalizeFilters(filters: TeamManagementFilterInput[] | undefined, fall
 	return normalized;
 }
 
-function normalizeFilterCombinator(filterCombinator: TeamManagementFilterCombinator | undefined): TeamManagementFilterCombinator {
+function normalizeFilterCombinator(filterCombinator: RoleManagementFilterCombinator | undefined): RoleManagementFilterCombinator {
 	return filterCombinator == "or" ? "or" : "and";
 }
 
@@ -400,18 +445,6 @@ function getRelationshipId(value: unknown): string | null {
 	return null;
 }
 
-function getRelationshipName(value: unknown): string | null {
-	if(value != null && typeof value == "object" && "name" in value && typeof value.name == "string")
-		return value.name;
-	return null;
-}
-
-function getRelationshipEmail(value: unknown): string | null {
-	if(value != null && typeof value == "object" && "email" in value && typeof value.email == "string")
-		return value.email;
-	return null;
-}
-
 function formatReviewDateValue(value: string | null | undefined): string {
 	if(value == null)
 		return "-";
@@ -421,18 +454,18 @@ function formatReviewDateValue(value: string | null | undefined): string {
 	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
-function getRelationshipIds(value: unknown): string[] {
-	if(!Array.isArray(value))
-		return [];
-	return value
-		.map(getRelationshipId)
-		.filter((id): id is string => id != null);
+function formatReviewRoleLevelValue(value: unknown): string {
+	const level = normalizeRoleLevelValue(value);
+	if(level == null)
+		return "-";
+	return roleLevelLabelMap[level];
 }
 
-function formatReviewUserList(ids: string[], usersById: Map<string, { name: string, email: string }>): string {
-	if(ids.length == 0)
+function formatReviewRoleMenusValue(value: unknown): string {
+	const menus = normalizeRoleMenuValues(value);
+	if(menus.length == 0)
 		return "-";
-	return ids.map(id => usersById.get(id)?.name ?? "-").join(", ");
+	return menus.map(menu => roleMenuLabelMap[menu]).join(", ");
 }
 
 async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>, ids: string[]): Promise<Map<string, { name: string, email: string }>> {
@@ -464,27 +497,66 @@ async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, u
 	return map;
 }
 
-function toPayloadSort(sort: TeamManagementSortToken[]): string {
+export async function searchRoleFilterUsersAction(keyword: string): Promise<RoleFilterUserOption[]> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+	const normalizedKeyword = keyword.trim();
+	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+		{ email: { like: normalizedKeyword } },
+		{ name: { like: normalizedKeyword } },
+		{ employeeId: { like: normalizedKeyword } }
+	] : [];
+
+	const result = await payload.find({
+		collection: "users",
+		user,
+		overrideAccess: false,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT,
+		sort: "name",
+		select: {
+			name: true,
+			email: true
+		},
+		...(keywordFilters.length > 0 ? {
+			where: {
+				or: keywordFilters
+			}
+		} : {})
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		name: doc.name,
+		email: doc.email
+	}));
+}
+
+function toPayloadSort(sort: RoleManagementSortToken[]): string {
 	return sort.map(token => {
 		const direction = token.startsWith("-") ? "-" : "";
 		const field = token.slice(1) as SortFieldKey;
-		const path = field == "supervisorName" ? "supervisor.name" :
-			field == "supervisorEmail" ? "supervisor.email" :
-			field == "officerNames" ? "officers.name" :
-			field == "officerEmails" ? "officers.email" :
-			field == "reviewedByName" ? "reviewedBy.name" :
-			field == "requestType" ? "deletedAt" :
-			field == "status" || field == "reviewCommentText" ? "reviewedAt" :
-			field;
+		let path: string;
+		if(field == "reviewedByName")
+			path = "reviewedBy.name";
+		else if(field == "requestType")
+			path = "deletedAt";
+		else if(field == "status" || field == "reviewCommentText")
+			path = "reviewedAt";
+		else
+			path = field;
 		return `${direction}${path}`;
 	}).join(",");
 }
 
-function toPayloadFilterWhere(filters: TeamManagementFilterInput[]): Where | null {
+function toPayloadFilterWhere(filters: RoleManagementFilterInput[]): Where | null {
 	if(filters.length == 0)
 		return null;
 
-	const operatorMap: Record<TeamManagementFilterOperator, string> = {
+	const operatorMap: Record<RoleManagementFilterOperator, string> = {
 		equals: "equals",
 		not_equals: "not_equals",
 		contains: "like",
@@ -528,87 +600,7 @@ function toPayloadFilterWhere(filters: TeamManagementFilterInput[]): Where | nul
 	};
 }
 
-export async function searchTeamAssignableUsersAction(keyword: string): Promise<SearchTeamAssignableUsersOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-	const normalizedKeyword = keyword.trim();
-	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
-		{ email: { like: normalizedKeyword } },
-		{ name: { like: normalizedKeyword } },
-		{ employeeId: { like: normalizedKeyword } }
-	] : [];
-	const [supervisorResult, officerResult] = await Promise.all([
-		payload.find({
-			collection: "users",
-			user,
-			overrideAccess: false,
-			pagination: false,
-			limit: 100,
-			sort: "name",
-			select: { name: true, email: true },
-			where: { and: [
-				{ role: { equals: "supervisor" } },
-				...(keywordFilters.length > 0 ? [{ or: keywordFilters }] : [])
-			] }
-		}),
-		payload.find({
-			collection: "users",
-			user,
-			overrideAccess: false,
-			pagination: false,
-			limit: 200,
-			sort: "name",
-			select: { name: true, email: true },
-			where: { and: [
-				{ role: { equals: "officer" } },
-				...(keywordFilters.length > 0 ? [{ or: keywordFilters }] : [])
-			] }
-		})
-	]);
-	return {
-		supervisors: supervisorResult.docs.map(doc => ({
-			id: String(doc.id),
-			name: doc.name,
-			email: doc.email
-		})),
-		officers: officerResult.docs.map(doc => ({
-			id: String(doc.id),
-			name: doc.name,
-			email: doc.email
-		}))
-	};
-}
-
-export async function listTeamReviewerUsersAction(): Promise<TeamReviewerOption[]> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	const result = await payload.find({
-		collection: "users",
-		user,
-		overrideAccess: false,
-		pagination: false,
-		depth: 0,
-		limit: 500,
-		sort: "name",
-		select: {
-			name: true,
-			email: true
-		}
-	});
-
-	return result.docs.map(doc => ({
-		id: String(doc.id),
-		name: doc.name,
-		email: doc.email
-	}));
-}
-
-export async function queryTeamsAction({ keyword, sort, filters, filterCombinator, page, limit, mode, includeSoftDeleted = false }: QueryTeamsInput): Promise<QueryTeamsOutput> {
+export async function queryRolesAction({ keyword, sort, filters, filterCombinator, page, limit, mode, includeSoftDeleted = false }: QueryRolesInput): Promise<QueryRolesOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -617,14 +609,15 @@ export async function queryTeamsAction({ keyword, sort, filters, filterCombinato
 	const pageSize = Number.isFinite(limit) ? Math.max(1, Math.min(MAX_PAGE_SIZE, Math.floor(limit))) : MAX_PAGE_SIZE;
 	const pageNumber = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
 	const normalizedKeyword = keyword.trim();
+	const normalizedKeywordLower = normalizedKeyword.toLowerCase();
 	const sortTokens = normalizeSortTokens(sort);
 	const normalizedFilterCombinator = normalizeFilterCombinator(filterCombinator);
 	const normalizedFilters = normalizeFilters(filters, normalizedFilterCombinator);
 	const payloadFilterWhere = toPayloadFilterWhere(normalizedFilters);
 	const payloadSort = toPayloadSort(sortTokens);
 
-	const teamFindResult = await payload.find({
-		collection: "teams",
+	const roleFindResult = await payload.find({
+		collection: "roles",
 		user,
 		overrideAccess: false,
 		draft: true,
@@ -641,17 +634,15 @@ export async function queryTeamsAction({ keyword, sort, filters, filterCombinato
 			] }]),
 			...(normalizedKeyword.length > 0 ? [{ or: [
 				{ name: { like: normalizedKeyword } },
-				{ "supervisor.name": { like: normalizedKeyword } },
-				{ "supervisor.email": { like: normalizedKeyword } },
-				{ "officers.name": { like: normalizedKeyword } },
-				{ "officers.email": { like: normalizedKeyword } }
+				{ level: { equals: normalizedKeywordLower } },
+				{ menus: { in: [normalizedKeywordLower] } }
 			] }] : []),
 			...(payloadFilterWhere != null ? [payloadFilterWhere] : [])
 		] },
 		select: {
 			name: true,
-			supervisor: true,
-			officers: true,
+			level: true,
+			menus: true,
 			createdBy: true,
 			updatedBy: true,
 			deletedBy: true,
@@ -666,26 +657,22 @@ export async function queryTeamsAction({ keyword, sort, filters, filterCombinato
 		}
 	});
 
-	const mappedRows: TeamTableRow[] = teamFindResult.docs.map(doc => {
-		const supervisorId = getRelationshipId(doc.supervisor);
-		const officers = Array.isArray(doc.officers) ? doc.officers : [];
-		const officerIds = officers.map(getRelationshipId).filter((id): id is string => id != null);
+	const mappedRows: RoleTableRow[] = roleFindResult.docs.map(doc => {
 		const createdById = getRelationshipId(doc.createdBy);
 		const updatedById = getRelationshipId(doc.updatedBy);
 		const deletedById = getRelationshipId(doc.deletedBy);
 		const reviewedById = getRelationshipId(doc.reviewedBy);
 		const reviewCommentText = richTextToPlainText(doc.reviewComment);
 		const requestType = doc.deletedAt != null ? "Delete" : doc.createdAt == doc.updatedAt ? "Create" : "Update";
+		const level = normalizeRoleLevelValue(doc.level) ?? "officer";
+		const menus = normalizeRoleMenuValues(doc.menus);
+
 		return {
 			id: String(doc.id),
 			name: doc.name,
-			supervisorId,
-			supervisorName: "-",
-			supervisorEmail: "-",
+			level,
+			menus,
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
-			officerIds,
-			officerNames: [],
-			officerEmails: [],
 			createdById,
 			createdBy: "-",
 			updatedById,
@@ -706,14 +693,39 @@ export async function queryTeamsAction({ keyword, sort, filters, filterCombinato
 
 	return {
 		docs: mappedRows,
-		totalDocs: teamFindResult.totalDocs,
-		page: teamFindResult.page ?? pageNumber,
-		hasNextPage: teamFindResult.hasNextPage,
-		hasPreviousPage: teamFindResult.hasPrevPage
+		totalDocs: roleFindResult.totalDocs,
+		page: roleFindResult.page ?? pageNumber,
+		hasNextPage: roleFindResult.hasNextPage,
+		hasPreviousPage: roleFindResult.hasPrevPage
 	};
 }
 
-export async function resolveTeamRelationColumnsAction({ rows, columns }: ResolveTeamRelationColumnsInput): Promise<ResolveTeamRelationColumnsOutput> {
+type QueryRolesSharedInput = Omit<QueryRolesInput, "mode">;
+
+export async function queryRolesViewerAction(input: QueryRolesSharedInput): Promise<QueryRolesOutput> {
+	return queryRolesAction({
+		...input,
+		mode: "editor",
+		includeSoftDeleted: false
+	});
+}
+
+export async function queryRolesEditorAction(input: QueryRolesSharedInput): Promise<QueryRolesOutput> {
+	return queryRolesAction({
+		...input,
+		mode: "editor"
+	});
+}
+
+export async function queryRolesApproverAction(input: QueryRolesSharedInput): Promise<QueryRolesOutput> {
+	return queryRolesAction({
+		...input,
+		mode: "approver",
+		includeSoftDeleted: false
+	});
+}
+
+export async function resolveRoleRelationColumnsAction({ rows, columns }: ResolveRoleRelationColumnsInput): Promise<ResolveRoleRelationColumnsOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -723,16 +735,9 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 		return [];
 
 	const requestedColumns = [...new Set(columns)];
-	const shouldFetchSupervisor = requestedColumns.includes("supervisorName") || requestedColumns.includes("supervisorEmail");
-	const shouldFetchOfficer = requestedColumns.includes("officerNames") || requestedColumns.includes("officerEmails");
 
 	const userIds = new Set<string>();
 	for(const row of rows) {
-		if(shouldFetchSupervisor && row.supervisorId != null)
-			userIds.add(row.supervisorId);
-		if(shouldFetchOfficer)
-			for(const officerId of row.officerIds)
-				userIds.add(officerId);
 		if(requestedColumns.includes("reviewedByName") && row.reviewedById != null)
 			userIds.add(row.reviewedById);
 		if(requestedColumns.includes("createdBy") && row.createdById != null)
@@ -746,16 +751,8 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 	const usersById = await findUsersByIds(payload, user, [...userIds]);
 
 	return rows.map(row => {
-		const values: Partial<Record<TeamRelationColumn, string>> = {};
+		const values: Partial<Record<RoleRelationColumn, string>> = {};
 
-		if(requestedColumns.includes("supervisorName"))
-			values.supervisorName = row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-";
-		if(requestedColumns.includes("supervisorEmail"))
-			values.supervisorEmail = row.supervisorId != null ? (usersById.get(row.supervisorId)?.email ?? "-") : "-";
-		if(requestedColumns.includes("officerNames"))
-			values.officerNames = row.officerIds.length > 0 ? row.officerIds.map(officerId => usersById.get(officerId)?.name ?? "-").join(", ") : "-";
-		if(requestedColumns.includes("officerEmails"))
-			values.officerEmails = row.officerIds.length > 0 ? row.officerIds.map(officerId => usersById.get(officerId)?.email ?? "-").join(", ") : "-";
 		if(requestedColumns.includes("reviewedByName"))
 			values.reviewedByName = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
 		if(requestedColumns.includes("createdBy"))
@@ -772,33 +769,33 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 	});
 }
 
-export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
+export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
 	const name = input.name.trim();
-	const supervisorId = input.supervisorId.trim();
-	const officerIds = [...new Set(input.officerIds.map(id => id.trim()).filter(id => id.length > 0))];
+	const level = normalizeRoleLevelValue(input.level);
+	const menus = normalizeRoleMenuValues(input.menus);
 
 	if(name.length == 0)
-		throw new Error("Team name is required.");
-	if(supervisorId.length == 0)
-		throw new Error("Supervisor is required.");
-	if(officerIds.length == 0)
-		throw new Error("At least one officer is required.");
+		throw new Error("Role name is required.");
+	if(level == null)
+		throw new Error("Role level is invalid.");
+	if(menus.length == 0)
+		throw new Error("At least one menu is required.");
 
-	if(input.teamId == null) {
+	if(input.roleId == null) {
 		const created = await payload.create({
 			user,
-			collection: "teams",
+			collection: "roles",
 			overrideAccess: true,
 			data: {
 				_status: "draft",
 				name,
-				supervisor: supervisorId,
-				officers: officerIds,
+				level,
+				menus,
 				deletedAt: null,
 				deletedBy: null,
 				reviewedAt: null,
@@ -807,13 +804,13 @@ export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
 				reviewComment: null
 			}
 		});
-		return { teamId: created.id };
+		return { roleId: created.id };
 	}
 
 	await payload.findByID({
 		user,
-		collection: "teams",
-		id: input.teamId,
+		collection: "roles",
+		id: input.roleId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0
@@ -821,15 +818,15 @@ export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
 
 	await payload.update({
 		user,
-		collection: "teams",
-		id: input.teamId,
+		collection: "roles",
+		id: input.roleId,
 		overrideAccess: true,
 		trash: true,
 		data: {
 			_status: "draft",
 			name,
-			supervisor: supervisorId,
-			officers: officerIds,
+			level,
+			menus,
 			deletedAt: null,
 			deletedBy: null,
 			reviewedAt: null,
@@ -839,10 +836,10 @@ export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
 		}
 	});
 
-	return { teamId: input.teamId };
+	return { roleId: input.roleId };
 }
 
-export async function requestDeleteTeamAction(teamId: string) {
+export async function requestDeleteRoleAction(roleId: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -850,8 +847,8 @@ export async function requestDeleteTeamAction(teamId: string) {
 
 	await payload.findByID({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0
@@ -859,8 +856,8 @@ export async function requestDeleteTeamAction(teamId: string) {
 
 	await payload.update({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		data: {
@@ -874,44 +871,44 @@ export async function requestDeleteTeamAction(teamId: string) {
 		}
 	});
 
-	return { teamId };
+	return { roleId };
 }
 
-export async function cancelTeamRequestAction(teamId: string) {
+export async function cancelRoleRequestAction(roleId: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const team = await payload.findByID({
+	const role = await payload.findByID({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
 	});
-	if(team.reviewedAt != null && team.reviewApproved != false)
+	if(role.reviewedAt != null && role.reviewApproved != false)
 		throw new Error("Cannot restore an approved request.");
 
 	const approvedVersions = await payload.findVersions({
 		user,
-		collection: "teams",
+		collection: "roles",
 		overrideAccess: true,
 		trash: true,
 		pagination: false,
 		limit: 1,
 		sort: "-updatedAt",
 		where: { and: [
-			{ parent: { equals: teamId } },
+			{ parent: { equals: roleId } },
 			{ "version._status": { equals: "published" } }
 		] },
 		select: {
 			version: {
 				name: true,
-				supervisor: true,
-				officers: true,
+				level: true,
+				menus: true,
 				deletedAt: true,
 				deletedBy: true,
 				reviewedAt: true,
@@ -927,8 +924,8 @@ export async function cancelTeamRequestAction(teamId: string) {
 	if(approvedVersion == null) {
 		await payload.update({
 			user,
-			collection: "teams",
-			id: teamId,
+			collection: "roles",
+			id: roleId,
 			overrideAccess: true,
 			trash: true,
 			data: {
@@ -942,26 +939,25 @@ export async function cancelTeamRequestAction(teamId: string) {
 			}
 		});
 
-		return { teamId, softDeleted: true };
+		return { roleId, softDeleted: true };
 	}
 
-	const approvedSupervisorId = getRelationshipId(approvedVersion.supervisor);
-	const approvedOfficers = Array.isArray(approvedVersion.officers) ? approvedVersion.officers : [];
-	const approvedOfficerIds = approvedOfficers.map(getRelationshipId).filter((id): id is string => id != null);
 	const approvedDeletedBy = getRelationshipId(approvedVersion.deletedBy);
 	const approvedReviewedBy = getRelationshipId(approvedVersion.reviewedBy);
+	const approvedLevel = normalizeRoleLevelValue(approvedVersion.level) ?? "officer";
+	const approvedMenus = normalizeRoleMenuValues(approvedVersion.menus);
 
 	await payload.update({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		data: {
 			_status: "published",
 			name: approvedVersion.name,
-			supervisor: approvedSupervisorId,
-			officers: approvedOfficerIds,
+			level: approvedLevel,
+			menus: approvedMenus,
 			deletedAt: approvedVersion.deletedAt ?? null,
 			deletedBy: approvedDeletedBy,
 			reviewedAt: approvedVersion.reviewedAt ?? null,
@@ -971,32 +967,32 @@ export async function cancelTeamRequestAction(teamId: string) {
 		}
 	});
 
-	return { teamId, softDeleted: false };
+	return { roleId, softDeleted: false };
 }
 
-export async function requestRestoreTeamAction(teamId: string) {
+export async function requestRestoreRoleAction(roleId: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const team = await payload.findByID({
+	const role = await payload.findByID({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
 	});
 
-	if(team.deletedAt == null)
-		throw new Error("Team is not deleted.");
+	if(role.deletedAt == null)
+		throw new Error("Role is not deleted.");
 
 	await payload.update({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		data: {
@@ -1010,25 +1006,25 @@ export async function requestRestoreTeamAction(teamId: string) {
 		}
 	});
 
-	return { teamId };
+	return { roleId };
 }
 
-export async function reviewTeamRequestAction({ teamId, decision, reason }: ReviewTeamRequestInput) {
+export async function reviewRoleRequestAction({ roleId, decision, reason }: ReviewRoleRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const team = await payload.findByID({
+	const role = await payload.findByID({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
 	});
-	if(team.reviewedAt != null)
+	if(role.reviewedAt != null)
 		throw new Error("This request has already been reviewed.");
 	if(decision != "approve" && decision != "reject")
 		throw new Error("Invalid review decision.");
@@ -1039,8 +1035,8 @@ export async function reviewTeamRequestAction({ teamId, decision, reason }: Revi
 	if(decision == "reject") {
 		await payload.update({
 			user,
-			collection: "teams",
-			id: teamId,
+			collection: "roles",
+			id: roleId,
 			overrideAccess: true,
 			trash: true,
 			data: {
@@ -1053,13 +1049,13 @@ export async function reviewTeamRequestAction({ teamId, decision, reason }: Revi
 				reviewComment
 			}
 		});
-		return { teamId, decision };
+		return { roleId, decision };
 	}
 
 	await payload.update({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		data: {
@@ -1071,19 +1067,19 @@ export async function reviewTeamRequestAction({ teamId, decision, reason }: Revi
 		}
 	});
 
-	return { teamId, decision };
+	return { roleId, decision };
 }
 
-export async function getTeamRequestReviewDiffAction(teamId: string): Promise<TeamRequestReviewDiffOutput> {
+export async function getRoleRequestReviewDiffAction(roleId: string): Promise<RoleRequestReviewDiffOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const team = await payload.findByID({
+	const role = await payload.findByID({
 		user,
-		collection: "teams",
-		id: teamId,
+		collection: "roles",
+		id: roleId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0,
@@ -1092,7 +1088,7 @@ export async function getTeamRequestReviewDiffAction(teamId: string): Promise<Te
 
 	const approvedVersions = await payload.findVersions({
 		user,
-		collection: "teams",
+		collection: "roles",
 		overrideAccess: true,
 		trash: true,
 		pagination: false,
@@ -1100,69 +1096,59 @@ export async function getTeamRequestReviewDiffAction(teamId: string): Promise<Te
 		sort: "-updatedAt",
 		where: {
 			and: [
-				{ parent: { equals: teamId } },
+				{ parent: { equals: roleId } },
 				{ "version._status": { equals: "published" } }
 			]
 		},
 		select: {
 			version: {
 				name: true,
-				supervisor: true,
-				officers: true,
+				level: true,
+				menus: true,
 				deletedAt: true
 			}
 		}
 	});
 
 	const approvedVersion = approvedVersions.docs[0]?.version;
-	const approvedSupervisorId = approvedVersion != null ? getRelationshipId(approvedVersion.supervisor) : null;
-	const requestedSupervisorId = getRelationshipId(team.supervisor);
-	const approvedOfficerIds = approvedVersion != null ? getRelationshipIds(approvedVersion.officers) : [];
-	const requestedOfficerIds = getRelationshipIds(team.officers);
 
-	const userIds = [
-		approvedSupervisorId,
-		requestedSupervisorId,
-		...approvedOfficerIds,
-		...requestedOfficerIds
-	].filter((id): id is string => id != null);
-	const usersById = await findUsersByIds(payload, user, [...new Set(userIds)]);
+	const requestType: RoleRequestReviewDiffOutput["requestType"] =
+		role.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
 
-	const requestType: TeamRequestReviewDiffOutput["requestType"] =
-		team.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
-
-	const items: TeamRequestReviewDiffItem[] = [
+	const comparisonItems = [
 		{
 			field: "name",
-			label: "Team Name",
+			label: "Role Name",
 			previousValue: approvedVersion?.name ?? "-",
-			requestedValue: team.name
+			requestedValue: role.name
 		},
 		{
-			field: "supervisor",
-			label: "Supervisor",
-			previousValue: approvedSupervisorId != null ? (usersById.get(approvedSupervisorId)?.name ?? "-") : "-",
-			requestedValue: requestedSupervisorId != null ? (usersById.get(requestedSupervisorId)?.name ?? "-") : "-"
+			field: "level",
+			label: "Level",
+			previousValue: formatReviewRoleLevelValue(approvedVersion?.level),
+			requestedValue: formatReviewRoleLevelValue(role.level)
 		},
 		{
-			field: "officers",
-			label: "Officers",
-			previousValue: formatReviewUserList(approvedOfficerIds, usersById),
-			requestedValue: formatReviewUserList(requestedOfficerIds, usersById)
+			field: "menus",
+			label: "Menus",
+			previousValue: formatReviewRoleMenusValue(approvedVersion?.menus),
+			requestedValue: formatReviewRoleMenusValue(role.menus)
 		},
 		{
 			field: "deletedAt",
 			label: "Deleted At",
 			previousValue: formatReviewDateValue(approvedVersion?.deletedAt ?? null),
-			requestedValue: formatReviewDateValue(team.deletedAt)
+			requestedValue: formatReviewDateValue(role.deletedAt)
 		}
-	].map(item => ({
+	] satisfies Array<Omit<RoleRequestReviewDiffItem, "changed">>;
+
+	const items: RoleRequestReviewDiffItem[] = comparisonItems.map(item => ({
 		...item,
 		changed: item.previousValue != item.requestedValue
 	}));
 
 	return {
-		requestId: teamId,
+		requestId: roleId,
 		requestType,
 		items,
 		changedCount: items.filter(item => item.changed).length

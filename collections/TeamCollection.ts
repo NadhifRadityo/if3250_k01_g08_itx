@@ -123,7 +123,7 @@ export const Teams = (): CollectionConfig => ({
 			type: "relationship",
 			relationTo: "users",
 			required: true,
-			filterOptions: { role: { equals: "supervisor" } }
+			filterOptions: { "role.level": { equals: "supervisor" } }
 		},
 		{
 			name: "officers",
@@ -132,7 +132,7 @@ export const Teams = (): CollectionConfig => ({
 			relationTo: "users",
 			required: true,
 			hasMany: true,
-			filterOptions: { role: { equals: "officer" } }
+			filterOptions: { "role.level": { equals: "officer" } }
 		},
 		{
 			name: "reviewedAt",

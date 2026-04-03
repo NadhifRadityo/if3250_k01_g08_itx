@@ -229,7 +229,7 @@ if(existingStagedUser == null) {
 }
 
 let adminStagedUserId: string;
-let stagedReviewedAt = existingStagedUser?.reviewedAt ?? now;
+const stagedReviewedAt = existingStagedUser?.reviewedAt ?? now;
 
 if(existingStagedUser != null) {
 	adminStagedUserId = existingStagedUser.id;
