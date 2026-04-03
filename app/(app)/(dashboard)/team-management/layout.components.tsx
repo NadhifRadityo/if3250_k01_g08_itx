@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, ArrowUpIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
+import cn from "@/utils/cn";
 import { Link } from "@/components/Link";
 import { SearchableSelect, SearchableMultiSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -23,7 +24,13 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 import { Textarea } from "@/components/radix/Textarea";
 
-import { EntrySummaryDrawer, useEntrySummaryDrawer, consumePendingRelationFilterNavigation } from "../relation-navigation.components";
+import {
+	EntrySummaryDrawer,
+	useEntrySummaryDrawer,
+	RelationSummaryPickerDrawer,
+	consumePendingRelationFilterNavigation,
+	type RelationSummaryPickerState
+} from "../relation-navigation.components";
 import * as teamActions from "./layout.actions";
 
 export const PAGE_SIZE = 20;
@@ -169,6 +176,14 @@ export const teamTableColumns: TeamTableColumnConfig[] = [
 	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
+function getTeamDrawerValueClassName(columnId: string): string {
+	if(columnId == "id")
+		return "text-xs font-mono";
+	if(columnId == "name")
+		return "text-sm font-medium";
+	return "text-sm";
+}
+
 export const defaultTeamColumnOrder: TeamTableColumnId[] = teamTableColumns.map(column => column.id);
 export const defaultTeamVisibleColumns: TeamTableColumnId[] = ["name", "supervisor", "officers", "requestType", "status", "updatedAt", "reviewCommentText"];
 export const defaultTeamHiddenColumns: TeamTableColumnId[] = defaultTeamColumnOrder.filter(columnId => !defaultTeamVisibleColumns.includes(columnId));
@@ -181,6 +196,22 @@ export const teamRelationColumnSet = new Set<TeamRelationColumn>([
 	"updatedBy",
 	"deletedBy"
 ]);
+
+const teamNonEligibleColumnSet = new Set<string>([
+	"actions",
+	"status",
+	"supervisor",
+	"officers",
+	"reviewedBy",
+	"createdBy",
+	"updatedBy",
+	"deletedBy"
+]);
+
+export function getEligibleDetailTriggerTeamColumnId(visibleColumns: TeamTableColumnConfig[]): TeamTableColumnId | null {
+	const triggerColumn = visibleColumns.find(column => !teamNonEligibleColumnSet.has(column.id));
+	return triggerColumn?.id ?? null;
+}
 
 export const filterOperatorOptions: Array<{ value: FilterOperator, label: string }> = [
 	{ value: "equals", label: "Equals" },
@@ -922,38 +953,20 @@ export function TeamRequestReviewDrawer({
 	const renderReferenceValue = (
 		value: string,
 		references: Array<{ type: "user", id: string, label: string }> | undefined,
-		sectionLabel: string
+		sectionLabel: string,
+		valueClassName: string
 	) => {
 		if(references == null || references.length == 0)
-			return <div className="bg-muted/50 min-h-9 rounded border px-2 py-1.5 text-sm wrap-break-word">{value}</div>;
-
-		if(references.length == 1) {
-			const reference = references[0];
-			return (
-				<button
-					type="button"
-					onClick={() => entrySummary.openSummary({
-						type: reference.type,
-						id: reference.id,
-						fallbackTitle: reference.label,
-						fallbackDescription: sectionLabel
-					})}
-					className="bg-muted/50 text-primary min-h-9 w-full rounded border px-2 py-1.5 text-left text-sm underline underline-offset-2 wrap-break-word hover:opacity-80"
-				>
-					{value}
-				</button>
-			);
-		}
+			return <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>{value}</div>;
 
 		return (
-			<div className="bg-muted/50 space-y-2 rounded border px-2 py-1.5 text-sm">
-				<p className="wrap-break-word">{value}</p>
+			<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>
 				<div className="flex flex-wrap gap-1.5">
 					{references.map(reference => (
 						<Button
 							key={`${reference.type}-${reference.id}-${sectionLabel}`}
 							type="button"
-							variant="outline"
+							variant="link"
 							size="sm"
 							onClick={() => entrySummary.openSummary({
 								type: reference.type,
@@ -961,6 +974,7 @@ export function TeamRequestReviewDrawer({
 								fallbackTitle: reference.label,
 								fallbackDescription: sectionLabel
 							})}
+							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word"
 						>
 							{reference.label}
 						</Button>
@@ -1007,11 +1021,11 @@ export function TeamRequestReviewDrawer({
 										<div className="grid gap-2 sm:grid-cols-2">
 											<div className="space-y-1">
 												<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-												{renderReferenceValue(item.previousValue, item.previousReferences, `Team ${item.label} (last approved)`)}
+												{renderReferenceValue(item.previousValue, item.previousReferences, `Team ${item.label} (last approved)`, getTeamDrawerValueClassName(item.field))}
 											</div>
 											<div className="space-y-1">
 												<p className="text-muted-foreground text-xs font-medium">Requested</p>
-												{renderReferenceValue(item.requestedValue, item.requestedReferences, `Team ${item.label} (requested)`)}
+												{renderReferenceValue(item.requestedValue, item.requestedReferences, `Team ${item.label} (requested)`, getTeamDrawerValueClassName(item.field))}
 											</div>
 										</div>
 									</div>
@@ -1055,10 +1069,13 @@ type TeamRequestsTableProps = {
 	queryResult: QueryTeamsOutput;
 	visibleColumns: TeamTableColumnConfig[];
 	visibleColumnCount: number;
+	includeActions?: boolean;
+	detailTriggerColumnId: TeamTableColumnId | null;
 	isLoading: boolean;
 	isMutating: boolean;
 	getSortDirection: (field: SortField) => SortDirection | null;
 	onToggleSortField: (field: SortField) => void;
+	onOpenDetails: (row: TeamTableRow) => void;
 	renderTeamCell: (columnId: TeamTableColumnConfig["id"], row: TeamTableRow) => ReactNode;
 	renderActions: (row: TeamTableRow) => ReactNode;
 };
@@ -1067,10 +1084,13 @@ export function TeamRequestsTable({
 	queryResult,
 	visibleColumns,
 	visibleColumnCount,
+	includeActions = true,
+	detailTriggerColumnId,
 	isLoading,
 	isMutating,
 	getSortDirection,
 	onToggleSortField,
+	onOpenDetails,
 	renderTeamCell,
 	renderActions
 }: TeamRequestsTableProps) {
@@ -1107,7 +1127,7 @@ export function TeamRequestsTable({
 								<TableHead key={column.id} className={column.headClassName}>{column.label}</TableHead>
 							)
 						))}
-						<TableHead className="w-65">Actions</TableHead>
+						{includeActions ? <TableHead className="w-65">Actions</TableHead> : null}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -1124,16 +1144,26 @@ export function TeamRequestsTable({
 					{queryResult.docs.map(row => {
 						return (
 							<TableRow key={row.id}>
-								{visibleColumns.map(column => (
-									<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
-										{renderTeamCell(column.id, row)}
+								{visibleColumns.map(column => {
+									const cellValue = renderTeamCell(column.id, row);
+									const isDetailTriggerColumn = detailTriggerColumnId != null && column.id == detailTriggerColumnId;
+									return (
+										<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
+											{isDetailTriggerColumn ? (
+												<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal">
+													{cellValue}
+												</Button>
+											) : cellValue}
+										</TableCell>
+									);
+								})}
+								{includeActions ? (
+									<TableCell>
+										<div className="flex flex-wrap gap-2">
+											{renderActions(row)}
+										</div>
 									</TableCell>
-								))}
-								<TableCell>
-									<div className="flex flex-wrap gap-2">
-										{renderActions(row)}
-									</div>
-								</TableCell>
+								) : null}
 							</TableRow>
 						);
 					})}
@@ -1143,34 +1173,329 @@ export function TeamRequestsTable({
 	);
 }
 
+type TeamRequestDetailsDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	row: TeamTableRow | null;
+	renderActions: (row: TeamTableRow) => ReactNode;
+	relationNavigation?: TeamRelationNavigation;
+};
+
+type TeamRelationNavigation = {
+	getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
+	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
+		targetManagementKey: "user-management" | "role-management" | "team-management";
+		hrefBase: string;
+		relationFilters: unknown;
+		relationContext?: string;
+	}) => void;
+	onOpenSummary: (request: {
+		type: "user";
+		id: string;
+		fallbackTitle: string;
+		fallbackDescription?: string;
+		fallbackMeta?: Array<{ label: string, value: string }>;
+	}) => void;
+};
+
+function getTeamRelationFallbackLabel(column: TeamRelationColumn): string {
+	if(column == "supervisor")
+		return "Supervisor";
+	if(column == "officers")
+		return "Officer";
+	if(column == "reviewedBy")
+		return "Reviewed By";
+	if(column == "createdBy")
+		return "Created By";
+	if(column == "updatedBy")
+		return "Updated By";
+	return "Deleted By";
+}
+
+function renderTeamRelationValue({
+	column,
+	value,
+	relationIds,
+	stagedUserIdByUserId,
+	rowId,
+	relationNavigation,
+	onOpenRelationSummary
+}: {
+	column: TeamRelationColumn;
+	value: string;
+	relationIds: string[];
+	stagedUserIdByUserId?: Record<string, string>;
+	rowId: string;
+	relationNavigation?: TeamRelationNavigation;
+	onOpenRelationSummary?: (cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => void;
+}): ReactNode {
+	const normalizedRelationIds = [...new Set(
+		relationIds.map(relationId => relationId.trim()).filter(relationId => relationId.length > 0)
+	)];
+	const normalizedValue = value.trim();
+	if(normalizedRelationIds.length == 0 || normalizedValue.length == 0 || normalizedValue == "-")
+		return value;
+
+	const fallbackLabel = getTeamRelationFallbackLabel(column);
+	const cellKey = `${rowId}:${column}`;
+
+	const hrefBase = relationNavigation?.getHrefBase("user-management");
+	if(hrefBase != null && relationNavigation != null) {
+		const relationStagedUserIdByUserId = stagedUserIdByUserId ?? {};
+		const mappedStagedUserIds = normalizedRelationIds
+			.map(relationId => relationStagedUserIdByUserId[relationId])
+			.filter((stagedUserId): stagedUserId is string => typeof stagedUserId == "string" && stagedUserId.trim().length > 0);
+		if(mappedStagedUserIds.length != normalizedRelationIds.length)
+			return value;
+
+		const normalizedStagedUserIds = [...new Set(mappedStagedUserIds)];
+		const filter: FilterInput = normalizedStagedUserIds.length == 1 ?
+			{ column: "id", operator: "equals", value: normalizedStagedUserIds[0] } :
+			{ column: "id", operator: "in", value: normalizedStagedUserIds };
+		const relationFilters = [filter];
+		const searchParams = new URLSearchParams();
+		searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
+		searchParams.set("relationContext", `team-management:${column}`);
+		const href = `${hrefBase}?${searchParams.toString()}`;
+		return (
+			<Link
+				href={href}
+				onClick={event => {
+					if(event.altKey) {
+						event.preventDefault();
+						if(onOpenRelationSummary != null) {
+							onOpenRelationSummary(cellKey, normalizedValue, fallbackLabel, normalizedRelationIds);
+							return;
+						}
+						if(normalizedRelationIds.length == 1) {
+							const relationId = normalizedRelationIds[0];
+							relationNavigation.onOpenSummary({
+								type: "user",
+								id: relationId,
+								fallbackTitle: value,
+								fallbackDescription: `${fallbackLabel} user`,
+								fallbackMeta: [{ label: "User ID", value: relationId }]
+							});
+						}
+						return;
+					}
+					relationNavigation.onRelationLinkClick(event, {
+						targetManagementKey: "user-management",
+						hrefBase,
+						relationFilters,
+						relationContext: `team-management:${column}`
+					});
+				}}
+				className="text-primary underline underline-offset-2 hover:opacity-80"
+			>
+				{value}
+			</Link>
+		);
+	}
+
+	if(relationNavigation == null)
+		return value;
+
+	if(onOpenRelationSummary != null) {
+		return (
+			<Button
+				type="button"
+				variant="link"
+				onClick={() => onOpenRelationSummary(cellKey, normalizedValue, fallbackLabel, normalizedRelationIds)}
+				className="h-auto p-0 text-primary"
+			>
+				{value}
+			</Button>
+		);
+	}
+
+	if(normalizedRelationIds.length != 1)
+		return value;
+
+	const relationId = normalizedRelationIds[0];
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => relationNavigation.onOpenSummary({
+				type: "user",
+				id: relationId,
+				fallbackTitle: value,
+				fallbackDescription: `${fallbackLabel} user`,
+				fallbackMeta: [{ label: "User ID", value: relationId }]
+			})}
+			className="h-auto p-0 text-primary"
+		>
+			{value}
+		</Button>
+	);
+}
+
+export function TeamRequestDetailsDrawer({
+	open,
+	onOpenChange,
+	row,
+	renderActions,
+	relationNavigation
+}: TeamRequestDetailsDrawerProps) {
+	const [relationSummaryPickerOpen, setRelationSummaryPickerOpen] = useState(false);
+	const [relationSummaryPicker, setRelationSummaryPicker] = useState<RelationSummaryPickerState | null>(null);
+
+	const openRelationSummary = useCallback((cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => {
+		if(relationNavigation == null || normalizedRelationIds.length == 0)
+			return;
+
+		const normalizedDisplayTokens = normalizedValue
+			.split(",")
+			.map(token => token.trim())
+			.filter(token => token.length > 0);
+		const hasAlignedTokens = normalizedDisplayTokens.length == normalizedRelationIds.length;
+		const choices = normalizedRelationIds.map((relationId, index) => {
+			const title = normalizedRelationIds.length == 1 ? normalizedValue :
+				hasAlignedTokens ? normalizedDisplayTokens[index] :
+					`${fallbackLabel} ${index + 1}`;
+			return {
+				id: relationId,
+				title: title.length > 0 ? title : relationId,
+				description: `${fallbackLabel} user`,
+				meta: [{ label: "User ID", value: relationId }]
+			};
+		});
+
+		if(choices.length == 1) {
+			const choice = choices[0];
+			relationNavigation.onOpenSummary({
+				type: "user",
+				id: choice.id,
+				fallbackTitle: choice.title,
+				fallbackDescription: choice.description,
+				fallbackMeta: choice.meta
+			});
+			return;
+		}
+
+		setRelationSummaryPicker({ cellKey, sectionLabel: fallbackLabel, choices });
+		setRelationSummaryPickerOpen(true);
+	}, [relationNavigation]);
+
+	const detailsQuery = useQuery({
+		queryKey: ["team-management", "details", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: () => teamActions.getTeamRequestDetailsAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const details = detailsQuery.data;
+	const actionRow = details?.row ?? row;
+
+	const renderDetailColumnValue = (columnId: TeamTableColumnId, value: ReactNode) => {
+		return <div className={cn(getTeamDrawerValueClassName(columnId), "wrap-break-word")}>{value}</div>;
+	};
+
+	const renderDetailValue = (columnId: TeamTableColumnId, data: teamActions.TeamRequestDetailsOutput) => {
+		switch(columnId) {
+			case "id":
+				return renderDetailColumnValue(columnId, data.row.id);
+			case "name":
+				return renderDetailColumnValue(columnId, data.row.name);
+			case "supervisor":
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "supervisor", value: data.relationValues.supervisor ?? "-", relationIds: data.row.supervisorId != null ? [data.row.supervisorId] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+			case "officers":
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "officers", value: data.relationValues.officers ?? "-", relationIds: data.row.officerIds, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation, onOpenRelationSummary: openRelationSummary }));
+			case "createdBy":
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationIds: data.row.createdById != null ? [data.row.createdById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+			case "updatedBy":
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationIds: data.row.updatedById != null ? [data.row.updatedById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+			case "deletedBy":
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationIds: data.row.deletedById != null ? [data.row.deletedById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+			case "createdAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
+			case "updatedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.updatedAt));
+			case "deletedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
+			case "requestType":
+				return renderDetailColumnValue(columnId, data.row.requestType);
+			case "status": {
+				const status = getReviewStatus(data.row);
+				return <Badge variant={status.variant}>{status.label}</Badge>;
+			}
+			case "reviewedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
+			case "reviewedBy":
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationIds: data.row.reviewedById != null ? [data.row.reviewedById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+			case "reviewApproved":
+				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved == true ? "True" : "False");
+			case "reviewCommentText":
+				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			default:
+				return renderDetailColumnValue(columnId, "-");
+		}
+	};
+
+	return (
+		<>
+			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+					<DrawerHeader>
+						<DrawerTitle>Team Request Details</DrawerTitle>
+						<DrawerDescription>Review all available columns for this team request entry.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No team request selected.</p>
+						) : detailsQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+							</div>
+						) : detailsQuery.isError || details == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load team request details.</AlertDescription>
+							</Alert>
+						) : (
+							teamTableColumns.map(column => (
+								<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
+									<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
+									{renderDetailValue(column.id, details)}
+								</div>
+							))
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+						{actionRow != null ? (
+							<div className="flex flex-wrap justify-end gap-2">
+								{renderActions(actionRow)}
+							</div>
+						) : null}
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+
+			<RelationSummaryPickerDrawer
+				isOpen={relationSummaryPickerOpen}
+				onOpenChange={setRelationSummaryPickerOpen}
+				picker={relationSummaryPicker}
+				onOpenSummary={request => relationNavigation?.onOpenSummary(request)}
+			/>
+		</>
+	);
+}
+
 type UseTeamCellRendererOptions = {
 	relationValuesByRowId: Record<string, teamActions.TeamRelationValues>;
 	isRelationLoading: boolean;
-	relationNavigation?: {
-		getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
-		onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
-			targetManagementKey: "user-management" | "role-management" | "team-management";
-			hrefBase: string;
-			relationFilters: unknown;
-			relationContext?: string;
-		}) => void;
-		onOpenSummary: (request: {
-			type: "user";
-			id: string;
-			fallbackTitle: string;
-			fallbackDescription?: string;
-			fallbackMeta?: Array<{ label: string, value: string }>;
-		}) => void;
-	};
+	relationNavigation?: TeamRelationNavigation;
 };
 
 export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseTeamCellRendererOptions) {
 	const [relationSummaryPickerOpen, setRelationSummaryPickerOpen] = useState(false);
-	const [relationSummaryPicker, setRelationSummaryPicker] = useState<{
-		cellKey: string;
-		sectionLabel: string;
-		choices: Array<{ id: string, title: string, description: string, meta: Array<{ label: string, value: string }> }>;
-	} | null>(null);
+	const [relationSummaryPicker, setRelationSummaryPicker] = useState<RelationSummaryPickerState | null>(null);
 
 	const openRelationSummary = useCallback((cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => {
 		if(relationNavigation == null || normalizedRelationIds.length == 0)
@@ -1210,117 +1535,13 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 	}, [relationNavigation]);
 
 	const relationSummaryPickerDrawer = (
-		<Drawer open={relationSummaryPickerOpen} onOpenChange={v => setRelationSummaryPickerOpen(v)} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-lg">
-				{relationSummaryPicker != null && relationNavigation != null ? (
-					<>
-						<DrawerHeader>
-							<DrawerTitle>Select user relation</DrawerTitle>
-							<DrawerDescription>Choose which {relationSummaryPicker.sectionLabel.toLowerCase()} user detail to open.</DrawerDescription>
-						</DrawerHeader>
-						<div className="space-y-2 px-4 pb-4">
-							{relationSummaryPicker.choices.map(choice => (
-								<Button
-									key={`${choice.id}-${choice.title}`}
-									type="button"
-									variant="outline"
-									className="h-auto w-full whitespace-normal px-3 py-2 text-left"
-									onClick={() => {
-										relationNavigation.onOpenSummary({
-											type: "user",
-											id: choice.id,
-											fallbackTitle: choice.title,
-											fallbackDescription: choice.description,
-											fallbackMeta: choice.meta
-										});
-									}}
-								>
-									<span className="grid w-full gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
-										<span className="max-h-11 overflow-hidden text-sm leading-snug wrap-break-word sm:max-h-none">{choice.title}</span>
-										<span className="text-muted-foreground block font-mono text-xs wrap-break-word sm:text-right">{choice.id}</span>
-									</span>
-								</Button>
-							))}
-						</div>
-						<DrawerFooter className="border-t">
-							<Button type="button" variant="outline" onClick={() => setRelationSummaryPickerOpen(false)}>Cancel</Button>
-						</DrawerFooter>
-					</>
-				) : null}
-			</DrawerContent>
-		</Drawer>
+		<RelationSummaryPickerDrawer
+			isOpen={relationSummaryPickerOpen}
+			onOpenChange={setRelationSummaryPickerOpen}
+			picker={relationSummaryPicker}
+			onOpenSummary={request => relationNavigation?.onOpenSummary(request)}
+		/>
 	);
-
-	const renderRelationValue = useCallback((column: TeamRelationColumn, value: string, relationIds: string[], stagedUserIdByUserId: Record<string, string> | undefined, rowId: string) => {
-		const normalizedRelationIds = [...new Set(
-			relationIds.map(relationId => relationId.trim()).filter(relationId => relationId.length > 0)
-		)];
-		const normalizedValue = value.trim();
-		if(normalizedRelationIds.length == 0 || normalizedValue.length == 0 || normalizedValue == "-")
-			return value;
-
-		const fallbackLabel = column == "supervisor" ? "Supervisor" :
-			column == "officers" ? "Officer" :
-				column == "reviewedBy" ? "Reviewed By" :
-					column == "createdBy" ? "Created By" :
-						column == "updatedBy" ? "Updated By" : "Deleted By";
-		const cellKey = `${rowId}:${column}`;
-
-		const hrefBase = relationNavigation?.getHrefBase("user-management");
-		if(hrefBase != null && relationNavigation != null) {
-			const relationStagedUserIdByUserId = stagedUserIdByUserId ?? {};
-			const mappedStagedUserIds = normalizedRelationIds
-				.map(relationId => relationStagedUserIdByUserId[relationId])
-				.filter((stagedUserId): stagedUserId is string => typeof stagedUserId == "string" && stagedUserId.trim().length > 0);
-			if(mappedStagedUserIds.length != normalizedRelationIds.length)
-				return value;
-
-			const normalizedStagedUserIds = [...new Set(mappedStagedUserIds)];
-			const filter: FilterInput = normalizedStagedUserIds.length == 1 ?
-				{ column: "id", operator: "equals", value: normalizedStagedUserIds[0] } :
-				{ column: "id", operator: "in", value: normalizedStagedUserIds };
-			const relationFilters = [filter];
-			const searchParams = new URLSearchParams();
-			searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
-			searchParams.set("relationContext", `team-management:${column}`);
-			const href = `${hrefBase}?${searchParams.toString()}`;
-			return (
-				<Link
-					href={href}
-					onClick={event => {
-						if(event.altKey) {
-							event.preventDefault();
-							openRelationSummary(cellKey, normalizedValue, fallbackLabel, normalizedRelationIds);
-							return;
-						}
-						relationNavigation.onRelationLinkClick(event, {
-							targetManagementKey: "user-management",
-							hrefBase,
-							relationFilters,
-							relationContext: `team-management:${column}`
-						});
-					}}
-					className="text-primary underline underline-offset-2 hover:opacity-80"
-				>
-					{value}
-				</Link>
-			);
-		}
-
-		if(relationNavigation == null)
-			return value;
-
-		return (
-			<Button
-				type="button"
-				variant="link"
-				onClick={() => openRelationSummary(cellKey, normalizedValue, fallbackLabel, normalizedRelationIds)}
-				className="h-auto p-0 text-primary"
-			>
-				{value}
-			</Button>
-		);
-	}, [openRelationSummary, relationNavigation]);
 
 	const result = useCallback((columnId: TeamTableColumnId, row: TeamTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
@@ -1332,23 +1553,23 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "supervisor":
 				if(isRelationLoading && resolvedValues.supervisor == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("supervisor", resolvedValues.supervisor ?? "-", row.supervisorId != null ? [row.supervisorId] : [], resolvedValues.stagedUserIdByUserId, row.id);
+				return renderTeamRelationValue({ column: "supervisor", value: resolvedValues.supervisor ?? "-", relationIds: row.supervisorId != null ? [row.supervisorId] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "officers":
 				if(isRelationLoading && resolvedValues.officers == null)
 					return <Skeleton className="h-4 w-36" />;
-				return renderRelationValue("officers", resolvedValues.officers ?? "-", row.officerIds, resolvedValues.stagedUserIdByUserId, row.id);
+				return renderTeamRelationValue({ column: "officers", value: resolvedValues.officers ?? "-", relationIds: row.officerIds, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("createdBy", resolvedValues.createdBy ?? "-", row.createdById != null ? [row.createdById] : [], resolvedValues.stagedUserIdByUserId, row.id);
+				return renderTeamRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationIds: row.createdById != null ? [row.createdById] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "updatedBy":
 				if(isRelationLoading && resolvedValues.updatedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("updatedBy", resolvedValues.updatedBy ?? "-", row.updatedById != null ? [row.updatedById] : [], resolvedValues.stagedUserIdByUserId, row.id);
+				return renderTeamRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationIds: row.updatedById != null ? [row.updatedById] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "deletedBy":
 				if(isRelationLoading && resolvedValues.deletedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("deletedBy", resolvedValues.deletedBy ?? "-", row.deletedById != null ? [row.deletedById] : [], resolvedValues.stagedUserIdByUserId, row.id);
+				return renderTeamRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationIds: row.deletedById != null ? [row.deletedById] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1366,7 +1587,7 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedBy":
 				if(isRelationLoading && resolvedValues.reviewedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("reviewedBy", resolvedValues.reviewedBy ?? "-", row.reviewedById != null ? [row.reviewedById] : [], resolvedValues.stagedUserIdByUserId, row.id);
+				return renderTeamRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationIds: row.reviewedById != null ? [row.reviewedById] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			case "reviewCommentText":
@@ -1374,7 +1595,7 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, relationValuesByRowId, renderRelationValue]);
+	}, [isRelationLoading, openRelationSummary, relationNavigation, relationValuesByRowId]);
 	const result2 = result as typeof result & { relationSummaryPickerDrawer: typeof relationSummaryPickerDrawer };
 	result2.relationSummaryPickerDrawer = relationSummaryPickerDrawer;
 	return result2;

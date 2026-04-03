@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -9,8 +10,10 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as teamActions from "../layout.actions";
 import { TeamActiveFiltersSummary } from "../layout.components";
 import { TeamColumnConfigCard } from "../layout.components";
+import { TeamRequestDetailsDrawer } from "../layout.components";
 import { TeamRequestFilterCard } from "../layout.components";
 import { TeamRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerTeamColumnId } from "../layout.components";
 import { useTeamCellRenderer } from "../layout.components";
 import { useTeamColumnPreferences } from "../layout.components";
 import { useTeamFilterColumnConfig } from "../layout.components";
@@ -18,8 +21,10 @@ import { useTeamManagementQueryState } from "../layout.components";
 import { useTeamRelations } from "../layout.components";
 import { useTeamRequestFilters } from "../layout.components";
 import { useTeamRequestsQuery } from "../layout.components";
+import { type TeamTableRow } from "../layout.components";
 
 export default function TeamManagementViewerPage() {
+	const [detailRow, setDetailRow] = useState<TeamTableRow | null>(null);
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useTeamColumnPreferences();
 	const queryState = useTeamManagementQueryState();
@@ -61,6 +66,8 @@ export default function TeamManagementViewerPage() {
 		title: "Error",
 		message: queryErrorMessage
 	} : null;
+	const detailTriggerColumnId = getEligibleDetailTriggerTeamColumnId(columnPreferences.visibleColumns);
+	const renderTeamActions = () => null;
 
 	return (
 		<>
@@ -112,13 +119,16 @@ export default function TeamManagementViewerPage() {
 				<TeamRequestsTable
 					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					visibleColumnCount={columnPreferences.visibleColumns.length}
+					includeActions={false}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={false}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
+					onOpenDetails={setDetailRow}
 					renderTeamCell={renderTeamCell}
-					renderActions={() => <span className="text-muted-foreground text-sm">-</span>}
+					renderActions={renderTeamActions}
 				/>
 
 				<DashboardManagementPagination
@@ -132,6 +142,21 @@ export default function TeamManagementViewerPage() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 			</DashboardManagementPageFrame>
+
+			<TeamRequestDetailsDrawer
+				open={detailRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setDetailRow(null);
+				}}
+				row={detailRow}
+				renderActions={renderTeamActions}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
+			/>
 
 			{renderTeamCell.relationSummaryPickerDrawer}
 

@@ -14,10 +14,12 @@ import * as teamActions from "../layout.actions";
 import { TeamActiveFiltersSummary } from "../layout.components";
 import { TeamColumnConfigCard } from "../layout.components";
 import { TeamRequestCancelDialog } from "../layout.components";
+import { TeamRequestDetailsDrawer } from "../layout.components";
 import { TeamRequestDeleteDialog } from "../layout.components";
 import { TeamRequestFilterCard } from "../layout.components";
 import { TeamRequestFormDrawer } from "../layout.components";
 import { TeamRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerTeamColumnId } from "../layout.components";
 import { resolveActionError } from "../layout.components";
 import { useTeamCellRenderer } from "../layout.components";
 import { useTeamColumnPreferences } from "../layout.components";
@@ -41,6 +43,7 @@ export default function TeamManagementEditorPage() {
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
+	const [detailRow, setDetailRow] = useState<TeamTableRow | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<TeamTableRow | null>(null);
 	const [cancelTarget, setCancelTarget] = useState<TeamTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
@@ -91,6 +94,7 @@ export default function TeamManagementEditorPage() {
 		title: "Error",
 		message: queryErrorMessage
 	} : null);
+	const detailTriggerColumnId = getEligibleDetailTriggerTeamColumnId(columnPreferences.visibleColumns);
 
 	const runMutation = (
 		action: () => Promise<void>,
@@ -178,6 +182,43 @@ export default function TeamManagementEditorPage() {
 		});
 	};
 
+	const renderTeamActions = (row: TeamTableRow) => {
+		const isPending = row.reviewedAt == null;
+		const isRejected = row.reviewedAt != null && row.reviewApproved == false;
+
+		return (
+			<>
+				<Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(row)} disabled={isMutating || row.isSoftDeleted}>
+					<PencilIcon />
+					Edit
+				</Button>
+				{row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
+						<PlusIcon />
+						Restore
+					</Button>
+				) : row.deletedAt == null ? (
+					<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
+						<Trash2Icon />
+						Delete
+					</Button>
+				) : null}
+				{isPending && !row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
+						<XIcon />
+						Cancel
+					</Button>
+				) : null}
+				{isRejected && !row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
+						<HistoryIcon />
+						Restore Approved
+					</Button>
+				) : null}
+			</>
+		);
+	};
+
 	return (
 		<>
 			<DashboardManagementPageFrame
@@ -246,47 +287,14 @@ export default function TeamManagementEditorPage() {
 					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
 					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={isMutating}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
+					onOpenDetails={setDetailRow}
 					renderTeamCell={renderTeamCell}
-					renderActions={row => {
-						const isPending = row.reviewedAt == null;
-						const isRejected = row.reviewedAt != null && row.reviewApproved == false;
-
-						return (
-							<>
-								<Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(row)} disabled={isMutating || row.isSoftDeleted}>
-									<PencilIcon />
-									Edit
-								</Button>
-								{row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
-										<PlusIcon />
-										Restore
-									</Button>
-								) : row.deletedAt == null ? (
-									<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
-										<Trash2Icon />
-										Delete
-									</Button>
-								) : null}
-								{isPending && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
-										<XIcon />
-										Cancel
-									</Button>
-								) : null}
-								{isRejected && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
-										<HistoryIcon />
-										Restore Approved
-									</Button>
-								) : null}
-							</>
-						);
-					}}
+					renderActions={renderTeamActions}
 				/>
 
 				<DashboardManagementPagination
@@ -300,6 +308,21 @@ export default function TeamManagementEditorPage() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 			</DashboardManagementPageFrame>
+
+			<TeamRequestDetailsDrawer
+				open={detailRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setDetailRow(null);
+				}}
+				row={detailRow}
+				renderActions={renderTeamActions}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
+			/>
 
 			<TeamRequestFormDrawer
 				open={isFormOpen}

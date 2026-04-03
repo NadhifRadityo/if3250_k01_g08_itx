@@ -12,9 +12,11 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as roleActions from "../layout.actions";
 import { RoleActiveFiltersSummary } from "../layout.components";
 import { RoleColumnConfigCard } from "../layout.components";
+import { RoleRequestDetailsDrawer } from "../layout.components";
 import { RoleRequestFilterCard } from "../layout.components";
 import { RoleRequestReviewDrawer } from "../layout.components";
 import { RoleRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerRoleColumnId } from "../layout.components";
 import { resolveActionError } from "../layout.components";
 import { useRoleCellRenderer } from "../layout.components";
 import { useRoleColumnPreferences } from "../layout.components";
@@ -36,6 +38,7 @@ export default function RoleManagementApproverPage() {
 	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: RoleTableRow, diff: RoleRequestReviewDiff | null } | null>(null);
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
+	const [detailRow, setDetailRow] = useState<RoleTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useRoleColumnPreferences();
@@ -78,6 +81,7 @@ export default function RoleManagementApproverPage() {
 		title: "Error",
 		message: queryErrorMessage
 	} : null;
+	const detailTriggerColumnId = getEligibleDetailTriggerRoleColumnId(columnPreferences.visibleColumns);
 
 	const runMutation = (action: () => Promise<void>) => {
 		startMutationTransition(() => {
@@ -123,6 +127,22 @@ export default function RoleManagementApproverPage() {
 			setReviewDrawerState(null);
 			setReviewReason("");
 		});
+	};
+
+	const renderRoleActions = (row: RoleTableRow) => {
+		const isPending = row.reviewedAt == null;
+		return (
+			<Button
+				type="button"
+				size="sm"
+				variant="default"
+				onClick={() => openReviewDrawer(row)}
+				disabled={!isPending || isMutating || isReviewDiffLoading}
+			>
+				<CheckIcon />
+				Review
+			</Button>
+		);
 	};
 
 	return (
@@ -176,27 +196,14 @@ export default function RoleManagementApproverPage() {
 					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
 					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={isMutating}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
+					onOpenDetails={setDetailRow}
 					renderRoleCell={renderRoleCell}
-					renderActions={row => {
-						const isPending = row.reviewedAt == null;
-
-						return (
-							<Button
-								type="button"
-								size="sm"
-								variant="default"
-								onClick={() => openReviewDrawer(row)}
-								disabled={!isPending || isMutating || isReviewDiffLoading}
-							>
-								<CheckIcon />
-								Review
-							</Button>
-						);
-					}}
+					renderActions={renderRoleActions}
 				/>
 
 				<DashboardManagementPagination
@@ -210,6 +217,21 @@ export default function RoleManagementApproverPage() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 			</DashboardManagementPageFrame>
+
+			<RoleRequestDetailsDrawer
+				open={detailRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setDetailRow(null);
+				}}
+				row={detailRow}
+				renderActions={renderRoleActions}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
+			/>
 
 			<RoleRequestReviewDrawer
 				open={reviewDrawerState != null}

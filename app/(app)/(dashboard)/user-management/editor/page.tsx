@@ -14,10 +14,12 @@ import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
 import { UserRequestCancelDialog } from "../layout.components";
+import { UserRequestDetailsDrawer } from "../layout.components";
 import { UserRequestDeleteDialog } from "../layout.components";
 import { UserRequestFilterCard } from "../layout.components";
 import { UserRequestFormDrawer } from "../layout.components";
 import { UserRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerUserColumnId } from "../layout.components";
 import { resolveActionError } from "../layout.components";
 import { useUserCellRenderer } from "../layout.components";
 import { useUserColumnPreferences } from "../layout.components";
@@ -41,6 +43,7 @@ export default function UserManagementEditorPage() {
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
+	const [detailRow, setDetailRow] = useState<StagedUserTableRow | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<StagedUserTableRow | null>(null);
 	const [cancelTarget, setCancelTarget] = useState<StagedUserTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
@@ -91,6 +94,7 @@ export default function UserManagementEditorPage() {
 		title: "Error",
 		message: queryErrorMessage
 	} : null);
+	const detailTriggerColumnId = getEligibleDetailTriggerUserColumnId(columnPreferences.visibleColumns);
 
 	const runMutation = (
 		action: () => Promise<void>,
@@ -188,6 +192,43 @@ export default function UserManagementEditorPage() {
 		});
 	};
 
+	const renderUserActions = (row: StagedUserTableRow) => {
+		const isPending = row.reviewedAt == null;
+		const isRejected = row.reviewedAt != null && row.reviewApproved == false;
+
+		return (
+			<>
+				<Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(row)} disabled={isMutating || row.isSoftDeleted}>
+					<PencilIcon />
+					Edit
+				</Button>
+				{row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
+						<PlusIcon />
+						Restore
+					</Button>
+				) : row.deletedAt == null ? (
+					<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
+						<Trash2Icon />
+						Delete
+					</Button>
+				) : null}
+				{isPending && !row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
+						<XIcon />
+						Cancel
+					</Button>
+				) : null}
+				{isRejected && !row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
+						<HistoryIcon />
+						Restore Approved
+					</Button>
+				) : null}
+			</>
+		);
+	};
+
 	return (
 		<>
 			<DashboardManagementPageFrame
@@ -256,47 +297,14 @@ export default function UserManagementEditorPage() {
 					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
 					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={isMutating}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
+					onOpenDetails={setDetailRow}
 					renderUserCell={renderUserCell}
-					renderActions={row => {
-						const isPending = row.reviewedAt == null;
-						const isRejected = row.reviewedAt != null && row.reviewApproved == false;
-
-						return (
-							<>
-								<Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(row)} disabled={isMutating || row.isSoftDeleted}>
-									<PencilIcon />
-									Edit
-								</Button>
-								{row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
-										<PlusIcon />
-										Restore
-									</Button>
-								) : row.deletedAt == null ? (
-									<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
-										<Trash2Icon />
-										Delete
-									</Button>
-								) : null}
-								{isPending && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
-										<XIcon />
-										Cancel
-									</Button>
-								) : null}
-								{isRejected && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
-										<HistoryIcon />
-										Restore Approved
-									</Button>
-								) : null}
-							</>
-						);
-					}}
+					renderActions={renderUserActions}
 				/>
 
 				<DashboardManagementPagination
@@ -310,6 +318,21 @@ export default function UserManagementEditorPage() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 			</DashboardManagementPageFrame>
+
+			<UserRequestDetailsDrawer
+				open={detailRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setDetailRow(null);
+				}}
+				row={detailRow}
+				renderActions={renderUserActions}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
+			/>
 
 			<UserRequestFormDrawer
 				open={isFormOpen}

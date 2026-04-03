@@ -12,9 +12,11 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
+import { UserRequestDetailsDrawer } from "../layout.components";
 import { UserRequestFilterCard } from "../layout.components";
 import { UserRequestReviewDrawer } from "../layout.components";
 import { UserRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerUserColumnId } from "../layout.components";
 import { resolveActionError } from "../layout.components";
 import { useUserCellRenderer } from "../layout.components";
 import { useUserColumnPreferences } from "../layout.components";
@@ -36,6 +38,7 @@ export default function UserManagementApproverPage() {
 	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: StagedUserTableRow, diff: UserRequestReviewDiff | null } | null>(null);
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
+	const [detailRow, setDetailRow] = useState<StagedUserTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useUserColumnPreferences();
@@ -78,6 +81,7 @@ export default function UserManagementApproverPage() {
 		title: "Error",
 		message: queryErrorMessage
 	} : null;
+	const detailTriggerColumnId = getEligibleDetailTriggerUserColumnId(columnPreferences.visibleColumns);
 
 	const runMutation = (action: () => Promise<void>) => {
 		startMutationTransition(() => {
@@ -123,6 +127,22 @@ export default function UserManagementApproverPage() {
 			setReviewDrawerState(null);
 			setReviewReason("");
 		});
+	};
+
+	const renderUserActions = (row: StagedUserTableRow) => {
+		const isPending = row.reviewedAt == null;
+		return (
+			<Button
+				type="button"
+				size="sm"
+				variant="default"
+				onClick={() => openReviewDrawer(row)}
+				disabled={!isPending || isMutating || isReviewDiffLoading}
+			>
+				<CheckIcon />
+				Review
+			</Button>
+		);
 	};
 
 	return (
@@ -176,26 +196,14 @@ export default function UserManagementApproverPage() {
 					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
 					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={isMutating}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
+					onOpenDetails={setDetailRow}
 					renderUserCell={renderUserCell}
-					renderActions={row => {
-						const isPending = row.reviewedAt == null;
-						return (
-							<Button
-								type="button"
-								size="sm"
-								variant="default"
-								onClick={() => openReviewDrawer(row)}
-								disabled={!isPending || isMutating || isReviewDiffLoading}
-							>
-								<CheckIcon />
-								Review
-							</Button>
-						);
-					}}
+					renderActions={renderUserActions}
 				/>
 
 				<DashboardManagementPagination
@@ -209,6 +217,21 @@ export default function UserManagementApproverPage() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 			</DashboardManagementPageFrame>
+
+			<UserRequestDetailsDrawer
+				open={detailRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setDetailRow(null);
+				}}
+				row={detailRow}
+				renderActions={renderUserActions}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
+			/>
 
 			<UserRequestReviewDrawer
 				open={reviewDrawerState != null}

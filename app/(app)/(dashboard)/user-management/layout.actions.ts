@@ -263,6 +263,12 @@ export type UserRequestReviewDiffOutput = {
 	changedCount: number;
 };
 
+export type UserRequestDetailsOutput = {
+	row: StagedUserTableRow;
+	relationValues: StagedUserRelationValues;
+	relationReferences: Partial<Record<"role" | UserRelationColumn, Array<{ type: "user" | "role", id: string, label: string }>>>;
+};
+
 type SortFieldKey = UserManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
 
 function clampPageSize(limit: number): number {
@@ -280,8 +286,8 @@ function normalizeSortTokens(sort: string[]): UserManagementSortToken[] {
 	const deduplicated = prefixed.filter((token, index, source) =>
 		index == source.findIndex(candidate => candidate.slice(1) == token.slice(1))
 	);
-	if(!deduplicated.some(token => token.slice(1) == "updatedAt"))
-		deduplicated.push("-updatedAt");
+	if(deduplicated.length == 0)
+		return ["-updatedAt"];
 	return deduplicated;
 }
 
@@ -1146,6 +1152,121 @@ export async function resolveStagedUserRelationColumnsAction({ rows, columns }: 
 			values
 		};
 	});
+}
+
+export async function getStagedUserRequestDetailsAction(stagedUserId: string): Promise<UserRequestDetailsOutput> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const stagedUser = await payload.findByID({
+		collection: "staged-users",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		id: stagedUserId,
+		depth: 0,
+		select: {
+			email: true,
+			name: true,
+			employeeId: true,
+			role: true,
+			supervisor: true,
+			createdBy: true,
+			updatedBy: true,
+			deletedBy: true,
+			initialPassword: true,
+			createdAt: true,
+			updatedAt: true,
+			deletedAt: true,
+			_status: true,
+			reviewedAt: true,
+			reviewedBy: true,
+			reviewApproved: true,
+			reviewComment: true
+		}
+	});
+
+	const linkedUserIdByStagedId = await queryLinkedUsersByStagedIds(payload, user, [String(stagedUser.id)]);
+	const roleId = getRelationshipId(stagedUser.role);
+	const roleNamesById = await findRolesByIds(payload, user, roleId != null ? [roleId] : []);
+
+	const supervisorId = getRelationshipId(stagedUser.supervisor);
+	const reviewedById = getRelationshipId(stagedUser.reviewedBy);
+	const createdById = getRelationshipId(stagedUser.createdBy);
+	const updatedById = getRelationshipId(stagedUser.updatedBy);
+	const deletedById = getRelationshipId(stagedUser.deletedBy);
+	const reviewCommentText = richTextToPlainText(stagedUser.reviewComment);
+
+	const row: StagedUserTableRow = {
+		id: String(stagedUser.id),
+		linkedUserId: linkedUserIdByStagedId.get(String(stagedUser.id)) ?? null,
+		email: stagedUser.email,
+		name: stagedUser.name,
+		employeeId: stagedUser.employeeId,
+		roleId,
+		roleName: roleId != null ? (roleNamesById.get(roleId) ?? roleId) : "-",
+		supervisorId,
+		isSoftDeleted: stagedUser.deletedAt != null && stagedUser._status == "published",
+		initialPassword: stagedUser.initialPassword ?? "",
+		createdById,
+		updatedById,
+		deletedById,
+		createdAt: stagedUser.createdAt,
+		updatedAt: stagedUser.updatedAt,
+		deletedAt: stagedUser.deletedAt ?? null,
+		reviewedAt: stagedUser.reviewedAt ?? null,
+		reviewedById,
+		reviewApproved: stagedUser.reviewApproved ?? null,
+		reviewCommentText
+	};
+
+	const relationUserIds = new Set<string>();
+	if(row.supervisorId != null)
+		relationUserIds.add(row.supervisorId);
+	if(row.reviewedById != null)
+		relationUserIds.add(row.reviewedById);
+	if(row.createdById != null)
+		relationUserIds.add(row.createdById);
+	if(row.updatedById != null)
+		relationUserIds.add(row.updatedById);
+	if(row.deletedById != null)
+		relationUserIds.add(row.deletedById);
+
+	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+
+	const relationValues: StagedUserRelationValues = {
+		supervisor: row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-",
+		reviewedBy: row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-",
+		createdBy: row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-",
+		updatedBy: row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-",
+		deletedBy: row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-"
+	};
+
+	const stagedUserIdByUserId = Object.fromEntries(
+		[...relationUserIds]
+			.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
+			.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
+	);
+	if(Object.keys(stagedUserIdByUserId).length > 0)
+		relationValues.stagedUserIdByUserId = stagedUserIdByUserId;
+
+	const relationReferences: UserRequestDetailsOutput["relationReferences"] = {
+		role: row.roleId != null ? [{ type: "role", id: row.roleId, label: roleNamesById.get(row.roleId) ?? "Role" }] : [],
+		supervisor: row.supervisorId != null ? [{ type: "user", id: row.supervisorId, label: usersById.get(row.supervisorId)?.name ?? "User" }] : [],
+		reviewedBy: row.reviewedById != null ? [{ type: "user", id: row.reviewedById, label: usersById.get(row.reviewedById)?.name ?? "User" }] : [],
+		createdBy: row.createdById != null ? [{ type: "user", id: row.createdById, label: usersById.get(row.createdById)?.name ?? "User" }] : [],
+		updatedBy: row.updatedById != null ? [{ type: "user", id: row.updatedById, label: usersById.get(row.updatedById)?.name ?? "User" }] : [],
+		deletedBy: row.deletedById != null ? [{ type: "user", id: row.deletedById, label: usersById.get(row.deletedById)?.name ?? "User" }] : []
+	};
+
+	return {
+		row,
+		relationValues,
+		relationReferences
+	};
 }
 
 export async function upsertStagedUserRequestAction(input: UpsertStagedUserRequestInput) {

@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, ArrowUpIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
+import cn from "@/utils/cn";
 import { Link } from "@/components/Link";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -175,6 +176,14 @@ export const userTableColumns: UserTableColumnConfig[] = [
 	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
+function getUserDrawerValueClassName(columnId: string): string {
+	if(columnId == "id")
+		return "text-xs font-mono";
+	if(columnId == "name")
+		return "text-sm font-medium";
+	return "text-sm";
+}
+
 export const defaultUserColumnOrder: UserTableColumnId[] = userTableColumns.map(column => column.id);
 export const defaultUserVisibleColumns: UserTableColumnId[] = ["name", "email", "employeeId", "role", "requestType", "status", "updatedAt", "reviewCommentText"];
 export const defaultUserHiddenColumns: UserTableColumnId[] = defaultUserColumnOrder.filter(columnId => !defaultUserVisibleColumns.includes(columnId));
@@ -186,6 +195,22 @@ export const userRelationColumnSet = new Set<UserRelationColumn>([
 	"updatedBy",
 	"deletedBy"
 ]);
+
+const userNonEligibleColumnSet = new Set<string>([
+	"actions",
+	"status",
+	"role",
+	"supervisor",
+	"reviewedBy",
+	"createdBy",
+	"updatedBy",
+	"deletedBy"
+]);
+
+export function getEligibleDetailTriggerUserColumnId(visibleColumns: UserTableColumnConfig[]): UserTableColumnId | null {
+	const triggerColumn = visibleColumns.find(column => !userNonEligibleColumnSet.has(column.id));
+	return triggerColumn?.id ?? null;
+}
 
 export const filterOperatorOptions: Array<{ value: FilterOperator, label: string }> = [
 	{ value: "equals", label: "Equals" },
@@ -958,38 +983,20 @@ export function UserRequestReviewDrawer({
 	const renderReferenceValue = (
 		value: string,
 		references: Array<{ type: "user" | "role", id: string, label: string }> | undefined,
-		sectionLabel: string
+		sectionLabel: string,
+		valueClassName: string
 	) => {
 		if(references == null || references.length == 0)
-			return <div className="bg-muted/50 min-h-9 rounded border px-2 py-1.5 text-sm wrap-break-word">{value}</div>;
-
-		if(references.length == 1) {
-			const reference = references[0];
-			return (
-				<button
-					type="button"
-					onClick={() => entrySummary.openSummary({
-						type: reference.type,
-						id: reference.id,
-						fallbackTitle: reference.label,
-						fallbackDescription: sectionLabel
-					})}
-					className="bg-muted/50 text-primary min-h-9 w-full rounded border px-2 py-1.5 text-left text-sm underline underline-offset-2 wrap-break-word hover:opacity-80"
-				>
-					{value}
-				</button>
-			);
-		}
+			return <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>{value}</div>;
 
 		return (
-			<div className="bg-muted/50 space-y-2 rounded border px-2 py-1.5 text-sm">
-				<p className="wrap-break-word">{value}</p>
+			<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>
 				<div className="flex flex-wrap gap-1.5">
 					{references.map(reference => (
 						<Button
 							key={`${reference.type}-${reference.id}-${sectionLabel}`}
 							type="button"
-							variant="outline"
+							variant="link"
 							size="sm"
 							onClick={() => entrySummary.openSummary({
 								type: reference.type,
@@ -997,6 +1004,7 @@ export function UserRequestReviewDrawer({
 								fallbackTitle: reference.label,
 								fallbackDescription: sectionLabel
 							})}
+							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word"
 						>
 							{reference.label}
 						</Button>
@@ -1043,11 +1051,11 @@ export function UserRequestReviewDrawer({
 										<div className="grid gap-2 sm:grid-cols-2">
 											<div className="space-y-1">
 												<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-												{renderReferenceValue(item.previousValue, item.previousReferences, `User ${item.label} (last approved)`)}
+												{renderReferenceValue(item.previousValue, item.previousReferences, `User ${item.label} (last approved)`, getUserDrawerValueClassName(item.field))}
 											</div>
 											<div className="space-y-1">
 												<p className="text-muted-foreground text-xs font-medium">Requested</p>
-												{renderReferenceValue(item.requestedValue, item.requestedReferences, `User ${item.label} (requested)`)}
+												{renderReferenceValue(item.requestedValue, item.requestedReferences, `User ${item.label} (requested)`, getUserDrawerValueClassName(item.field))}
 											</div>
 										</div>
 									</div>
@@ -1091,10 +1099,13 @@ type UserRequestsTableProps = {
 	queryResult: QueryStagedUsersOutput;
 	visibleColumns: UserTableColumnConfig[];
 	visibleColumnCount: number;
+	includeActions?: boolean;
+	detailTriggerColumnId: UserTableColumnId | null;
 	isLoading: boolean;
 	isMutating: boolean;
 	getSortDirection: (field: SortField) => SortDirection | null;
 	onToggleSortField: (field: SortField) => void;
+	onOpenDetails: (row: StagedUserTableRow) => void;
 	renderUserCell: (columnId: UserTableColumnConfig["id"], row: StagedUserTableRow) => ReactNode;
 	renderActions: (row: StagedUserTableRow) => ReactNode;
 };
@@ -1103,10 +1114,13 @@ export function UserRequestsTable({
 	queryResult,
 	visibleColumns,
 	visibleColumnCount,
+	includeActions = true,
+	detailTriggerColumnId,
 	isLoading,
 	isMutating,
 	getSortDirection,
 	onToggleSortField,
+	onOpenDetails,
 	renderUserCell,
 	renderActions
 }: UserRequestsTableProps) {
@@ -1143,7 +1157,7 @@ export function UserRequestsTable({
 								<TableHead key={column.id} className={column.headClassName}>{column.label}</TableHead>
 							)
 						))}
-						<TableHead className="w-65">Actions</TableHead>
+						{includeActions ? <TableHead className="w-65">Actions</TableHead> : null}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -1160,16 +1174,26 @@ export function UserRequestsTable({
 					{queryResult.docs.map(row => {
 						return (
 							<TableRow key={row.id}>
-								{visibleColumns.map(column => (
-									<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
-										{renderUserCell(column.id, row)}
+								{visibleColumns.map(column => {
+									const cellValue = renderUserCell(column.id, row);
+									const isDetailTriggerColumn = detailTriggerColumnId != null && column.id == detailTriggerColumnId;
+									return (
+										<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
+											{isDetailTriggerColumn ? (
+												<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal">
+													{cellValue}
+												</Button>
+											) : cellValue}
+										</TableCell>
+									);
+								})}
+								{includeActions ? (
+									<TableCell>
+										<div className="flex flex-wrap gap-2">
+											{renderActions(row)}
+										</div>
 									</TableCell>
-								))}
-								<TableCell>
-									<div className="flex flex-wrap gap-2">
-										{renderActions(row)}
-									</div>
-								</TableCell>
+								) : null}
 							</TableRow>
 						);
 					})}
@@ -1179,100 +1203,230 @@ export function UserRequestsTable({
 	);
 }
 
+type UserRequestDetailsDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	row: StagedUserTableRow | null;
+	renderActions: (row: StagedUserTableRow) => ReactNode;
+	relationNavigation?: UserRelationNavigation;
+};
+
+type UserRelationNavigation = {
+	getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
+	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
+		targetManagementKey: "user-management" | "role-management" | "team-management";
+		hrefBase: string;
+		relationFilters: unknown;
+		relationContext?: string;
+	}) => void;
+	onOpenSummary: (request: {
+		type: "user" | "role";
+		id: string;
+		fallbackTitle: string;
+		fallbackDescription?: string;
+		fallbackMeta?: Array<{ label: string, value: string }>;
+	}) => void;
+};
+
+function renderUserRelationValue({
+	value,
+	relationId,
+	filterColumn,
+	relationType,
+	relationLabel,
+	relationNavigation,
+	stagedUserIdByUserId
+}: {
+	value: string;
+	relationId: string | null;
+	filterColumn: FilterColumn;
+	relationType: "user" | "role";
+	relationLabel: string;
+	relationNavigation?: UserRelationNavigation;
+	stagedUserIdByUserId?: Record<string, string>;
+}): ReactNode {
+	const normalizedValue = value.trim();
+	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
+		return value;
+
+	const targetManagementKey = relationType == "role" ? "role-management" : "user-management";
+	const hrefBase = relationNavigation?.getHrefBase(targetManagementKey);
+	if(hrefBase != null && relationNavigation != null) {
+		const relationFilterId = relationType == "role" ? relationId : stagedUserIdByUserId?.[relationId] ?? null;
+		if(relationFilterId == null || relationFilterId.trim().length == 0)
+			return value;
+
+		const filters: FilterInput[] = [{ column: "id", operator: "equals", value: relationFilterId }];
+		const searchParams = new URLSearchParams();
+		searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(filters));
+		searchParams.set("relationContext", `user-management:${filterColumn}`);
+		const href = `${hrefBase}?${searchParams.toString()}`;
+		return (
+			<Link
+				href={href}
+				onClick={event => {
+					if(event.altKey) {
+						event.preventDefault();
+						relationNavigation.onOpenSummary({
+							type: relationType,
+							id: relationId,
+							fallbackTitle: value,
+							fallbackDescription: relationLabel
+						});
+						return;
+					}
+					relationNavigation.onRelationLinkClick(event, {
+						targetManagementKey,
+						hrefBase,
+						relationFilters: filters,
+						relationContext: `user-management:${filterColumn}`
+					});
+				}}
+				className="text-primary underline underline-offset-2 hover:opacity-80"
+			>
+				{value}
+			</Link>
+		);
+	}
+
+	if(relationNavigation == null)
+		return value;
+
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => relationNavigation.onOpenSummary({
+				type: relationType,
+				id: relationId,
+				fallbackTitle: value,
+				fallbackDescription: relationLabel
+			})}
+			className="h-auto p-0 text-primary"
+		>
+			{value}
+		</Button>
+	);
+}
+
+export function UserRequestDetailsDrawer({
+	open,
+	onOpenChange,
+	row,
+	renderActions,
+	relationNavigation
+}: UserRequestDetailsDrawerProps) {
+	const detailsQuery = useQuery({
+		queryKey: ["user-management", "details", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: () => userActions.getStagedUserRequestDetailsAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const details = detailsQuery.data;
+	const actionRow = details?.row ?? row;
+
+	const renderDetailColumnValue = (columnId: UserTableColumnId, value: ReactNode) => {
+		return <div className={cn(getUserDrawerValueClassName(columnId), "wrap-break-word")}>{value}</div>;
+	};
+
+	const renderDetailValue = (columnId: UserTableColumnId, data: userActions.UserRequestDetailsOutput) => {
+		switch(columnId) {
+			case "id":
+				return renderDetailColumnValue(columnId, data.row.id);
+			case "name":
+				return renderDetailColumnValue(columnId, data.row.name);
+			case "email":
+				return renderDetailColumnValue(columnId, data.row.email);
+			case "employeeId":
+				return renderDetailColumnValue(columnId, data.row.employeeId);
+			case "role":
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.row.roleName, relationId: data.row.roleId, filterColumn: "role", relationType: "role", relationLabel: "Role entry", relationNavigation }));
+			case "supervisor":
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.supervisor ?? "-", relationId: data.row.supervisorId, filterColumn: "supervisor", relationType: "user", relationLabel: "Supervisor user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "createdBy":
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, filterColumn: "createdBy", relationType: "user", relationLabel: "Created by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "updatedBy":
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, filterColumn: "updatedBy", relationType: "user", relationLabel: "Updated by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "deletedBy":
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, filterColumn: "deletedBy", relationType: "user", relationLabel: "Deleted by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "createdAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
+			case "updatedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.updatedAt));
+			case "deletedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
+			case "requestType":
+				return renderDetailColumnValue(columnId, getRequestType(data.row));
+			case "status": {
+				const status = getReviewStatus(data.row);
+				return <Badge variant={status.variant}>{status.label}</Badge>;
+			}
+			case "reviewedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
+			case "reviewedBy":
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "reviewApproved":
+				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved == true ? "True" : "False");
+			case "reviewCommentText":
+				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			default:
+				return renderDetailColumnValue(columnId, "-");
+		}
+	};
+
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>User Request Details</DrawerTitle>
+					<DrawerDescription>Review all available columns for this staged user request entry.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+					{row == null ? (
+						<p className="text-muted-foreground text-sm">No staged user request selected.</p>
+					) : detailsQuery.isPending ? (
+						<div className="space-y-2">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					) : detailsQuery.isError || details == null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>Error</AlertTitle>
+							<AlertDescription>Unable to load staged user request details.</AlertDescription>
+						</Alert>
+					) : (
+						userTableColumns.map(column => (
+							<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
+								<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
+								{renderDetailValue(column.id, details)}
+							</div>
+						))
+					)}
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+					{actionRow != null ? (
+						<div className="flex flex-wrap justify-end gap-2">
+							{renderActions(actionRow)}
+						</div>
+					) : null}
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
 type UseUserCellRendererOptions = {
 	relationValuesByRowId: Record<string, userActions.StagedUserRelationValues>;
 	isRelationLoading: boolean;
-	relationNavigation?: {
-		getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
-		onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
-			targetManagementKey: "user-management" | "role-management" | "team-management";
-			hrefBase: string;
-			relationFilters: unknown;
-			relationContext?: string;
-		}) => void;
-		onOpenSummary: (request: {
-			type: "user" | "role";
-			id: string;
-			fallbackTitle: string;
-			fallbackDescription?: string;
-			fallbackMeta?: Array<{ label: string, value: string }>;
-		}) => void;
-	};
+	relationNavigation?: UserRelationNavigation;
 };
 
 export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseUserCellRendererOptions) {
-	const renderRelationValue = (
-		value: string,
-		relationId: string | null,
-		filterColumn: FilterColumn,
-		relationType: "user" | "role",
-		relationLabel: string,
-		stagedUserIdByUserId?: Record<string, string>
-	) => {
-		const normalizedValue = value.trim();
-		if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
-			return value;
-
-		const targetManagementKey = relationType == "role" ? "role-management" : "user-management";
-		const hrefBase = relationNavigation?.getHrefBase(targetManagementKey);
-		if(hrefBase != null && relationNavigation != null) {
-			const relationFilterId = relationType == "role" ? relationId : stagedUserIdByUserId?.[relationId] ?? null;
-			if(relationFilterId == null || relationFilterId.trim().length == 0)
-				return value;
-
-			const filters: FilterInput[] = [{ column: "id", operator: "equals", value: relationFilterId }];
-			const searchParams = new URLSearchParams();
-			searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(filters));
-			searchParams.set("relationContext", `user-management:${filterColumn}`);
-			const href = `${hrefBase}?${searchParams.toString()}`;
-			return (
-				<Link
-					href={href}
-					onClick={event => {
-						if(event.altKey) {
-							event.preventDefault();
-							relationNavigation.onOpenSummary({
-								type: relationType,
-								id: relationId,
-								fallbackTitle: value,
-								fallbackDescription: relationLabel
-							});
-							return;
-						}
-						relationNavigation.onRelationLinkClick(event, {
-							targetManagementKey,
-							hrefBase,
-							relationFilters: filters,
-							relationContext: `user-management:${filterColumn}`
-						});
-					}}
-					className="text-primary underline underline-offset-2 hover:opacity-80"
-				>
-					{value}
-				</Link>
-			);
-		}
-
-		if(relationNavigation == null)
-			return value;
-
-		return (
-			<Button
-				type="button"
-				variant="link"
-				onClick={() => relationNavigation.onOpenSummary({
-					type: relationType,
-					id: relationId,
-					fallbackTitle: value,
-					fallbackDescription: relationLabel
-				})}
-				className="h-auto p-0 text-primary"
-			>
-				{value}
-			</Button>
-		);
-	};
-
 	return useCallback((columnId: UserTableColumnId, row: StagedUserTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
@@ -1285,23 +1439,23 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "employeeId":
 				return row.employeeId;
 			case "role":
-				return renderRelationValue(row.roleName, row.roleId, "role", "role", "Role entry");
+				return renderUserRelationValue({ value: row.roleName, relationId: row.roleId, filterColumn: "role", relationType: "role", relationLabel: "Role entry", relationNavigation });
 			case "supervisor":
 				if(isRelationLoading && resolvedValues.supervisor == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.supervisor ?? "-", row.supervisorId, "supervisor", "user", "Supervisor user", resolvedValues.stagedUserIdByUserId);
+				return renderUserRelationValue({ value: resolvedValues.supervisor ?? "-", relationId: row.supervisorId, filterColumn: "supervisor", relationType: "user", relationLabel: "Supervisor user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.createdBy ?? "-", row.createdById, "createdBy", "user", "Created by user", resolvedValues.stagedUserIdByUserId);
+				return renderUserRelationValue({ value: resolvedValues.createdBy ?? "-", relationId: row.createdById, filterColumn: "createdBy", relationType: "user", relationLabel: "Created by user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "updatedBy":
 				if(isRelationLoading && resolvedValues.updatedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.updatedBy ?? "-", row.updatedById, "updatedBy", "user", "Updated by user", resolvedValues.stagedUserIdByUserId);
+				return renderUserRelationValue({ value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, filterColumn: "updatedBy", relationType: "user", relationLabel: "Updated by user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "deletedBy":
 				if(isRelationLoading && resolvedValues.deletedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.deletedBy ?? "-", row.deletedById, "deletedBy", "user", "Deleted by user", resolvedValues.stagedUserIdByUserId);
+				return renderUserRelationValue({ value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, filterColumn: "deletedBy", relationType: "user", relationLabel: "Deleted by user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1319,7 +1473,7 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedBy":
 				if(isRelationLoading && resolvedValues.reviewedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.reviewedBy ?? "-", row.reviewedById, "reviewedBy", "user", "Reviewed by user", resolvedValues.stagedUserIdByUserId);
+				return renderUserRelationValue({ value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			case "reviewCommentText":

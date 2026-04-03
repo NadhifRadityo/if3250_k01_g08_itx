@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -9,8 +10,10 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as roleActions from "../layout.actions";
 import { RoleActiveFiltersSummary } from "../layout.components";
 import { RoleColumnConfigCard } from "../layout.components";
+import { RoleRequestDetailsDrawer } from "../layout.components";
 import { RoleRequestFilterCard } from "../layout.components";
 import { RoleRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerRoleColumnId } from "../layout.components";
 import { useRoleCellRenderer } from "../layout.components";
 import { useRoleColumnPreferences } from "../layout.components";
 import { useRoleFilterColumnConfig } from "../layout.components";
@@ -18,8 +21,10 @@ import { useRoleManagementQueryState } from "../layout.components";
 import { useRoleRelations } from "../layout.components";
 import { useRoleRequestFilters } from "../layout.components";
 import { useRoleRequestsQuery } from "../layout.components";
+import { type RoleTableRow } from "../layout.components";
 
 export default function RoleManagementViewerPage() {
+	const [detailRow, setDetailRow] = useState<RoleTableRow | null>(null);
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useRoleColumnPreferences();
 	const queryState = useRoleManagementQueryState();
@@ -62,6 +67,8 @@ export default function RoleManagementViewerPage() {
 		title: "Error",
 		message: queryErrorMessage
 	} : null;
+	const detailTriggerColumnId = getEligibleDetailTriggerRoleColumnId(columnPreferences.visibleColumns);
+	const renderRoleActions = () => null;
 
 	return (
 		<>
@@ -113,13 +120,16 @@ export default function RoleManagementViewerPage() {
 				<RoleRequestsTable
 					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					visibleColumnCount={columnPreferences.visibleColumns.length}
+					includeActions={false}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={false}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
+					onOpenDetails={setDetailRow}
 					renderRoleCell={renderRoleCell}
-					renderActions={() => <span className="text-muted-foreground text-sm">-</span>}
+					renderActions={renderRoleActions}
 				/>
 
 				<DashboardManagementPagination
@@ -133,6 +143,21 @@ export default function RoleManagementViewerPage() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 			</DashboardManagementPageFrame>
+
+			<RoleRequestDetailsDrawer
+				open={detailRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setDetailRow(null);
+				}}
+				row={detailRow}
+				renderActions={renderRoleActions}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
+			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>

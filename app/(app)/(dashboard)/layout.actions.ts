@@ -206,6 +206,24 @@ function resolveDefaultManagementHref(menus: DashboardRoleMenu[], key: Dashboard
 	return item?.defaultHref ?? null;
 }
 
+function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: DashboardManagementKey, mode: DashboardMode): string | null {
+	const menuSet = new Set(menus);
+	const { hasViewer, hasEditor, hasApprover } = getModeFlags(menuSet, key);
+
+	if(mode == "viewer") {
+		if(hasEditor)
+			return `/${key}/editor`;
+		if(hasViewer)
+			return null;
+		return "/";
+	}
+
+	if(mode == "editor")
+		return hasEditor ? null : "/";
+
+	return hasApprover ? null : "/";
+}
+
 function resolveViewerEditorTarget(menus: DashboardRoleMenu[], key: DashboardManagementKey): DashboardViewerEditorTarget {
 	const menuSet = new Set(menus);
 	const hasViewer = menuSet.has(`${key}-viewer` as DashboardRoleMenu);
@@ -337,6 +355,14 @@ export async function resolveManagementRootHref(key: DashboardManagementKey): Pr
 		return "/login";
 
 	return resolveDefaultManagementHref(context.roleMenus, key) ?? resolveDashboardHomeHref(context.managementNavigation);
+}
+
+export async function resolveManagementModeRedirectHrefAction(key: DashboardManagementKey, mode: DashboardMode): Promise<string | null> {
+	const context = await getDashboardShellContext();
+	if(context == null)
+		return "/login";
+
+	return resolveManagementModeRedirectHref(context.roleMenus, key, mode);
 }
 
 export async function getDashboardViewerEditorTargetsAction(): Promise<DashboardViewerEditorTargetMap> {

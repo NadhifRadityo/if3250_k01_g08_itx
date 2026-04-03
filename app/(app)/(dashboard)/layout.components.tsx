@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ReactNode, type ChangeEvent } from "react";
+import { useMemo, useState, useEffect, type ReactNode, type ChangeEvent } from "react";
 import { usePathname } from "next/navigation";
 import { UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileTextIcon, ShieldCheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react";
 
@@ -196,6 +196,24 @@ export function DashboardShell({
 	const pathname = usePathname();
 	const isMobile = useIsMobile();
 	const breadcrumbModel = useMemo(() => getBreadcrumbModel(pathname, managementNavigation), [managementNavigation, pathname]);
+	const [openSubmenuKeys, setOpenSubmenuKeys] = useState<Partial<Record<DashboardManagementKey, boolean>>>({});
+
+	useEffect(() => {
+		const activeSubmenuItem = managementNavigation.find(item => item.hasSubmenu && isManagementItemActive(pathname, item));
+		setOpenSubmenuKeys(previous => {
+			const next: Partial<Record<DashboardManagementKey, boolean>> = {};
+			for(const item of managementNavigation) {
+				if(!item.hasSubmenu)
+					continue;
+				next[item.key] = previous[item.key] ?? false;
+			}
+
+			if(activeSubmenuItem != null)
+				next[activeSubmenuItem.key] = true;
+
+			return next;
+		});
+	}, [managementNavigation, pathname]);
 
 	return (
 		<SidebarProvider>
@@ -233,7 +251,13 @@ export function DashboardShell({
 								}
 
 								return (
-									<Collapsible key={item.baseHref} asChild defaultOpen={isActive} className="group/collapsible">
+									<Collapsible
+										key={item.baseHref}
+										asChild
+										open={openSubmenuKeys[item.key] ?? false}
+										onOpenChange={open => setOpenSubmenuKeys(previous => ({ ...previous, [item.key]: open }))}
+										className="group/collapsible"
+									>
 										<SidebarMenuItem>
 											<CollapsibleTrigger asChild>
 												<SidebarMenuButton tooltip={item.label} isActive={isActive}>

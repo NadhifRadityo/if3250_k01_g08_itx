@@ -255,6 +255,12 @@ export type TeamRequestReviewDiffOutput = {
 	changedCount: number;
 };
 
+export type TeamRequestDetailsOutput = {
+	row: TeamTableRow;
+	relationValues: TeamRelationValues;
+	relationReferences: Partial<Record<TeamRelationColumn, Array<{ type: "user", id: string, label: string }>>>;
+};
+
 type SortFieldKey = TeamManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
 
 function normalizeSortTokens(sort: string[]): TeamManagementSortToken[] {
@@ -266,8 +272,8 @@ function normalizeSortTokens(sort: string[]): TeamManagementSortToken[] {
 	const deduplicated = prefixed.filter((token, index, source) =>
 		index == source.findIndex(candidate => candidate.slice(1) == token.slice(1))
 	);
-	if(!deduplicated.some(token => token.slice(1) == "updatedAt"))
-		deduplicated.push("-updatedAt");
+	if(deduplicated.length == 0)
+		return ["-updatedAt"];
 	return deduplicated;
 }
 
@@ -993,6 +999,119 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 			values
 		};
 	});
+}
+
+export async function getTeamRequestDetailsAction(teamId: string): Promise<TeamRequestDetailsOutput> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const team = await payload.findByID({
+		collection: "teams",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		id: teamId,
+		depth: 0,
+		select: {
+			name: true,
+			supervisor: true,
+			officers: true,
+			createdBy: true,
+			updatedBy: true,
+			deletedBy: true,
+			createdAt: true,
+			updatedAt: true,
+			deletedAt: true,
+			_status: true,
+			reviewedAt: true,
+			reviewedBy: true,
+			reviewApproved: true,
+			reviewComment: true
+		}
+	});
+
+	const supervisorId = getRelationshipId(team.supervisor);
+	const officerIds = getRelationshipIds(team.officers);
+	const createdById = getRelationshipId(team.createdBy);
+	const updatedById = getRelationshipId(team.updatedBy);
+	const deletedById = getRelationshipId(team.deletedBy);
+	const reviewedById = getRelationshipId(team.reviewedBy);
+	const reviewCommentText = richTextToPlainText(team.reviewComment);
+	const requestType = team.deletedAt != null ? "Delete" : team.createdAt == team.updatedAt ? "Create" : "Update";
+
+	const row: TeamTableRow = {
+		id: String(team.id),
+		name: team.name,
+		supervisorId,
+		isSoftDeleted: team.deletedAt != null && team._status == "published",
+		officerIds,
+		createdById,
+		updatedById,
+		deletedById,
+		createdAt: team.createdAt,
+		updatedAt: team.updatedAt,
+		deletedAt: team.deletedAt ?? null,
+		reviewedAt: team.reviewedAt ?? null,
+		reviewedById,
+		reviewApproved: team.reviewApproved ?? null,
+		reviewCommentText,
+		requestType
+	};
+
+	const relationUserIds = new Set<string>();
+	if(row.supervisorId != null)
+		relationUserIds.add(row.supervisorId);
+	for(const officerId of row.officerIds)
+		relationUserIds.add(officerId);
+	if(row.reviewedById != null)
+		relationUserIds.add(row.reviewedById);
+	if(row.createdById != null)
+		relationUserIds.add(row.createdById);
+	if(row.updatedById != null)
+		relationUserIds.add(row.updatedById);
+	if(row.deletedById != null)
+		relationUserIds.add(row.deletedById);
+
+	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+
+	const relationValues: TeamRelationValues = {
+		supervisor: row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-",
+		officers: row.officerIds.length > 0 ? row.officerIds.map(officerId => usersById.get(officerId)?.name ?? "-").join(", ") : "-",
+		reviewedBy: row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-",
+		createdBy: row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-",
+		updatedBy: row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-",
+		deletedBy: row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-"
+	};
+
+	const stagedUserIdByUserId = Object.fromEntries(
+		[...relationUserIds]
+			.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
+			.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
+	);
+	if(Object.keys(stagedUserIdByUserId).length > 0)
+		relationValues.stagedUserIdByUserId = stagedUserIdByUserId;
+
+	const relationReferences: TeamRequestDetailsOutput["relationReferences"] = {
+		supervisor: row.supervisorId != null ? [{ type: "user", id: row.supervisorId, label: usersById.get(row.supervisorId)?.name ?? "User" }] : [],
+		officers: row.officerIds.map(officerId => ({
+			type: "user" as const,
+			id: officerId,
+			label: usersById.get(officerId)?.name ?? "User"
+		})),
+		reviewedBy: row.reviewedById != null ? [{ type: "user", id: row.reviewedById, label: usersById.get(row.reviewedById)?.name ?? "User" }] : [],
+		createdBy: row.createdById != null ? [{ type: "user", id: row.createdById, label: usersById.get(row.createdById)?.name ?? "User" }] : [],
+		updatedBy: row.updatedById != null ? [{ type: "user", id: row.updatedById, label: usersById.get(row.updatedById)?.name ?? "User" }] : [],
+		deletedBy: row.deletedById != null ? [{ type: "user", id: row.deletedById, label: usersById.get(row.deletedById)?.name ?? "User" }] : []
+	};
+
+	return {
+		row,
+		relationValues,
+		relationReferences
+	};
 }
 
 export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {

@@ -5,6 +5,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, CheckIcon, ArrowUpIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
+import cn from "@/utils/cn";
 import { Link } from "@/components/Link";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -184,6 +185,14 @@ export const roleTableColumns: RoleTableColumnConfig[] = [
 	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
+function getRoleDrawerValueClassName(columnId: string): string {
+	if(columnId == "id")
+		return "text-xs font-mono";
+	if(columnId == "name")
+		return "text-sm font-medium";
+	return "text-sm";
+}
+
 export const defaultRoleColumnOrder: RoleTableColumnId[] = roleTableColumns.map(column => column.id);
 export const defaultRoleVisibleColumns: RoleTableColumnId[] = ["name", "level", "menus", "requestType", "status", "updatedAt", "reviewCommentText"];
 export const defaultRoleHiddenColumns: RoleTableColumnId[] = defaultRoleColumnOrder.filter(columnId => !defaultRoleVisibleColumns.includes(columnId));
@@ -194,6 +203,20 @@ export const roleRelationColumnSet = new Set<RoleRelationColumn>([
 	"updatedBy",
 	"deletedBy"
 ]);
+
+const roleNonEligibleColumnSet = new Set<string>([
+	"actions",
+	"status",
+	"reviewedBy",
+	"createdBy",
+	"updatedBy",
+	"deletedBy"
+]);
+
+export function getEligibleDetailTriggerRoleColumnId(visibleColumns: RoleTableColumnConfig[]): RoleTableColumnId | null {
+	const triggerColumn = visibleColumns.find(column => !roleNonEligibleColumnSet.has(column.id));
+	return triggerColumn?.id ?? null;
+}
 
 export const filterOperatorOptions: Array<{ value: FilterOperator, label: string }> = [
 	{ value: "equals", label: "Equals" },
@@ -965,11 +988,11 @@ export function RoleRequestReviewDrawer({
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
 											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-											<div className="bg-muted/50 min-h-9 rounded border px-2 py-1.5 text-sm wrap-break-word">{item.previousValue}</div>
+											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getRoleDrawerValueClassName(item.field))}>{item.previousValue}</div>
 										</div>
 										<div className="space-y-1">
 											<p className="text-muted-foreground text-xs font-medium">Requested</p>
-											<div className="bg-muted/10 min-h-9 rounded border px-2 py-1.5 text-sm wrap-break-word">{item.requestedValue}</div>
+											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getRoleDrawerValueClassName(item.field))}>{item.requestedValue}</div>
 										</div>
 									</div>
 								</div>
@@ -1004,10 +1027,13 @@ type RoleRequestsTableProps = {
 	queryResult: QueryRolesOutput;
 	visibleColumns: RoleTableColumnConfig[];
 	visibleColumnCount: number;
+	includeActions?: boolean;
+	detailTriggerColumnId: RoleTableColumnId | null;
 	isLoading: boolean;
 	isMutating: boolean;
 	getSortDirection: (field: SortField) => SortDirection | null;
 	onToggleSortField: (field: SortField) => void;
+	onOpenDetails: (row: RoleTableRow) => void;
 	renderRoleCell: (columnId: RoleTableColumnConfig["id"], row: RoleTableRow) => ReactNode;
 	renderActions: (row: RoleTableRow) => ReactNode;
 };
@@ -1016,10 +1042,13 @@ export function RoleRequestsTable({
 	queryResult,
 	visibleColumns,
 	visibleColumnCount,
+	includeActions = true,
+	detailTriggerColumnId,
 	isLoading,
 	isMutating,
 	getSortDirection,
 	onToggleSortField,
+	onOpenDetails,
 	renderRoleCell,
 	renderActions
 }: RoleRequestsTableProps) {
@@ -1056,7 +1085,7 @@ export function RoleRequestsTable({
 								<TableHead key={column.id} className={column.headClassName}>{column.label}</TableHead>
 							)
 						))}
-						<TableHead className="w-65">Actions</TableHead>
+						{includeActions ? <TableHead className="w-65">Actions</TableHead> : null}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
@@ -1073,16 +1102,26 @@ export function RoleRequestsTable({
 					{queryResult.docs.map(row => {
 						return (
 							<TableRow key={row.id}>
-								{visibleColumns.map(column => (
-									<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
-										{renderRoleCell(column.id, row)}
+								{visibleColumns.map(column => {
+									const cellValue = renderRoleCell(column.id, row);
+									const isDetailTriggerColumn = detailTriggerColumnId != null && column.id == detailTriggerColumnId;
+									return (
+										<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
+											{isDetailTriggerColumn ? (
+												<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal">
+													{cellValue}
+												</Button>
+											) : cellValue}
+										</TableCell>
+									);
+								})}
+								{includeActions ? (
+									<TableCell>
+										<div className="flex flex-wrap gap-2">
+											{renderActions(row)}
+										</div>
 									</TableCell>
-								))}
-								<TableCell>
-									<div className="flex flex-wrap gap-2">
-										{renderActions(row)}
-									</div>
-								</TableCell>
+								) : null}
 							</TableRow>
 						);
 					})}
@@ -1092,100 +1131,236 @@ export function RoleRequestsTable({
 	);
 }
 
+type RoleRequestDetailsDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	row: RoleTableRow | null;
+	renderActions: (row: RoleTableRow) => ReactNode;
+	relationNavigation?: RoleRelationNavigation;
+};
+
+type RoleRelationNavigation = {
+	getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
+	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
+		targetManagementKey: "user-management" | "role-management" | "team-management";
+		hrefBase: string;
+		relationFilters: unknown;
+		relationContext?: string;
+	}) => void;
+	onOpenSummary: (request: {
+		type: "user";
+		id: string;
+		fallbackTitle: string;
+		fallbackDescription?: string;
+		fallbackMeta?: Array<{ label: string, value: string }>;
+	}) => void;
+};
+
+function getRoleRelationSummaryLabel(column: RoleRelationColumn): string {
+	if(column == "reviewedBy")
+		return "Reviewed By";
+	if(column == "createdBy")
+		return "Created By";
+	if(column == "updatedBy")
+		return "Updated By";
+	return "Deleted By";
+}
+
+function renderRoleUserRelationValue({
+	column,
+	value,
+	relationId,
+	relationNavigation,
+	stagedUserIdByUserId
+}: {
+	column: RoleRelationColumn;
+	value: string;
+	relationId: string | null;
+	relationNavigation?: RoleRelationNavigation;
+	stagedUserIdByUserId?: Record<string, string>;
+}): ReactNode {
+	const normalizedValue = value.trim();
+	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
+		return value;
+
+	const summaryLabel = getRoleRelationSummaryLabel(column);
+	const hrefBase = relationNavigation?.getHrefBase("user-management");
+	if(hrefBase != null && relationNavigation != null) {
+		const stagedUserId = stagedUserIdByUserId?.[relationId] ?? null;
+		if(stagedUserId == null || stagedUserId.trim().length == 0)
+			return value;
+
+		const relationFilters = [{ column: "id", operator: "equals", value: stagedUserId }];
+		const searchParams = new URLSearchParams();
+		searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
+		searchParams.set("relationContext", `role-management:${column}`);
+		const href = `${hrefBase}?${searchParams.toString()}`;
+		return (
+			<Link
+				href={href}
+				onClick={event => {
+					if(event.altKey) {
+						event.preventDefault();
+						relationNavigation.onOpenSummary({
+							type: "user",
+							id: relationId,
+							fallbackTitle: value,
+							fallbackDescription: `${summaryLabel} user`
+						});
+						return;
+					}
+					relationNavigation.onRelationLinkClick(event, {
+						targetManagementKey: "user-management",
+						hrefBase,
+						relationFilters,
+						relationContext: `role-management:${column}`
+					});
+				}}
+				className="text-primary underline underline-offset-2 hover:opacity-80"
+			>
+				{value}
+			</Link>
+		);
+	}
+
+	if(relationNavigation == null)
+		return value;
+
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => relationNavigation.onOpenSummary({
+				type: "user",
+				id: relationId,
+				fallbackTitle: value,
+				fallbackDescription: `${summaryLabel} user`
+			})}
+			className="h-auto p-0 text-primary"
+		>
+			{value}
+		</Button>
+	);
+}
+
+export function RoleRequestDetailsDrawer({
+	open,
+	onOpenChange,
+	row,
+	renderActions,
+	relationNavigation
+}: RoleRequestDetailsDrawerProps) {
+	const detailsQuery = useQuery({
+		queryKey: ["role-management", "details", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: () => roleActions.getRoleRequestDetailsAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const details = detailsQuery.data;
+	const actionRow = details?.row ?? row;
+
+	const renderDetailColumnValue = (columnId: RoleTableColumnId, value: ReactNode) => {
+		return <div className={cn(getRoleDrawerValueClassName(columnId), "wrap-break-word")}>{value}</div>;
+	};
+
+	const renderDetailValue = (columnId: RoleTableColumnId, data: roleActions.RoleRequestDetailsOutput) => {
+		switch(columnId) {
+			case "id":
+				return renderDetailColumnValue(columnId, data.row.id);
+			case "name":
+				return renderDetailColumnValue(columnId, data.row.name);
+			case "level":
+				return renderDetailColumnValue(columnId, roleLevelOptions.find(option => option.value == data.row.level)?.label ?? data.row.level);
+			case "menus": {
+				const labels = data.row.menus.map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu);
+				return renderDetailColumnValue(columnId, labels.length > 0 ? labels.join(", ") : "-");
+			}
+			case "createdBy":
+				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "updatedBy":
+				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "deletedBy":
+				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "createdAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
+			case "updatedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.updatedAt));
+			case "deletedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
+			case "requestType":
+				return renderDetailColumnValue(columnId, data.row.requestType);
+			case "status": {
+				const status = getReviewStatus(data.row);
+				return <Badge variant={status.variant}>{status.label}</Badge>;
+			}
+			case "reviewedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
+			case "reviewedBy":
+				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+			case "reviewApproved":
+				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
+			case "reviewCommentText":
+				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			default:
+				return renderDetailColumnValue(columnId, "-");
+		}
+	};
+
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>Role Request Details</DrawerTitle>
+					<DrawerDescription>Review all available columns for this role request entry.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+					{row == null ? (
+						<p className="text-muted-foreground text-sm">No role request selected.</p>
+					) : detailsQuery.isPending ? (
+						<div className="space-y-2">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					) : detailsQuery.isError || details == null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>Error</AlertTitle>
+							<AlertDescription>Unable to load role request details.</AlertDescription>
+						</Alert>
+					) : (
+						roleTableColumns.map(column => (
+							<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
+								<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
+								{renderDetailValue(column.id, details)}
+							</div>
+						))
+					)}
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+					{actionRow != null ? (
+						<div className="flex flex-wrap justify-end gap-2">
+							{renderActions(actionRow)}
+						</div>
+					) : null}
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
 type UseRoleCellRendererOptions = {
 	relationValuesByRowId: Record<string, roleActions.RoleRelationValues>;
 	isRelationLoading: boolean;
-	relationNavigation?: {
-		getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
-		onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
-			targetManagementKey: "user-management" | "role-management" | "team-management";
-			hrefBase: string;
-			relationFilters: unknown;
-			relationContext?: string;
-		}) => void;
-		onOpenSummary: (request: {
-			type: "user";
-			id: string;
-			fallbackTitle: string;
-			fallbackDescription?: string;
-			fallbackMeta?: Array<{ label: string, value: string }>;
-		}) => void;
-	};
+	relationNavigation?: RoleRelationNavigation;
 };
 
 export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseRoleCellRendererOptions) {
 	return useCallback((columnId: RoleTableColumnId, row: RoleTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
-		const renderUserRelationValue = (column: RoleRelationColumn, value: string, relationId: string | null) => {
-			const normalizedValue = value.trim();
-			if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
-				return value;
-
-			const summaryLabel = column == "reviewedBy" ? "Reviewed By" :
-				column == "createdBy" ? "Created By" :
-					column == "updatedBy" ? "Updated By" : "Deleted By";
-
-			const hrefBase = relationNavigation?.getHrefBase("user-management");
-			if(hrefBase != null && relationNavigation != null) {
-				const stagedUserId = resolvedValues.stagedUserIdByUserId?.[relationId] ?? null;
-				if(stagedUserId == null || stagedUserId.trim().length == 0)
-					return value;
-
-				const relationFilters = [
-					{ column: "id", operator: "equals", value: stagedUserId }
-				];
-				const searchParams = new URLSearchParams();
-				searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
-				searchParams.set("relationContext", `role-management:${column}`);
-				const href = `${hrefBase}?${searchParams.toString()}`;
-				return (
-					<Link
-						href={href}
-						onClick={event => {
-							if(event.altKey) {
-								event.preventDefault();
-								relationNavigation.onOpenSummary({
-									type: "user",
-									id: relationId,
-									fallbackTitle: value,
-									fallbackDescription: `${summaryLabel} user`
-								});
-								return;
-							}
-							relationNavigation.onRelationLinkClick(event, {
-								targetManagementKey: "user-management",
-								hrefBase,
-								relationFilters,
-								relationContext: `role-management:${column}`
-							});
-						}}
-						className="text-primary underline underline-offset-2 hover:opacity-80"
-					>
-						{value}
-					</Link>
-				);
-			}
-
-			if(relationNavigation == null)
-				return value;
-
-			return (
-				<Button
-					type="button"
-					variant="link"
-					onClick={() => relationNavigation.onOpenSummary({
-						type: "user",
-						id: relationId,
-						fallbackTitle: value,
-						fallbackDescription: `${summaryLabel} user`
-					})}
-					className="h-auto p-0 text-primary"
-				>
-					{value}
-				</Button>
-			);
-		};
-
 		switch(columnId) {
 			case "id":
 				return row.id;
@@ -1202,15 +1377,15 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue("createdBy", resolvedValues.createdBy ?? "-", row.createdById);
+				return renderRoleUserRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationId: row.createdById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "updatedBy":
 				if(isRelationLoading && resolvedValues.updatedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue("updatedBy", resolvedValues.updatedBy ?? "-", row.updatedById);
+				return renderRoleUserRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "deletedBy":
 				if(isRelationLoading && resolvedValues.deletedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue("deletedBy", resolvedValues.deletedBy ?? "-", row.deletedById);
+				return renderRoleUserRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1228,7 +1403,7 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedBy":
 				if(isRelationLoading && resolvedValues.reviewedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue("reviewedBy", resolvedValues.reviewedBy ?? "-", row.reviewedById);
+				return renderRoleUserRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			case "reviewCommentText":

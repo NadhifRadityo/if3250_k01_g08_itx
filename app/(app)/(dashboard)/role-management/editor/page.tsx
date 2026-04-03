@@ -15,9 +15,11 @@ import { RoleActiveFiltersSummary } from "../layout.components";
 import { RoleColumnConfigCard } from "../layout.components";
 import { RoleRequestCancelDialog } from "../layout.components";
 import { RoleRequestDeleteDialog } from "../layout.components";
+import { RoleRequestDetailsDrawer } from "../layout.components";
 import { RoleRequestFilterCard } from "../layout.components";
 import { RoleRequestFormDrawer } from "../layout.components";
 import { RoleRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerRoleColumnId } from "../layout.components";
 import { resolveActionError } from "../layout.components";
 import { useRoleCellRenderer } from "../layout.components";
 import { useRoleColumnPreferences } from "../layout.components";
@@ -43,6 +45,7 @@ export default function RoleManagementEditorPage() {
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
+	const [detailRow, setDetailRow] = useState<RoleTableRow | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<RoleTableRow | null>(null);
 	const [cancelTarget, setCancelTarget] = useState<RoleTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
@@ -89,6 +92,7 @@ export default function RoleManagementEditorPage() {
 		title: "Error",
 		message: queryErrorMessage
 	} : null);
+	const detailTriggerColumnId = useMemo(() => getEligibleDetailTriggerRoleColumnId(columnPreferences.visibleColumns), [columnPreferences.visibleColumns]);
 
 	const selectedMenuLabelByValue = useMemo(() => Object.fromEntries(
 		roleMenuOptions.map(option => [option.value, option.label])
@@ -191,6 +195,43 @@ export default function RoleManagementEditorPage() {
 		});
 	};
 
+	const renderRoleActions = (row: RoleTableRow) => {
+		const isPending = row.reviewedAt == null;
+		const isRejected = row.reviewedAt != null && row.reviewApproved == false;
+
+		return (
+			<>
+				<Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(row)} disabled={isMutating || row.isSoftDeleted}>
+					<PencilIcon />
+					Edit
+				</Button>
+				{row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
+						<PlusIcon />
+						Restore
+					</Button>
+				) : row.deletedAt == null ? (
+					<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
+						<Trash2Icon />
+						Delete
+					</Button>
+				) : null}
+				{isPending && !row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
+						<XIcon />
+						Cancel
+					</Button>
+				) : null}
+				{isRejected && !row.isSoftDeleted ? (
+					<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
+						<HistoryIcon />
+						Restore Approved
+					</Button>
+				) : null}
+			</>
+		);
+	};
+
 	return (
 		<>
 			<DashboardManagementPageFrame
@@ -259,47 +300,14 @@ export default function RoleManagementEditorPage() {
 					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
 					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={isMutating}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
+					onOpenDetails={setDetailRow}
 					renderRoleCell={renderRoleCell}
-					renderActions={row => {
-						const isPending = row.reviewedAt == null;
-						const isRejected = row.reviewedAt != null && row.reviewApproved == false;
-
-						return (
-							<>
-								<Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(row)} disabled={isMutating || row.isSoftDeleted}>
-									<PencilIcon />
-									Edit
-								</Button>
-								{row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
-										<PlusIcon />
-										Restore
-									</Button>
-								) : row.deletedAt == null ? (
-									<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
-										<Trash2Icon />
-										Delete
-									</Button>
-								) : null}
-								{isPending && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
-										<XIcon />
-										Cancel
-									</Button>
-								) : null}
-								{isRejected && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
-										<HistoryIcon />
-										Restore Approved
-									</Button>
-								) : null}
-							</>
-						);
-					}}
+					renderActions={renderRoleActions}
 				/>
 
 				<DashboardManagementPagination
@@ -313,6 +321,21 @@ export default function RoleManagementEditorPage() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 			</DashboardManagementPageFrame>
+
+			<RoleRequestDetailsDrawer
+				open={detailRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setDetailRow(null);
+				}}
+				row={detailRow}
+				renderActions={renderRoleActions}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
+			/>
 
 			<RoleRequestFormDrawer
 				open={isFormOpen}

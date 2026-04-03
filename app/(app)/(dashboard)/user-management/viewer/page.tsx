@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -9,8 +10,10 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
+import { UserRequestDetailsDrawer } from "../layout.components";
 import { UserRequestFilterCard } from "../layout.components";
 import { UserRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerUserColumnId } from "../layout.components";
 import { useUserCellRenderer } from "../layout.components";
 import { useUserColumnPreferences } from "../layout.components";
 import { useUserFilterColumnConfig } from "../layout.components";
@@ -18,8 +21,10 @@ import { useUserManagementQueryState } from "../layout.components";
 import { useUserRelations } from "../layout.components";
 import { useUserRequestFilters } from "../layout.components";
 import { useUserRequestsQuery } from "../layout.components";
+import { type StagedUserTableRow } from "../layout.components";
 
 export default function UserManagementViewerPage() {
+	const [detailRow, setDetailRow] = useState<StagedUserTableRow | null>(null);
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useUserColumnPreferences();
 	const queryState = useUserManagementQueryState();
@@ -61,6 +66,8 @@ export default function UserManagementViewerPage() {
 		title: "Error",
 		message: queryErrorMessage
 	} : null;
+	const detailTriggerColumnId = getEligibleDetailTriggerUserColumnId(columnPreferences.visibleColumns);
+	const renderUserActions = () => null;
 
 	return (
 		<>
@@ -112,13 +119,16 @@ export default function UserManagementViewerPage() {
 				<UserRequestsTable
 					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					visibleColumnCount={columnPreferences.visibleColumns.length}
+					includeActions={false}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={false}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
+					onOpenDetails={setDetailRow}
 					renderUserCell={renderUserCell}
-					renderActions={() => <span className="text-muted-foreground text-sm">-</span>}
+					renderActions={renderUserActions}
 				/>
 
 				<DashboardManagementPagination
@@ -132,6 +142,21 @@ export default function UserManagementViewerPage() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 			</DashboardManagementPageFrame>
+
+			<UserRequestDetailsDrawer
+				open={detailRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setDetailRow(null);
+				}}
+				row={detailRow}
+				renderActions={renderUserActions}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
+			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>
