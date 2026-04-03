@@ -10,6 +10,7 @@ import type { Role, User, StagedUser } from "@/payload-types";
 const MAX_PAGE_SIZE = 20;
 const RELATION_SEARCH_LIMIT = 20;
 const ROLE_LOOKUP_LIMIT = 20;
+const userStatusValues = ["pending", "approved", "rejected"] as const;
 const sortableFields = new Set<UserManagementSortField>([
 	"id",
 	"createdAt",
@@ -42,6 +43,7 @@ const filterableColumns = new Set<UserManagementFilterColumn>([
 	"deletedBy",
 	"reviewedAt",
 	"reviewedBy",
+	"status",
 	"reviewApproved"
 ]);
 const filterOperators = new Set<UserManagementFilterOperator>([
@@ -57,6 +59,13 @@ const filterOperators = new Set<UserManagementFilterOperator>([
 	"greater_than_equal",
 	"less_than_equal"
 ]);
+const statusFilterOperators = new Set<UserManagementFilterOperator>([
+	"equals",
+	"not_equals",
+	"in",
+	"not_in",
+	"exists"
+]);
 const dateFilterColumns = new Set<UserManagementFilterColumn>([
 	"createdAt",
 	"updatedAt",
@@ -64,6 +73,8 @@ const dateFilterColumns = new Set<UserManagementFilterColumn>([
 	"reviewedAt"
 ]);
 const booleanFilterColumns = new Set<UserManagementFilterColumn>(["reviewApproved"]);
+export type UserManagementStatus = typeof userStatusValues[number];
+const userStatusSet = new Set<UserManagementStatus>(userStatusValues);
 
 type ReviewCommentValue = NonNullable<StagedUser["reviewComment"]>;
 const defaultReviewComment: ReviewCommentValue = {
@@ -117,6 +128,7 @@ export type UserManagementFilterColumn = "name" |
 	"deletedBy" |
 	"reviewedAt" |
 	"reviewedBy" |
+	"status" |
 	"reviewApproved";
 export type UserManagementFilterOperator = "equals" |
 	"not_equals" |
@@ -146,7 +158,6 @@ export type StagedUserTableRow = {
 	roleId: string | null;
 	roleName: string;
 	supervisorId: string | null;
-	supervisor: string;
 	isSoftDeleted: boolean;
 	initialPassword: string;
 	createdById: string | null;
@@ -172,9 +183,13 @@ export type ResolveStagedUserRelationColumnsInput = {
 	columns: UserRelationColumn[];
 };
 
+export type StagedUserRelationValues = Partial<Record<UserRelationColumn, string>> & {
+	stagedUserIdByUserId?: Record<string, string>;
+};
+
 export type ResolveStagedUserRelationColumnsOutput = Array<{
 	id: string;
-	values: Partial<Record<UserRelationColumn, string>>;
+	values: StagedUserRelationValues;
 }>;
 
 export type QueryStagedUsersOutput = {
@@ -283,12 +298,22 @@ function parseBooleanValue(value: unknown): boolean | null {
 	return null;
 }
 
+function normalizeUserStatusValue(value: unknown): UserManagementStatus | null {
+	if(typeof value != "string")
+		return null;
+	const normalized = value.trim().toLowerCase() as UserManagementStatus;
+	return userStatusSet.has(normalized) ? normalized : null;
+}
+
 function normalizeScalarFilterValue(column: UserManagementFilterColumn, rawValue: unknown): string | boolean | null {
 	if(rawValue == null)
 		return null;
 
 	if(booleanFilterColumns.has(column))
 		return parseBooleanValue(rawValue);
+
+	if(column == "status")
+		return normalizeUserStatusValue(rawValue);
 
 	if(typeof rawValue != "string")
 		return null;
@@ -312,6 +337,8 @@ function normalizeFilters(filters: UserManagementFilterInput[] | undefined, fall
 	const normalized: UserManagementFilterInput[] = [];
 	for(const filter of filters) {
 		if(filter == null || !filterableColumns.has(filter.column) || !filterOperators.has(filter.operator))
+			continue;
+		if(filter.column == "status" && !statusFilterOperators.has(filter.operator))
 			continue;
 
 		if(filter.operator == "exists") {
@@ -440,7 +467,7 @@ function formatReviewPasswordPresence(value: string | null | undefined): string 
 	return "Set";
 }
 
-async function findUsersByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, { name: string, email: string }>> {
+async function findUsersByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, { name: string, email: string, stagedUserId: string | null }>> {
 	if(ids.length == 0)
 		return new Map();
 
@@ -458,13 +485,19 @@ async function findUsersByIds(payload: Payload, user: User, ids: string[]): Prom
 		},
 		select: {
 			name: true,
-			email: true
+			email: true,
+			stagedUser: true
 		}
 	});
 
-	const map = new Map<string, { name: string, email: string }>();
-	for(const doc of usersResult.docs)
-		map.set(String(doc.id), { name: doc.name, email: doc.email });
+	const map = new Map<string, { name: string, email: string, stagedUserId: string | null }>();
+	for(const doc of usersResult.docs) {
+		map.set(String(doc.id), {
+			name: doc.name,
+			email: doc.email,
+			stagedUserId: getRelationshipId(doc.stagedUser)
+		});
+	}
 
 	return map;
 }
@@ -498,13 +531,27 @@ async function findRolesByIds(payload: Payload, user: User, ids: string[]): Prom
 	return map;
 }
 
-async function searchActiveRoleOptions(payload: Payload, user: User, keyword: string, limit: number = RELATION_SEARCH_LIMIT): Promise<UserRoleOption[]> {
+async function searchActiveRoleOptions(
+	payload: Payload,
+	user: User,
+	keyword: string,
+	selectedIds: string[] = [],
+	limit: number = RELATION_SEARCH_LIMIT
+): Promise<UserRoleOption[]> {
 	const normalizedKeyword = keyword.trim();
 	const normalizedKeywordLower = normalizedKeyword.toLowerCase();
-	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = [
 		{ name: { like: normalizedKeyword } },
 		{ level: { equals: normalizedKeywordLower } }
-	] : [];
+	];
+	const searchWhereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		searchWhereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		searchWhereTerms.push({ id: { in: normalizedSelectedIds } });
+	const searchWhere = searchWhereTerms.length == 0 ? null :
+		searchWhereTerms.length == 1 ? searchWhereTerms[0] : { or: searchWhereTerms };
 
 	const result = await payload.find({
 		collection: "roles",
@@ -512,13 +559,13 @@ async function searchActiveRoleOptions(payload: Payload, user: User, keyword: st
 		overrideAccess: false,
 		pagination: false,
 		depth: 0,
-		limit,
+		limit: limit + normalizedSelectedIds.length,
 		sort: "name",
 		where: {
 			and: [
 				{ _status: { equals: "published" } },
 				{ deletedAt: { exists: false } },
-				...(keywordFilters.length > 0 ? [{ or: keywordFilters }] : [])
+				...(searchWhere != null ? [searchWhere] : [])
 			]
 		},
 		select: {
@@ -561,13 +608,19 @@ async function findActiveSupervisorRoleIds(payload: Payload, user: User): Promis
 
 function buildUserKeywordFilters(keyword: string): Where[] {
 	const normalizedKeyword = keyword.trim();
-	if(normalizedKeyword.length == 0)
-		return [];
 	return [
 		{ email: { like: normalizedKeyword } },
 		{ name: { like: normalizedKeyword } },
 		{ employeeId: { like: normalizedKeyword } }
 	];
+}
+
+function normalizeSelectedIds(selectedIds: string[] = []): string[] {
+	return [...new Set(
+		selectedIds
+			.map(selectedId => selectedId.trim())
+			.filter(selectedId => selectedId.length > 0)
+	)];
 }
 
 function toPayloadSort(sort: UserManagementSortToken[]): string {
@@ -593,21 +646,28 @@ function toPayloadSort(sort: UserManagementSortToken[]): string {
 	}).join(",");
 }
 
-export async function searchUserRoleOptionsAction(keyword: string): Promise<UserRoleOption[]> {
+export async function searchUserRoleOptionsAction(keyword: string, selectedIds: string[] = []): Promise<UserRoleOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	return searchActiveRoleOptions(payload, user, keyword);
+	return searchActiveRoleOptions(payload, user, keyword, selectedIds);
 }
 
-export async function searchUserReviewerOptionsAction(keyword: string): Promise<UserReviewerOption[]> {
+export async function searchUserAuditUserOptionsAction(keyword: string, selectedIds: string[] = []): Promise<UserReviewerOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 	const keywordFilters = buildUserKeywordFilters(keyword);
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const whereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
 
 	const result = await payload.find({
 		collection: "users",
@@ -615,17 +675,13 @@ export async function searchUserReviewerOptionsAction(keyword: string): Promise<
 		overrideAccess: false,
 		pagination: false,
 		depth: 0,
-		limit: RELATION_SEARCH_LIMIT,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
 		sort: "name",
 		select: {
 			name: true,
 			email: true
 		},
-		...(keywordFilters.length > 0 ? {
-			where: {
-				or: keywordFilters
-			}
-		} : {})
+		...(where != null ? { where } : {})
 	});
 
 	return result.docs.map(doc => ({
@@ -635,19 +691,26 @@ export async function searchUserReviewerOptionsAction(keyword: string): Promise<
 	}));
 }
 
-export async function searchUserFilterIdsAction(keyword: string): Promise<UserFilterIdOption[]> {
+export async function searchUserOptionsAction(keyword: string, selectedIds: string[] = []): Promise<UserFilterIdOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
 	const normalizedKeyword = keyword.trim();
-	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = [
 		{ id: { like: normalizedKeyword } },
 		{ name: { like: normalizedKeyword } },
 		{ email: { like: normalizedKeyword } },
 		{ employeeId: { like: normalizedKeyword } }
-	] : [];
+	];
+	const whereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
 
 	const result = await payload.find({
 		collection: "staged-users",
@@ -657,18 +720,14 @@ export async function searchUserFilterIdsAction(keyword: string): Promise<UserFi
 		trash: true,
 		pagination: false,
 		depth: 0,
-		limit: RELATION_SEARCH_LIMIT,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
 		sort: "-updatedAt",
 		select: {
 			name: true,
 			email: true,
 			employeeId: true
 		},
-		...(keywordFilters.length > 0 ? {
-			where: {
-				or: keywordFilters
-			}
-		} : {})
+		...(where != null ? { where } : {})
 	});
 
 	return result.docs.map(doc => ({
@@ -696,15 +755,83 @@ function toPayloadFilterWhere(filters: UserManagementFilterInput[]): Where | nul
 		greater_than_equal: "greater_than_equal",
 		less_than_equal: "less_than_equal"
 	};
+	const impossibleWhere: Where = {
+		and: [
+			{ reviewedAt: { exists: true } },
+			{ reviewedAt: { exists: false } }
+		]
+	};
 
-	const conditions = filters.map(filter => ({
-		where: {
-			[filter.column]: {
-				[operatorMap[filter.operator]]: filter.value
+	const getStatusWhere = (status: UserManagementStatus): Where => {
+		if(status == "pending")
+			return { reviewedAt: { exists: false } };
+		if(status == "approved") {
+			return {
+				and: [
+					{ reviewedAt: { exists: true } },
+					{ reviewApproved: { equals: true } }
+				]
+			};
+		}
+		return {
+			and: [
+				{ reviewedAt: { exists: true } },
+				{ reviewApproved: { equals: false } }
+			]
+		};
+	};
+
+	const buildStatusFilterWhere = (filter: UserManagementFilterInput): Where | null => {
+		if(filter.operator == "exists")
+			return filter.value == true ? null : impossibleWhere;
+
+		const rawStatuses = Array.isArray(filter.value) ? filter.value : [filter.value];
+		const statuses = rawStatuses
+			.map(normalizeUserStatusValue)
+			.filter((status): status is UserManagementStatus => status != null)
+			.filter((status, index, source) => source.indexOf(status) == index);
+		if(statuses.length == 0)
+			return null;
+
+		if(filter.operator == "equals" || filter.operator == "in")
+			return statuses.length == 1 ? getStatusWhere(statuses[0]) : { or: statuses.map(getStatusWhere) };
+
+		if(filter.operator == "not_equals" || filter.operator == "not_in") {
+			const excluded = new Set(statuses);
+			const remaining = userStatusValues.filter(status => !excluded.has(status));
+			if(remaining.length == 0)
+				return impossibleWhere;
+			return remaining.length == 1 ? getStatusWhere(remaining[0]) : { or: remaining.map(getStatusWhere) };
+		}
+
+		return null;
+	};
+
+	const conditions = filters
+		.map(filter => {
+			if(filter.column == "status") {
+				const statusWhere = buildStatusFilterWhere(filter);
+				if(statusWhere == null)
+					return null;
+				return {
+					where: statusWhere,
+					joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
+				};
 			}
-		} as Where,
-		joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
-	}));
+
+			return {
+				where: {
+					[filter.column]: {
+						[operatorMap[filter.operator]]: filter.value
+					}
+				} as Where,
+				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
+			};
+		})
+		.filter((condition): condition is { where: Where, joinWithPrevious: "and" | "or" } => condition != null);
+
+	if(conditions.length == 0)
+		return null;
 
 	const andTerms: Where[][] = [];
 	let currentAndTerm: Where[] = [conditions[0].where];
@@ -776,7 +903,7 @@ async function findLinkedUserByStagedId(payload: Payload, user: User, stagedUser
 	return result.docs[0];
 }
 
-export async function searchUserSupervisorsAction(keyword: string): Promise<Array<{ id: string, name: string, email: string }>> {
+export async function searchUserSupervisorUserOptionsAction(keyword: string, selectedIds: string[] = []): Promise<Array<{ id: string, name: string, email: string }>> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -787,6 +914,14 @@ export async function searchUserSupervisorsAction(keyword: string): Promise<Arra
 		return [];
 
 	const keywordFilters = buildUserKeywordFilters(keyword);
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const searchWhereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		searchWhereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		searchWhereTerms.push({ id: { in: normalizedSelectedIds } });
+	const searchWhere = searchWhereTerms.length == 0 ? null :
+		searchWhereTerms.length == 1 ? searchWhereTerms[0] : { or: searchWhereTerms };
 
 	const result = await payload.find({
 		collection: "users",
@@ -794,12 +929,12 @@ export async function searchUserSupervisorsAction(keyword: string): Promise<Arra
 		overrideAccess: false,
 		pagination: false,
 		depth: 0,
-		limit: RELATION_SEARCH_LIMIT,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
 		sort: "name",
 		where: {
 			and: [
 				{ role: { in: supervisorRoleIds } },
-				...(keywordFilters.length > 0 ? [{ or: keywordFilters }] : [])
+				...(searchWhere != null ? [searchWhere] : [])
 			]
 		},
 		select: { name: true, email: true }
@@ -897,7 +1032,6 @@ export async function queryStagedUsersAction({ keyword, sort, filters, filterCom
 			roleId,
 			roleName: roleId != null ? (roleNamesById.get(roleId) ?? roleId) : "-",
 			supervisorId,
-			supervisor: "-",
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
 			initialPassword: doc.initialPassword ?? "",
 			createdById,
@@ -974,7 +1108,7 @@ export async function resolveStagedUserRelationColumnsAction({ rows, columns }: 
 	const usersById = await findUsersByIds(payload, user, [...userIds]);
 
 	return rows.map(row => {
-		const values: Partial<Record<UserRelationColumn, string>> = {};
+		const values: StagedUserRelationValues = {};
 
 		if(requestedColumns.includes("supervisor"))
 			values.supervisor = row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-";
@@ -986,6 +1120,26 @@ export async function resolveStagedUserRelationColumnsAction({ rows, columns }: 
 			values.updatedBy = row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-";
 		if(requestedColumns.includes("deletedBy"))
 			values.deletedBy = row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-";
+
+		const relationUserIds = new Set<string>();
+		if(row.supervisorId != null)
+			relationUserIds.add(row.supervisorId);
+		if(row.reviewedById != null)
+			relationUserIds.add(row.reviewedById);
+		if(row.createdById != null)
+			relationUserIds.add(row.createdById);
+		if(row.updatedById != null)
+			relationUserIds.add(row.updatedById);
+		if(row.deletedById != null)
+			relationUserIds.add(row.deletedById);
+
+		const stagedUserIdByUserId = Object.fromEntries(
+			[...relationUserIds]
+				.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
+				.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
+		);
+		if(Object.keys(stagedUserIdByUserId).length > 0)
+			values.stagedUserIdByUserId = stagedUserIdByUserId;
 
 		return {
 			id: row.id,

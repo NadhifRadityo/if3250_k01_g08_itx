@@ -9,6 +9,7 @@ import type { Team } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
 const RELATION_SEARCH_LIMIT = 20;
+const teamStatusValues = ["pending", "approved", "rejected"] as const;
 const sortableFields = new Set<TeamManagementSortField>([
 	"id",
 	"createdAt",
@@ -37,6 +38,7 @@ const filterableColumns = new Set<TeamManagementFilterColumn>([
 	"deletedBy",
 	"reviewedAt",
 	"reviewedBy",
+	"status",
 	"reviewApproved"
 ]);
 const filterOperators = new Set<TeamManagementFilterOperator>([
@@ -52,6 +54,13 @@ const filterOperators = new Set<TeamManagementFilterOperator>([
 	"greater_than_equal",
 	"less_than_equal"
 ]);
+const statusFilterOperators = new Set<TeamManagementFilterOperator>([
+	"equals",
+	"not_equals",
+	"in",
+	"not_in",
+	"exists"
+]);
 const dateFilterColumns = new Set<TeamManagementFilterColumn>([
 	"createdAt",
 	"updatedAt",
@@ -59,6 +68,8 @@ const dateFilterColumns = new Set<TeamManagementFilterColumn>([
 	"reviewedAt"
 ]);
 const booleanFilterColumns = new Set<TeamManagementFilterColumn>(["reviewApproved"]);
+export type TeamManagementStatus = typeof teamStatusValues[number];
+const teamStatusSet = new Set<TeamManagementStatus>(teamStatusValues);
 
 type ReviewCommentValue = NonNullable<Team["reviewComment"]>;
 const defaultReviewComment: ReviewCommentValue = {
@@ -110,6 +121,7 @@ export type TeamManagementFilterColumn =
 	"deletedBy" |
 	"reviewedAt" |
 	"reviewedBy" |
+	"status" |
 	"reviewApproved";
 export type TeamManagementFilterOperator =
 	"equals" |
@@ -135,10 +147,8 @@ export type TeamTableRow = {
 	id: string;
 	name: string;
 	supervisorId: string | null;
-	supervisor: string;
 	isSoftDeleted: boolean;
 	officerIds: string[];
-	officers: string[];
 	createdById: string | null;
 	updatedById: string | null;
 	deletedById: string | null;
@@ -165,9 +175,13 @@ export type ResolveTeamRelationColumnsInput = {
 	columns: TeamRelationColumn[];
 };
 
+export type TeamRelationValues = Partial<Record<TeamRelationColumn, string>> & {
+	stagedUserIdByUserId?: Record<string, string>;
+};
+
 export type ResolveTeamRelationColumnsOutput = Array<{
 	id: string;
-	values: Partial<Record<TeamRelationColumn, string>>;
+	values: TeamRelationValues;
 }>;
 
 export type QueryTeamsInput = {
@@ -270,12 +284,22 @@ function parseBooleanValue(value: unknown): boolean | null {
 	return null;
 }
 
+function normalizeTeamStatusValue(value: unknown): TeamManagementStatus | null {
+	if(typeof value != "string")
+		return null;
+	const normalized = value.trim().toLowerCase() as TeamManagementStatus;
+	return teamStatusSet.has(normalized) ? normalized : null;
+}
+
 function normalizeScalarFilterValue(column: TeamManagementFilterColumn, rawValue: unknown): string | boolean | null {
 	if(rawValue == null)
 		return null;
 
 	if(booleanFilterColumns.has(column))
 		return parseBooleanValue(rawValue);
+
+	if(column == "status")
+		return normalizeTeamStatusValue(rawValue);
 
 	if(typeof rawValue != "string")
 		return null;
@@ -299,6 +323,8 @@ function normalizeFilters(filters: TeamManagementFilterInput[] | undefined, fall
 	const normalized: TeamManagementFilterInput[] = [];
 	for(const filter of filters) {
 		if(filter == null || !filterableColumns.has(filter.column) || !filterOperators.has(filter.operator))
+			continue;
+		if(filter.column == "status" && !statusFilterOperators.has(filter.operator))
 			continue;
 
 		if(filter.operator == "exists") {
@@ -429,7 +455,7 @@ function formatReviewUserList(ids: string[], usersById: Map<string, { name: stri
 	return ids.map(id => usersById.get(id)?.name ?? "-").join(", ");
 }
 
-async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>, ids: string[]): Promise<Map<string, { name: string, email: string }>> {
+async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>, ids: string[]): Promise<Map<string, { name: string, email: string, stagedUserId: string | null }>> {
 	if(ids.length == 0)
 		return new Map();
 
@@ -447,13 +473,19 @@ async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, u
 		},
 		select: {
 			name: true,
-			email: true
+			email: true,
+			stagedUser: true
 		}
 	});
 
-	const map = new Map<string, { name: string, email: string }>();
-	for(const doc of usersResult.docs)
-		map.set(String(doc.id), { name: doc.name, email: doc.email });
+	const map = new Map<string, { name: string, email: string, stagedUserId: string | null }>();
+	for(const doc of usersResult.docs) {
+		map.set(String(doc.id), {
+			name: doc.name,
+			email: doc.email,
+			stagedUserId: getRelationshipId(doc.stagedUser)
+		});
+	}
 
 	return map;
 }
@@ -489,15 +521,83 @@ function toPayloadFilterWhere(filters: TeamManagementFilterInput[]): Where | nul
 		greater_than_equal: "greater_than_equal",
 		less_than_equal: "less_than_equal"
 	};
+	const impossibleWhere: Where = {
+		and: [
+			{ reviewedAt: { exists: true } },
+			{ reviewedAt: { exists: false } }
+		]
+	};
 
-	const conditions = filters.map(filter => ({
-		where: {
-			[filter.column]: {
-				[operatorMap[filter.operator]]: filter.value
+	const getStatusWhere = (status: TeamManagementStatus): Where => {
+		if(status == "pending")
+			return { reviewedAt: { exists: false } };
+		if(status == "approved") {
+			return {
+				and: [
+					{ reviewedAt: { exists: true } },
+					{ reviewApproved: { equals: true } }
+				]
+			};
+		}
+		return {
+			and: [
+				{ reviewedAt: { exists: true } },
+				{ reviewApproved: { equals: false } }
+			]
+		};
+	};
+
+	const buildStatusFilterWhere = (filter: TeamManagementFilterInput): Where | null => {
+		if(filter.operator == "exists")
+			return filter.value == true ? null : impossibleWhere;
+
+		const rawStatuses = Array.isArray(filter.value) ? filter.value : [filter.value];
+		const statuses = rawStatuses
+			.map(normalizeTeamStatusValue)
+			.filter((status): status is TeamManagementStatus => status != null)
+			.filter((status, index, source) => source.indexOf(status) == index);
+		if(statuses.length == 0)
+			return null;
+
+		if(filter.operator == "equals" || filter.operator == "in")
+			return statuses.length == 1 ? getStatusWhere(statuses[0]) : { or: statuses.map(getStatusWhere) };
+
+		if(filter.operator == "not_equals" || filter.operator == "not_in") {
+			const excluded = new Set(statuses);
+			const remaining = teamStatusValues.filter(status => !excluded.has(status));
+			if(remaining.length == 0)
+				return impossibleWhere;
+			return remaining.length == 1 ? getStatusWhere(remaining[0]) : { or: remaining.map(getStatusWhere) };
+		}
+
+		return null;
+	};
+
+	const conditions = filters
+		.map(filter => {
+			if(filter.column == "status") {
+				const statusWhere = buildStatusFilterWhere(filter);
+				if(statusWhere == null)
+					return null;
+				return {
+					where: statusWhere,
+					joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
+				};
 			}
-		} as Where,
-		joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
-	}));
+
+			return {
+				where: {
+					[filter.column]: {
+						[operatorMap[filter.operator]]: filter.value
+					}
+				} as Where,
+				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
+			};
+		})
+		.filter((condition): condition is { where: Where, joinWithPrevious: "and" | "or" } => condition != null);
+
+	if(conditions.length == 0)
+		return null;
 
 	const andTerms: Where[][] = [];
 	let currentAndTerm: Where[] = [conditions[0].where];
@@ -539,27 +639,36 @@ async function searchUsersByRoleLevel(
 	payload: Awaited<ReturnType<typeof getPayload>>,
 	user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>,
 	roleLevel: "supervisor" | "officer",
-	keyword: string
+	keyword: string,
+	selectedIds: string[] = []
 ): Promise<TeamUserOption[]> {
 	const normalizedKeyword = keyword.trim();
-	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = [
 		{ email: { like: normalizedKeyword } },
 		{ name: { like: normalizedKeyword } },
 		{ employeeId: { like: normalizedKeyword } }
-	] : [];
+	];
+	const searchWhereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		searchWhereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		searchWhereTerms.push({ id: { in: normalizedSelectedIds } });
+	const searchWhere = searchWhereTerms.length == 0 ? null :
+		searchWhereTerms.length == 1 ? searchWhereTerms[0] : { or: searchWhereTerms };
 
 	const result = await payload.find({
 		collection: "users",
 		user,
 		overrideAccess: false,
 		pagination: false,
-		limit: RELATION_SEARCH_LIMIT,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
 		sort: "name",
 		select: { name: true, email: true },
 		where: {
 			and: [
 				{ "role.level": { equals: roleLevel } },
-				...(keywordFilters.length > 0 ? [{ or: keywordFilters }] : [])
+				...(searchWhere != null ? [searchWhere] : [])
 			]
 		}
 	});
@@ -574,14 +683,22 @@ async function searchUsersByRoleLevel(
 async function searchUsersByKeyword(
 	payload: Awaited<ReturnType<typeof getPayload>>,
 	user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>,
-	keyword: string
+	keyword: string,
+	selectedIds: string[] = []
 ): Promise<TeamReviewerOption[]> {
 	const normalizedKeyword = keyword.trim();
-	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = [
 		{ email: { like: normalizedKeyword } },
 		{ name: { like: normalizedKeyword } },
 		{ employeeId: { like: normalizedKeyword } }
-	] : [];
+	];
+	const whereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
 
 	const result = await payload.find({
 		collection: "users",
@@ -589,17 +706,13 @@ async function searchUsersByKeyword(
 		overrideAccess: false,
 		pagination: false,
 		depth: 0,
-		limit: RELATION_SEARCH_LIMIT,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
 		sort: "name",
 		select: {
 			name: true,
 			email: true
 		},
-		...(keywordFilters.length > 0 ? {
-			where: {
-				or: keywordFilters
-			}
-		} : {})
+		...(where != null ? { where } : {})
 	});
 
 	return result.docs.map(doc => ({
@@ -609,41 +722,56 @@ async function searchUsersByKeyword(
 	}));
 }
 
-export async function searchTeamSupervisorsAction(keyword: string): Promise<TeamUserOption[]> {
+function normalizeSelectedIds(selectedIds: string[] = []): string[] {
+	return [...new Set(
+		selectedIds
+			.map(selectedId => selectedId.trim())
+			.filter(selectedId => selectedId.length > 0)
+	)];
+}
+
+export async function searchTeamSupervisorUserOptionsAction(keyword: string, selectedIds: string[] = []): Promise<TeamUserOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
-	return searchUsersByRoleLevel(payload, user, "supervisor", keyword);
+	return searchUsersByRoleLevel(payload, user, "supervisor", keyword, selectedIds);
 }
 
-export async function searchTeamOfficersAction(keyword: string): Promise<TeamUserOption[]> {
+export async function searchTeamOfficerUserOptionsAction(keyword: string, selectedIds: string[] = []): Promise<TeamUserOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
-	return searchUsersByRoleLevel(payload, user, "officer", keyword);
+	return searchUsersByRoleLevel(payload, user, "officer", keyword, selectedIds);
 }
 
-export async function searchTeamReviewerUsersAction(keyword: string): Promise<TeamReviewerOption[]> {
+export async function searchTeamAuditUserOptionsAction(keyword: string, selectedIds: string[] = []): Promise<TeamReviewerOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
-	return searchUsersByKeyword(payload, user, keyword);
+	return searchUsersByKeyword(payload, user, keyword, selectedIds);
 }
 
-export async function searchTeamFilterIdsAction(keyword: string): Promise<TeamFilterIdOption[]> {
+export async function searchTeamOptionsAction(keyword: string, selectedIds: string[] = []): Promise<TeamFilterIdOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
 	const normalizedKeyword = keyword.trim();
-	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = [
 		{ id: { like: normalizedKeyword } },
 		{ name: { like: normalizedKeyword } }
-	] : [];
+	];
+	const whereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
 
 	const result = await payload.find({
 		collection: "teams",
@@ -653,16 +781,12 @@ export async function searchTeamFilterIdsAction(keyword: string): Promise<TeamFi
 		trash: true,
 		pagination: false,
 		depth: 0,
-		limit: RELATION_SEARCH_LIMIT,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
 		sort: "-updatedAt",
 		select: {
 			name: true
 		},
-		...(keywordFilters.length > 0 ? {
-			where: {
-				or: keywordFilters
-			}
-		} : {})
+		...(where != null ? { where } : {})
 	});
 
 	return result.docs.map(doc => ({
@@ -743,10 +867,8 @@ export async function queryTeamsAction({ keyword, sort, filters, filterCombinato
 			id: String(doc.id),
 			name: doc.name,
 			supervisorId,
-			supervisor: "-",
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
 			officerIds,
-			officers: [],
 			createdById,
 			updatedById,
 			deletedById,
@@ -829,7 +951,7 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 	const usersById = await findUsersByIds(payload, user, [...userIds]);
 
 	return rows.map(row => {
-		const values: Partial<Record<TeamRelationColumn, string>> = {};
+		const values: TeamRelationValues = {};
 
 		if(requestedColumns.includes("supervisor"))
 			values.supervisor = row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-";
@@ -843,6 +965,28 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 			values.updatedBy = row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-";
 		if(requestedColumns.includes("deletedBy"))
 			values.deletedBy = row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-";
+
+		const relationUserIds = new Set<string>();
+		if(row.supervisorId != null)
+			relationUserIds.add(row.supervisorId);
+		for(const officerId of row.officerIds)
+			relationUserIds.add(officerId);
+		if(row.reviewedById != null)
+			relationUserIds.add(row.reviewedById);
+		if(row.createdById != null)
+			relationUserIds.add(row.createdById);
+		if(row.updatedById != null)
+			relationUserIds.add(row.updatedById);
+		if(row.deletedById != null)
+			relationUserIds.add(row.deletedById);
+
+		const stagedUserIdByUserId = Object.fromEntries(
+			[...relationUserIds]
+				.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
+				.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
+		);
+		if(Object.keys(stagedUserIdByUserId).length > 0)
+			values.stagedUserIdByUserId = stagedUserIdByUserId;
 
 		return {
 			id: row.id,

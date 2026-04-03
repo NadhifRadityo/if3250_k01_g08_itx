@@ -13,6 +13,7 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
+import { UserRequestCancelDialog } from "../layout.components";
 import { UserRequestDeleteDialog } from "../layout.components";
 import { UserRequestFilterCard } from "../layout.components";
 import { UserRequestFormDrawer } from "../layout.components";
@@ -41,13 +42,14 @@ export default function UserManagementEditorPage() {
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<StagedUserTableRow | null>(null);
+	const [cancelTarget, setCancelTarget] = useState<StagedUserTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useUserColumnPreferences();
 	const queryState = useUserManagementQueryState();
 	const {
 		searchRoleOptions,
-		searchSupervisorOptions,
+		searchSupervisorUserOptions,
 		getResolvedFilterColumnConfig
 	} = useUserFilterColumnConfig();
 	const filters = useUserRequestFilters({ getResolvedFilterColumnConfig });
@@ -214,7 +216,7 @@ export default function UserManagementEditorPage() {
 							</div>
 							<Button type="button" onClick={openCreateDialog} disabled={isLoading || isMutating}>
 								<PlusIcon />
-								Add Request
+								Add
 							</Button>
 						</>
 					)}
@@ -272,18 +274,18 @@ export default function UserManagementEditorPage() {
 								{row.isSoftDeleted ? (
 									<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
 										<PlusIcon />
-										Request Restore
+										Restore
 									</Button>
 								) : row.deletedAt == null ? (
 									<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
 										<Trash2Icon />
-										Request Delete
+										Delete
 									</Button>
 								) : null}
 								{isPending && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
+									<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
 										<XIcon />
-										Cancel Request
+										Cancel
 									</Button>
 								) : null}
 								{isRejected && !row.isSoftDeleted ? (
@@ -319,7 +321,7 @@ export default function UserManagementEditorPage() {
 				formState={formState}
 				formError={formError}
 				onSearchRoles={searchRoleOptions}
-				onSearchSupervisors={searchSupervisorOptions}
+				onSearchSupervisors={searchSupervisorUserOptions}
 				isMutating={isMutating}
 				onEmailChange={value => setFormState(previous => ({ ...previous, email: value }))}
 				onNameChange={value => setFormState(previous => ({ ...previous, name: value }))}
@@ -339,6 +341,21 @@ export default function UserManagementEditorPage() {
 				onConfirm={() => {
 					if(deleteTarget != null)
 						requestDelete(deleteTarget);
+				}}
+				isMutating={isMutating}
+			/>
+
+			<UserRequestCancelDialog
+				open={cancelTarget != null}
+				onOpenChange={open => {
+					if(!open)
+						setCancelTarget(null);
+				}}
+				onConfirm={() => {
+					if(cancelTarget != null) {
+						cancelRequest(cancelTarget);
+						setCancelTarget(null);
+					}
 				}}
 				isMutating={isMutating}
 			/>

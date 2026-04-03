@@ -133,6 +133,8 @@ export default function TeamManagementViewerPage() {
 				/>
 			</DashboardManagementPageFrame>
 
+			{renderTeamCell.relationSummaryPickerDrawer}
+
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>
 	);

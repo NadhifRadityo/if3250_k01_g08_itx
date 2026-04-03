@@ -42,7 +42,7 @@ export type RoleRequestReviewDiff = Awaited<ReturnType<typeof roleActions.getRol
 export type RoleLevel = roleActions.RoleLevel;
 export type RoleMenu = roleActions.RoleMenu;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
-export type FilterSelectSearchAction = (keyword: string) => Promise<SearchableSelectOption[]>;
+export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
 export type ActionError = {
 	title: string;
 	message: string;
@@ -72,7 +72,6 @@ export type FilterColumnOption = {
 };
 
 export type FilterCondition = {
-	id: string;
 	column: FilterColumn;
 	operator: FilterOperator;
 	joinWithPrevious: FilterCombinator;
@@ -118,7 +117,6 @@ export type FormState = {
 };
 
 export type FilterSummaryItem = {
-	id: string;
 	combinator: string | null;
 	columnLabel: string;
 	operatorLabel: string;
@@ -142,6 +140,12 @@ export const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
 	{ value: "team-management-viewer", label: "Team Management - Viewer" },
 	{ value: "team-management-editor", label: "Team Management - Editor" },
 	{ value: "team-management-approver", label: "Team Management - Approver" }
+];
+
+export const reviewStatusOptions: Array<{ value: string, label: string }> = [
+	{ value: "pending", label: "Pending" },
+	{ value: "approved", label: "Approved" },
+	{ value: "rejected", label: "Rejected" }
 ];
 
 export const emptyQueryResult: QueryRolesOutput = {
@@ -169,9 +173,9 @@ export const roleTableColumns: RoleTableColumnConfig[] = [
 	{ id: "createdBy", label: "Created By" },
 	{ id: "updatedBy", label: "Updated By" },
 	{ id: "deletedBy", label: "Deleted By" },
-	{ id: "createdAt", label: "Created", sortField: "createdAt" },
-	{ id: "updatedAt", label: "Updated", sortField: "updatedAt" },
-	{ id: "deletedAt", label: "Deleted", sortField: "deletedAt" },
+	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
+	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
+	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
 	{ id: "requestType", label: "Request", sortField: "requestType" },
 	{ id: "status", label: "Status", sortField: "status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
@@ -218,6 +222,7 @@ export const roleFilterColumns: FilterColumnOption[] = [
 	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "status", label: "Status", valueType: "select", operators: ["equals", "not_equals", "in", "not_in"], selectOptions: reviewStatusOptions },
 	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "exists"] }
 ];
 
@@ -250,8 +255,8 @@ export function getResolvedRoleFilterColumnConfig(
 	column: FilterColumn,
 	idSelectOptions: Array<{ value: string, label: string }>,
 	reviewedBySelectOptions: Array<{ value: string, label: string }>,
-	searchIdOptions?: FilterSelectSearchAction,
-	searchReviewedByOptions?: FilterSelectSearchAction
+	searchRoleOptions?: FilterSelectSearchAction,
+	searchAuditUserOptions?: FilterSelectSearchAction
 ): FilterColumnOption {
 	const config = getFilterColumnConfig(column);
 	switch(column) {
@@ -259,7 +264,7 @@ export function getResolvedRoleFilterColumnConfig(
 			return {
 				...config,
 				selectOptions: idSelectOptions,
-				searchOptionsAction: searchIdOptions
+				searchOptionsAction: searchRoleOptions
 			};
 		case "createdBy":
 		case "updatedBy":
@@ -268,7 +273,7 @@ export function getResolvedRoleFilterColumnConfig(
 			return {
 				...config,
 				selectOptions: reviewedBySelectOptions,
-				searchOptionsAction: searchReviewedByOptions
+				searchOptionsAction: searchAuditUserOptions
 			};
 		default:
 			return config;
@@ -278,7 +283,6 @@ export function getResolvedRoleFilterColumnConfig(
 export function createFilterCondition(column: FilterColumn = roleFilterColumns[0].value): FilterCondition {
 	const columnConfig = getFilterColumnConfig(column);
 	return {
-		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
 		column,
 		operator: columnConfig.operators[0],
 		joinWithPrevious: defaultFilterCombinator,
@@ -413,8 +417,8 @@ export function RoleActiveFiltersSummary({ items }: RoleActiveFiltersSummaryProp
 		<div className="rounded-lg border border-dashed px-3 py-2 text-xs">
 			<p className="text-muted-foreground font-medium">Active filters</p>
 			<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-				{items.map(item => (
-					<span key={item.id} className="inline-flex items-center gap-1.5">
+				{items.map((item, index) => (
+					<span key={index} className="inline-flex items-center gap-1.5">
 						{item.combinator != null ? (
 							<span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">{item.combinator}</span>
 						) : null}
@@ -519,14 +523,45 @@ export function RoleRequestDeleteDialog({
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
 				<AlertDialogHeader>
-					<AlertDialogTitle>Request Delete</AlertDialogTitle>
+					<AlertDialogTitle>Delete</AlertDialogTitle>
 					<AlertDialogDescription>
 						Delete does not hard-delete data. It creates a pending delete request by setting deletedAt, and requires approver review.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
-					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Request Delete</AlertDialogAction>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Delete</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+type RoleRequestCancelDialogProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onConfirm: () => void;
+	isMutating: boolean;
+};
+
+export function RoleRequestCancelDialog({
+	open,
+	onOpenChange,
+	onConfirm,
+	isMutating
+}: RoleRequestCancelDialogProps) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Cancel</AlertDialogTitle>
+					<AlertDialogDescription>
+						This will cancel the pending request and keep the last approved version unchanged.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Cancel</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
@@ -552,7 +587,7 @@ export function RoleRequestFilterCard({
 				<div className="space-y-3 rounded-xl border p-4">
 					<div className="flex items-center justify-between gap-2">
 						<div className="space-y-1">
-							<h3 className="text-sm font-semibold">Filter Role Requests</h3>
+							<h3 className="text-sm font-semibold">Configure Filters</h3>
 							<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
 						</div>
 						{filters.appliedFilters.length > 0 ? (
@@ -564,13 +599,13 @@ export function RoleRequestFilterCard({
 						const isListOperator = filterCondition.operator == "in" || filterCondition.operator == "not_in";
 
 						return (
-							<div key={filterCondition.id} className="space-y-3">
+							<div key={index} className="space-y-3">
 								{index > 0 ? (
 									<div className="rounded-lg border border-dashed p-2">
 										<label className="text-sm font-medium">Combinator with previous filter</label>
 										<Select
 											value={filterCondition.joinWithPrevious}
-											onValueChange={value => filters.updateFilterJoinWithPrevious(filterCondition.id, value as FilterCombinator)}
+											onValueChange={value => filters.updateFilterJoinWithPrevious(index, value as FilterCombinator)}
 										>
 											<SelectTrigger className="w-full"><SelectValue placeholder="Select combinator" /></SelectTrigger>
 											<SelectContent>
@@ -583,7 +618,7 @@ export function RoleRequestFilterCard({
 								<div className="space-y-3 rounded-lg border p-3">
 									<div className="flex items-center justify-between">
 										<p className="text-sm font-medium">Filter {index + 1}</p>
-										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(filterCondition.id)} disabled={isMutating}>
+										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(index)} disabled={isMutating}>
 											<XIcon />
 											Remove
 										</Button>
@@ -591,7 +626,7 @@ export function RoleRequestFilterCard({
 									<div className="grid gap-3 sm:grid-cols-2">
 										<div className="space-y-2">
 											<label className="text-sm font-medium">Column</label>
-											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(filterCondition.id, value as FilterColumn)}>
+											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(index, value as FilterColumn)}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
 												<SelectContent>
 													{roleFilterColumns.map(column => (
@@ -602,7 +637,7 @@ export function RoleRequestFilterCard({
 										</div>
 										<div className="space-y-2">
 											<label className="text-sm font-medium">Operator</label>
-											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(filterCondition.id, value as FilterColumnOption["operators"][number])}>
+											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(index, value as FilterColumnOption["operators"][number])}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select operator" /></SelectTrigger>
 												<SelectContent>
 													{filterOperatorOptions.filter(operator => columnConfig.operators.includes(operator.value)).map(operator => (
@@ -615,7 +650,7 @@ export function RoleRequestFilterCard({
 									<div className="space-y-2">
 										<label className="text-sm font-medium">Filter Value</label>
 										{filterCondition.operator == "exists" ? (
-											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
+											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select exists value" /></SelectTrigger>
 												<SelectContent>
 													<SelectItem value="true">True</SelectItem>
@@ -626,7 +661,7 @@ export function RoleRequestFilterCard({
 											<div className="space-y-2">
 												<div className="flex items-center justify-between">
 													<p className="text-muted-foreground text-xs">Define one or more values.</p>
-													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(filterCondition.id)}><PlusIcon />Add Value</Button>
+													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(index)}><PlusIcon />Add Value</Button>
 												</div>
 												{filterCondition.values.length == 0 ? (
 													<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
@@ -635,16 +670,16 @@ export function RoleRequestFilterCard({
 														{filterCondition.values.map((value, valueIndex) => {
 															const listDate = columnConfig.valueType == "date" ? splitFilterDateValue(value) : null;
 															return (
-																<div key={`${filterCondition.id}-${valueIndex}`} className="flex items-start gap-2">
+																<div key={`${index}-${valueIndex}`} className="flex items-start gap-2">
 																	{columnConfig.valueType == "boolean" ? (
-																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(filterCondition.id, valueIndex, nextValue)}>
+																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}>
 																			<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
 																			<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 																		</Select>
 																	) : columnConfig.valueType == "select" ? (
 																		<SearchableSelect
 																			value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")}
-																			onValueChange={nextValue => filters.updateFilterListValue(filterCondition.id, valueIndex, nextValue)}
+																			onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}
 																			options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
 																			onSearch={columnConfig.searchOptionsAction}
 																			placeholder="Select value"
@@ -657,7 +692,7 @@ export function RoleRequestFilterCard({
 																				<InputGroup>
 																					<InputGroupInput
 																						value={listDate?.dateText ?? ""}
-																						onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
+																						onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
 																						placeholder="YYYY-MM-DD"
 																					/>
 																					<InputGroupAddon align="inline-end">
@@ -671,16 +706,16 @@ export function RoleRequestFilterCard({
 																						mode="single"
 																						captionLayout="dropdown"
 																						selected={parseFilterDateOnlyValue(listDate?.dateText ?? "") ?? undefined}
-																						onSelect={date => filters.updateFilterListValue(filterCondition.id, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
+																						onSelect={date => filters.updateFilterListValue(index, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
 																					/>
 																				</PopoverContent>
 																			</Popover>
-																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
+																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
 																		</div>
 																	) : (
-																		<Input value={value} onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
+																		<Input value={value} onChange={event => filters.updateFilterListValue(index, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
 																	)}
-																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(filterCondition.id, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
+																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(index, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
 																</div>
 															);
 														})}
@@ -690,14 +725,14 @@ export function RoleRequestFilterCard({
 										) : columnConfig.valueType == "select" ? (
 											<SearchableSelect
 												value={filterCondition.value.length > 0 ? filterCondition.value : ""}
-												onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value }))}
+												onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}
 												options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
 												onSearch={columnConfig.searchOptionsAction}
 												placeholder="Select value"
 												searchPlaceholder="Type to filter values"
 											/>
 										) : columnConfig.valueType == "boolean" ? (
-											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value }))}>
+											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
 												<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 											</Select>
@@ -707,7 +742,7 @@ export function RoleRequestFilterCard({
 													<InputGroup>
 														<InputGroupInput
 															value={filterCondition.dateText}
-															onChange={event => filters.updateFilter(filterCondition.id, previous => {
+															onChange={event => filters.updateFilter(index, previous => {
 																const nextDateText = event.target.value;
 																const parsedDate = parseFilterDateOnlyValue(nextDateText);
 																const preservedTime = getFilterTimeInput(previous.dateValue);
@@ -730,7 +765,7 @@ export function RoleRequestFilterCard({
 															mode="single"
 															captionLayout="dropdown"
 															selected={filterCondition.dateValue ?? parseFilterDateOnlyValue(filterCondition.dateText) ?? undefined}
-															onSelect={date => filters.updateFilter(filterCondition.id, previous => {
+															onSelect={date => filters.updateFilter(index, previous => {
 																if(date == null)
 																	return { ...previous, dateValue: null, dateText: "" };
 																const nextDate = applyTimeToDate(date, getFilterTimeInput(previous.dateValue));
@@ -742,7 +777,7 @@ export function RoleRequestFilterCard({
 												<Input
 													type="time"
 													value={getFilterTimeInput(filterCondition.dateValue)}
-													onChange={event => filters.updateFilter(filterCondition.id, previous => {
+													onChange={event => filters.updateFilter(index, previous => {
 														const baseDate = previous.dateValue ?? parseFilterDateOnlyValue(previous.dateText);
 														if(baseDate == null)
 															return previous;
@@ -752,7 +787,7 @@ export function RoleRequestFilterCard({
 												/>
 											</div>
 										) : (
-											<Input value={filterCondition.value} onChange={event => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
+											<Input value={filterCondition.value} onChange={event => filters.updateFilter(index, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
 										)}
 									</div>
 								</div>
@@ -799,7 +834,7 @@ export function RoleRequestFormDrawer({
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>{formState.roleId == null ? "Add Role Request" : "Edit Role Request"}</DrawerTitle>
+					<DrawerTitle>{formState.roleId == null ? "Add Role" : "Edit Role"}</DrawerTitle>
 					<DrawerDescription>Changes in editor mode create pending role requests that require approver review before publication.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
@@ -856,7 +891,7 @@ export function RoleRequestFormDrawer({
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save Request</Button>
+					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
@@ -898,7 +933,7 @@ export function RoleRequestReviewDrawer({
 		>
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>Review Request</DrawerTitle>
+					<DrawerTitle>Review</DrawerTitle>
 					<DrawerDescription>Review the differences between the last approved version and the current pending request before making a decision.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
@@ -1058,7 +1093,7 @@ export function RoleRequestsTable({
 }
 
 type UseRoleCellRendererOptions = {
-	relationValuesByRowId: Record<string, Partial<Record<RoleRelationColumn, string>>>;
+	relationValuesByRowId: Record<string, roleActions.RoleRelationValues>;
 	isRelationLoading: boolean;
 	relationNavigation?: {
 		getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
@@ -1079,62 +1114,78 @@ type UseRoleCellRendererOptions = {
 };
 
 export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseRoleCellRendererOptions) {
-	const renderRelationValue = (column: RoleRelationColumn, value: string, relationId: string | null) => {
-		const normalizedValue = value.trim();
-		if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
-			return value;
-
-		const hrefBase = relationNavigation?.getHrefBase("user-management");
-		if(hrefBase != null && relationNavigation != null) {
-			const relationFilters = [
-				{ column: "id", operator: "equals", value: relationId }
-			];
-			const searchParams = new URLSearchParams();
-			searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
-			searchParams.set("relationContext", `role-management:${column}`);
-			const href = `${hrefBase}?${searchParams.toString()}`;
-			return (
-				<Link
-					href={href}
-					onClick={event => relationNavigation.onRelationLinkClick(event, {
-						targetManagementKey: "user-management",
-						hrefBase,
-						relationFilters,
-						relationContext: `role-management:${column}`
-					})}
-					className="text-primary underline underline-offset-2 hover:opacity-80"
-				>
-					{value}
-				</Link>
-			);
-		}
-
-		if(relationNavigation == null)
-			return value;
-
-		const summaryLabel = column == "reviewedBy" ? "Reviewed By" :
-			column == "createdBy" ? "Created By" :
-				column == "updatedBy" ? "Updated By" : "Deleted By";
-
-		return (
-			<Button
-				type="button"
-				variant="link"
-				onClick={() => relationNavigation.onOpenSummary({
-					type: "user",
-					id: relationId,
-					fallbackTitle: value,
-					fallbackDescription: `${summaryLabel} user`
-				})}
-				className="h-auto p-0 text-primary"
-			>
-				{value}
-			</Button>
-		);
-	};
-
 	return useCallback((columnId: RoleTableColumnId, row: RoleTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
+		const renderUserRelationValue = (column: RoleRelationColumn, value: string, relationId: string | null) => {
+			const normalizedValue = value.trim();
+			if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
+				return value;
+
+			const summaryLabel = column == "reviewedBy" ? "Reviewed By" :
+				column == "createdBy" ? "Created By" :
+					column == "updatedBy" ? "Updated By" : "Deleted By";
+
+			const hrefBase = relationNavigation?.getHrefBase("user-management");
+			if(hrefBase != null && relationNavigation != null) {
+				const stagedUserId = resolvedValues.stagedUserIdByUserId?.[relationId] ?? null;
+				if(stagedUserId == null || stagedUserId.trim().length == 0)
+					return value;
+
+				const relationFilters = [
+					{ column: "id", operator: "equals", value: stagedUserId }
+				];
+				const searchParams = new URLSearchParams();
+				searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
+				searchParams.set("relationContext", `role-management:${column}`);
+				const href = `${hrefBase}?${searchParams.toString()}`;
+				return (
+					<Link
+						href={href}
+						onClick={event => {
+							if(event.altKey) {
+								event.preventDefault();
+								relationNavigation.onOpenSummary({
+									type: "user",
+									id: relationId,
+									fallbackTitle: value,
+									fallbackDescription: `${summaryLabel} user`
+								});
+								return;
+							}
+							relationNavigation.onRelationLinkClick(event, {
+								targetManagementKey: "user-management",
+								hrefBase,
+								relationFilters,
+								relationContext: `role-management:${column}`
+							});
+						}}
+						className="text-primary underline underline-offset-2 hover:opacity-80"
+					>
+						{value}
+					</Link>
+				);
+			}
+
+			if(relationNavigation == null)
+				return value;
+
+			return (
+				<Button
+					type="button"
+					variant="link"
+					onClick={() => relationNavigation.onOpenSummary({
+						type: "user",
+						id: relationId,
+						fallbackTitle: value,
+						fallbackDescription: `${summaryLabel} user`
+					})}
+					className="h-auto p-0 text-primary"
+				>
+					{value}
+				</Button>
+			);
+		};
+
 		switch(columnId) {
 			case "id":
 				return row.id;
@@ -1151,15 +1202,15 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("createdBy", resolvedValues.createdBy ?? "-", row.createdById);
+				return renderUserRelationValue("createdBy", resolvedValues.createdBy ?? "-", row.createdById);
 			case "updatedBy":
 				if(isRelationLoading && resolvedValues.updatedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("updatedBy", resolvedValues.updatedBy ?? "-", row.updatedById);
+				return renderUserRelationValue("updatedBy", resolvedValues.updatedBy ?? "-", row.updatedById);
 			case "deletedBy":
 				if(isRelationLoading && resolvedValues.deletedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("deletedBy", resolvedValues.deletedBy ?? "-", row.deletedById);
+				return renderUserRelationValue("deletedBy", resolvedValues.deletedBy ?? "-", row.deletedById);
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1177,7 +1228,7 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedBy":
 				if(isRelationLoading && resolvedValues.reviewedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("reviewedBy", resolvedValues.reviewedBy ?? "-", row.reviewedById);
+				return renderUserRelationValue("reviewedBy", resolvedValues.reviewedBy ?? "-", row.reviewedById);
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			case "reviewCommentText":
@@ -1297,17 +1348,18 @@ export function useRoleColumnPreferences() {
 }
 
 export function useRoleFilterColumnConfig() {
-	const searchIdOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const roles = await roleActions.searchRoleFilterIdsAction(keyword);
+	const searchRoleOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const roles = await roleActions.searchRoleOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(roles.map(role => ({
 			value: role.id,
 			label: `${role.name} (${role.id})`,
+			renderLabel: <span>{role.name} (<span className="font-mono">{role.id}</span>)</span>,
 			keywords: `${role.id} ${role.name} ${role.level}`
 		})));
 	}, []);
 
-	const searchReviewerOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const users = await roleActions.searchRoleFilterUsersAction(keyword);
+	const searchAuditUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const users = await roleActions.searchRoleAuditUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(users.map(user => ({
 			value: user.id,
 			label: `${user.name} (${user.email})`,
@@ -1316,8 +1368,8 @@ export function useRoleFilterColumnConfig() {
 	}, []);
 
 	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
-		getResolvedRoleFilterColumnConfig(column, [], [], searchIdOptions, searchReviewerOptions)
-	), [searchIdOptions, searchReviewerOptions]);
+		getResolvedRoleFilterColumnConfig(column, [], [], searchRoleOptions, searchAuditUserOptions)
+	), [searchAuditUserOptions, searchRoleOptions]);
 
 	return {
 		getResolvedFilterColumnConfig
@@ -1413,7 +1465,7 @@ export function useRoleRelations({ docs, visibleColumns }: UseRoleRelationsOptio
 
 	const relationValuesByRowId = useMemo(() => Object.fromEntries(
 		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	) as Record<string, Partial<Record<RoleRelationColumn, string>>>, [relationsQuery.data]);
+	) as Record<string, roleActions.RoleRelationValues>, [relationsQuery.data]);
 	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
 
 	return {
@@ -1435,15 +1487,15 @@ export type UseRoleRequestFiltersResult = {
 	appliedFilters: FilterInput[];
 	filterSummaryItems: FilterSummaryItem[];
 	filters: FilterCondition[];
-	updateFilterJoinWithPrevious: (id: string, combinator: FilterCombinator) => void;
-	updateFilter: (id: string, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
-	handleFilterColumnChange: (id: string, column: FilterColumn) => void;
-	handleFilterOperatorChange: (id: string, operator: FilterColumnOption["operators"][number]) => void;
+	updateFilterJoinWithPrevious: (filterIndex: number, combinator: FilterCombinator) => void;
+	updateFilter: (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
+	handleFilterColumnChange: (filterIndex: number, column: FilterColumn) => void;
+	handleFilterOperatorChange: (filterIndex: number, operator: FilterColumnOption["operators"][number]) => void;
 	addFilter: () => void;
-	removeFilter: (id: string) => void;
-	addFilterListValue: (id: string) => void;
-	updateFilterListValue: (id: string, valueIndex: number, nextValue: string) => void;
-	removeFilterListValue: (id: string, valueIndex: number) => void;
+	removeFilter: (filterIndex: number) => void;
+	addFilterListValue: (filterIndex: number) => void;
+	updateFilterListValue: (filterIndex: number, valueIndex: number, nextValue: string) => void;
+	removeFilterListValue: (filterIndex: number, valueIndex: number) => void;
 };
 
 function mapAppliedFilterToCondition(
@@ -1460,7 +1512,6 @@ function mapAppliedFilterToCondition(
 	const parsedDate = !Array.isArray(filter.value) && columnConfig.valueType == "date" && typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null;
 
 	return {
-		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
 		column: filter.column,
 		operator: filter.operator,
 		joinWithPrevious: filter.joinWithPrevious ?? defaultFilterCombinator,
@@ -1640,7 +1691,7 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 			return;
 		const nextUrl = `${pathname}${nextSearch.length > 0 ? `?${nextSearch}` : ""}`;
 		const handle = window.setTimeout(() => {
-			window.history.replaceState(null, "", nextUrl);
+			router.replace(nextUrl);
 		});
 		return () => {
 			window.clearTimeout(handle);
@@ -1675,7 +1726,6 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 			})();
 
 			return {
-				id: `${filter.column}-${filter.operator}-${index}`,
 				combinator: index == 0 ? null : (filter.joinWithPrevious ?? defaultFilterCombinator).toUpperCase(),
 				columnLabel: columnConfig.label,
 				operatorLabel,
@@ -1696,17 +1746,17 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 		setFilters([]);
 	};
 
-	const updateFilterJoinWithPrevious = (id: string, combinator: FilterCombinator) => {
-		setFilters(previous => previous.map(filter => filter.id == id ? { ...filter, joinWithPrevious: combinator } : filter));
+	const updateFilterJoinWithPrevious = (filterIndex: number, combinator: FilterCombinator) => {
+		setFilters(previous => previous.map((filter, index) => index == filterIndex ? { ...filter, joinWithPrevious: combinator } : filter));
 	};
 
-	const updateFilter = (id: string, updater: (filterCondition: FilterCondition) => FilterCondition) => {
-		setFilters(previous => previous.map(filterCondition => filterCondition.id == id ? updater(filterCondition) : filterCondition));
+	const updateFilter = (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => {
+		setFilters(previous => previous.map((filterCondition, index) => index == filterIndex ? updater(filterCondition) : filterCondition));
 	};
 
-	const handleFilterColumnChange = (id: string, column: FilterColumn) => {
+	const handleFilterColumnChange = (filterIndex: number, column: FilterColumn) => {
 		const nextColumnConfig = getResolvedFilterColumnConfig(column);
-		updateFilter(id, filterCondition => ({
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			column,
 			operator: nextColumnConfig.operators.includes(filterCondition.operator) ? filterCondition.operator : nextColumnConfig.operators[0],
@@ -1720,8 +1770,8 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 		}));
 	};
 
-	const handleFilterOperatorChange = (id: string, operator: FilterColumnOption["operators"][number]) => {
-		updateFilter(id, filterCondition => ({
+	const handleFilterOperatorChange = (filterIndex: number, operator: FilterColumnOption["operators"][number]) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			operator,
 			value: "",
@@ -1735,16 +1785,16 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 	};
 
 	const addFilter = () => {
-		setFilters(previous => [...previous, createFilterCondition()]);
+		setFilters(previous => [...previous, createFilterCondition(roleFilterColumns[0].value)]);
 	};
 
-	const removeFilter = (id: string) => {
-		setFilters(previous => previous.filter(filterCondition => filterCondition.id != id));
+	const removeFilter = (filterIndex: number) => {
+		setFilters(previous => previous.filter((_, index) => index != filterIndex));
 	};
 
-	const addFilterListValue = (id: string) => {
-		setFilters(previous => previous.map(filterCondition => {
-			if(filterCondition.id != id)
+	const addFilterListValue = (filterIndex: number) => {
+		setFilters(previous => previous.map((filterCondition, index) => {
+			if(index != filterIndex)
 				return filterCondition;
 			if(filterCondition.operator != "in" && filterCondition.operator != "not_in")
 				return filterCondition;
@@ -1757,15 +1807,15 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 		}));
 	};
 
-	const updateFilterListValue = (id: string, valueIndex: number, nextValue: string) => {
-		updateFilter(id, filterCondition => ({
+	const updateFilterListValue = (filterIndex: number, valueIndex: number, nextValue: string) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			values: filterCondition.values.map((value, index) => index == valueIndex ? nextValue : value)
 		}));
 	};
 
-	const removeFilterListValue = (id: string, valueIndex: number) => {
-		updateFilter(id, filterCondition => ({
+	const removeFilterListValue = (filterIndex: number, valueIndex: number) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			values: filterCondition.values.filter((_, index) => index != valueIndex)
 		}));

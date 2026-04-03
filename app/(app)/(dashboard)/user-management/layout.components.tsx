@@ -39,10 +39,10 @@ export type StagedUserTableRow = QueryStagedUsersOutput["docs"][number];
 export type UserManagementTabMode = "viewer" | Parameters<typeof userActions.queryStagedUsersAction>[0]["mode"];
 export type UserRelationColumn = userActions.UserRelationColumn;
 export type RoleOption = Awaited<ReturnType<typeof userActions.searchUserRoleOptionsAction>>[number];
-export type SupervisorOption = Awaited<ReturnType<typeof userActions.searchUserSupervisorsAction>>[number];
+export type SupervisorOption = Awaited<ReturnType<typeof userActions.searchUserSupervisorUserOptionsAction>>[number];
 export type UserRequestReviewDiff = Awaited<ReturnType<typeof userActions.getStagedUserRequestReviewDiffAction>>;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
-export type FilterSelectSearchAction = (keyword: string) => Promise<SearchableSelectOption[]>;
+export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
 export type ActionError = {
 	title: string;
 	message: string;
@@ -72,7 +72,6 @@ export type FilterColumnOption = {
 };
 
 export type FilterCondition = {
-	id: string;
 	column: FilterColumn;
 	operator: FilterOperator;
 	joinWithPrevious: FilterCombinator;
@@ -123,7 +122,6 @@ export type FormState = {
 };
 
 export type FilterSummaryItem = {
-	id: string;
 	combinator: string | null;
 	columnLabel: string;
 	operatorLabel: string;
@@ -150,6 +148,12 @@ export const defaultFormState: FormState = {
 export const USER_COLUMN_PREFERENCES_KEY = "user-management-columns-v1";
 export const RELATION_FILTER_QUERY_PARAM = "relationFilters";
 
+export const reviewStatusOptions: Array<{ value: string, label: string }> = [
+	{ value: "pending", label: "Pending" },
+	{ value: "approved", label: "Approved" },
+	{ value: "rejected", label: "Rejected" }
+];
+
 export const userTableColumns: UserTableColumnConfig[] = [
 	{ id: "id", label: "ID", sortField: "id", cellClassName: "font-mono text-xs" },
 	{ id: "name", label: "Name", sortField: "name", cellClassName: "font-medium" },
@@ -160,9 +164,9 @@ export const userTableColumns: UserTableColumnConfig[] = [
 	{ id: "createdBy", label: "Created By" },
 	{ id: "updatedBy", label: "Updated By" },
 	{ id: "deletedBy", label: "Deleted By" },
-	{ id: "createdAt", label: "Created", sortField: "createdAt" },
-	{ id: "updatedAt", label: "Updated", sortField: "updatedAt" },
-	{ id: "deletedAt", label: "Deleted", sortField: "deletedAt" },
+	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
+	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
+	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
 	{ id: "requestType", label: "Request", sortField: "requestType" },
 	{ id: "status", label: "Status", sortField: "status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
@@ -212,6 +216,7 @@ export const userFilterColumns: FilterColumnOption[] = [
 	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "status", label: "Status", valueType: "select", operators: ["equals", "not_equals", "in", "not_in"], selectOptions: reviewStatusOptions },
 	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "exists"] }
 ];
 
@@ -246,10 +251,10 @@ export function getResolvedUserFilterColumnConfig(
 	roleSelectOptions: Array<{ value: string, label: string }>,
 	supervisorSelectOptions: Array<{ value: string, label: string }>,
 	reviewedBySelectOptions: Array<{ value: string, label: string }>,
-	searchIdOptions?: FilterSelectSearchAction,
+	searchUserOptions?: FilterSelectSearchAction,
 	searchRoleOptions?: FilterSelectSearchAction,
-	searchSupervisorOptions?: FilterSelectSearchAction,
-	searchReviewedByOptions?: FilterSelectSearchAction
+	searchSupervisorUserOptions?: FilterSelectSearchAction,
+	searchAuditUserOptions?: FilterSelectSearchAction
 ): FilterColumnOption {
 	const config = getFilterColumnConfig(column);
 	switch(column) {
@@ -257,7 +262,7 @@ export function getResolvedUserFilterColumnConfig(
 			return {
 				...config,
 				selectOptions: idSelectOptions,
-				searchOptionsAction: searchIdOptions
+				searchOptionsAction: searchUserOptions
 			};
 		case "role":
 			return {
@@ -269,7 +274,7 @@ export function getResolvedUserFilterColumnConfig(
 			return {
 				...config,
 				selectOptions: supervisorSelectOptions,
-				searchOptionsAction: searchSupervisorOptions
+				searchOptionsAction: searchSupervisorUserOptions
 			};
 		case "createdBy":
 		case "updatedBy":
@@ -278,7 +283,7 @@ export function getResolvedUserFilterColumnConfig(
 			return {
 				...config,
 				selectOptions: reviewedBySelectOptions,
-				searchOptionsAction: searchReviewedByOptions
+				searchOptionsAction: searchAuditUserOptions
 			};
 		default:
 			return config;
@@ -288,7 +293,6 @@ export function getResolvedUserFilterColumnConfig(
 export function createFilterCondition(column: FilterColumn = userFilterColumns[0].value): FilterCondition {
 	const columnConfig = getFilterColumnConfig(column);
 	return {
-		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
 		column,
 		operator: columnConfig.operators[0],
 		joinWithPrevious: defaultFilterCombinator,
@@ -431,8 +435,8 @@ export function UserActiveFiltersSummary({ items }: UserActiveFiltersSummaryProp
 		<div className="rounded-lg border border-dashed px-3 py-2 text-xs">
 			<p className="text-muted-foreground font-medium">Active filters</p>
 			<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-				{items.map(item => (
-					<span key={item.id} className="inline-flex items-center gap-1.5">
+				{items.map((item, index) => (
+					<span key={index} className="inline-flex items-center gap-1.5">
 						{item.combinator != null ? (
 							<span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">{item.combinator}</span>
 						) : null}
@@ -537,14 +541,45 @@ export function UserRequestDeleteDialog({
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
 				<AlertDialogHeader>
-					<AlertDialogTitle>Request Delete</AlertDialogTitle>
+					<AlertDialogTitle>Delete</AlertDialogTitle>
 					<AlertDialogDescription>
 						Delete does not hard-delete data. It creates a pending delete request by setting deletedAt, and requires approver review.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
-					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Request Delete</AlertDialogAction>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Delete</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+type UserRequestCancelDialogProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onConfirm: () => void;
+	isMutating: boolean;
+};
+
+export function UserRequestCancelDialog({
+	open,
+	onOpenChange,
+	onConfirm,
+	isMutating
+}: UserRequestCancelDialogProps) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Cancel</AlertDialogTitle>
+					<AlertDialogDescription>
+						This will cancel the pending request and keep the last approved version unchanged.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Cancel</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
@@ -570,7 +605,7 @@ export function UserRequestFilterCard({
 				<div className="space-y-3 rounded-xl border p-4">
 					<div className="flex items-center justify-between gap-2">
 						<div className="space-y-1">
-							<h3 className="text-sm font-semibold">Filter Staged Users</h3>
+							<h3 className="text-sm font-semibold">Configure Filters</h3>
 							<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
 						</div>
 						{filters.appliedFilters.length > 0 ? (
@@ -582,13 +617,13 @@ export function UserRequestFilterCard({
 						const isListOperator = filterCondition.operator == "in" || filterCondition.operator == "not_in";
 
 						return (
-							<div key={filterCondition.id} className="space-y-3">
+							<div key={index} className="space-y-3">
 								{index > 0 ? (
 									<div className="rounded-lg border border-dashed p-2">
 										<label className="text-sm font-medium">Combinator with previous filter</label>
 										<Select
 											value={filterCondition.joinWithPrevious}
-											onValueChange={value => filters.updateFilterJoinWithPrevious(filterCondition.id, value as FilterCombinator)}
+											onValueChange={value => filters.updateFilterJoinWithPrevious(index, value as FilterCombinator)}
 										>
 											<SelectTrigger className="w-full"><SelectValue placeholder="Select combinator" /></SelectTrigger>
 											<SelectContent>
@@ -601,7 +636,7 @@ export function UserRequestFilterCard({
 								<div className="space-y-3 rounded-lg border p-3">
 									<div className="flex items-center justify-between">
 										<p className="text-sm font-medium">Filter {index + 1}</p>
-										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(filterCondition.id)} disabled={isMutating}>
+										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(index)} disabled={isMutating}>
 											<XIcon />
 											Remove
 										</Button>
@@ -609,7 +644,7 @@ export function UserRequestFilterCard({
 									<div className="grid gap-3 sm:grid-cols-2">
 										<div className="space-y-2">
 											<label className="text-sm font-medium">Column</label>
-											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(filterCondition.id, value as FilterColumn)}>
+											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(index, value as FilterColumn)}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
 												<SelectContent>
 													{userFilterColumns.map(column => (
@@ -620,7 +655,7 @@ export function UserRequestFilterCard({
 										</div>
 										<div className="space-y-2">
 											<label className="text-sm font-medium">Operator</label>
-											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(filterCondition.id, value as FilterColumnOption["operators"][number])}>
+											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(index, value as FilterColumnOption["operators"][number])}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select operator" /></SelectTrigger>
 												<SelectContent>
 													{filterOperatorOptions.filter(operator => columnConfig.operators.includes(operator.value)).map(operator => (
@@ -633,7 +668,7 @@ export function UserRequestFilterCard({
 									<div className="space-y-2">
 										<label className="text-sm font-medium">Filter Value</label>
 										{filterCondition.operator == "exists" ? (
-											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
+											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select exists value" /></SelectTrigger>
 												<SelectContent>
 													<SelectItem value="true">True</SelectItem>
@@ -644,7 +679,7 @@ export function UserRequestFilterCard({
 											<div className="space-y-2">
 												<div className="flex items-center justify-between">
 													<p className="text-muted-foreground text-xs">Define one or more values.</p>
-													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(filterCondition.id)}><PlusIcon />Add Value</Button>
+													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(index)}><PlusIcon />Add Value</Button>
 												</div>
 												{filterCondition.values.length == 0 ? (
 													<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
@@ -653,16 +688,16 @@ export function UserRequestFilterCard({
 														{filterCondition.values.map((value, valueIndex) => {
 															const listDate = columnConfig.valueType == "date" ? splitFilterDateValue(value) : null;
 															return (
-																<div key={`${filterCondition.id}-${valueIndex}`} className="flex items-start gap-2">
+																<div key={`${index}-${valueIndex}`} className="flex items-start gap-2">
 																	{columnConfig.valueType == "boolean" ? (
-																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(filterCondition.id, valueIndex, nextValue)}>
+																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}>
 																			<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
 																			<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 																		</Select>
 																	) : columnConfig.valueType == "select" ? (
 																		<SearchableSelect
 																			value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")}
-																			onValueChange={nextValue => filters.updateFilterListValue(filterCondition.id, valueIndex, nextValue)}
+																			onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}
 																			options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
 																			onSearch={columnConfig.searchOptionsAction}
 																			placeholder="Select value"
@@ -675,7 +710,7 @@ export function UserRequestFilterCard({
 																				<InputGroup>
 																					<InputGroupInput
 																						value={listDate?.dateText ?? ""}
-																						onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
+																						onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
 																						placeholder="YYYY-MM-DD"
 																					/>
 																					<InputGroupAddon align="inline-end">
@@ -689,16 +724,16 @@ export function UserRequestFilterCard({
 																						mode="single"
 																						captionLayout="dropdown"
 																						selected={parseFilterDateOnlyValue(listDate?.dateText ?? "") ?? undefined}
-																						onSelect={date => filters.updateFilterListValue(filterCondition.id, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
+																						onSelect={date => filters.updateFilterListValue(index, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
 																					/>
 																				</PopoverContent>
 																			</Popover>
-																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
+																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
 																		</div>
 																	) : (
-																		<Input value={value} onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
+																		<Input value={value} onChange={event => filters.updateFilterListValue(index, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
 																	)}
-																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(filterCondition.id, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
+																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(index, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
 																</div>
 															);
 														})}
@@ -708,14 +743,14 @@ export function UserRequestFilterCard({
 										) : columnConfig.valueType == "select" ? (
 											<SearchableSelect
 												value={filterCondition.value.length > 0 ? filterCondition.value : ""}
-												onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value }))}
+												onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}
 												options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
 												onSearch={columnConfig.searchOptionsAction}
 												placeholder="Select value"
 												searchPlaceholder="Type to filter values"
 											/>
 										) : columnConfig.valueType == "boolean" ? (
-											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value }))}>
+											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
 												<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 											</Select>
@@ -725,7 +760,7 @@ export function UserRequestFilterCard({
 													<InputGroup>
 														<InputGroupInput
 															value={filterCondition.dateText}
-															onChange={event => filters.updateFilter(filterCondition.id, previous => {
+															onChange={event => filters.updateFilter(index, previous => {
 																const nextDateText = event.target.value;
 																const parsedDate = parseFilterDateOnlyValue(nextDateText);
 																const preservedTime = getFilterTimeInput(previous.dateValue);
@@ -748,7 +783,7 @@ export function UserRequestFilterCard({
 															mode="single"
 															captionLayout="dropdown"
 															selected={filterCondition.dateValue ?? parseFilterDateOnlyValue(filterCondition.dateText) ?? undefined}
-															onSelect={date => filters.updateFilter(filterCondition.id, previous => {
+															onSelect={date => filters.updateFilter(index, previous => {
 																if(date == null)
 																	return { ...previous, dateValue: null, dateText: "" };
 																const nextDate = applyTimeToDate(date, getFilterTimeInput(previous.dateValue));
@@ -760,7 +795,7 @@ export function UserRequestFilterCard({
 												<Input
 													type="time"
 													value={getFilterTimeInput(filterCondition.dateValue)}
-													onChange={event => filters.updateFilter(filterCondition.id, previous => {
+													onChange={event => filters.updateFilter(index, previous => {
 														const baseDate = previous.dateValue ?? parseFilterDateOnlyValue(previous.dateText);
 														if(baseDate == null)
 															return previous;
@@ -770,7 +805,7 @@ export function UserRequestFilterCard({
 												/>
 											</div>
 										) : (
-											<Input value={filterCondition.value} onChange={event => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
+											<Input value={filterCondition.value} onChange={event => filters.updateFilter(index, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
 										)}
 									</div>
 								</div>
@@ -825,7 +860,7 @@ export function UserRequestFormDrawer({
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>{formState.stagedUserId == null ? "Add Staged User Request" : "Edit Staged User Request"}</DrawerTitle>
+					<DrawerTitle>{formState.stagedUserId == null ? "Add Staged User" : "Edit Staged User"}</DrawerTitle>
 					<DrawerDescription>Changes in editor mode create pending requests and require approver review before the users collection is updated.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
@@ -886,7 +921,7 @@ export function UserRequestFormDrawer({
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save Request</Button>
+					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
@@ -976,7 +1011,7 @@ export function UserRequestReviewDrawer({
 			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 					<DrawerHeader>
-						<DrawerTitle>Review Request</DrawerTitle>
+						<DrawerTitle>Review</DrawerTitle>
 						<DrawerDescription>Review the differences between the last approved version and the current pending request before making a decision.</DrawerDescription>
 					</DrawerHeader>
 					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
@@ -1145,7 +1180,7 @@ export function UserRequestsTable({
 }
 
 type UseUserCellRendererOptions = {
-	relationValuesByRowId: Record<string, Partial<Record<UserRelationColumn, string>>>;
+	relationValuesByRowId: Record<string, userActions.StagedUserRelationValues>;
 	isRelationLoading: boolean;
 	relationNavigation?: {
 		getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
@@ -1171,16 +1206,21 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 		relationId: string | null,
 		filterColumn: FilterColumn,
 		relationType: "user" | "role",
-		relationLabel: string
+		relationLabel: string,
+		stagedUserIdByUserId?: Record<string, string>
 	) => {
 		const normalizedValue = value.trim();
 		if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
 			return value;
 
-		const filters: FilterInput[] = [{ column: "id", operator: "equals", value: relationId }];
 		const targetManagementKey = relationType == "role" ? "role-management" : "user-management";
 		const hrefBase = relationNavigation?.getHrefBase(targetManagementKey);
 		if(hrefBase != null && relationNavigation != null) {
+			const relationFilterId = relationType == "role" ? relationId : stagedUserIdByUserId?.[relationId] ?? null;
+			if(relationFilterId == null || relationFilterId.trim().length == 0)
+				return value;
+
+			const filters: FilterInput[] = [{ column: "id", operator: "equals", value: relationFilterId }];
 			const searchParams = new URLSearchParams();
 			searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(filters));
 			searchParams.set("relationContext", `user-management:${filterColumn}`);
@@ -1188,12 +1228,24 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			return (
 				<Link
 					href={href}
-					onClick={event => relationNavigation.onRelationLinkClick(event, {
-						targetManagementKey,
-						hrefBase,
-						relationFilters: filters,
-						relationContext: `user-management:${filterColumn}`
-					})}
+					onClick={event => {
+						if(event.altKey) {
+							event.preventDefault();
+							relationNavigation.onOpenSummary({
+								type: relationType,
+								id: relationId,
+								fallbackTitle: value,
+								fallbackDescription: relationLabel
+							});
+							return;
+						}
+						relationNavigation.onRelationLinkClick(event, {
+							targetManagementKey,
+							hrefBase,
+							relationFilters: filters,
+							relationContext: `user-management:${filterColumn}`
+						});
+					}}
 					className="text-primary underline underline-offset-2 hover:opacity-80"
 				>
 					{value}
@@ -1237,19 +1289,19 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "supervisor":
 				if(isRelationLoading && resolvedValues.supervisor == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.supervisor ?? row.supervisor, row.supervisorId, "supervisor", "user", "Supervisor user");
+				return renderRelationValue(resolvedValues.supervisor ?? "-", row.supervisorId, "supervisor", "user", "Supervisor user", resolvedValues.stagedUserIdByUserId);
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.createdBy ?? "-", row.createdById, "createdBy", "user", "Created by user");
+				return renderRelationValue(resolvedValues.createdBy ?? "-", row.createdById, "createdBy", "user", "Created by user", resolvedValues.stagedUserIdByUserId);
 			case "updatedBy":
 				if(isRelationLoading && resolvedValues.updatedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.updatedBy ?? "-", row.updatedById, "updatedBy", "user", "Updated by user");
+				return renderRelationValue(resolvedValues.updatedBy ?? "-", row.updatedById, "updatedBy", "user", "Updated by user", resolvedValues.stagedUserIdByUserId);
 			case "deletedBy":
 				if(isRelationLoading && resolvedValues.deletedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.deletedBy ?? "-", row.deletedById, "deletedBy", "user", "Deleted by user");
+				return renderRelationValue(resolvedValues.deletedBy ?? "-", row.deletedById, "deletedBy", "user", "Deleted by user", resolvedValues.stagedUserIdByUserId);
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1267,7 +1319,7 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedBy":
 				if(isRelationLoading && resolvedValues.reviewedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue(resolvedValues.reviewedBy ?? "-", row.reviewedById, "reviewedBy", "user", "Reviewed by user");
+				return renderRelationValue(resolvedValues.reviewedBy ?? "-", row.reviewedById, "reviewedBy", "user", "Reviewed by user", resolvedValues.stagedUserIdByUserId);
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			case "reviewCommentText":
@@ -1387,17 +1439,18 @@ export function useUserColumnPreferences() {
 }
 
 export function useUserFilterColumnConfig() {
-	const searchIdOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const stagedUsers = await userActions.searchUserFilterIdsAction(keyword);
+	const searchUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const stagedUsers = await userActions.searchUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(stagedUsers.map(stagedUser => ({
 			value: stagedUser.id,
 			label: `${stagedUser.name} (${stagedUser.id})`,
+			renderLabel: <span>{stagedUser.name} (<span className="font-mono">{stagedUser.id}</span>)</span>,
 			keywords: `${stagedUser.id} ${stagedUser.name} ${stagedUser.email} ${stagedUser.employeeId}`
 		})));
 	}, []);
 
-	const searchRoleOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const roles = await userActions.searchUserRoleOptionsAction(keyword);
+	const searchRoleOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const roles = await userActions.searchUserRoleOptionsAction(keyword, selectedValues);
 		return roles.map(role => ({
 			value: role.id,
 			label: role.name,
@@ -1405,8 +1458,8 @@ export function useUserFilterColumnConfig() {
 		}));
 	}, []);
 
-	const searchSupervisorOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const supervisors = await userActions.searchUserSupervisorsAction(keyword);
+	const searchSupervisorUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const supervisors = await userActions.searchUserSupervisorUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(supervisors.map(supervisor => ({
 			value: supervisor.id,
 			label: `${supervisor.name} (${supervisor.email})`,
@@ -1414,8 +1467,8 @@ export function useUserFilterColumnConfig() {
 		})));
 	}, []);
 
-	const searchReviewerOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const reviewers = await userActions.searchUserReviewerOptionsAction(keyword);
+	const searchAuditUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const reviewers = await userActions.searchUserAuditUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(reviewers.map(reviewer => ({
 			value: reviewer.id,
 			label: `${reviewer.name} (${reviewer.email})`,
@@ -1424,12 +1477,12 @@ export function useUserFilterColumnConfig() {
 	}, []);
 
 	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
-		getResolvedUserFilterColumnConfig(column, [], [], [], [], searchIdOptions, searchRoleOptions, searchSupervisorOptions, searchReviewerOptions)
-	), [searchIdOptions, searchReviewerOptions, searchRoleOptions, searchSupervisorOptions]);
+		getResolvedUserFilterColumnConfig(column, [], [], [], [], searchUserOptions, searchRoleOptions, searchSupervisorUserOptions, searchAuditUserOptions)
+	), [searchAuditUserOptions, searchRoleOptions, searchSupervisorUserOptions, searchUserOptions]);
 
 	return {
 		searchRoleOptions,
-		searchSupervisorOptions,
+		searchSupervisorUserOptions,
 		getResolvedFilterColumnConfig
 	};
 }
@@ -1524,7 +1577,7 @@ export function useUserRelations({ docs, visibleColumns }: UseUserRelationsOptio
 
 	const relationValuesByRowId = useMemo(() => Object.fromEntries(
 		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	) as Record<string, Partial<Record<UserRelationColumn, string>>>, [relationsQuery.data]);
+	) as Record<string, userActions.StagedUserRelationValues>, [relationsQuery.data]);
 	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
 
 	return {
@@ -1546,15 +1599,15 @@ export type UseUserRequestFiltersResult = {
 	appliedFilters: FilterInput[];
 	filterSummaryItems: FilterSummaryItem[];
 	filters: FilterCondition[];
-	updateFilterJoinWithPrevious: (id: string, combinator: FilterCombinator) => void;
-	updateFilter: (id: string, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
-	handleFilterColumnChange: (id: string, column: FilterColumn) => void;
-	handleFilterOperatorChange: (id: string, operator: FilterColumnOption["operators"][number]) => void;
+	updateFilterJoinWithPrevious: (filterIndex: number, combinator: FilterCombinator) => void;
+	updateFilter: (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
+	handleFilterColumnChange: (filterIndex: number, column: FilterColumn) => void;
+	handleFilterOperatorChange: (filterIndex: number, operator: FilterColumnOption["operators"][number]) => void;
 	addFilter: () => void;
-	removeFilter: (id: string) => void;
-	addFilterListValue: (id: string) => void;
-	updateFilterListValue: (id: string, valueIndex: number, nextValue: string) => void;
-	removeFilterListValue: (id: string, valueIndex: number) => void;
+	removeFilter: (filterIndex: number) => void;
+	addFilterListValue: (filterIndex: number) => void;
+	updateFilterListValue: (filterIndex: number, valueIndex: number, nextValue: string) => void;
+	removeFilterListValue: (filterIndex: number, valueIndex: number) => void;
 };
 
 function mapAppliedFilterToCondition(
@@ -1571,7 +1624,6 @@ function mapAppliedFilterToCondition(
 	const parsedDate = !Array.isArray(filter.value) && columnConfig.valueType == "date" && typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null;
 
 	return {
-		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
 		column: filter.column,
 		operator: filter.operator,
 		joinWithPrevious: filter.joinWithPrevious ?? defaultFilterCombinator,
@@ -1786,7 +1838,6 @@ export function useUserRequestFilters({ getResolvedFilterColumnConfig }: UseUser
 			})();
 
 			return {
-				id: `${filter.column}-${filter.operator}-${index}`,
 				combinator: index == 0 ? null : (filter.joinWithPrevious ?? defaultFilterCombinator).toUpperCase(),
 				columnLabel: columnConfig.label,
 				operatorLabel,
@@ -1807,17 +1858,17 @@ export function useUserRequestFilters({ getResolvedFilterColumnConfig }: UseUser
 		setFilters([]);
 	};
 
-	const updateFilterJoinWithPrevious = (id: string, combinator: FilterCombinator) => {
-		setFilters(previous => previous.map(filter => filter.id == id ? { ...filter, joinWithPrevious: combinator } : filter));
+	const updateFilterJoinWithPrevious = (filterIndex: number, combinator: FilterCombinator) => {
+		setFilters(previous => previous.map((filter, index) => index == filterIndex ? { ...filter, joinWithPrevious: combinator } : filter));
 	};
 
-	const updateFilter = (id: string, updater: (filterCondition: FilterCondition) => FilterCondition) => {
-		setFilters(previous => previous.map(filterCondition => filterCondition.id == id ? updater(filterCondition) : filterCondition));
+	const updateFilter = (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => {
+		setFilters(previous => previous.map((filterCondition, index) => index == filterIndex ? updater(filterCondition) : filterCondition));
 	};
 
-	const handleFilterColumnChange = (id: string, column: FilterColumn) => {
+	const handleFilterColumnChange = (filterIndex: number, column: FilterColumn) => {
 		const nextColumnConfig = getResolvedFilterColumnConfig(column);
-		updateFilter(id, filterCondition => ({
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			column,
 			operator: nextColumnConfig.operators.includes(filterCondition.operator) ? filterCondition.operator : nextColumnConfig.operators[0],
@@ -1831,8 +1882,8 @@ export function useUserRequestFilters({ getResolvedFilterColumnConfig }: UseUser
 		}));
 	};
 
-	const handleFilterOperatorChange = (id: string, operator: FilterColumnOption["operators"][number]) => {
-		updateFilter(id, filterCondition => ({
+	const handleFilterOperatorChange = (filterIndex: number, operator: FilterColumnOption["operators"][number]) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			operator,
 			value: "",
@@ -1846,16 +1897,16 @@ export function useUserRequestFilters({ getResolvedFilterColumnConfig }: UseUser
 	};
 
 	const addFilter = () => {
-		setFilters(previous => [...previous, createFilterCondition()]);
+		setFilters(previous => [...previous, createFilterCondition(userFilterColumns[0].value)]);
 	};
 
-	const removeFilter = (id: string) => {
-		setFilters(previous => previous.filter(filterCondition => filterCondition.id != id));
+	const removeFilter = (filterIndex: number) => {
+		setFilters(previous => previous.filter((_, index) => index != filterIndex));
 	};
 
-	const addFilterListValue = (id: string) => {
-		setFilters(previous => previous.map(filterCondition => {
-			if(filterCondition.id != id)
+	const addFilterListValue = (filterIndex: number) => {
+		setFilters(previous => previous.map((filterCondition, index) => {
+			if(index != filterIndex)
 				return filterCondition;
 			if(filterCondition.operator != "in" && filterCondition.operator != "not_in")
 				return filterCondition;
@@ -1868,15 +1919,15 @@ export function useUserRequestFilters({ getResolvedFilterColumnConfig }: UseUser
 		}));
 	};
 
-	const updateFilterListValue = (id: string, valueIndex: number, nextValue: string) => {
-		updateFilter(id, filterCondition => ({
+	const updateFilterListValue = (filterIndex: number, valueIndex: number, nextValue: string) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			values: filterCondition.values.map((value, index) => index == valueIndex ? nextValue : value)
 		}));
 	};
 
-	const removeFilterListValue = (id: string, valueIndex: number) => {
-		updateFilter(id, filterCondition => ({
+	const removeFilterListValue = (filterIndex: number, valueIndex: number) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			values: filterCondition.values.filter((_, index) => index != valueIndex)
 		}));

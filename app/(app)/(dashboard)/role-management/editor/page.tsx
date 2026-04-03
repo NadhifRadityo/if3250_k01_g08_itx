@@ -13,6 +13,7 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as roleActions from "../layout.actions";
 import { RoleActiveFiltersSummary } from "../layout.components";
 import { RoleColumnConfigCard } from "../layout.components";
+import { RoleRequestCancelDialog } from "../layout.components";
 import { RoleRequestDeleteDialog } from "../layout.components";
 import { RoleRequestFilterCard } from "../layout.components";
 import { RoleRequestFormDrawer } from "../layout.components";
@@ -43,6 +44,7 @@ export default function RoleManagementEditorPage() {
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<RoleTableRow | null>(null);
+	const [cancelTarget, setCancelTarget] = useState<RoleTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useRoleColumnPreferences();
@@ -217,7 +219,7 @@ export default function RoleManagementEditorPage() {
 							</div>
 							<Button type="button" onClick={openCreateDialog} disabled={isLoading || isMutating}>
 								<PlusIcon />
-								Add Request
+								Add
 							</Button>
 						</>
 					)}
@@ -275,18 +277,18 @@ export default function RoleManagementEditorPage() {
 								{row.isSoftDeleted ? (
 									<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
 										<PlusIcon />
-										Request Restore
+										Restore
 									</Button>
 								) : row.deletedAt == null ? (
 									<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
 										<Trash2Icon />
-										Request Delete
+										Delete
 									</Button>
 								) : null}
 								{isPending && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
+									<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
 										<XIcon />
-										Cancel Request
+										Cancel
 									</Button>
 								) : null}
 								{isRejected && !row.isSoftDeleted ? (
@@ -338,6 +340,21 @@ export default function RoleManagementEditorPage() {
 				onConfirm={() => {
 					if(deleteTarget != null)
 						requestDelete(deleteTarget);
+				}}
+				isMutating={isMutating}
+			/>
+
+			<RoleRequestCancelDialog
+				open={cancelTarget != null}
+				onOpenChange={open => {
+					if(!open)
+						setCancelTarget(null);
+				}}
+				onConfirm={() => {
+					if(cancelTarget != null) {
+						cancelRequest(cancelTarget);
+						setCancelTarget(null);
+					}
 				}}
 				isMutating={isMutating}
 			/>

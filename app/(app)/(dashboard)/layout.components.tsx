@@ -2,7 +2,7 @@
 
 import { useMemo, type ReactNode, type ChangeEvent } from "react";
 import { usePathname } from "next/navigation";
-import { UsersIcon, FilterIcon, LogOutIcon, SearchIcon, Columns3Icon, FileTextIcon, UsersRoundIcon, ShieldCheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react";
+import { UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileTextIcon, ShieldCheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react";
 
 import useIsMobile from "@/utils/useIsMobile";
 import { Link } from "@/components/Link";
@@ -34,10 +34,10 @@ function parseManagementPath(pathname: string): { key: DashboardManagementKey, m
 
 function getManagementIcon(key: DashboardManagementKey) {
 	if(key == "user-management")
-		return UsersIcon;
+		return UserCogIcon;
 	if(key == "role-management")
 		return ShieldCheckIcon;
-	return UsersRoundIcon;
+	return UsersIcon;
 }
 
 function isManagementItemActive(pathname: string, item: DashboardManagementNavigationItem): boolean {
@@ -131,7 +131,7 @@ export function DashboardManagementToolbar({
 					Columns
 				</Button>
 			</div>
-			<div className="flex items-center gap-3">
+			<div className="flex items-center gap-3 justify-center">
 				{rightSlot}
 			</div>
 		</div>

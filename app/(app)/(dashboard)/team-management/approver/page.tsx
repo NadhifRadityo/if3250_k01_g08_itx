@@ -228,6 +228,8 @@ export default function TeamManagementApproverPage() {
 				isMutating={isMutating}
 			/>
 
+			{renderTeamCell.relationSummaryPickerDrawer}
+
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>
 	);

@@ -41,7 +41,7 @@ export type AssignableUsers = Awaited<ReturnType<typeof teamActions.searchTeamAs
 export type TeamRelationColumn = teamActions.TeamRelationColumn;
 export type TeamRequestReviewDiff = Awaited<ReturnType<typeof teamActions.getTeamRequestReviewDiffAction>>;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
-export type FilterSelectSearchAction = (keyword: string) => Promise<SearchableSelectOption[]>;
+export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
 export type ActionError = {
 	title: string;
 	message: string;
@@ -71,7 +71,6 @@ export type FilterColumnOption = {
 };
 
 export type FilterCondition = {
-	id: string;
 	column: FilterColumn;
 	operator: FilterOperator;
 	joinWithPrevious: FilterCombinator;
@@ -117,7 +116,6 @@ export type FormState = {
 };
 
 export type FilterSummaryItem = {
-	id: string;
 	combinator: string | null;
 	columnLabel: string;
 	operatorLabel: string;
@@ -146,6 +144,12 @@ export const defaultFormState: FormState = {
 export const TEAM_COLUMN_PREFERENCES_KEY = "team-management-columns-v1";
 export const RELATION_FILTER_QUERY_PARAM = "relationFilters";
 
+export const reviewStatusOptions: Array<{ value: string, label: string }> = [
+	{ value: "pending", label: "Pending" },
+	{ value: "approved", label: "Approved" },
+	{ value: "rejected", label: "Rejected" }
+];
+
 export const teamTableColumns: TeamTableColumnConfig[] = [
 	{ id: "id", label: "ID", sortField: "id", cellClassName: "font-mono text-xs" },
 	{ id: "name", label: "Name", sortField: "name", cellClassName: "font-medium" },
@@ -154,9 +158,9 @@ export const teamTableColumns: TeamTableColumnConfig[] = [
 	{ id: "createdBy", label: "Created By" },
 	{ id: "updatedBy", label: "Updated By" },
 	{ id: "deletedBy", label: "Deleted By" },
-	{ id: "createdAt", label: "Created", sortField: "createdAt" },
-	{ id: "updatedAt", label: "Updated", sortField: "updatedAt" },
-	{ id: "deletedAt", label: "Deleted", sortField: "deletedAt" },
+	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
+	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
+	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
 	{ id: "requestType", label: "Request", sortField: "requestType" },
 	{ id: "status", label: "Status", sortField: "status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
@@ -205,6 +209,7 @@ export const teamFilterColumns: FilterColumnOption[] = [
 	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "status", label: "Status", valueType: "select", operators: ["equals", "not_equals", "in", "not_in"], selectOptions: reviewStatusOptions },
 	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "exists"] }
 ];
 
@@ -239,10 +244,10 @@ export function getResolvedTeamFilterColumnConfig(
 	supervisorSelectOptions: Array<{ value: string, label: string }>,
 	officerSelectOptions: Array<{ value: string, label: string }>,
 	reviewedBySelectOptions: Array<{ value: string, label: string }>,
-	searchIdOptions?: FilterSelectSearchAction,
-	searchSupervisorOptions?: FilterSelectSearchAction,
-	searchOfficerOptions?: FilterSelectSearchAction,
-	searchReviewedByOptions?: FilterSelectSearchAction
+	searchTeamOptions?: FilterSelectSearchAction,
+	searchSupervisorUserOptions?: FilterSelectSearchAction,
+	searchOfficerUserOptions?: FilterSelectSearchAction,
+	searchAuditUserOptions?: FilterSelectSearchAction
 ): FilterColumnOption {
 	const config = getFilterColumnConfig(column);
 	switch(column) {
@@ -250,19 +255,19 @@ export function getResolvedTeamFilterColumnConfig(
 			return {
 				...config,
 				selectOptions: idSelectOptions,
-				searchOptionsAction: searchIdOptions
+				searchOptionsAction: searchTeamOptions
 			};
 		case "supervisor":
 			return {
 				...config,
 				selectOptions: supervisorSelectOptions,
-				searchOptionsAction: searchSupervisorOptions
+				searchOptionsAction: searchSupervisorUserOptions
 			};
 		case "officers":
 			return {
 				...config,
 				selectOptions: officerSelectOptions,
-				searchOptionsAction: searchOfficerOptions
+				searchOptionsAction: searchOfficerUserOptions
 			};
 		case "createdBy":
 		case "updatedBy":
@@ -271,7 +276,7 @@ export function getResolvedTeamFilterColumnConfig(
 			return {
 				...config,
 				selectOptions: reviewedBySelectOptions,
-				searchOptionsAction: searchReviewedByOptions
+				searchOptionsAction: searchAuditUserOptions
 			};
 		default:
 			return config;
@@ -281,7 +286,6 @@ export function getResolvedTeamFilterColumnConfig(
 export function createFilterCondition(column: FilterColumn = teamFilterColumns[0].value): FilterCondition {
 	const columnConfig = getFilterColumnConfig(column);
 	return {
-		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
 		column,
 		operator: columnConfig.operators[0],
 		joinWithPrevious: defaultFilterCombinator,
@@ -416,8 +420,8 @@ export function TeamActiveFiltersSummary({ items }: TeamActiveFiltersSummaryProp
 		<div className="rounded-lg border border-dashed px-3 py-2 text-xs">
 			<p className="text-muted-foreground font-medium">Active filters</p>
 			<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-				{items.map(item => (
-					<span key={item.id} className="inline-flex items-center gap-1.5">
+				{items.map((item, index) => (
+					<span key={index} className="inline-flex items-center gap-1.5">
 						{item.combinator != null ? (
 							<span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">{item.combinator}</span>
 						) : null}
@@ -522,14 +526,45 @@ export function TeamRequestDeleteDialog({
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
 				<AlertDialogHeader>
-					<AlertDialogTitle>Request Delete</AlertDialogTitle>
+					<AlertDialogTitle>Delete</AlertDialogTitle>
 					<AlertDialogDescription>
 						Delete does not hard-delete data. It creates a pending delete request by setting deletedAt, and requires approver review.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
-					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Request Delete</AlertDialogAction>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Delete</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+type TeamRequestCancelDialogProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onConfirm: () => void;
+	isMutating: boolean;
+};
+
+export function TeamRequestCancelDialog({
+	open,
+	onOpenChange,
+	onConfirm,
+	isMutating
+}: TeamRequestCancelDialogProps) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Cancel</AlertDialogTitle>
+					<AlertDialogDescription>
+						This will cancel the pending request and keep the last approved version unchanged.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Cancel</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
@@ -555,7 +590,7 @@ export function TeamRequestFilterCard({
 				<div className="space-y-3 rounded-xl border p-4">
 					<div className="flex items-center justify-between gap-2">
 						<div className="space-y-1">
-							<h3 className="text-sm font-semibold">Filter Team Requests</h3>
+							<h3 className="text-sm font-semibold">Configure Filters</h3>
 							<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
 						</div>
 						{filters.appliedFilters.length > 0 ? (
@@ -567,13 +602,13 @@ export function TeamRequestFilterCard({
 						const isListOperator = filterCondition.operator == "in" || filterCondition.operator == "not_in";
 
 						return (
-							<div key={filterCondition.id} className="space-y-3">
+							<div key={index} className="space-y-3">
 								{index > 0 ? (
 									<div className="rounded-lg border border-dashed p-2">
 										<label className="text-sm font-medium">Combinator with previous filter</label>
 										<Select
 											value={filterCondition.joinWithPrevious}
-											onValueChange={value => filters.updateFilterJoinWithPrevious(filterCondition.id, value as FilterCombinator)}
+											onValueChange={value => filters.updateFilterJoinWithPrevious(index, value as FilterCombinator)}
 										>
 											<SelectTrigger className="w-full"><SelectValue placeholder="Select combinator" /></SelectTrigger>
 											<SelectContent>
@@ -586,7 +621,7 @@ export function TeamRequestFilterCard({
 								<div className="space-y-3 rounded-lg border p-3">
 									<div className="flex items-center justify-between">
 										<p className="text-sm font-medium">Filter {index + 1}</p>
-										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(filterCondition.id)} disabled={isMutating}>
+										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(index)} disabled={isMutating}>
 											<XIcon />
 											Remove
 										</Button>
@@ -594,7 +629,7 @@ export function TeamRequestFilterCard({
 									<div className="grid gap-3 sm:grid-cols-2">
 										<div className="space-y-2">
 											<label className="text-sm font-medium">Column</label>
-											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(filterCondition.id, value as FilterColumn)}>
+											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(index, value as FilterColumn)}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
 												<SelectContent>
 													{teamFilterColumns.map(column => (
@@ -605,7 +640,7 @@ export function TeamRequestFilterCard({
 										</div>
 										<div className="space-y-2">
 											<label className="text-sm font-medium">Operator</label>
-											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(filterCondition.id, value as FilterColumnOption["operators"][number])}>
+											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(index, value as FilterColumnOption["operators"][number])}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select operator" /></SelectTrigger>
 												<SelectContent>
 													{filterOperatorOptions.filter(operator => columnConfig.operators.includes(operator.value)).map(operator => (
@@ -618,7 +653,7 @@ export function TeamRequestFilterCard({
 									<div className="space-y-2">
 										<label className="text-sm font-medium">Filter Value</label>
 										{filterCondition.operator == "exists" ? (
-											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
+											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select exists value" /></SelectTrigger>
 												<SelectContent>
 													<SelectItem value="true">True</SelectItem>
@@ -629,7 +664,7 @@ export function TeamRequestFilterCard({
 											<div className="space-y-2">
 												<div className="flex items-center justify-between">
 													<p className="text-muted-foreground text-xs">Define one or more values.</p>
-													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(filterCondition.id)}><PlusIcon />Add Value</Button>
+													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(index)}><PlusIcon />Add Value</Button>
 												</div>
 												{filterCondition.values.length == 0 ? (
 													<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
@@ -638,16 +673,16 @@ export function TeamRequestFilterCard({
 														{filterCondition.values.map((value, valueIndex) => {
 															const listDate = columnConfig.valueType == "date" ? splitFilterDateValue(value) : null;
 															return (
-																<div key={`${filterCondition.id}-${valueIndex}`} className="flex items-start gap-2">
+																<div key={`${index}-${valueIndex}`} className="flex items-start gap-2">
 																	{columnConfig.valueType == "boolean" ? (
-																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(filterCondition.id, valueIndex, nextValue)}>
+																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}>
 																			<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
 																			<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 																		</Select>
 																	) : columnConfig.valueType == "select" ? (
 																		<SearchableSelect
 																			value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")}
-																			onValueChange={nextValue => filters.updateFilterListValue(filterCondition.id, valueIndex, nextValue)}
+																			onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}
 																			options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
 																			onSearch={columnConfig.searchOptionsAction}
 																			placeholder="Select value"
@@ -660,7 +695,7 @@ export function TeamRequestFilterCard({
 																				<InputGroup>
 																					<InputGroupInput
 																						value={listDate?.dateText ?? ""}
-																						onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
+																						onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
 																						placeholder="YYYY-MM-DD"
 																					/>
 																					<InputGroupAddon align="inline-end">
@@ -674,16 +709,16 @@ export function TeamRequestFilterCard({
 																						mode="single"
 																						captionLayout="dropdown"
 																						selected={parseFilterDateOnlyValue(listDate?.dateText ?? "") ?? undefined}
-																						onSelect={date => filters.updateFilterListValue(filterCondition.id, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
+																						onSelect={date => filters.updateFilterListValue(index, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
 																					/>
 																				</PopoverContent>
 																			</Popover>
-																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
+																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
 																		</div>
 																	) : (
-																		<Input value={value} onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
+																		<Input value={value} onChange={event => filters.updateFilterListValue(index, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
 																	)}
-																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(filterCondition.id, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
+																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(index, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
 																</div>
 															);
 														})}
@@ -693,14 +728,14 @@ export function TeamRequestFilterCard({
 										) : columnConfig.valueType == "select" ? (
 											<SearchableSelect
 												value={filterCondition.value.length > 0 ? filterCondition.value : ""}
-												onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value }))}
+												onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}
 												options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
 												onSearch={columnConfig.searchOptionsAction}
 												placeholder="Select value"
 												searchPlaceholder="Type to filter values"
 											/>
 										) : columnConfig.valueType == "boolean" ? (
-											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value }))}>
+											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
 												<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 											</Select>
@@ -710,7 +745,7 @@ export function TeamRequestFilterCard({
 													<InputGroup>
 														<InputGroupInput
 															value={filterCondition.dateText}
-															onChange={event => filters.updateFilter(filterCondition.id, previous => {
+															onChange={event => filters.updateFilter(index, previous => {
 																const nextDateText = event.target.value;
 																const parsedDate = parseFilterDateOnlyValue(nextDateText);
 																const preservedTime = getFilterTimeInput(previous.dateValue);
@@ -733,7 +768,7 @@ export function TeamRequestFilterCard({
 															mode="single"
 															captionLayout="dropdown"
 															selected={filterCondition.dateValue ?? parseFilterDateOnlyValue(filterCondition.dateText) ?? undefined}
-															onSelect={date => filters.updateFilter(filterCondition.id, previous => {
+															onSelect={date => filters.updateFilter(index, previous => {
 																if(date == null)
 																	return { ...previous, dateValue: null, dateText: "" };
 																const nextDate = applyTimeToDate(date, getFilterTimeInput(previous.dateValue));
@@ -745,7 +780,7 @@ export function TeamRequestFilterCard({
 												<Input
 													type="time"
 													value={getFilterTimeInput(filterCondition.dateValue)}
-													onChange={event => filters.updateFilter(filterCondition.id, previous => {
+													onChange={event => filters.updateFilter(index, previous => {
 														const baseDate = previous.dateValue ?? parseFilterDateOnlyValue(previous.dateText);
 														if(baseDate == null)
 															return previous;
@@ -755,7 +790,7 @@ export function TeamRequestFilterCard({
 												/>
 											</div>
 										) : (
-											<Input value={filterCondition.value} onChange={event => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
+											<Input value={filterCondition.value} onChange={event => filters.updateFilter(index, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
 										)}
 									</div>
 								</div>
@@ -804,7 +839,7 @@ export function TeamRequestFormDrawer({
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>{formState.teamId == null ? "Add Team Request" : "Edit Team Request"}</DrawerTitle>
+					<DrawerTitle>{formState.teamId == null ? "Add Team" : "Edit Team"}</DrawerTitle>
 					<DrawerDescription>Changes in editor mode create pending team requests that require approver review before publication.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
@@ -850,7 +885,7 @@ export function TeamRequestFormDrawer({
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save Request</Button>
+					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
@@ -940,7 +975,7 @@ export function TeamRequestReviewDrawer({
 			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 					<DrawerHeader>
-						<DrawerTitle>Review Request</DrawerTitle>
+						<DrawerTitle>Review</DrawerTitle>
 						<DrawerDescription>Review the differences between the last approved version and the current pending request before making a decision.</DrawerDescription>
 					</DrawerHeader>
 					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
@@ -1109,7 +1144,7 @@ export function TeamRequestsTable({
 }
 
 type UseTeamCellRendererOptions = {
-	relationValuesByRowId: Record<string, Partial<Record<TeamRelationColumn, string>>>;
+	relationValuesByRowId: Record<string, teamActions.TeamRelationValues>;
 	isRelationLoading: boolean;
 	relationNavigation?: {
 		getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
@@ -1130,7 +1165,93 @@ type UseTeamCellRendererOptions = {
 };
 
 export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseTeamCellRendererOptions) {
-	const renderRelationValue = (column: TeamRelationColumn, value: string, relationIds: string[]) => {
+	const [relationSummaryPickerOpen, setRelationSummaryPickerOpen] = useState(false);
+	const [relationSummaryPicker, setRelationSummaryPicker] = useState<{
+		cellKey: string;
+		sectionLabel: string;
+		choices: Array<{ id: string, title: string, description: string, meta: Array<{ label: string, value: string }> }>;
+	} | null>(null);
+
+	const openRelationSummary = useCallback((cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => {
+		if(relationNavigation == null || normalizedRelationIds.length == 0)
+			return;
+
+		const normalizedDisplayTokens = normalizedValue
+			.split(",")
+			.map(token => token.trim())
+			.filter(token => token.length > 0);
+		const hasAlignedTokens = normalizedDisplayTokens.length == normalizedRelationIds.length;
+		const choices = normalizedRelationIds.map((relationId, index) => {
+			const title = normalizedRelationIds.length == 1 ? normalizedValue :
+				hasAlignedTokens ? normalizedDisplayTokens[index] :
+					`${fallbackLabel} ${index + 1}`;
+			return {
+				id: relationId,
+				title: title.length > 0 ? title : relationId,
+				description: `${fallbackLabel} user`,
+				meta: [{ label: "User ID", value: relationId }]
+			};
+		});
+
+		if(choices.length == 1) {
+			const choice = choices[0];
+			relationNavigation.onOpenSummary({
+				type: "user",
+				id: choice.id,
+				fallbackTitle: choice.title,
+				fallbackDescription: choice.description,
+				fallbackMeta: choice.meta
+			});
+			return;
+		}
+
+		setRelationSummaryPicker({ cellKey, sectionLabel: fallbackLabel, choices });
+		setRelationSummaryPickerOpen(true);
+	}, [relationNavigation]);
+
+	const relationSummaryPickerDrawer = (
+		<Drawer open={relationSummaryPickerOpen} onOpenChange={v => setRelationSummaryPickerOpen(v)} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-lg">
+				{relationSummaryPicker != null && relationNavigation != null ? (
+					<>
+						<DrawerHeader>
+							<DrawerTitle>Select user relation</DrawerTitle>
+							<DrawerDescription>Choose which {relationSummaryPicker.sectionLabel.toLowerCase()} user detail to open.</DrawerDescription>
+						</DrawerHeader>
+						<div className="space-y-2 px-4 pb-4">
+							{relationSummaryPicker.choices.map(choice => (
+								<Button
+									key={`${choice.id}-${choice.title}`}
+									type="button"
+									variant="outline"
+									className="h-auto w-full whitespace-normal px-3 py-2 text-left"
+									onClick={() => {
+										relationNavigation.onOpenSummary({
+											type: "user",
+											id: choice.id,
+											fallbackTitle: choice.title,
+											fallbackDescription: choice.description,
+											fallbackMeta: choice.meta
+										});
+									}}
+								>
+									<span className="grid w-full gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
+										<span className="max-h-11 overflow-hidden text-sm leading-snug wrap-break-word sm:max-h-none">{choice.title}</span>
+										<span className="text-muted-foreground block font-mono text-xs wrap-break-word sm:text-right">{choice.id}</span>
+									</span>
+								</Button>
+							))}
+						</div>
+						<DrawerFooter className="border-t">
+							<Button type="button" variant="outline" onClick={() => setRelationSummaryPickerOpen(false)}>Cancel</Button>
+						</DrawerFooter>
+					</>
+				) : null}
+			</DrawerContent>
+		</Drawer>
+	);
+
+	const renderRelationValue = useCallback((column: TeamRelationColumn, value: string, relationIds: string[], stagedUserIdByUserId: Record<string, string> | undefined, rowId: string) => {
 		const normalizedRelationIds = [...new Set(
 			relationIds.map(relationId => relationId.trim()).filter(relationId => relationId.length > 0)
 		)];
@@ -1138,12 +1259,26 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 		if(normalizedRelationIds.length == 0 || normalizedValue.length == 0 || normalizedValue == "-")
 			return value;
 
-		const filter: FilterInput = normalizedRelationIds.length == 1 ?
-			{ column: "id", operator: "equals", value: normalizedRelationIds[0] } :
-			{ column: "id", operator: "in", value: normalizedRelationIds };
+		const fallbackLabel = column == "supervisor" ? "Supervisor" :
+			column == "officers" ? "Officer" :
+				column == "reviewedBy" ? "Reviewed By" :
+					column == "createdBy" ? "Created By" :
+						column == "updatedBy" ? "Updated By" : "Deleted By";
+		const cellKey = `${rowId}:${column}`;
 
 		const hrefBase = relationNavigation?.getHrefBase("user-management");
 		if(hrefBase != null && relationNavigation != null) {
+			const relationStagedUserIdByUserId = stagedUserIdByUserId ?? {};
+			const mappedStagedUserIds = normalizedRelationIds
+				.map(relationId => relationStagedUserIdByUserId[relationId])
+				.filter((stagedUserId): stagedUserId is string => typeof stagedUserId == "string" && stagedUserId.trim().length > 0);
+			if(mappedStagedUserIds.length != normalizedRelationIds.length)
+				return value;
+
+			const normalizedStagedUserIds = [...new Set(mappedStagedUserIds)];
+			const filter: FilterInput = normalizedStagedUserIds.length == 1 ?
+				{ column: "id", operator: "equals", value: normalizedStagedUserIds[0] } :
+				{ column: "id", operator: "in", value: normalizedStagedUserIds };
 			const relationFilters = [filter];
 			const searchParams = new URLSearchParams();
 			searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
@@ -1152,12 +1287,19 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			return (
 				<Link
 					href={href}
-					onClick={event => relationNavigation.onRelationLinkClick(event, {
-						targetManagementKey: "user-management",
-						hrefBase,
-						relationFilters,
-						relationContext: `team-management:${column}`
-					})}
+					onClick={event => {
+						if(event.altKey) {
+							event.preventDefault();
+							openRelationSummary(cellKey, normalizedValue, fallbackLabel, normalizedRelationIds);
+							return;
+						}
+						relationNavigation.onRelationLinkClick(event, {
+							targetManagementKey: "user-management",
+							hrefBase,
+							relationFilters,
+							relationContext: `team-management:${column}`
+						});
+					}}
 					className="text-primary underline underline-offset-2 hover:opacity-80"
 				>
 					{value}
@@ -1168,30 +1310,19 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 		if(relationNavigation == null)
 			return value;
 
-		const fallbackLabel = column == "supervisor" ? "Supervisor" :
-			column == "officers" ? "Officer" :
-				column == "reviewedBy" ? "Reviewed By" :
-					column == "createdBy" ? "Created By" :
-						column == "updatedBy" ? "Updated By" : "Deleted By";
-
 		return (
 			<Button
 				type="button"
 				variant="link"
-				onClick={() => relationNavigation.onOpenSummary({
-					type: "user",
-					id: normalizedRelationIds[0],
-					fallbackTitle: value,
-					fallbackDescription: `${fallbackLabel} user`
-				})}
+				onClick={() => openRelationSummary(cellKey, normalizedValue, fallbackLabel, normalizedRelationIds)}
 				className="h-auto p-0 text-primary"
 			>
 				{value}
 			</Button>
 		);
-	};
+	}, [openRelationSummary, relationNavigation]);
 
-	return useCallback((columnId: TeamTableColumnId, row: TeamTableRow) => {
+	const result = useCallback((columnId: TeamTableColumnId, row: TeamTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "id":
@@ -1201,23 +1332,23 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "supervisor":
 				if(isRelationLoading && resolvedValues.supervisor == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("supervisor", resolvedValues.supervisor ?? row.supervisor, row.supervisorId != null ? [row.supervisorId] : []);
+				return renderRelationValue("supervisor", resolvedValues.supervisor ?? "-", row.supervisorId != null ? [row.supervisorId] : [], resolvedValues.stagedUserIdByUserId, row.id);
 			case "officers":
 				if(isRelationLoading && resolvedValues.officers == null)
 					return <Skeleton className="h-4 w-36" />;
-				return renderRelationValue("officers", resolvedValues.officers ?? (row.officers.length > 0 ? row.officers.join(", ") : "-"), row.officerIds);
+				return renderRelationValue("officers", resolvedValues.officers ?? "-", row.officerIds, resolvedValues.stagedUserIdByUserId, row.id);
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("createdBy", resolvedValues.createdBy ?? "-", row.createdById != null ? [row.createdById] : []);
+				return renderRelationValue("createdBy", resolvedValues.createdBy ?? "-", row.createdById != null ? [row.createdById] : [], resolvedValues.stagedUserIdByUserId, row.id);
 			case "updatedBy":
 				if(isRelationLoading && resolvedValues.updatedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("updatedBy", resolvedValues.updatedBy ?? "-", row.updatedById != null ? [row.updatedById] : []);
+				return renderRelationValue("updatedBy", resolvedValues.updatedBy ?? "-", row.updatedById != null ? [row.updatedById] : [], resolvedValues.stagedUserIdByUserId, row.id);
 			case "deletedBy":
 				if(isRelationLoading && resolvedValues.deletedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("deletedBy", resolvedValues.deletedBy ?? "-", row.deletedById != null ? [row.deletedById] : []);
+				return renderRelationValue("deletedBy", resolvedValues.deletedBy ?? "-", row.deletedById != null ? [row.deletedById] : [], resolvedValues.stagedUserIdByUserId, row.id);
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1235,7 +1366,7 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedBy":
 				if(isRelationLoading && resolvedValues.reviewedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRelationValue("reviewedBy", resolvedValues.reviewedBy ?? "-", row.reviewedById != null ? [row.reviewedById] : []);
+				return renderRelationValue("reviewedBy", resolvedValues.reviewedBy ?? "-", row.reviewedById != null ? [row.reviewedById] : [], resolvedValues.stagedUserIdByUserId, row.id);
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			case "reviewCommentText":
@@ -1243,7 +1374,10 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, relationNavigation, relationValuesByRowId]);
+	}, [isRelationLoading, relationValuesByRowId, renderRelationValue]);
+	const result2 = result as typeof result & { relationSummaryPickerDrawer: typeof relationSummaryPickerDrawer };
+	result2.relationSummaryPickerDrawer = relationSummaryPickerDrawer;
+	return result2;
 }
 
 export function useTeamColumnPreferences() {
@@ -1355,17 +1489,18 @@ export function useTeamColumnPreferences() {
 }
 
 export function useTeamFilterColumnConfig() {
-	const searchIdOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const teams = await teamActions.searchTeamFilterIdsAction(keyword);
+	const searchTeamOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const teams = await teamActions.searchTeamOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(teams.map(team => ({
 			value: team.id,
 			label: `${team.name} (${team.id})`,
+			renderLabel: <span>{team.name} (<span className="font-mono">{team.id}</span>)</span>,
 			keywords: `${team.id} ${team.name}`
 		})));
 	}, []);
 
-	const searchSupervisorOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const users = await teamActions.searchTeamSupervisorsAction(keyword);
+	const searchSupervisorUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const users = await teamActions.searchTeamSupervisorUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(users.map(user => ({
 			value: user.id,
 			label: `${user.name} (${user.email})`,
@@ -1373,8 +1508,8 @@ export function useTeamFilterColumnConfig() {
 		})));
 	}, []);
 
-	const searchOfficerOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const users = await teamActions.searchTeamOfficersAction(keyword);
+	const searchOfficerUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const users = await teamActions.searchTeamOfficerUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(users.map(user => ({
 			value: user.id,
 			label: `${user.name} (${user.email})`,
@@ -1382,8 +1517,8 @@ export function useTeamFilterColumnConfig() {
 		})));
 	}, []);
 
-	const searchReviewerOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
-		const users = await teamActions.searchTeamReviewerUsersAction(keyword);
+	const searchAuditUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const users = await teamActions.searchTeamAuditUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(users.map(user => ({
 			value: user.id,
 			label: `${user.name} (${user.email})`,
@@ -1392,12 +1527,12 @@ export function useTeamFilterColumnConfig() {
 	}, []);
 
 	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
-		getResolvedTeamFilterColumnConfig(column, [], [], [], [], searchIdOptions, searchSupervisorOptions, searchOfficerOptions, searchReviewerOptions)
-	), [searchIdOptions, searchOfficerOptions, searchReviewerOptions, searchSupervisorOptions]);
+		getResolvedTeamFilterColumnConfig(column, [], [], [], [], searchTeamOptions, searchSupervisorUserOptions, searchOfficerUserOptions, searchAuditUserOptions)
+	), [searchAuditUserOptions, searchOfficerUserOptions, searchSupervisorUserOptions, searchTeamOptions]);
 
 	return {
-		searchSupervisorOptions,
-		searchOfficerOptions,
+		searchSupervisorUserOptions,
+		searchOfficerUserOptions,
 		getResolvedFilterColumnConfig
 	};
 }
@@ -1493,7 +1628,7 @@ export function useTeamRelations({ docs, visibleColumns }: UseTeamRelationsOptio
 
 	const relationValuesByRowId = useMemo(() => Object.fromEntries(
 		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	) as Record<string, Partial<Record<TeamRelationColumn, string>>>, [relationsQuery.data]);
+	) as Record<string, teamActions.TeamRelationValues>, [relationsQuery.data]);
 	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
 
 	return {
@@ -1515,15 +1650,15 @@ export type UseTeamRequestFiltersResult = {
 	appliedFilters: FilterInput[];
 	filterSummaryItems: FilterSummaryItem[];
 	filters: FilterCondition[];
-	updateFilterJoinWithPrevious: (id: string, combinator: FilterCombinator) => void;
-	updateFilter: (id: string, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
-	handleFilterColumnChange: (id: string, column: FilterColumn) => void;
-	handleFilterOperatorChange: (id: string, operator: FilterColumnOption["operators"][number]) => void;
+	updateFilterJoinWithPrevious: (filterIndex: number, combinator: FilterCombinator) => void;
+	updateFilter: (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
+	handleFilterColumnChange: (filterIndex: number, column: FilterColumn) => void;
+	handleFilterOperatorChange: (filterIndex: number, operator: FilterColumnOption["operators"][number]) => void;
 	addFilter: () => void;
-	removeFilter: (id: string) => void;
-	addFilterListValue: (id: string) => void;
-	updateFilterListValue: (id: string, valueIndex: number, nextValue: string) => void;
-	removeFilterListValue: (id: string, valueIndex: number) => void;
+	removeFilter: (filterIndex: number) => void;
+	addFilterListValue: (filterIndex: number) => void;
+	updateFilterListValue: (filterIndex: number, valueIndex: number, nextValue: string) => void;
+	removeFilterListValue: (filterIndex: number, valueIndex: number) => void;
 };
 
 function mapAppliedFilterToCondition(
@@ -1540,7 +1675,6 @@ function mapAppliedFilterToCondition(
 	const parsedDate = !Array.isArray(filter.value) && columnConfig.valueType == "date" && typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null;
 
 	return {
-		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
 		column: filter.column,
 		operator: filter.operator,
 		joinWithPrevious: filter.joinWithPrevious ?? defaultFilterCombinator,
@@ -1755,7 +1889,6 @@ export function useTeamRequestFilters({ getResolvedFilterColumnConfig }: UseTeam
 			})();
 
 			return {
-				id: `${filter.column}-${filter.operator}-${index}`,
 				combinator: index == 0 ? null : (filter.joinWithPrevious ?? defaultFilterCombinator).toUpperCase(),
 				columnLabel: columnConfig.label,
 				operatorLabel,
@@ -1776,17 +1909,17 @@ export function useTeamRequestFilters({ getResolvedFilterColumnConfig }: UseTeam
 		setFilters([]);
 	};
 
-	const updateFilterJoinWithPrevious = (id: string, combinator: FilterCombinator) => {
-		setFilters(previous => previous.map(filter => filter.id == id ? { ...filter, joinWithPrevious: combinator } : filter));
+	const updateFilterJoinWithPrevious = (filterIndex: number, combinator: FilterCombinator) => {
+		setFilters(previous => previous.map((filter, index) => index == filterIndex ? { ...filter, joinWithPrevious: combinator } : filter));
 	};
 
-	const updateFilter = (id: string, updater: (filterCondition: FilterCondition) => FilterCondition) => {
-		setFilters(previous => previous.map(filterCondition => filterCondition.id == id ? updater(filterCondition) : filterCondition));
+	const updateFilter = (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => {
+		setFilters(previous => previous.map((filterCondition, index) => index == filterIndex ? updater(filterCondition) : filterCondition));
 	};
 
-	const handleFilterColumnChange = (id: string, column: FilterColumn) => {
+	const handleFilterColumnChange = (filterIndex: number, column: FilterColumn) => {
 		const nextColumnConfig = getResolvedFilterColumnConfig(column);
-		updateFilter(id, filterCondition => ({
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			column,
 			operator: nextColumnConfig.operators.includes(filterCondition.operator) ? filterCondition.operator : nextColumnConfig.operators[0],
@@ -1800,8 +1933,8 @@ export function useTeamRequestFilters({ getResolvedFilterColumnConfig }: UseTeam
 		}));
 	};
 
-	const handleFilterOperatorChange = (id: string, operator: FilterColumnOption["operators"][number]) => {
-		updateFilter(id, filterCondition => ({
+	const handleFilterOperatorChange = (filterIndex: number, operator: FilterColumnOption["operators"][number]) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			operator,
 			value: "",
@@ -1815,16 +1948,16 @@ export function useTeamRequestFilters({ getResolvedFilterColumnConfig }: UseTeam
 	};
 
 	const addFilter = () => {
-		setFilters(previous => [...previous, createFilterCondition()]);
+		setFilters(previous => [...previous, createFilterCondition(teamFilterColumns[0].value)]);
 	};
 
-	const removeFilter = (id: string) => {
-		setFilters(previous => previous.filter(filterCondition => filterCondition.id != id));
+	const removeFilter = (filterIndex: number) => {
+		setFilters(previous => previous.filter((_, index) => index != filterIndex));
 	};
 
-	const addFilterListValue = (id: string) => {
-		setFilters(previous => previous.map(filterCondition => {
-			if(filterCondition.id != id)
+	const addFilterListValue = (filterIndex: number) => {
+		setFilters(previous => previous.map((filterCondition, index) => {
+			if(index != filterIndex)
 				return filterCondition;
 			if(filterCondition.operator != "in" && filterCondition.operator != "not_in")
 				return filterCondition;
@@ -1837,15 +1970,15 @@ export function useTeamRequestFilters({ getResolvedFilterColumnConfig }: UseTeam
 		}));
 	};
 
-	const updateFilterListValue = (id: string, valueIndex: number, nextValue: string) => {
-		updateFilter(id, filterCondition => ({
+	const updateFilterListValue = (filterIndex: number, valueIndex: number, nextValue: string) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			values: filterCondition.values.map((value, index) => index == valueIndex ? nextValue : value)
 		}));
 	};
 
-	const removeFilterListValue = (id: string, valueIndex: number) => {
-		updateFilter(id, filterCondition => ({
+	const removeFilterListValue = (filterIndex: number, valueIndex: number) => {
+		updateFilter(filterIndex, filterCondition => ({
 			...filterCondition,
 			values: filterCondition.values.filter((_, index) => index != valueIndex)
 		}));

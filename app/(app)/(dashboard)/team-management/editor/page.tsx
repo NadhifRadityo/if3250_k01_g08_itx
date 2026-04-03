@@ -13,6 +13,7 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as teamActions from "../layout.actions";
 import { TeamActiveFiltersSummary } from "../layout.components";
 import { TeamColumnConfigCard } from "../layout.components";
+import { TeamRequestCancelDialog } from "../layout.components";
 import { TeamRequestDeleteDialog } from "../layout.components";
 import { TeamRequestFilterCard } from "../layout.components";
 import { TeamRequestFormDrawer } from "../layout.components";
@@ -41,13 +42,14 @@ export default function TeamManagementEditorPage() {
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<TeamTableRow | null>(null);
+	const [cancelTarget, setCancelTarget] = useState<TeamTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useTeamColumnPreferences();
 	const queryState = useTeamManagementQueryState();
 	const {
-		searchSupervisorOptions,
-		searchOfficerOptions,
+		searchSupervisorUserOptions,
+		searchOfficerUserOptions,
 		getResolvedFilterColumnConfig
 	} = useTeamFilterColumnConfig();
 	const filters = useTeamRequestFilters({ getResolvedFilterColumnConfig });
@@ -204,7 +206,7 @@ export default function TeamManagementEditorPage() {
 							</div>
 							<Button type="button" onClick={openCreateDialog} disabled={isLoading || isMutating}>
 								<PlusIcon />
-								Add Request
+								Add
 							</Button>
 						</>
 					)}
@@ -262,18 +264,18 @@ export default function TeamManagementEditorPage() {
 								{row.isSoftDeleted ? (
 									<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
 										<PlusIcon />
-										Request Restore
+										Restore
 									</Button>
 								) : row.deletedAt == null ? (
 									<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
 										<Trash2Icon />
-										Request Delete
+										Delete
 									</Button>
 								) : null}
 								{isPending && !row.isSoftDeleted ? (
-									<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
+									<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
 										<XIcon />
-										Cancel Request
+										Cancel
 									</Button>
 								) : null}
 								{isRejected && !row.isSoftDeleted ? (
@@ -308,8 +310,8 @@ export default function TeamManagementEditorPage() {
 				}}
 				formState={formState}
 				formError={formError}
-				onSearchSupervisors={searchSupervisorOptions}
-				onSearchOfficers={searchOfficerOptions}
+				onSearchSupervisors={searchSupervisorUserOptions}
+				onSearchOfficers={searchOfficerUserOptions}
 				isMutating={isMutating}
 				onNameChange={value => setFormState(previous => ({ ...previous, name: value }))}
 				onSupervisorChange={value => setFormState(previous => ({ ...previous, supervisorId: value }))}
@@ -329,6 +331,23 @@ export default function TeamManagementEditorPage() {
 				}}
 				isMutating={isMutating}
 			/>
+
+			<TeamRequestCancelDialog
+				open={cancelTarget != null}
+				onOpenChange={open => {
+					if(!open)
+						setCancelTarget(null);
+				}}
+				onConfirm={() => {
+					if(cancelTarget != null) {
+						cancelRequest(cancelTarget);
+						setCancelTarget(null);
+					}
+				}}
+				isMutating={isMutating}
+			/>
+
+			{renderTeamCell.relationSummaryPickerDrawer}
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>
