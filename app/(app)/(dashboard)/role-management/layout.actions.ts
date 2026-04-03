@@ -12,12 +12,15 @@ const RELATION_SEARCH_LIMIT = 20;
 const roleLevelValues = ["admin", "manager", "supervisor", "officer"] as const;
 const roleMenuValues = [
 	"user-management-viewer",
+	"user-management-auditor",
 	"user-management-editor",
 	"user-management-approver",
 	"role-management-viewer",
+	"role-management-auditor",
 	"role-management-editor",
 	"role-management-approver",
 	"team-management-viewer",
+	"team-management-auditor",
 	"team-management-editor",
 	"team-management-approver"
 ] as const;
@@ -29,12 +32,15 @@ const roleLevelLabelMap: Record<RoleLevel, string> = {
 };
 const roleMenuLabelMap: Record<RoleMenu, string> = {
 	"user-management-viewer": "User Management - Viewer",
+	"user-management-auditor": "User Management - Auditor",
 	"user-management-editor": "User Management - Editor",
 	"user-management-approver": "User Management - Approver",
 	"role-management-viewer": "Role Management - Viewer",
+	"role-management-auditor": "Role Management - Auditor",
 	"role-management-editor": "Role Management - Editor",
 	"role-management-approver": "Role Management - Approver",
 	"team-management-viewer": "Team Management - Viewer",
+	"team-management-auditor": "Team Management - Auditor",
 	"team-management-editor": "Team Management - Editor",
 	"team-management-approver": "Team Management - Approver"
 };
@@ -46,6 +52,7 @@ const roleLevelSet = new Set<RoleLevel>(roleLevelValues);
 const roleMenuSet = new Set<RoleMenu>(roleMenuValues);
 
 const sortableFields = new Set<RoleManagementSortField>([
+	"id",
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
@@ -53,13 +60,14 @@ const sortableFields = new Set<RoleManagementSortField>([
 	"level",
 	"menus",
 	"reviewedAt",
-	"reviewedByName",
+	"reviewedBy",
 	"reviewApproved",
 	"requestType",
 	"status",
 	"reviewCommentText"
 ]);
 const filterableColumns = new Set<RoleManagementFilterColumn>([
+	"id",
 	"name",
 	"level",
 	"menus",
@@ -117,19 +125,21 @@ const defaultReviewComment: ReviewCommentValue = {
 
 export type RoleManagementTabMode = "editor" | "approver";
 export type RoleManagementSortField = "createdAt" |
+	"id" |
 	"updatedAt" |
 	"deletedAt" |
 	"name" |
 	"level" |
 	"menus" |
 	"reviewedAt" |
-	"reviewedByName" |
+	"reviewedBy" |
 	"reviewApproved" |
 	"requestType" |
 	"status" |
 	"reviewCommentText";
 export type RoleManagementSortToken = `${"+" | "-"}${RoleManagementSortField}`;
 export type RoleManagementFilterColumn = "name" |
+	"id" |
 	"level" |
 	"menus" |
 	"createdAt" |
@@ -167,23 +177,19 @@ export type RoleTableRow = {
 	menus: RoleMenu[];
 	isSoftDeleted: boolean;
 	createdById: string | null;
-	createdBy: string;
 	updatedById: string | null;
-	updatedBy: string;
 	deletedById: string | null;
-	deletedBy: string;
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
 	reviewedAt: string | null;
 	reviewedById: string | null;
-	reviewedByName: string | null;
 	reviewApproved: boolean | null;
 	reviewCommentText: string;
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type RoleRelationColumn = "reviewedByName" |
+export type RoleRelationColumn = "reviewedBy" |
 	"createdBy" |
 	"updatedBy" |
 	"deletedBy";
@@ -221,6 +227,12 @@ export type RoleFilterUserOption = {
 	id: string;
 	name: string;
 	email: string;
+};
+
+export type RoleFilterIdOption = {
+	id: string;
+	name: string;
+	level: RoleLevel;
 };
 
 export type UpsertRoleRequestInput = {
@@ -535,12 +547,54 @@ export async function searchRoleFilterUsersAction(keyword: string): Promise<Role
 	}));
 }
 
+export async function searchRoleFilterIdsAction(keyword: string): Promise<RoleFilterIdOption[]> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const normalizedKeyword = keyword.trim();
+	const normalizedKeywordLower = normalizedKeyword.toLowerCase();
+	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+		{ id: { like: normalizedKeyword } },
+		{ name: { like: normalizedKeyword } },
+		{ level: { equals: normalizedKeywordLower } }
+	] : [];
+
+	const result = await payload.find({
+		collection: "roles",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT,
+		sort: "-updatedAt",
+		select: {
+			name: true,
+			level: true
+		},
+		...(keywordFilters.length > 0 ? {
+			where: {
+				or: keywordFilters
+			}
+		} : {})
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		name: doc.name,
+		level: normalizeRoleLevelValue(doc.level) ?? "officer"
+	}));
+}
+
 function toPayloadSort(sort: RoleManagementSortToken[]): string {
 	return sort.map(token => {
 		const direction = token.startsWith("-") ? "-" : "";
 		const field = token.slice(1) as SortFieldKey;
 		let path: string;
-		if(field == "reviewedByName")
+		if(field == "reviewedBy")
 			path = "reviewedBy.name";
 		else if(field == "requestType")
 			path = "deletedAt";
@@ -674,17 +728,13 @@ export async function queryRolesAction({ keyword, sort, filters, filterCombinato
 			menus,
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
 			createdById,
-			createdBy: "-",
 			updatedById,
-			updatedBy: "-",
 			deletedById,
-			deletedBy: "-",
 			createdAt: doc.createdAt,
 			updatedAt: doc.updatedAt,
 			deletedAt: doc.deletedAt ?? null,
 			reviewedAt: doc.reviewedAt ?? null,
 			reviewedById,
-			reviewedByName: null,
 			reviewApproved: doc.reviewApproved ?? null,
 			reviewCommentText,
 			requestType
@@ -738,7 +788,7 @@ export async function resolveRoleRelationColumnsAction({ rows, columns }: Resolv
 
 	const userIds = new Set<string>();
 	for(const row of rows) {
-		if(requestedColumns.includes("reviewedByName") && row.reviewedById != null)
+		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
 			userIds.add(row.reviewedById);
 		if(requestedColumns.includes("createdBy") && row.createdById != null)
 			userIds.add(row.createdById);
@@ -753,8 +803,8 @@ export async function resolveRoleRelationColumnsAction({ rows, columns }: Resolv
 	return rows.map(row => {
 		const values: Partial<Record<RoleRelationColumn, string>> = {};
 
-		if(requestedColumns.includes("reviewedByName"))
-			values.reviewedByName = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
+		if(requestedColumns.includes("reviewedBy"))
+			values.reviewedBy = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
 		if(requestedColumns.includes("createdBy"))
 			values.createdBy = row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-";
 		if(requestedColumns.includes("updatedBy"))

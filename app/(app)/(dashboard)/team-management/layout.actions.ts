@@ -10,22 +10,22 @@ import type { Team } from "@/payload-types";
 const MAX_PAGE_SIZE = 20;
 const RELATION_SEARCH_LIMIT = 20;
 const sortableFields = new Set<TeamManagementSortField>([
+	"id",
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
 	"name",
-	"supervisorName",
-	"supervisorEmail",
-	"officerNames",
-	"officerEmails",
+	"supervisor",
+	"officers",
 	"reviewedAt",
-	"reviewedByName",
+	"reviewedBy",
 	"reviewApproved",
 	"requestType",
 	"status",
 	"reviewCommentText"
 ]);
 const filterableColumns = new Set<TeamManagementFilterColumn>([
+	"id",
 	"name",
 	"supervisor",
 	"officers",
@@ -83,22 +83,22 @@ const defaultReviewComment: ReviewCommentValue = {
 
 export type TeamManagementTabMode = "editor" | "approver";
 export type TeamManagementSortField =
+	"id" |
 	"createdAt" |
 	"updatedAt" |
 	"deletedAt" |
 	"name" |
-	"supervisorName" |
-	"supervisorEmail" |
-	"officerNames" |
-	"officerEmails" |
+	"supervisor" |
+	"officers" |
 	"reviewedAt" |
-	"reviewedByName" |
+	"reviewedBy" |
 	"reviewApproved" |
 	"requestType" |
 	"status" |
 	"reviewCommentText";
 export type TeamManagementSortToken = `${"+" | "-"}${TeamManagementSortField}`;
 export type TeamManagementFilterColumn =
+	"id" |
 	"name" |
 	"supervisor" |
 	"officers" |
@@ -135,35 +135,27 @@ export type TeamTableRow = {
 	id: string;
 	name: string;
 	supervisorId: string | null;
-	supervisorName: string;
-	supervisorEmail: string;
+	supervisor: string;
 	isSoftDeleted: boolean;
 	officerIds: string[];
-	officerNames: string[];
-	officerEmails: string[];
+	officers: string[];
 	createdById: string | null;
-	createdBy: string;
 	updatedById: string | null;
-	updatedBy: string;
 	deletedById: string | null;
-	deletedBy: string;
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
 	reviewedAt: string | null;
 	reviewedById: string | null;
-	reviewedByName: string | null;
 	reviewApproved: boolean | null;
 	reviewCommentText: string;
 	requestType: "Create" | "Update" | "Delete";
 };
 
 export type TeamRelationColumn =
-	"supervisorName" |
-	"supervisorEmail" |
-	"officerNames" |
-	"officerEmails" |
-	"reviewedByName" |
+	"supervisor" |
+	"officers" |
+	"reviewedBy" |
 	"createdBy" |
 	"updatedBy" |
 	"deletedBy";
@@ -208,6 +200,11 @@ export type TeamReviewerOption = {
 	email: string;
 };
 
+export type TeamFilterIdOption = {
+	id: string;
+	name: string;
+};
+
 type TeamUserOption = {
 	id: string;
 	name: string;
@@ -233,6 +230,8 @@ export type TeamRequestReviewDiffItem = {
 	previousValue: string;
 	requestedValue: string;
 	changed: boolean;
+	previousReferences?: Array<{ type: "user", id: string, label: string }>;
+	requestedReferences?: Array<{ type: "user", id: string, label: string }>;
 };
 
 export type TeamRequestReviewDiffOutput = {
@@ -463,14 +462,12 @@ function toPayloadSort(sort: TeamManagementSortToken[]): string {
 	return sort.map(token => {
 		const direction = token.startsWith("-") ? "-" : "";
 		const field = token.slice(1) as SortFieldKey;
-		const path = field == "supervisorName" ? "supervisor.name" :
-			field == "supervisorEmail" ? "supervisor.email" :
-				field == "officerNames" ? "officers.name" :
-					field == "officerEmails" ? "officers.email" :
-						field == "reviewedByName" ? "reviewedBy.name" :
-							field == "requestType" ? "deletedAt" :
-								field == "status" || field == "reviewCommentText" ? "reviewedAt" :
-									field;
+		const path = field == "supervisor" ? "supervisor.name" :
+			field == "officers" ? "officers.name" :
+				field == "reviewedBy" ? "reviewedBy.name" :
+					field == "requestType" ? "deletedAt" :
+						field == "status" || field == "reviewCommentText" ? "reviewedAt" :
+							field;
 		return `${direction}${path}`;
 	}).join(",");
 }
@@ -636,6 +633,44 @@ export async function searchTeamReviewerUsersAction(keyword: string): Promise<Te
 	return searchUsersByKeyword(payload, user, keyword);
 }
 
+export async function searchTeamFilterIdsAction(keyword: string): Promise<TeamFilterIdOption[]> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const normalizedKeyword = keyword.trim();
+	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
+		{ id: { like: normalizedKeyword } },
+		{ name: { like: normalizedKeyword } }
+	] : [];
+
+	const result = await payload.find({
+		collection: "teams",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT,
+		sort: "-updatedAt",
+		select: {
+			name: true
+		},
+		...(keywordFilters.length > 0 ? {
+			where: {
+				or: keywordFilters
+			}
+		} : {})
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		name: doc.name
+	}));
+}
+
 export async function queryTeamsAction({ keyword, sort, filters, filterCombinator, page, limit, mode, includeSoftDeleted = false }: QueryTeamsInput): Promise<QueryTeamsOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
@@ -708,24 +743,18 @@ export async function queryTeamsAction({ keyword, sort, filters, filterCombinato
 			id: String(doc.id),
 			name: doc.name,
 			supervisorId,
-			supervisorName: "-",
-			supervisorEmail: "-",
+			supervisor: "-",
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
 			officerIds,
-			officerNames: [],
-			officerEmails: [],
+			officers: [],
 			createdById,
-			createdBy: "-",
 			updatedById,
-			updatedBy: "-",
 			deletedById,
-			deletedBy: "-",
 			createdAt: doc.createdAt,
 			updatedAt: doc.updatedAt,
 			deletedAt: doc.deletedAt ?? null,
 			reviewedAt: doc.reviewedAt ?? null,
 			reviewedById,
-			reviewedByName: null,
 			reviewApproved: doc.reviewApproved ?? null,
 			reviewCommentText,
 			requestType
@@ -776,8 +805,8 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 		return [];
 
 	const requestedColumns = [...new Set(columns)];
-	const shouldFetchSupervisor = requestedColumns.includes("supervisorName") || requestedColumns.includes("supervisorEmail");
-	const shouldFetchOfficer = requestedColumns.includes("officerNames") || requestedColumns.includes("officerEmails");
+	const shouldFetchSupervisor = requestedColumns.includes("supervisor");
+	const shouldFetchOfficer = requestedColumns.includes("officers");
 
 	const userIds = new Set<string>();
 	for(const row of rows) {
@@ -787,7 +816,7 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 			for(const officerId of row.officerIds)
 				userIds.add(officerId);
 		}
-		if(requestedColumns.includes("reviewedByName") && row.reviewedById != null)
+		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
 			userIds.add(row.reviewedById);
 		if(requestedColumns.includes("createdBy") && row.createdById != null)
 			userIds.add(row.createdById);
@@ -802,16 +831,12 @@ export async function resolveTeamRelationColumnsAction({ rows, columns }: Resolv
 	return rows.map(row => {
 		const values: Partial<Record<TeamRelationColumn, string>> = {};
 
-		if(requestedColumns.includes("supervisorName"))
-			values.supervisorName = row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-";
-		if(requestedColumns.includes("supervisorEmail"))
-			values.supervisorEmail = row.supervisorId != null ? (usersById.get(row.supervisorId)?.email ?? "-") : "-";
-		if(requestedColumns.includes("officerNames"))
-			values.officerNames = row.officerIds.length > 0 ? row.officerIds.map(officerId => usersById.get(officerId)?.name ?? "-").join(", ") : "-";
-		if(requestedColumns.includes("officerEmails"))
-			values.officerEmails = row.officerIds.length > 0 ? row.officerIds.map(officerId => usersById.get(officerId)?.email ?? "-").join(", ") : "-";
-		if(requestedColumns.includes("reviewedByName"))
-			values.reviewedByName = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
+		if(requestedColumns.includes("supervisor"))
+			values.supervisor = row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-";
+		if(requestedColumns.includes("officers"))
+			values.officers = row.officerIds.length > 0 ? row.officerIds.map(officerId => usersById.get(officerId)?.name ?? "-").join(", ") : "-";
+		if(requestedColumns.includes("reviewedBy"))
+			values.reviewedBy = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
 		if(requestedColumns.includes("createdBy"))
 			values.createdBy = row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-";
 		if(requestedColumns.includes("updatedBy"))
@@ -1196,13 +1221,25 @@ export async function getTeamRequestReviewDiffAction(teamId: string): Promise<Te
 			field: "supervisor",
 			label: "Supervisor",
 			previousValue: approvedSupervisorId != null ? (usersById.get(approvedSupervisorId)?.name ?? "-") : "-",
-			requestedValue: requestedSupervisorId != null ? (usersById.get(requestedSupervisorId)?.name ?? "-") : "-"
+			requestedValue: requestedSupervisorId != null ? (usersById.get(requestedSupervisorId)?.name ?? "-") : "-",
+			previousReferences: approvedSupervisorId != null ? [{ type: "user", id: approvedSupervisorId, label: usersById.get(approvedSupervisorId)?.name ?? "User" }] : [],
+			requestedReferences: requestedSupervisorId != null ? [{ type: "user", id: requestedSupervisorId, label: usersById.get(requestedSupervisorId)?.name ?? "User" }] : []
 		},
 		{
 			field: "officers",
 			label: "Officers",
 			previousValue: formatReviewUserList(approvedOfficerIds, usersById),
-			requestedValue: formatReviewUserList(requestedOfficerIds, usersById)
+			requestedValue: formatReviewUserList(requestedOfficerIds, usersById),
+			previousReferences: approvedOfficerIds.map(officerId => ({
+				type: "user" as const,
+				id: officerId,
+				label: usersById.get(officerId)?.name ?? "User"
+			})),
+			requestedReferences: requestedOfficerIds.map(officerId => ({
+				type: "user" as const,
+				id: officerId,
+				label: usersById.get(officerId)?.name ?? "User"
+			}))
 		},
 		{
 			field: "deletedAt",

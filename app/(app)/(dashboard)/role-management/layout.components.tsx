@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback, type DragEvent, type ReactNode } from "react";
+import { useMemo, useState, useEffect, useCallback, type DragEvent, type ReactNode, type MouseEvent } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, CheckIcon, ArrowUpIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
+import { Link } from "@/components/Link";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -21,6 +23,7 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 import { Textarea } from "@/components/radix/Textarea";
 
+import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as roleActions from "./layout.actions";
 
 export const PAGE_SIZE = 20;
@@ -68,10 +71,11 @@ export type FilterColumnOption = {
 	searchOptionsAction?: FilterSelectSearchAction;
 };
 
-export type FilterDraft = {
+export type FilterCondition = {
 	id: string;
 	column: FilterColumn;
 	operator: FilterOperator;
+	joinWithPrevious: FilterCombinator;
 	value: string;
 	values: string[];
 	existsValue: "true" | "false";
@@ -82,6 +86,7 @@ export type FilterDraft = {
 };
 
 export type RoleTableColumnId = "name" |
+	"id" |
 	"level" |
 	"menus" |
 	"createdBy" |
@@ -93,7 +98,7 @@ export type RoleTableColumnId = "name" |
 	"requestType" |
 	"status" |
 	"reviewedAt" |
-	"reviewedByName" |
+	"reviewedBy" |
 	"reviewApproved" |
 	"reviewCommentText";
 
@@ -154,9 +159,10 @@ export const defaultFormState: FormState = {
 };
 
 export const ROLE_COLUMN_PREFERENCES_KEY = "role-management-columns-v1";
-export const ROLE_FILTER_PREFERENCES_KEY = "role-management-filters-v1";
+export const RELATION_FILTER_QUERY_PARAM = "relationFilters";
 
 export const roleTableColumns: RoleTableColumnConfig[] = [
+	{ id: "id", label: "ID", sortField: "id", cellClassName: "font-mono text-xs" },
 	{ id: "name", label: "Name", sortField: "name", cellClassName: "font-medium" },
 	{ id: "level", label: "Level", sortField: "level" },
 	{ id: "menus", label: "Menus", sortField: "menus", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
@@ -169,7 +175,7 @@ export const roleTableColumns: RoleTableColumnConfig[] = [
 	{ id: "requestType", label: "Request", sortField: "requestType" },
 	{ id: "status", label: "Status", sortField: "status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
-	{ id: "reviewedByName", label: "Reviewed By", sortField: "reviewedByName" },
+	{ id: "reviewedBy", label: "Reviewed By", sortField: "reviewedBy" },
 	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
 	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
@@ -179,7 +185,7 @@ export const defaultRoleVisibleColumns: RoleTableColumnId[] = ["name", "level", 
 export const defaultRoleHiddenColumns: RoleTableColumnId[] = defaultRoleColumnOrder.filter(columnId => !defaultRoleVisibleColumns.includes(columnId));
 
 export const roleRelationColumnSet = new Set<RoleRelationColumn>([
-	"reviewedByName",
+	"reviewedBy",
 	"createdBy",
 	"updatedBy",
 	"deletedBy"
@@ -200,6 +206,7 @@ export const filterOperatorOptions: Array<{ value: FilterOperator, label: string
 ];
 
 export const roleFilterColumns: FilterColumnOption[] = [
+	{ value: "id", label: "ID", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "name", label: "Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter role name" },
 	{ value: "level", label: "Level", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: roleLevelOptions.map(option => ({ value: option.value, label: option.label })) },
 	{ value: "menus", label: "Menus", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: roleMenuOptions.map(option => ({ value: option.value, label: option.label })) },
@@ -241,11 +248,19 @@ export function getFilterColumnConfig(column: FilterColumn): FilterColumnOption 
 
 export function getResolvedRoleFilterColumnConfig(
 	column: FilterColumn,
+	idSelectOptions: Array<{ value: string, label: string }>,
 	reviewedBySelectOptions: Array<{ value: string, label: string }>,
+	searchIdOptions?: FilterSelectSearchAction,
 	searchReviewedByOptions?: FilterSelectSearchAction
 ): FilterColumnOption {
 	const config = getFilterColumnConfig(column);
 	switch(column) {
+		case "id":
+			return {
+				...config,
+				selectOptions: idSelectOptions,
+				searchOptionsAction: searchIdOptions
+			};
 		case "createdBy":
 		case "updatedBy":
 		case "deletedBy":
@@ -260,12 +275,13 @@ export function getResolvedRoleFilterColumnConfig(
 	}
 }
 
-export function createFilterDraft(column: FilterColumn = roleFilterColumns[0].value): FilterDraft {
+export function createFilterCondition(column: FilterColumn = roleFilterColumns[0].value): FilterCondition {
 	const columnConfig = getFilterColumnConfig(column);
 	return {
 		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
 		column,
 		operator: columnConfig.operators[0],
+		joinWithPrevious: defaultFilterCombinator,
 		value: "",
 		values: [],
 		existsValue: "true",
@@ -383,51 +399,6 @@ export function reorderColumns(order: RoleTableColumnId[], sourceId: RoleTableCo
 	const [moved] = nextOrder.splice(sourceIndex, 1);
 	nextOrder.splice(targetIndex, 0, moved);
 	return nextOrder;
-}
-
-export function serializeFilterDraftForStorage(draft: FilterDraft) {
-	return {
-		...draft,
-		dateValue: draft.dateValue?.toISOString() ?? null,
-		listDateValue: draft.listDateValue?.toISOString() ?? null
-	};
-}
-
-export function parseStoredFilterDraft(rawDraft: unknown): FilterDraft | null {
-	if(rawDraft == null || typeof rawDraft != "object")
-		return null;
-
-	const candidate = rawDraft as Partial<{
-		id: string;
-		column: FilterColumn;
-		operator: FilterOperator;
-		value: string;
-		values: string[];
-		existsValue: "true" | "false";
-		dateValue: string | null;
-		listDateValue: string | null;
-		dateText: string;
-		listDateText: string;
-	}>;
-
-	const column = typeof candidate.column == "string" ? candidate.column : roleFilterColumns[0].value;
-	const columnConfig = getFilterColumnConfig(column);
-	const operator = typeof candidate.operator == "string" && columnConfig.operators.includes(candidate.operator) ? candidate.operator : columnConfig.operators[0];
-	const parsedDateValue = typeof candidate.dateValue == "string" ? parseFilterDateValue(candidate.dateValue) : null;
-	const parsedListDateValue = typeof candidate.listDateValue == "string" ? parseFilterDateValue(candidate.listDateValue) : null;
-
-	return {
-		id: typeof candidate.id == "string" && candidate.id.length > 0 ? candidate.id : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-		column,
-		operator,
-		value: typeof candidate.value == "string" ? candidate.value : "",
-		values: Array.isArray(candidate.values) ? candidate.values.filter((value): value is string => typeof value == "string") : [],
-		existsValue: candidate.existsValue == "false" ? "false" : "true",
-		dateValue: parsedDateValue,
-		listDateValue: parsedListDateValue,
-		dateText: typeof candidate.dateText == "string" ? candidate.dateText : formatFilterDateOnlyInput(parsedDateValue),
-		listDateText: typeof candidate.listDateText == "string" ? candidate.listDateText : formatFilterDateOnlyInput(parsedListDateValue)
-	};
 }
 
 type RoleActiveFiltersSummaryProps = {
@@ -588,18 +559,18 @@ export function RoleRequestFilterCard({
 							<Button type="button" variant="outline" size="sm" onClick={filters.clearFilter} disabled={isLoading || isMutating}>Clear Filter</Button>
 						) : null}
 					</div>
-					{filters.filterDrafts.map((draft, index) => {
-						const columnConfig = getResolvedFilterColumnConfig(draft.column);
-						const isListOperator = draft.operator == "in" || draft.operator == "not_in";
+					{filters.filters.map((filterCondition, index) => {
+						const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
+						const isListOperator = filterCondition.operator == "in" || filterCondition.operator == "not_in";
 
 						return (
-							<div key={draft.id} className="space-y-3">
+							<div key={filterCondition.id} className="space-y-3">
 								{index > 0 ? (
 									<div className="rounded-lg border border-dashed p-2">
 										<label className="text-sm font-medium">Combinator with previous filter</label>
 										<Select
-											value={filters.filterDraftCombinators[index - 1] ?? defaultFilterCombinator}
-											onValueChange={value => filters.updateFilterCombinator(index - 1, value as FilterCombinator)}
+											value={filterCondition.joinWithPrevious}
+											onValueChange={value => filters.updateFilterJoinWithPrevious(filterCondition.id, value as FilterCombinator)}
 										>
 											<SelectTrigger className="w-full"><SelectValue placeholder="Select combinator" /></SelectTrigger>
 											<SelectContent>
@@ -612,7 +583,7 @@ export function RoleRequestFilterCard({
 								<div className="space-y-3 rounded-lg border p-3">
 									<div className="flex items-center justify-between">
 										<p className="text-sm font-medium">Filter {index + 1}</p>
-										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilterDraft(draft.id)} disabled={isMutating}>
+										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(filterCondition.id)} disabled={isMutating}>
 											<XIcon />
 											Remove
 										</Button>
@@ -620,7 +591,7 @@ export function RoleRequestFilterCard({
 									<div className="grid gap-3 sm:grid-cols-2">
 										<div className="space-y-2">
 											<label className="text-sm font-medium">Column</label>
-											<Select value={draft.column} onValueChange={value => filters.handleFilterColumnChange(draft.id, value as FilterColumn)}>
+											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(filterCondition.id, value as FilterColumn)}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
 												<SelectContent>
 													{roleFilterColumns.map(column => (
@@ -631,7 +602,7 @@ export function RoleRequestFilterCard({
 										</div>
 										<div className="space-y-2">
 											<label className="text-sm font-medium">Operator</label>
-											<Select value={draft.operator} onValueChange={value => filters.handleFilterOperatorChange(draft.id, value as FilterColumnOption["operators"][number])}>
+											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(filterCondition.id, value as FilterColumnOption["operators"][number])}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select operator" /></SelectTrigger>
 												<SelectContent>
 													{filterOperatorOptions.filter(operator => columnConfig.operators.includes(operator.value)).map(operator => (
@@ -643,8 +614,8 @@ export function RoleRequestFilterCard({
 									</div>
 									<div className="space-y-2">
 										<label className="text-sm font-medium">Filter Value</label>
-										{draft.operator == "exists" ? (
-											<Select value={draft.existsValue} onValueChange={value => filters.updateFilterDraft(draft.id, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
+										{filterCondition.operator == "exists" ? (
+											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select exists value" /></SelectTrigger>
 												<SelectContent>
 													<SelectItem value="true">True</SelectItem>
@@ -655,25 +626,25 @@ export function RoleRequestFilterCard({
 											<div className="space-y-2">
 												<div className="flex items-center justify-between">
 													<p className="text-muted-foreground text-xs">Define one or more values.</p>
-													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(draft.id)}><PlusIcon />Add Value</Button>
+													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(filterCondition.id)}><PlusIcon />Add Value</Button>
 												</div>
-												{draft.values.length == 0 ? (
+												{filterCondition.values.length == 0 ? (
 													<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
 												) : (
 													<div className="space-y-2">
-														{draft.values.map((value, valueIndex) => {
+														{filterCondition.values.map((value, valueIndex) => {
 															const listDate = columnConfig.valueType == "date" ? splitFilterDateValue(value) : null;
 															return (
-																<div key={`${draft.id}-${valueIndex}`} className="flex items-start gap-2">
+																<div key={`${filterCondition.id}-${valueIndex}`} className="flex items-start gap-2">
 																	{columnConfig.valueType == "boolean" ? (
-																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(draft.id, valueIndex, nextValue)}>
+																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(filterCondition.id, valueIndex, nextValue)}>
 																			<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
 																			<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 																		</Select>
 																	) : columnConfig.valueType == "select" ? (
 																		<SearchableSelect
 																			value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")}
-																			onValueChange={nextValue => filters.updateFilterListValue(draft.id, valueIndex, nextValue)}
+																			onValueChange={nextValue => filters.updateFilterListValue(filterCondition.id, valueIndex, nextValue)}
 																			options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
 																			onSearch={columnConfig.searchOptionsAction}
 																			placeholder="Select value"
@@ -686,7 +657,7 @@ export function RoleRequestFilterCard({
 																				<InputGroup>
 																					<InputGroupInput
 																						value={listDate?.dateText ?? ""}
-																						onChange={event => filters.updateFilterListValue(draft.id, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
+																						onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
 																						placeholder="YYYY-MM-DD"
 																					/>
 																					<InputGroupAddon align="inline-end">
@@ -700,16 +671,16 @@ export function RoleRequestFilterCard({
 																						mode="single"
 																						captionLayout="dropdown"
 																						selected={parseFilterDateOnlyValue(listDate?.dateText ?? "") ?? undefined}
-																						onSelect={date => filters.updateFilterListValue(draft.id, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
+																						onSelect={date => filters.updateFilterListValue(filterCondition.id, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
 																					/>
 																				</PopoverContent>
 																			</Popover>
-																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(draft.id, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
+																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
 																		</div>
 																	) : (
-																		<Input value={value} onChange={event => filters.updateFilterListValue(draft.id, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
+																		<Input value={value} onChange={event => filters.updateFilterListValue(filterCondition.id, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
 																	)}
-																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(draft.id, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
+																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(filterCondition.id, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
 																</div>
 															);
 														})}
@@ -718,15 +689,15 @@ export function RoleRequestFilterCard({
 											</div>
 										) : columnConfig.valueType == "select" ? (
 											<SearchableSelect
-												value={draft.value.length > 0 ? draft.value : ""}
-												onValueChange={value => filters.updateFilterDraft(draft.id, previous => ({ ...previous, value }))}
+												value={filterCondition.value.length > 0 ? filterCondition.value : ""}
+												onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value }))}
 												options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
 												onSearch={columnConfig.searchOptionsAction}
 												placeholder="Select value"
 												searchPlaceholder="Type to filter values"
 											/>
 										) : columnConfig.valueType == "boolean" ? (
-											<Select value={draft.value.length > 0 ? draft.value : ""} onValueChange={value => filters.updateFilterDraft(draft.id, previous => ({ ...previous, value }))}>
+											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value }))}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
 												<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 											</Select>
@@ -735,8 +706,8 @@ export function RoleRequestFilterCard({
 												<Popover>
 													<InputGroup>
 														<InputGroupInput
-															value={draft.dateText}
-															onChange={event => filters.updateFilterDraft(draft.id, previous => {
+															value={filterCondition.dateText}
+															onChange={event => filters.updateFilter(filterCondition.id, previous => {
 																const nextDateText = event.target.value;
 																const parsedDate = parseFilterDateOnlyValue(nextDateText);
 																const preservedTime = getFilterTimeInput(previous.dateValue);
@@ -758,8 +729,8 @@ export function RoleRequestFilterCard({
 														<Calendar
 															mode="single"
 															captionLayout="dropdown"
-															selected={draft.dateValue ?? parseFilterDateOnlyValue(draft.dateText) ?? undefined}
-															onSelect={date => filters.updateFilterDraft(draft.id, previous => {
+															selected={filterCondition.dateValue ?? parseFilterDateOnlyValue(filterCondition.dateText) ?? undefined}
+															onSelect={date => filters.updateFilter(filterCondition.id, previous => {
 																if(date == null)
 																	return { ...previous, dateValue: null, dateText: "" };
 																const nextDate = applyTimeToDate(date, getFilterTimeInput(previous.dateValue));
@@ -770,8 +741,8 @@ export function RoleRequestFilterCard({
 												</Popover>
 												<Input
 													type="time"
-													value={getFilterTimeInput(draft.dateValue)}
-													onChange={event => filters.updateFilterDraft(draft.id, previous => {
+													value={getFilterTimeInput(filterCondition.dateValue)}
+													onChange={event => filters.updateFilter(filterCondition.id, previous => {
 														const baseDate = previous.dateValue ?? parseFilterDateOnlyValue(previous.dateText);
 														if(baseDate == null)
 															return previous;
@@ -781,7 +752,7 @@ export function RoleRequestFilterCard({
 												/>
 											</div>
 										) : (
-											<Input value={draft.value} onChange={event => filters.updateFilterDraft(draft.id, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
+											<Input value={filterCondition.value} onChange={event => filters.updateFilter(filterCondition.id, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
 										)}
 									</div>
 								</div>
@@ -789,7 +760,7 @@ export function RoleRequestFilterCard({
 						);
 					})}
 
-					<Button type="button" variant="outline" onClick={filters.addFilterDraft} disabled={isMutating}>
+					<Button type="button" variant="outline" onClick={filters.addFilter} disabled={isMutating}>
 						<PlusIcon />
 						Add Filter
 					</Button>
@@ -1089,12 +1060,84 @@ export function RoleRequestsTable({
 type UseRoleCellRendererOptions = {
 	relationValuesByRowId: Record<string, Partial<Record<RoleRelationColumn, string>>>;
 	isRelationLoading: boolean;
+	relationNavigation?: {
+		getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
+		onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
+			targetManagementKey: "user-management" | "role-management" | "team-management";
+			hrefBase: string;
+			relationFilters: unknown;
+			relationContext?: string;
+		}) => void;
+		onOpenSummary: (request: {
+			type: "user";
+			id: string;
+			fallbackTitle: string;
+			fallbackDescription?: string;
+			fallbackMeta?: Array<{ label: string, value: string }>;
+		}) => void;
+	};
 };
 
-export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading }: UseRoleCellRendererOptions) {
+export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseRoleCellRendererOptions) {
+	const renderRelationValue = (column: RoleRelationColumn, value: string, relationId: string | null) => {
+		const normalizedValue = value.trim();
+		if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
+			return value;
+
+		const hrefBase = relationNavigation?.getHrefBase("user-management");
+		if(hrefBase != null && relationNavigation != null) {
+			const relationFilters = [
+				{ column: "id", operator: "equals", value: relationId }
+			];
+			const searchParams = new URLSearchParams();
+			searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
+			searchParams.set("relationContext", `role-management:${column}`);
+			const href = `${hrefBase}?${searchParams.toString()}`;
+			return (
+				<Link
+					href={href}
+					onClick={event => relationNavigation.onRelationLinkClick(event, {
+						targetManagementKey: "user-management",
+						hrefBase,
+						relationFilters,
+						relationContext: `role-management:${column}`
+					})}
+					className="text-primary underline underline-offset-2 hover:opacity-80"
+				>
+					{value}
+				</Link>
+			);
+		}
+
+		if(relationNavigation == null)
+			return value;
+
+		const summaryLabel = column == "reviewedBy" ? "Reviewed By" :
+			column == "createdBy" ? "Created By" :
+				column == "updatedBy" ? "Updated By" : "Deleted By";
+
+		return (
+			<Button
+				type="button"
+				variant="link"
+				onClick={() => relationNavigation.onOpenSummary({
+					type: "user",
+					id: relationId,
+					fallbackTitle: value,
+					fallbackDescription: `${summaryLabel} user`
+				})}
+				className="h-auto p-0 text-primary"
+			>
+				{value}
+			</Button>
+		);
+	};
+
 	return useCallback((columnId: RoleTableColumnId, row: RoleTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
+			case "id":
+				return row.id;
 			case "name":
 				return row.name;
 			case "level":
@@ -1108,15 +1151,15 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading }
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return resolvedValues.createdBy ?? row.createdBy;
+				return renderRelationValue("createdBy", resolvedValues.createdBy ?? "-", row.createdById);
 			case "updatedBy":
 				if(isRelationLoading && resolvedValues.updatedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return resolvedValues.updatedBy ?? row.updatedBy;
+				return renderRelationValue("updatedBy", resolvedValues.updatedBy ?? "-", row.updatedById);
 			case "deletedBy":
 				if(isRelationLoading && resolvedValues.deletedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return resolvedValues.deletedBy ?? row.deletedBy;
+				return renderRelationValue("deletedBy", resolvedValues.deletedBy ?? "-", row.deletedById);
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1131,10 +1174,10 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading }
 			}
 			case "reviewedAt":
 				return formatDateTime(row.reviewedAt);
-			case "reviewedByName":
-				if(isRelationLoading && resolvedValues.reviewedByName == null)
+			case "reviewedBy":
+				if(isRelationLoading && resolvedValues.reviewedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return resolvedValues.reviewedByName ?? row.reviewedByName ?? "-";
+				return renderRelationValue("reviewedBy", resolvedValues.reviewedBy ?? "-", row.reviewedById);
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			case "reviewCommentText":
@@ -1142,7 +1185,7 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading }
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, relationValuesByRowId]);
+	}, [isRelationLoading, relationValuesByRowId, relationNavigation]);
 }
 
 export function useRoleColumnPreferences() {
@@ -1254,6 +1297,15 @@ export function useRoleColumnPreferences() {
 }
 
 export function useRoleFilterColumnConfig() {
+	const searchIdOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
+		const roles = await roleActions.searchRoleFilterIdsAction(keyword);
+		return dedupeSelectOptions(roles.map(role => ({
+			value: role.id,
+			label: `${role.name} (${role.id})`,
+			keywords: `${role.id} ${role.name} ${role.level}`
+		})));
+	}, []);
+
 	const searchReviewerOptions = useCallback(async (keyword: string): Promise<SearchableSelectOption[]> => {
 		const users = await roleActions.searchRoleFilterUsersAction(keyword);
 		return dedupeSelectOptions(users.map(user => ({
@@ -1264,8 +1316,8 @@ export function useRoleFilterColumnConfig() {
 	}, []);
 
 	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
-		getResolvedRoleFilterColumnConfig(column, [], searchReviewerOptions)
-	), [searchReviewerOptions]);
+		getResolvedRoleFilterColumnConfig(column, [], [], searchIdOptions, searchReviewerOptions)
+	), [searchIdOptions, searchReviewerOptions]);
 
 	return {
 		getResolvedFilterColumnConfig
@@ -1376,70 +1428,120 @@ type UseRoleRequestFiltersOptions = {
 
 export type UseRoleRequestFiltersResult = {
 	isFilterOpen: boolean;
+	isFilterStateReady: boolean;
 	setIsFilterOpen: (open: boolean) => void;
 	toggleFilterPanel: () => void;
 	clearFilter: () => void;
 	appliedFilters: FilterInput[];
 	filterSummaryItems: FilterSummaryItem[];
-	filterDrafts: FilterDraft[];
-	filterDraftCombinators: FilterCombinator[];
-	updateFilterCombinator: (index: number, combinator: FilterCombinator) => void;
-	updateFilterDraft: (id: string, updater: (draft: FilterDraft) => FilterDraft) => void;
+	filters: FilterCondition[];
+	updateFilterJoinWithPrevious: (id: string, combinator: FilterCombinator) => void;
+	updateFilter: (id: string, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
 	handleFilterColumnChange: (id: string, column: FilterColumn) => void;
 	handleFilterOperatorChange: (id: string, operator: FilterColumnOption["operators"][number]) => void;
-	addFilterDraft: () => void;
-	removeFilterDraft: (id: string) => void;
+	addFilter: () => void;
+	removeFilter: (id: string) => void;
 	addFilterListValue: (id: string) => void;
 	updateFilterListValue: (id: string, valueIndex: number, nextValue: string) => void;
 	removeFilterListValue: (id: string, valueIndex: number) => void;
 };
 
+function mapAppliedFilterToCondition(
+	filter: FilterInput,
+	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption
+): FilterCondition {
+	const columnConfig = getResolvedFilterColumnConfig(filter.column);
+	const values = Array.isArray(filter.value) ? filter.value.map(value => {
+		if(columnConfig.valueType != "date")
+			return String(value);
+		const parsed = parseFilterDateValue(String(value));
+		return parsed == null ? String(value) : formatFilterDateInput(parsed);
+	}) : [];
+	const parsedDate = !Array.isArray(filter.value) && columnConfig.valueType == "date" && typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null;
+
+	return {
+		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+		column: filter.column,
+		operator: filter.operator,
+		joinWithPrevious: filter.joinWithPrevious ?? defaultFilterCombinator,
+		value: Array.isArray(filter.value) || filter.value == null ? "" : String(filter.value),
+		values,
+		existsValue: filter.value == false ? "false" : "true",
+		dateValue: parsedDate,
+		listDateValue: null,
+		dateText: formatFilterDateOnlyInput(parsedDate),
+		listDateText: ""
+	};
+}
+
+function createFilterConditionsFromAppliedFilters(
+	appliedFilters: FilterInput[],
+	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption
+): FilterCondition[] {
+	if(appliedFilters.length == 0)
+		return [];
+
+	return appliedFilters.map(filter => mapAppliedFilterToCondition(filter, getResolvedFilterColumnConfig));
+}
+
+declare global {
+	interface Window {
+		__roleDashboardFilters?: string;
+	}
+}
+
 export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRoleRequestFiltersOptions): UseRoleRequestFiltersResult {
+	const pathname = usePathname();
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const searchParamsKey = searchParams.toString();
 	const [isFilterOpen, setIsFilterOpen] = useState(false);
-	const [filterDrafts, setFilterDrafts] = useState<FilterDraft[]>([]);
-	const [filterDraftCombinators, setFilterDraftCombinators] = useState<FilterCombinator[]>([]);
+	const [filters, setFilters0] = useState<FilterCondition[]>([]);
+	const setFilters = useCallback((v: FilterCondition[] | ((o: FilterCondition[]) => FilterCondition[])) => {
+		if(typeof v != "function") {
+			window.__roleDashboardFilters = JSON.stringify(v);
+			setFilters0(v);
+			return;
+		}
+		setFilters0(o => {
+			const n = v(o);
+			window.__roleDashboardFilters = JSON.stringify(n);
+			return n;
+		});
+	}, [setFilters0]);
+	const [isFilterStateHydrated, setIsFilterStateHydrated] = useState(false);
 
 	useEffect(() => {
-		if(typeof window == "undefined")
-			return;
-		const rawFilters = window.localStorage.getItem(ROLE_FILTER_PREFERENCES_KEY);
-		if(rawFilters == null)
-			return;
-
-		try {
-			const parsed = JSON.parse(rawFilters) as { drafts?: unknown, combinators?: unknown };
-			const restoredDrafts = Array.isArray(parsed.drafts) ? parsed.drafts
-				.map(parseStoredFilterDraft)
-				.filter((draft): draft is FilterDraft => draft != null) : [];
-
-			const restoredCombinators = Array.isArray(parsed.combinators) ? parsed.combinators
-				.filter((value): value is FilterCombinator => value == "and" || value == "or") : [];
-
-			if(restoredDrafts.length == 0) {
-				setFilterDrafts([]);
-				setFilterDraftCombinators([]);
+		const nextSearchParams = new URLSearchParams(searchParamsKey);
+		const pendingNavigation = consumePendingRelationFilterNavigation("role-management");
+		const relationFilters = pendingNavigation?.relationFiltersJson ?? nextSearchParams.get(RELATION_FILTER_QUERY_PARAM) ?? window.__roleDashboardFilters ?? null;
+		if(relationFilters != null) {
+			try {
+				const parsed = JSON.parse(relationFilters) as unknown;
+				const parsedFilters = Array.isArray(parsed) ? parsed.filter((filter): filter is FilterInput => (
+					filter != null &&
+					typeof filter == "object" &&
+					typeof (filter as { column?: unknown }).column == "string" &&
+					typeof (filter as { operator?: unknown }).operator == "string"
+				)) : [];
+				const restoredFilters = createFilterConditionsFromAppliedFilters(parsedFilters, getResolvedFilterColumnConfig);
+				setFilters(restoredFilters);
+				if(restoredFilters.length > 0)
+					setIsFilterOpen(true);
+				setIsFilterStateHydrated(true);
+				return;
+			} catch{
+				setFilters([]);
+				setIsFilterOpen(false);
+				setIsFilterStateHydrated(true);
 				return;
 			}
-
-			setFilterDrafts(restoredDrafts);
-			const combinatorCount = Math.max(restoredDrafts.length - 1, 0);
-			setFilterDraftCombinators(Array.from({ length: combinatorCount }, (_, index) => (
-				restoredCombinators[index] ?? defaultFilterCombinator
-			)));
-		} catch{
-			setFilterDrafts([]);
-			setFilterDraftCombinators([]);
 		}
-	}, []);
 
-	useEffect(() => {
-		if(typeof window == "undefined")
-			return;
-		window.localStorage.setItem(ROLE_FILTER_PREFERENCES_KEY, JSON.stringify({
-			drafts: filterDrafts.map(serializeFilterDraftForStorage),
-			combinators: filterDraftCombinators
-		}));
-	}, [filterDraftCombinators, filterDrafts]);
+		setFilters([]);
+		setIsFilterOpen(false);
+		setIsFilterStateHydrated(true);
+	}, [getResolvedFilterColumnConfig, searchParamsKey]);
 
 	const normalizeFilterItemValue = (columnConfig: FilterColumnOption, rawValue: string): string | boolean | null => {
 		if(columnConfig.valueType == "boolean")
@@ -1452,7 +1554,7 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 		return trimmed.length > 0 ? trimmed : null;
 	};
 
-	const createListDraftValue = (columnConfig: FilterColumnOption): string => {
+	const createFilterListValue = (columnConfig: FilterColumnOption): string => {
 		if(columnConfig.valueType == "boolean")
 			return "true";
 		if(columnConfig.valueType == "select")
@@ -1462,59 +1564,88 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 		return "";
 	};
 
-	const buildFilterPayload = (draft: FilterDraft): FilterInput | null => {
-		const columnConfig = getResolvedFilterColumnConfig(draft.column);
-		if(draft.operator == "exists") {
+	const buildFilterPayload = (filterCondition: FilterCondition): FilterInput | null => {
+		const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
+		if(filterCondition.operator == "exists") {
 			return {
-				column: draft.column,
-				operator: draft.operator,
-				value: draft.existsValue == "true"
+				column: filterCondition.column,
+				operator: filterCondition.operator,
+				value: filterCondition.existsValue == "true"
 			};
 		}
 
-		if(draft.operator == "in" || draft.operator == "not_in") {
-			const values = draft.values
+		if(filterCondition.operator == "in" || filterCondition.operator == "not_in") {
+			const values = filterCondition.values
 				.map(value => normalizeFilterItemValue(columnConfig, value))
 				.filter((value): value is string | boolean => value != null);
 			if(values.length == 0)
 				return null;
 			return {
-				column: draft.column,
-				operator: draft.operator,
+				column: filterCondition.column,
+				operator: filterCondition.operator,
 				value: values
 			};
 		}
 
 		if(columnConfig.valueType == "date") {
-			if(draft.dateValue == null)
+			if(filterCondition.dateValue == null)
 				return null;
 			return {
-				column: draft.column,
-				operator: draft.operator,
-				value: draft.dateValue.toISOString()
+				column: filterCondition.column,
+				operator: filterCondition.operator,
+				value: filterCondition.dateValue.toISOString()
 			};
 		}
 
-		const scalar = normalizeFilterItemValue(columnConfig, draft.value);
+		const scalar = normalizeFilterItemValue(columnConfig, filterCondition.value);
 		if(scalar == null)
 			return null;
 
 		return {
-			column: draft.column,
-			operator: draft.operator,
+			column: filterCondition.column,
+			operator: filterCondition.operator,
 			value: scalar
 		};
 	};
 
 	const appliedFilters = useMemo(() => {
-		const nextFilters = filterDrafts
-			.map(buildFilterPayload)
-			.filter((value): value is FilterInput => value != null);
-		return nextFilters.map((filter, index) => ({
-			...filter,
-			joinWithPrevious: index == 0 ? undefined : (filterDraftCombinators[index - 1] ?? defaultFilterCombinator)
-		}));
-	}, [filterDraftCombinators, filterDrafts]);
+		const nextFilters: FilterInput[] = [];
+		for(const filter of filters) {
+			const payload = buildFilterPayload(filter);
+			if(payload == null)
+				continue;
+
+			nextFilters.push({
+				...payload,
+				joinWithPrevious: nextFilters.length == 0 ? undefined : (filter.joinWithPrevious ?? defaultFilterCombinator)
+			});
+		}
+
+		return nextFilters;
+	}, [filters]);
+
+	useEffect(() => {
+		if(!isFilterStateHydrated)
+			return;
+		const currentSearchKey = searchParamsKey;
+		const nextSearchParams = new URLSearchParams(currentSearchKey);
+
+		if(appliedFilters.length > 0)
+			nextSearchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(appliedFilters));
+		else
+			nextSearchParams.delete(RELATION_FILTER_QUERY_PARAM);
+
+		const nextSearch = nextSearchParams.toString();
+		if(nextSearch == currentSearchKey)
+			return;
+		const nextUrl = `${pathname}${nextSearch.length > 0 ? `?${nextSearch}` : ""}`;
+		const handle = window.setTimeout(() => {
+			window.history.replaceState(null, "", nextUrl);
+		});
+		return () => {
+			window.clearTimeout(handle);
+		};
+	}, [appliedFilters, isFilterStateHydrated, pathname, router, searchParamsKey]);
 
 	const filterSummaryItems = useMemo(() => (
 		appliedFilters.map((filter, index) => {
@@ -1553,67 +1684,32 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 		})
 	), [appliedFilters, getResolvedFilterColumnConfig]);
 
-	const openFilterDialog = () => {
-		if(appliedFilters.length == 0) {
-			setFilterDrafts([]);
-			setFilterDraftCombinators([]);
-			setIsFilterOpen(true);
-			return;
-		}
-
-		setFilterDraftCombinators(appliedFilters.slice(1).map(filter => filter.joinWithPrevious ?? defaultFilterCombinator));
-		setFilterDrafts(appliedFilters.map(filter => {
-			const columnConfig = getResolvedFilterColumnConfig(filter.column);
-			const values = Array.isArray(filter.value) ? filter.value.map(value => {
-				if(columnConfig.valueType != "date")
-					return String(value);
-				const parsed = parseFilterDateValue(String(value));
-				return parsed == null ? String(value) : formatFilterDateInput(parsed);
-			}) : [];
-			const parsedDate = !Array.isArray(filter.value) && columnConfig.valueType == "date" && typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null;
-			return {
-				id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-				column: filter.column,
-				operator: filter.operator,
-				value: Array.isArray(filter.value) || filter.value == null ? "" : String(filter.value),
-				values,
-				existsValue: filter.value == false ? "false" : "true",
-				dateValue: parsedDate,
-				listDateValue: null,
-				dateText: formatFilterDateOnlyInput(parsedDate),
-				listDateText: ""
-			};
-		}));
-		setIsFilterOpen(true);
-	};
-
 	const toggleFilterPanel = () => {
 		if(isFilterOpen) {
 			setIsFilterOpen(false);
 			return;
 		}
-		openFilterDialog();
+		setIsFilterOpen(true);
 	};
 
 	const clearFilter = () => {
-		setFilterDrafts([]);
-		setFilterDraftCombinators([]);
+		setFilters([]);
 	};
 
-	const updateFilterCombinator = (index: number, combinator: FilterCombinator) => {
-		setFilterDraftCombinators(previous => previous.map((value, valueIndex) => valueIndex == index ? combinator : value));
+	const updateFilterJoinWithPrevious = (id: string, combinator: FilterCombinator) => {
+		setFilters(previous => previous.map(filter => filter.id == id ? { ...filter, joinWithPrevious: combinator } : filter));
 	};
 
-	const updateFilterDraft = (id: string, updater: (draft: FilterDraft) => FilterDraft) => {
-		setFilterDrafts(previous => previous.map(draft => draft.id == id ? updater(draft) : draft));
+	const updateFilter = (id: string, updater: (filterCondition: FilterCondition) => FilterCondition) => {
+		setFilters(previous => previous.map(filterCondition => filterCondition.id == id ? updater(filterCondition) : filterCondition));
 	};
 
 	const handleFilterColumnChange = (id: string, column: FilterColumn) => {
 		const nextColumnConfig = getResolvedFilterColumnConfig(column);
-		updateFilterDraft(id, draft => ({
-			...draft,
+		updateFilter(id, filterCondition => ({
+			...filterCondition,
 			column,
-			operator: nextColumnConfig.operators.includes(draft.operator) ? draft.operator : nextColumnConfig.operators[0],
+			operator: nextColumnConfig.operators.includes(filterCondition.operator) ? filterCondition.operator : nextColumnConfig.operators[0],
 			value: "",
 			values: [],
 			dateValue: null,
@@ -1625,8 +1721,8 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 	};
 
 	const handleFilterOperatorChange = (id: string, operator: FilterColumnOption["operators"][number]) => {
-		updateFilterDraft(id, draft => ({
-			...draft,
+		updateFilter(id, filterCondition => ({
+			...filterCondition,
 			operator,
 			value: "",
 			values: [],
@@ -1638,75 +1734,60 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 		}));
 	};
 
-	const addFilterDraft = () => {
-		setFilterDrafts(previous => [...previous, createFilterDraft()]);
-		setFilterDraftCombinators(previous => [...previous, defaultFilterCombinator]);
+	const addFilter = () => {
+		setFilters(previous => [...previous, createFilterCondition()]);
 	};
 
-	const removeFilterDraft = (id: string) => {
-		setFilterDrafts(previous => {
-			const removeIndex = previous.findIndex(draft => draft.id == id);
-			if(removeIndex == -1 || previous.length <= 1) {
-				setFilterDraftCombinators([]);
-				return [];
-			}
-
-			setFilterDraftCombinators(combinators => {
-				if(removeIndex == 0)
-					return combinators.slice(1);
-				if(removeIndex == previous.length - 1)
-					return combinators.slice(0, combinators.length - 1);
-				return combinators.filter((_, index) => index != removeIndex);
-			});
-
-			return previous.filter(draft => draft.id != id);
-		});
+	const removeFilter = (id: string) => {
+		setFilters(previous => previous.filter(filterCondition => filterCondition.id != id));
 	};
 
 	const addFilterListValue = (id: string) => {
-		setFilterDrafts(previous => previous.map(draft => {
-			if(draft.id != id)
-				return draft;
-			if(draft.operator != "in" && draft.operator != "not_in")
-				return draft;
+		setFilters(previous => previous.map(filterCondition => {
+			if(filterCondition.id != id)
+				return filterCondition;
+			if(filterCondition.operator != "in" && filterCondition.operator != "not_in")
+				return filterCondition;
 
-			const columnConfig = getResolvedFilterColumnConfig(draft.column);
+			const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
 			return {
-				...draft,
-				values: [...draft.values, createListDraftValue(columnConfig)]
+				...filterCondition,
+				values: [...filterCondition.values, createFilterListValue(columnConfig)]
 			};
 		}));
 	};
 
 	const updateFilterListValue = (id: string, valueIndex: number, nextValue: string) => {
-		updateFilterDraft(id, draft => ({
-			...draft,
-			values: draft.values.map((value, index) => index == valueIndex ? nextValue : value)
+		updateFilter(id, filterCondition => ({
+			...filterCondition,
+			values: filterCondition.values.map((value, index) => index == valueIndex ? nextValue : value)
 		}));
 	};
 
 	const removeFilterListValue = (id: string, valueIndex: number) => {
-		updateFilterDraft(id, draft => ({
-			...draft,
-			values: draft.values.filter((_, index) => index != valueIndex)
+		updateFilter(id, filterCondition => ({
+			...filterCondition,
+			values: filterCondition.values.filter((_, index) => index != valueIndex)
 		}));
 	};
 
+	const isFilterStateReady = isFilterStateHydrated;
+
 	return {
 		isFilterOpen,
+		isFilterStateReady,
 		setIsFilterOpen,
 		toggleFilterPanel,
 		clearFilter,
 		appliedFilters,
 		filterSummaryItems,
-		filterDrafts,
-		filterDraftCombinators,
-		updateFilterCombinator,
-		updateFilterDraft,
+		filters,
+		updateFilterJoinWithPrevious,
+		updateFilter,
 		handleFilterColumnChange,
 		handleFilterOperatorChange,
-		addFilterDraft,
-		removeFilterDraft,
+		addFilter,
+		removeFilter,
 		addFilterListValue,
 		updateFilterListValue,
 		removeFilterListValue
@@ -1721,6 +1802,7 @@ type UseRoleRequestsQueryOptions = {
 	debouncedKeyword: string;
 	sortTokens: string[];
 	appliedFilters: FilterInput[];
+	isFilterStateReady: boolean;
 	includeSoftDeleted: boolean;
 };
 
@@ -1730,11 +1812,13 @@ export function useRoleRequestsQuery({
 	debouncedKeyword,
 	sortTokens,
 	appliedFilters,
+	isFilterStateReady,
 	includeSoftDeleted
 }: UseRoleRequestsQueryOptions) {
 	const [pageIndex, setPageIndex] = useState(1);
 
 	const rolesQuery = useQuery({
+		enabled: isFilterStateReady,
 		queryKey: ["role-management", "roles", {
 			queryScope,
 			debouncedKeyword,
@@ -1767,7 +1851,7 @@ export function useRoleRequestsQuery({
 	}, [pageIndex, rolesQuery.data, rolesQuery.isFetching]);
 
 	const queryResult = rolesQuery.data ?? emptyQueryResult;
-	const isLoading = rolesQuery.isPending;
+	const isLoading = !isFilterStateReady || rolesQuery.isPending;
 	const queryErrorMessage = rolesQuery.error instanceof Error ? rolesQuery.error.message : rolesQuery.error != null ? "Failed to load role requests." : null;
 
 	return {

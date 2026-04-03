@@ -8,6 +8,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
+import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
 import * as roleActions from "../layout.actions";
 import { RoleActiveFiltersSummary } from "../layout.components";
 import { RoleColumnConfigCard } from "../layout.components";
@@ -36,6 +37,7 @@ export default function RoleManagementApproverPage() {
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
 	const [isMutating, startMutationTransition] = useTransition();
+	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useRoleColumnPreferences();
 	const queryState = useRoleManagementQueryState();
 	const { getResolvedFilterColumnConfig } = useRoleFilterColumnConfig();
@@ -53,6 +55,7 @@ export default function RoleManagementApproverPage() {
 		debouncedKeyword: queryState.debouncedKeyword,
 		sortTokens: queryState.sortTokens,
 		appliedFilters: filters.appliedFilters,
+		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted: false
 	});
 	const {
@@ -62,7 +65,15 @@ export default function RoleManagementApproverPage() {
 		docs: queryResult.docs,
 		visibleColumns: columnPreferences.visibleColumns
 	});
-	const renderRoleCell = useRoleCellRenderer({ relationValuesByRowId, isRelationLoading });
+	const renderRoleCell = useRoleCellRenderer({
+		relationValuesByRowId,
+		isRelationLoading,
+		relationNavigation: {
+			getHrefBase: relationNavigation.getTargetHrefBase,
+			onRelationLinkClick: relationNavigation.onRelationLinkClick,
+			onOpenSummary: relationNavigation.openSummary
+		}
+	});
 	const displayError = queryErrorMessage != null ? {
 		title: "Error",
 		message: queryErrorMessage
@@ -217,6 +228,8 @@ export default function RoleManagementApproverPage() {
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}
 			/>
+
+			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>
 	);
 }

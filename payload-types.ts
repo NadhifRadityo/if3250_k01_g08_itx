@@ -200,12 +200,15 @@ export interface Role {
   level: 'admin' | 'manager' | 'supervisor' | 'officer';
   menus: (
     | 'user-management-viewer'
+    | 'user-management-auditor'
     | 'user-management-editor'
     | 'user-management-approver'
     | 'role-management-viewer'
+    | 'role-management-auditor'
     | 'role-management-editor'
     | 'role-management-approver'
     | 'team-management-viewer'
+    | 'team-management-auditor'
     | 'team-management-editor'
     | 'team-management-approver'
   )[];

@@ -8,6 +8,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
+import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
 import * as teamActions from "../layout.actions";
 import { TeamActiveFiltersSummary } from "../layout.components";
 import { TeamColumnConfigCard } from "../layout.components";
@@ -36,6 +37,7 @@ export default function TeamManagementApproverPage() {
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
 	const [isMutating, startMutationTransition] = useTransition();
+	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useTeamColumnPreferences();
 	const queryState = useTeamManagementQueryState();
 	const { getResolvedFilterColumnConfig } = useTeamFilterColumnConfig();
@@ -53,6 +55,7 @@ export default function TeamManagementApproverPage() {
 		debouncedKeyword: queryState.debouncedKeyword,
 		sortTokens: queryState.sortTokens,
 		appliedFilters: filters.appliedFilters,
+		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted: false
 	});
 	const {
@@ -62,7 +65,15 @@ export default function TeamManagementApproverPage() {
 		docs: queryResult.docs,
 		visibleColumns: columnPreferences.visibleColumns
 	});
-	const renderTeamCell = useTeamCellRenderer({ relationValuesByRowId, isRelationLoading });
+	const renderTeamCell = useTeamCellRenderer({
+		relationValuesByRowId,
+		isRelationLoading,
+		relationNavigation: {
+			getHrefBase: relationNavigation.getTargetHrefBase,
+			onRelationLinkClick: relationNavigation.onRelationLinkClick,
+			onOpenSummary: relationNavigation.openSummary
+		}
+	});
 	const displayError = queryErrorMessage != null ? {
 		title: "Error",
 		message: queryErrorMessage
@@ -216,6 +227,8 @@ export default function TeamManagementApproverPage() {
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}
 			/>
+
+			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>
 	);
 }

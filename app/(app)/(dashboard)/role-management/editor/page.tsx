@@ -9,6 +9,7 @@ import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
+import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
 import * as roleActions from "../layout.actions";
 import { RoleActiveFiltersSummary } from "../layout.components";
 import { RoleColumnConfigCard } from "../layout.components";
@@ -43,6 +44,7 @@ export default function RoleManagementEditorPage() {
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<RoleTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
+	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useRoleColumnPreferences();
 	const queryState = useRoleManagementQueryState();
 	const { getResolvedFilterColumnConfig } = useRoleFilterColumnConfig();
@@ -62,6 +64,7 @@ export default function RoleManagementEditorPage() {
 		debouncedKeyword: queryState.debouncedKeyword,
 		sortTokens: queryState.sortTokens,
 		appliedFilters: filters.appliedFilters,
+		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted
 	});
 	const {
@@ -71,7 +74,15 @@ export default function RoleManagementEditorPage() {
 		docs: queryResult.docs,
 		visibleColumns: columnPreferences.visibleColumns
 	});
-	const renderRoleCell = useRoleCellRenderer({ relationValuesByRowId, isRelationLoading });
+	const renderRoleCell = useRoleCellRenderer({
+		relationValuesByRowId,
+		isRelationLoading,
+		relationNavigation: {
+			getHrefBase: relationNavigation.getTargetHrefBase,
+			onRelationLinkClick: relationNavigation.onRelationLinkClick,
+			onOpenSummary: relationNavigation.openSummary
+		}
+	});
 	const displayError = errorMessage ?? (queryErrorMessage != null ? {
 		title: "Error",
 		message: queryErrorMessage
@@ -330,6 +341,8 @@ export default function RoleManagementEditorPage() {
 				}}
 				isMutating={isMutating}
 			/>
+
+			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>
 	);
 }

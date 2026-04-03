@@ -9,6 +9,7 @@ import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
+import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
 import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
@@ -41,6 +42,7 @@ export default function UserManagementEditorPage() {
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<StagedUserTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
+	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useUserColumnPreferences();
 	const queryState = useUserManagementQueryState();
 	const {
@@ -64,6 +66,7 @@ export default function UserManagementEditorPage() {
 		debouncedKeyword: queryState.debouncedKeyword,
 		sortTokens: queryState.sortTokens,
 		appliedFilters: filters.appliedFilters,
+		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted
 	});
 	const {
@@ -73,7 +76,15 @@ export default function UserManagementEditorPage() {
 		docs: queryResult.docs,
 		visibleColumns: columnPreferences.visibleColumns
 	});
-	const renderUserCell = useUserCellRenderer({ relationValuesByRowId, isRelationLoading });
+	const renderUserCell = useUserCellRenderer({
+		relationValuesByRowId,
+		isRelationLoading,
+		relationNavigation: {
+			getHrefBase: relationNavigation.getTargetHrefBase,
+			onRelationLinkClick: relationNavigation.onRelationLinkClick,
+			onOpenSummary: relationNavigation.openSummary
+		}
+	});
 	const displayError = errorMessage ?? (queryErrorMessage != null ? {
 		title: "Error",
 		message: queryErrorMessage
@@ -331,6 +342,8 @@ export default function UserManagementEditorPage() {
 				}}
 				isMutating={isMutating}
 			/>
+
+			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
 		</>
 	);
 }

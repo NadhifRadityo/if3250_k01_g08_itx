@@ -5,6 +5,7 @@ import { CircleAlertIcon } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
+import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
 import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
@@ -19,6 +20,7 @@ import { useUserRequestFilters } from "../layout.components";
 import { useUserRequestsQuery } from "../layout.components";
 
 export default function UserManagementViewerPage() {
+	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useUserColumnPreferences();
 	const queryState = useUserManagementQueryState();
 	const { getResolvedFilterColumnConfig } = useUserFilterColumnConfig();
@@ -36,6 +38,7 @@ export default function UserManagementViewerPage() {
 		debouncedKeyword: queryState.debouncedKeyword,
 		sortTokens: queryState.sortTokens,
 		appliedFilters: filters.appliedFilters,
+		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted: false
 	});
 	const {
@@ -45,80 +48,92 @@ export default function UserManagementViewerPage() {
 		docs: queryResult.docs,
 		visibleColumns: columnPreferences.visibleColumns
 	});
-	const renderUserCell = useUserCellRenderer({ relationValuesByRowId, isRelationLoading });
+	const renderUserCell = useUserCellRenderer({
+		relationValuesByRowId,
+		isRelationLoading,
+		relationNavigation: {
+			getHrefBase: relationNavigation.getTargetHrefBase,
+			onRelationLinkClick: relationNavigation.onRelationLinkClick,
+			onOpenSummary: relationNavigation.openSummary
+		}
+	});
 	const displayError = queryErrorMessage != null ? {
 		title: "Error",
 		message: queryErrorMessage
 	} : null;
 
 	return (
-		<DashboardManagementPageFrame
-			title="User Management"
-			description="View staged user requests without edit or review actions."
-		>
-			<DashboardManagementToolbar
-				keyword={queryState.keyword}
-				onKeywordChange={queryState.setKeyword}
-				searchPlaceholder="Search staged users by name, email, or employee ID"
-				filterCount={filters.appliedFilters.length}
-				onToggleFilter={filters.toggleFilterPanel}
-				onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
-				isLoading={isLoading}
-				isMutating={false}
-			/>
+		<>
+			<DashboardManagementPageFrame
+				title="User Management"
+				description="View staged user requests without edit or review actions."
+			>
+				<DashboardManagementToolbar
+					keyword={queryState.keyword}
+					onKeywordChange={queryState.setKeyword}
+					searchPlaceholder="Search staged users by name, email, or employee ID"
+					filterCount={filters.appliedFilters.length}
+					onToggleFilter={filters.toggleFilterPanel}
+					onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
+					isLoading={isLoading}
+					isMutating={false}
+				/>
 
-			<UserRequestFilterCard
-				isLoading={isLoading}
-				isMutating={false}
-				filters={filters}
-				getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
-			/>
+				<UserRequestFilterCard
+					isLoading={isLoading}
+					isMutating={false}
+					filters={filters}
+					getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
+				/>
 
-			<UserColumnConfigCard
-				isOpen={columnPreferences.isColumnOpen}
-				onOpenChange={columnPreferences.setIsColumnOpen}
-				orderedColumns={columnPreferences.orderedColumns}
-				hiddenColumnIds={columnPreferences.hiddenColumnIds}
-				visibleColumnCount={columnPreferences.visibleColumns.length}
-				onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
-				onReset={columnPreferences.resetColumnPreferences}
-				onColumnDragStart={columnPreferences.handleColumnDragStart}
-				onColumnDragOver={columnPreferences.handleColumnDragOver}
-				onColumnDragEnd={columnPreferences.handleColumnDragEnd}
-			/>
+				<UserColumnConfigCard
+					isOpen={columnPreferences.isColumnOpen}
+					onOpenChange={columnPreferences.setIsColumnOpen}
+					orderedColumns={columnPreferences.orderedColumns}
+					hiddenColumnIds={columnPreferences.hiddenColumnIds}
+					visibleColumnCount={columnPreferences.visibleColumns.length}
+					onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
+					onReset={columnPreferences.resetColumnPreferences}
+					onColumnDragStart={columnPreferences.handleColumnDragStart}
+					onColumnDragOver={columnPreferences.handleColumnDragOver}
+					onColumnDragEnd={columnPreferences.handleColumnDragEnd}
+				/>
 
-			<UserActiveFiltersSummary items={filters.filterSummaryItems} />
+				<UserActiveFiltersSummary items={filters.filterSummaryItems} />
 
-			{displayError != null ? (
-				<Alert variant="destructive">
-					<CircleAlertIcon />
-					<AlertTitle>{displayError.title}</AlertTitle>
-					<AlertDescription>{displayError.message}</AlertDescription>
-				</Alert>
-			) : null}
+				{displayError != null ? (
+					<Alert variant="destructive">
+						<CircleAlertIcon />
+						<AlertTitle>{displayError.title}</AlertTitle>
+						<AlertDescription>{displayError.message}</AlertDescription>
+					</Alert>
+				) : null}
 
-			<UserRequestsTable
-				queryResult={queryResult}
-				visibleColumns={columnPreferences.visibleColumns}
-				visibleColumnCount={columnPreferences.visibleColumns.length + 1}
-				isLoading={isLoading}
-				isMutating={false}
-				getSortDirection={queryState.getSortDirection}
-				onToggleSortField={queryState.toggleSortField}
-				renderUserCell={renderUserCell}
-				renderActions={() => <span className="text-muted-foreground text-sm">-</span>}
-			/>
+				<UserRequestsTable
+					queryResult={queryResult}
+					visibleColumns={columnPreferences.visibleColumns}
+					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					isLoading={isLoading}
+					isMutating={false}
+					getSortDirection={queryState.getSortDirection}
+					onToggleSortField={queryState.toggleSortField}
+					renderUserCell={renderUserCell}
+					renderActions={() => <span className="text-muted-foreground text-sm">-</span>}
+				/>
 
-			<DashboardManagementPagination
-				pageIndex={pageIndex}
-				totalRequests={queryResult.totalDocs}
-				hasPreviousPage={queryResult.hasPreviousPage}
-				hasNextPage={queryResult.hasNextPage}
-				isLoading={isLoading}
-				isMutating={false}
-				onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
-				onNext={() => setPageIndex(previous => previous + 1)}
-			/>
-		</DashboardManagementPageFrame>
+				<DashboardManagementPagination
+					pageIndex={pageIndex}
+					totalRequests={queryResult.totalDocs}
+					hasPreviousPage={queryResult.hasPreviousPage}
+					hasNextPage={queryResult.hasNextPage}
+					isLoading={isLoading}
+					isMutating={false}
+					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
+					onNext={() => setPageIndex(previous => previous + 1)}
+				/>
+			</DashboardManagementPageFrame>
+
+			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
+		</>
 	);
 }

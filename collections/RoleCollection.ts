@@ -136,12 +136,15 @@ export const Roles = (): CollectionConfig => ({
 			type: "select",
 			options: [
 				{ value: "user-management-viewer", label: "User Management - Viewer" },
+				{ value: "user-management-auditor", label: "User Management - Auditor" },
 				{ value: "user-management-editor", label: "User Management - Editor" },
 				{ value: "user-management-approver", label: "User Management - Approver" },
 				{ value: "role-management-viewer", label: "Role Management - Viewer" },
+				{ value: "role-management-auditor", label: "Role Management - Auditor" },
 				{ value: "role-management-editor", label: "Role Management - Editor" },
 				{ value: "role-management-approver", label: "Role Management - Approver" },
 				{ value: "team-management-viewer", label: "Team Management - Viewer" },
+				{ value: "team-management-auditor", label: "Team Management - Auditor" },
 				{ value: "team-management-editor", label: "Team Management - Editor" },
 				{ value: "team-management-approver", label: "Team Management - Approver" }
 			],
