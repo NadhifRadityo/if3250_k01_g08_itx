@@ -5,6 +5,7 @@ import sharp from "sharp";
 
 import { CreditApplications, CreditApplicationImports, CreditApplicationFieldMasks, CreditApplicationDefaultFieldMask } from "./collections/CreditApplicationCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
+import { Roles } from "./collections/RoleCollection";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
 import { Teams } from "./collections/TeamCollection";
@@ -26,6 +27,7 @@ export default buildConfig({
 	collections: [
 		Users(),
 		StagedUsers(),
+		Roles(),
 		Teams(),
 		CreditApplicationImports(),
 		CreditApplications(),

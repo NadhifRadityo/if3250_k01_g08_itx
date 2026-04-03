@@ -1,10 +1,13 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import cn from "@/utils/cn";
 
 export default function Entry({ children }: { children: React.ReactNode }) {
+	const [queryClient] = useState(() => new QueryClient());
+
 	useEffect(() => {
 		const elementStyle = cn(
 			"not-print:clip-path-[polygon(0%_0%,100%_0%,100%_100%,0%_100%)]",
@@ -161,5 +164,9 @@ export default function Entry({ children }: { children: React.ReactNode }) {
 		};
 	}, []);
 
-	return children;
+	return (
+		<QueryClientProvider client={queryClient}>
+			{children}
+		</QueryClientProvider>
+	);
 }

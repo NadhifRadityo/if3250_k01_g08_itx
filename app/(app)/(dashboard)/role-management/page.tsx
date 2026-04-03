@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback, useTransition, type DragEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { XIcon, PlusIcon, CheckIcon, FilterIcon, PencilIcon, SearchIcon, Trash2Icon, ArrowUpIcon, HistoryIcon, CalendarIcon, Columns3Icon, ArrowDownIcon, ArrowUpDownIcon, GripVerticalIcon } from "lucide-react";
+import { XIcon, Trash2Icon, SearchIcon, PlusIcon, PencilIcon, HistoryIcon, FilterIcon, CheckIcon, ArrowUpIcon, ArrowUpDownIcon, ArrowDownIcon, CalendarIcon, Columns3Icon, GripVerticalIcon } from "lucide-react";
 
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Badge } from "@/components/radix/Badge";
@@ -13,9 +13,9 @@ import { Checkbox } from "@/components/radix/Checkbox";
 import { Collapsible, CollapsibleContent } from "@/components/radix/Collapsible";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupButton } from "@/components/radix/InputGroup";
+import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/radix/InputGroup";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/radix/Popover";
-import { SearchableMultiSelect, SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Switch } from "@/components/radix/Switch";
@@ -23,21 +23,22 @@ import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@
 import { Tabs, TabsList, TabsContent, TabsTrigger } from "@/components/radix/Tabs";
 import { Textarea } from "@/components/radix/Textarea";
 
-import * as teamActions from "./page.actions";
+import * as roleActions from "./page.actions";
 
 const PAGE_SIZE = 20;
 type SortDirection = "asc" | "desc";
-type SortField = teamActions.TeamManagementSortField;
-type FilterColumn = teamActions.TeamManagementFilterColumn;
-type FilterOperator = teamActions.TeamManagementFilterOperator;
-type FilterCombinator = teamActions.TeamManagementFilterCombinator;
-type FilterInput = teamActions.TeamManagementFilterInput;
-type QueryTeamsOutput = Awaited<ReturnType<typeof teamActions.queryTeamsAction>>;
-type TeamTableRow = QueryTeamsOutput["docs"][number];
-type TeamManagementTabMode = Parameters<typeof teamActions.queryTeamsAction>[0]["mode"];
-type AssignableUsers = Awaited<ReturnType<typeof teamActions.searchTeamAssignableUsersAction>>;
-type TeamRelationColumn = teamActions.TeamRelationColumn;
-type TeamRequestReviewDiff = Awaited<ReturnType<typeof teamActions.getTeamRequestReviewDiffAction>>;
+type SortField = roleActions.RoleManagementSortField;
+type FilterColumn = roleActions.RoleManagementFilterColumn;
+type FilterOperator = roleActions.RoleManagementFilterOperator;
+type FilterCombinator = roleActions.RoleManagementFilterCombinator;
+type FilterInput = roleActions.RoleManagementFilterInput;
+type QueryRolesOutput = Awaited<ReturnType<typeof roleActions.queryRolesAction>>;
+type RoleTableRow = QueryRolesOutput["docs"][number];
+type RoleManagementTabMode = Parameters<typeof roleActions.queryRolesAction>[0]["mode"];
+type RoleRelationColumn = roleActions.RoleRelationColumn;
+type RoleRequestReviewDiff = Awaited<ReturnType<typeof roleActions.getRoleRequestReviewDiffAction>>;
+type RoleLevel = roleActions.RoleLevel;
+type RoleMenu = roleActions.RoleMenu;
 type FilterValueType = "text" | "date" | "select" | "boolean";
 type FilterColumnOption = {
 	value: FilterColumn;
@@ -59,25 +60,24 @@ type FilterDraft = {
 	dateText: string;
 	listDateText: string;
 };
-type TeamTableColumnId = "name" |
-	"supervisorName" |
-	"supervisorEmail" |
-	"officerNames" |
-	"officerEmails" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy" |
-	"createdAt" |
-	"updatedAt" |
-	"deletedAt" |
-	"requestType" |
-	"status" |
-	"reviewedAt" |
-	"reviewedByName" |
-	"reviewApproved" |
-	"reviewCommentText";
-type TeamTableColumnConfig = {
-	id: TeamTableColumnId;
+type RoleTableColumnId =
+	| "name"
+	| "level"
+	| "menus"
+	| "createdBy"
+	| "updatedBy"
+	| "deletedBy"
+	| "createdAt"
+	| "updatedAt"
+	| "deletedAt"
+	| "requestType"
+	| "status"
+	| "reviewedAt"
+	| "reviewedByName"
+	| "reviewApproved"
+	| "reviewCommentText";
+type RoleTableColumnConfig = {
+	id: RoleTableColumnId;
 	label: string;
 	sortField?: SortField;
 	headClassName?: string;
@@ -85,18 +85,29 @@ type TeamTableColumnConfig = {
 };
 
 type FormState = {
-	teamId?: string;
+	roleId?: string;
 	name: string;
-	supervisorId: string;
-	officerIds: string[];
+	level: RoleLevel;
+	menus: RoleMenu[];
 };
 
-const emptyAssignableUsers: AssignableUsers = {
-	supervisors: [],
-	officers: []
-};
+const roleLevelOptions: Array<{ value: RoleLevel, label: string }> = [
+	{ value: "admin", label: "Admin" },
+	{ value: "manager", label: "Manager" },
+	{ value: "supervisor", label: "Supervisor" },
+	{ value: "officer", label: "Officer" }
+];
 
-const emptyQueryResult: QueryTeamsOutput = {
+const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
+	{ value: "user-management-editor", label: "User Management - Editor" },
+	{ value: "user-management-approver", label: "User Management - Approver" },
+	{ value: "role-management-editor", label: "Role Management - Editor" },
+	{ value: "role-management-approver", label: "Role Management - Approver" },
+	{ value: "team-management-editor", label: "Team Management - Editor" },
+	{ value: "team-management-approver", label: "Team Management - Approver" }
+];
+
+const emptyQueryResult: QueryRolesOutput = {
 	docs: [],
 	totalDocs: 0,
 	page: 1,
@@ -106,17 +117,15 @@ const emptyQueryResult: QueryTeamsOutput = {
 
 const defaultFormState: FormState = {
 	name: "",
-	supervisorId: "",
-	officerIds: []
+	level: "officer",
+	menus: []
 };
-const TEAM_COLUMN_PREFERENCES_KEY = "team-management-columns-v1";
-const TEAM_FILTER_PREFERENCES_KEY = "team-management-filters-v1";
-const teamTableColumns: TeamTableColumnConfig[] = [
+const ROLE_COLUMN_PREFERENCES_KEY = "role-management-columns-v1";
+const ROLE_FILTER_PREFERENCES_KEY = "role-management-filters-v1";
+const roleTableColumns: RoleTableColumnConfig[] = [
 	{ id: "name", label: "Name", sortField: "name", cellClassName: "font-medium" },
-	{ id: "supervisorName", label: "Supervisor", sortField: "supervisorName" },
-	{ id: "supervisorEmail", label: "Supervisor Email", sortField: "supervisorEmail", cellClassName: "max-w-55 overflow-hidden text-ellipsis whitespace-nowrap" },
-	{ id: "officerNames", label: "Officers", sortField: "officerNames", cellClassName: "max-w-55 overflow-hidden text-ellipsis whitespace-nowrap" },
-	{ id: "officerEmails", label: "Officer Emails", sortField: "officerEmails", cellClassName: "max-w-60 overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ id: "level", label: "Level", sortField: "level" },
+	{ id: "menus", label: "Menus", sortField: "menus", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ id: "createdBy", label: "Created By" },
 	{ id: "updatedBy", label: "Updated By" },
 	{ id: "deletedBy", label: "Deleted By" },
@@ -130,14 +139,10 @@ const teamTableColumns: TeamTableColumnConfig[] = [
 	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
 	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
-const defaultTeamColumnOrder: TeamTableColumnId[] = teamTableColumns.map(column => column.id);
-const defaultTeamVisibleColumns: TeamTableColumnId[] = ["name", "supervisorName", "officerNames", "requestType", "status", "updatedAt", "reviewCommentText"];
-const defaultTeamHiddenColumns: TeamTableColumnId[] = defaultTeamColumnOrder.filter(columnId => !defaultTeamVisibleColumns.includes(columnId));
-const teamRelationColumnSet = new Set<TeamRelationColumn>([
-	"supervisorName",
-	"supervisorEmail",
-	"officerNames",
-	"officerEmails",
+const defaultRoleColumnOrder: RoleTableColumnId[] = roleTableColumns.map(column => column.id);
+const defaultRoleVisibleColumns: RoleTableColumnId[] = ["name", "level", "menus", "requestType", "status", "updatedAt", "reviewCommentText"];
+const defaultRoleHiddenColumns: RoleTableColumnId[] = defaultRoleColumnOrder.filter(columnId => !defaultRoleVisibleColumns.includes(columnId));
+const roleRelationColumnSet = new Set<RoleRelationColumn>([
 	"reviewedByName",
 	"createdBy",
 	"updatedBy",
@@ -158,10 +163,10 @@ const filterOperatorOptions: Array<{ value: FilterOperator, label: string }> = [
 	{ value: "less_than_equal", label: "Is Less Than Or Equal To" }
 ];
 
-const teamFilterColumns: FilterColumnOption[] = [
-	{ value: "name", label: "Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter team name" },
-	{ value: "supervisor", label: "Supervisor", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "officers", label: "Officers", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+const roleFilterColumns: FilterColumnOption[] = [
+	{ value: "name", label: "Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter role name" },
+	{ value: "level", label: "Level", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: roleLevelOptions.map(option => ({ value: option.value, label: option.label })) },
+	{ value: "menus", label: "Menus", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: roleMenuOptions.map(option => ({ value: option.value, label: option.label })) },
 	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
@@ -195,10 +200,10 @@ function dedupeSelectOptions(options: SearchableSelectOption[]): SearchableSelec
 }
 
 function getFilterColumnConfig(column: FilterColumn): FilterColumnOption {
-	return teamFilterColumns.find(option => option.value == column) ?? teamFilterColumns[0];
+	return roleFilterColumns.find(option => option.value == column) ?? roleFilterColumns[0];
 }
 
-function createFilterDraft(column: FilterColumn = teamFilterColumns[0].value): FilterDraft {
+function createFilterDraft(column: FilterColumn = roleFilterColumns[0].value): FilterDraft {
 	const columnConfig = getFilterColumnConfig(column);
 	return {
 		id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
@@ -302,7 +307,7 @@ function formatDateTime(dateValue: string | null) {
 	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
-function getReviewStatus(row: TeamTableRow): { label: string, variant: "default" | "secondary" | "destructive" } {
+function getReviewStatus(row: RoleTableRow): { label: string, variant: "default" | "secondary" | "destructive" } {
 	if(row.reviewedAt == null)
 		return { label: "Pending", variant: "secondary" };
 	if(row.reviewApproved == true)
@@ -310,7 +315,7 @@ function getReviewStatus(row: TeamTableRow): { label: string, variant: "default"
 	return { label: "Rejected", variant: "destructive" };
 }
 
-function reorderColumns(order: TeamTableColumnId[], sourceId: TeamTableColumnId, targetId: TeamTableColumnId): TeamTableColumnId[] {
+function reorderColumns(order: RoleTableColumnId[], sourceId: RoleTableColumnId, targetId: RoleTableColumnId): RoleTableColumnId[] {
 	if(sourceId == targetId)
 		return order;
 	const sourceIndex = order.indexOf(sourceId);
@@ -348,9 +353,9 @@ function parseStoredFilterDraft(rawDraft: unknown): FilterDraft | null {
 		listDateText: string;
 	}>;
 
-	const column = typeof candidate.column == "string" ? candidate.column : teamFilterColumns[0].value;
+	const column = typeof candidate.column == "string" ? candidate.column as FilterColumn : roleFilterColumns[0].value;
 	const columnConfig = getFilterColumnConfig(column);
-	const operator = typeof candidate.operator == "string" && columnConfig.operators.includes(candidate.operator) ? candidate.operator : columnConfig.operators[0];
+	const operator = typeof candidate.operator == "string" && columnConfig.operators.includes(candidate.operator as FilterOperator) ? candidate.operator as FilterOperator : columnConfig.operators[0];
 	const parsedDateValue = typeof candidate.dateValue == "string" ? parseFilterDateValue(candidate.dateValue) : null;
 	const parsedListDateValue = typeof candidate.listDateValue == "string" ? parseFilterDateValue(candidate.listDateValue) : null;
 
@@ -369,7 +374,7 @@ function parseStoredFilterDraft(rawDraft: unknown): FilterDraft | null {
 }
 
 export default function Page() {
-	const [mode, setMode] = useState<TeamManagementTabMode>("editor");
+	const [mode, setMode] = useState<RoleManagementTabMode>("editor");
 	const [keyword, setKeyword] = useState("");
 	const [debouncedKeyword, setDebouncedKeyword] = useState("");
 	const [sortState, setSortState] = useState<Array<{ field: SortField, direction: SortDirection }>>([
@@ -388,14 +393,14 @@ export default function Page() {
 	const [filterDrafts, setFilterDrafts] = useState<FilterDraft[]>([]);
 	const [filterDraftCombinators, setFilterDraftCombinators] = useState<FilterCombinator[]>([]);
 
-	const [deleteTarget, setDeleteTarget] = useState<TeamTableRow | null>(null);
-	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: TeamTableRow, diff: TeamRequestReviewDiff | null } | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<RoleTableRow | null>(null);
+	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: RoleTableRow, diff: RoleRequestReviewDiff | null } | null>(null);
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
 	const [isColumnOpen, setIsColumnOpen] = useState(false);
-	const [columnOrder, setColumnOrder] = useState<TeamTableColumnId[]>(defaultTeamColumnOrder);
-	const [hiddenColumnIds, setHiddenColumnIds] = useState<TeamTableColumnId[]>(defaultTeamHiddenColumns);
-	const [draggedColumnId, setDraggedColumnId] = useState<TeamTableColumnId | null>(null);
+	const [columnOrder, setColumnOrder] = useState<RoleTableColumnId[]>(defaultRoleColumnOrder);
+	const [hiddenColumnIds, setHiddenColumnIds] = useState<RoleTableColumnId[]>(defaultRoleHiddenColumns);
+	const [draggedColumnId, setDraggedColumnId] = useState<RoleTableColumnId | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 
 	const sortTokens = useMemo(() => (
@@ -403,13 +408,13 @@ export default function Page() {
 	), [sortState]);
 
 	const columnById = useMemo(() => Object.fromEntries(
-		teamTableColumns.map(column => [column.id, column])
-	) as Record<TeamTableColumnId, TeamTableColumnConfig>, []);
+		roleTableColumns.map(column => [column.id, column])
+	) as Record<RoleTableColumnId, RoleTableColumnConfig>, []);
 
 	const orderedColumns = useMemo(() => {
 		const normalizedOrder = [
 			...columnOrder.filter(columnId => columnById[columnId] != null),
-			...defaultTeamColumnOrder.filter(columnId => !columnOrder.includes(columnId))
+			...defaultRoleColumnOrder.filter(columnId => !columnOrder.includes(columnId))
 		];
 		return normalizedOrder.map(columnId => columnById[columnId]);
 	}, [columnById, columnOrder]);
@@ -421,13 +426,13 @@ export default function Page() {
 	const visibleRelationColumns = useMemo(() => (
 		visibleColumns
 			.map(column => column.id)
-			.filter((columnId): columnId is TeamRelationColumn => teamRelationColumnSet.has(columnId as TeamRelationColumn))
+			.filter((columnId): columnId is RoleRelationColumn => roleRelationColumnSet.has(columnId as RoleRelationColumn))
 	), [visibleColumns]);
 
 	const includeSoftDeleted = mode == "editor" ? showSoftDeleted : false;
 
-	const teamsQuery = useQuery({
-		queryKey: ["team-management", "teams", {
+	const rolesQuery = useQuery({
+		queryKey: ["role-management", "roles", {
 			mode,
 			debouncedKeyword,
 			sortTokens,
@@ -435,7 +440,7 @@ export default function Page() {
 			pageIndex,
 			includeSoftDeleted
 		}],
-		queryFn: () => teamActions.queryTeamsAction({
+		queryFn: () => roleActions.queryRolesAction({
 			keyword: debouncedKeyword,
 			sort: sortTokens,
 			filters: appliedFilters,
@@ -447,31 +452,21 @@ export default function Page() {
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const queryResult = teamsQuery.data ?? emptyQueryResult;
-	const isLoading = teamsQuery.isPending;
-	const queryErrorMessage = teamsQuery.error instanceof Error ? teamsQuery.error.message : teamsQuery.error != null ? "Failed to load team requests." : null;
+	const queryResult = rolesQuery.data ?? emptyQueryResult;
+	const isLoading = rolesQuery.isPending;
+	const queryErrorMessage = rolesQuery.error instanceof Error ? rolesQuery.error.message : rolesQuery.error != null ? "Failed to load role requests." : null;
 	const displayErrorMessage = errorMessage ?? queryErrorMessage;
 
-	const assignableUsersQuery = useQuery({
-		queryKey: ["team-management", "assignable-users"],
-		queryFn: () => teamActions.searchTeamAssignableUsersAction(""),
+	const filterUsersQuery = useQuery({
+		queryKey: ["role-management", "filter-users"],
+		queryFn: () => roleActions.listRoleFilterUsersAction(),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const reviewerUsersQuery = useQuery({
-		queryKey: ["team-management", "reviewer-users"],
-		queryFn: () => teamActions.listTeamReviewerUsersAction(),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const assignableUsers = assignableUsersQuery.data ?? emptyAssignableUsers as AssignableUsers;
-	const reviewerUsers = reviewerUsersQuery.data ?? [];
+	const filterUsers = filterUsersQuery.data ?? [];
 
 	const relationRows = useMemo(() => queryResult.docs.map(row => ({
 		id: row.id,
-		supervisorId: row.supervisorId,
-		officerIds: row.officerIds,
 		reviewedById: row.reviewedById,
 		createdById: row.createdById,
 		updatedById: row.updatedById,
@@ -479,9 +474,9 @@ export default function Page() {
 	})), [queryResult.docs]);
 
 	const relationsQuery = useQuery({
-		queryKey: ["team-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
+		queryKey: ["role-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
 		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => teamActions.resolveTeamRelationColumnsAction({
+		queryFn: () => roleActions.resolveRoleRelationColumnsAction({
 			rows: relationRows,
 			columns: visibleRelationColumns
 		}),
@@ -491,69 +486,42 @@ export default function Page() {
 
 	const relationValuesByRowId = useMemo(() => Object.fromEntries(
 		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	) as Record<string, Partial<Record<TeamRelationColumn, string>>>, [relationsQuery.data]);
+	) as Record<string, Partial<Record<RoleRelationColumn, string>>>, [relationsQuery.data]);
 	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
 
 	const visibleColumnCount = visibleColumns.length + 1;
-	const supervisorFilterSelectOptions = useMemo(() => dedupeSelectOptions(
-		assignableUsers.supervisors.map(supervisor => ({
-			value: supervisor.id,
-			label: `${supervisor.name} (${supervisor.email})`,
-			keywords: `${supervisor.name} ${supervisor.email}`
-		}))
-	), [assignableUsers.supervisors]);
-	const officerFilterSelectOptions = useMemo(() => dedupeSelectOptions(
-		assignableUsers.officers.map(officer => ({
-			value: officer.id,
-			label: `${officer.name} (${officer.email})`,
-			keywords: `${officer.name} ${officer.email}`
-		}))
-	), [assignableUsers.officers]);
-	const reviewedByFilterSelectOptions = useMemo(() => dedupeSelectOptions(
-		reviewerUsers.map(user => ({
+	const reviewedBySelectOptions = useMemo(() => dedupeSelectOptions(
+		filterUsers.map(user => ({
 			value: user.id,
 			label: `${user.name} (${user.email})`,
 			keywords: `${user.name} ${user.email}`
 		}))
-	), [reviewerUsers]);
+	), [filterUsers]);
 
 	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => {
 		const config = getFilterColumnConfig(column);
-		switch(column) {
-			case "supervisor":
-				return {
-					...config,
-					selectOptions: supervisorFilterSelectOptions.map(option => ({ value: option.value, label: option.label }))
-				};
-			case "officers":
-				return {
-					...config,
-					selectOptions: officerFilterSelectOptions.map(option => ({ value: option.value, label: option.label }))
-				};
-			case "createdBy":
-				return {
-					...config,
-					selectOptions: reviewedByFilterSelectOptions.map(option => ({ value: option.value, label: option.label }))
-				};
-			case "updatedBy":
-				return {
-					...config,
-					selectOptions: reviewedByFilterSelectOptions.map(option => ({ value: option.value, label: option.label }))
-				};
-			case "deletedBy":
-				return {
-					...config,
-					selectOptions: reviewedByFilterSelectOptions.map(option => ({ value: option.value, label: option.label }))
-				};
-			case "reviewedBy":
-				return {
-					...config,
-					selectOptions: reviewedByFilterSelectOptions.map(option => ({ value: option.value, label: option.label }))
-				};
-			default:
-				return config;
-		}
-	}, [officerFilterSelectOptions, reviewedByFilterSelectOptions, supervisorFilterSelectOptions]);
+		if(column == "createdBy")
+			return {
+				...config,
+				selectOptions: reviewedBySelectOptions.map(option => ({ value: option.value, label: option.label }))
+			};
+		if(column == "updatedBy")
+			return {
+				...config,
+				selectOptions: reviewedBySelectOptions.map(option => ({ value: option.value, label: option.label }))
+			};
+		if(column == "deletedBy")
+			return {
+				...config,
+				selectOptions: reviewedBySelectOptions.map(option => ({ value: option.value, label: option.label }))
+			};
+		if(column == "reviewedBy")
+			return {
+				...config,
+				selectOptions: reviewedBySelectOptions.map(option => ({ value: option.value, label: option.label }))
+			};
+		return config;
+	}, [reviewedBySelectOptions]);
 
 	const getFilterSummaryValue = useCallback((filter: FilterInput) => {
 		const columnConfig = getResolvedFilterColumnConfig(filter.column);
@@ -570,6 +538,7 @@ export default function Page() {
 				return String(value);
 			}).join(", ");
 		}
+
 		if(columnConfig.valueType == "date")
 			return formatFilterDateValue(typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null);
 		if(columnConfig.valueType == "boolean")
@@ -589,15 +558,13 @@ export default function Page() {
 		}))
 	), [appliedFilters, getFilterSummaryValue, getResolvedFilterColumnConfig]);
 
-	const officerNameById = useMemo(() => Object.fromEntries(
-		assignableUsers.officers.map(officer => [officer.id, `${officer.name} (${officer.email})`])
-	), [assignableUsers.officers]);
-	const supervisorSelectionOptions = supervisorFilterSelectOptions;
-	const officerSelectionOptions = officerFilterSelectOptions;
+	const selectedMenuLabelByValue = useMemo(() => Object.fromEntries(
+		roleMenuOptions.map(option => [option.value, option.label])
+	) as Record<RoleMenu, string>, []);
 
-	const selectedOfficerLabels = useMemo(() => (
-		formState.officerIds.map(officerId => officerNameById[officerId]).filter((value): value is string => value != null)
-	), [formState.officerIds, officerNameById]);
+	const selectedMenuLabels = useMemo(() => (
+		formState.menus.map(menu => selectedMenuLabelByValue[menu]).filter((value): value is string => value != null)
+	), [formState.menus, selectedMenuLabelByValue]);
 
 	useEffect(() => {
 		const timeout = window.setTimeout(() => {
@@ -613,44 +580,44 @@ export default function Page() {
 	}, [appliedFilters, debouncedKeyword, includeSoftDeleted, mode, sortTokens]);
 
 	useEffect(() => {
-		if(teamsQuery.data == null || teamsQuery.isFetching)
+		if(rolesQuery.data == null || rolesQuery.isFetching)
 			return;
-		if(teamsQuery.data.page != pageIndex)
-			setPageIndex(teamsQuery.data.page);
-	}, [pageIndex, teamsQuery.data, teamsQuery.isFetching]);
+		if(rolesQuery.data.page != pageIndex)
+			setPageIndex(rolesQuery.data.page);
+	}, [pageIndex, rolesQuery.data, rolesQuery.isFetching]);
 
 	useEffect(() => {
 		if(typeof window == "undefined")
 			return;
-		const rawPreferences = window.localStorage.getItem(TEAM_COLUMN_PREFERENCES_KEY);
+		const rawPreferences = window.localStorage.getItem(ROLE_COLUMN_PREFERENCES_KEY);
 		if(rawPreferences == null)
 			return;
 		try {
 			const parsed = JSON.parse(rawPreferences) as { order?: unknown, hidden?: unknown };
-			const parsedOrder = Array.isArray(parsed.order) ? parsed.order.filter((value): value is TeamTableColumnId =>
-				typeof value == "string" && defaultTeamColumnOrder.includes(value as TeamTableColumnId)
+			const parsedOrder = Array.isArray(parsed.order) ? parsed.order.filter((value): value is RoleTableColumnId =>
+				typeof value == "string" && defaultRoleColumnOrder.includes(value as RoleTableColumnId)
 			) : [];
 			const deduplicatedOrder = parsedOrder.filter((columnId, index) => parsedOrder.indexOf(columnId) == index);
 			setColumnOrder([
 				...deduplicatedOrder,
-				...defaultTeamColumnOrder.filter(columnId => !deduplicatedOrder.includes(columnId))
+				...defaultRoleColumnOrder.filter(columnId => !deduplicatedOrder.includes(columnId))
 			]);
 
-			const parsedHidden = Array.isArray(parsed.hidden) ? parsed.hidden.filter((value): value is TeamTableColumnId =>
-				typeof value == "string" && defaultTeamColumnOrder.includes(value as TeamTableColumnId)
+			const parsedHidden = Array.isArray(parsed.hidden) ? parsed.hidden.filter((value): value is RoleTableColumnId =>
+				typeof value == "string" && defaultRoleColumnOrder.includes(value as RoleTableColumnId)
 			) : [];
 			const deduplicatedHidden = parsedHidden.filter((columnId, index) => parsedHidden.indexOf(columnId) == index);
-			setHiddenColumnIds(deduplicatedHidden.slice(0, Math.max(defaultTeamColumnOrder.length - 1, 0)));
-		} catch{
-			setColumnOrder(defaultTeamColumnOrder);
-			setHiddenColumnIds(defaultTeamHiddenColumns);
+			setHiddenColumnIds(deduplicatedHidden.slice(0, Math.max(defaultRoleColumnOrder.length - 1, 0)));
+		} catch {
+			setColumnOrder(defaultRoleColumnOrder);
+			setHiddenColumnIds(defaultRoleHiddenColumns);
 		}
 	}, []);
 
 	useEffect(() => {
 		if(typeof window == "undefined")
 			return;
-		window.localStorage.setItem(TEAM_COLUMN_PREFERENCES_KEY, JSON.stringify({
+		window.localStorage.setItem(ROLE_COLUMN_PREFERENCES_KEY, JSON.stringify({
 			order: columnOrder,
 			hidden: hiddenColumnIds
 		}));
@@ -659,7 +626,7 @@ export default function Page() {
 	useEffect(() => {
 		if(typeof window == "undefined")
 			return;
-		const rawFilters = window.localStorage.getItem(TEAM_FILTER_PREFERENCES_KEY);
+		const rawFilters = window.localStorage.getItem(ROLE_FILTER_PREFERENCES_KEY);
 		if(rawFilters == null)
 			return;
 
@@ -683,7 +650,7 @@ export default function Page() {
 			setFilterDraftCombinators(Array.from({ length: combinatorCount }, (_, index) => (
 				restoredCombinators[index] ?? defaultFilterCombinator
 			)));
-		} catch{
+		} catch {
 			setFilterDrafts([]);
 			setFilterDraftCombinators([]);
 		}
@@ -692,7 +659,7 @@ export default function Page() {
 	useEffect(() => {
 		if(typeof window == "undefined")
 			return;
-		window.localStorage.setItem(TEAM_FILTER_PREFERENCES_KEY, JSON.stringify({
+		window.localStorage.setItem(ROLE_FILTER_PREFERENCES_KEY, JSON.stringify({
 			drafts: filterDrafts.map(serializeFilterDraftForStorage),
 			combinators: filterDraftCombinators
 		}));
@@ -723,7 +690,7 @@ export default function Page() {
 		return <ArrowUpDownIcon className="text-muted-foreground size-3.5" />;
 	};
 
-	const renderSortableTableHead = (columnId: TeamTableColumnId, label: string, field: SortField, className?: string) => (
+	const renderSortableTableHead = (columnId: RoleTableColumnId, label: string, field: SortField, className?: string) => (
 		<TableHead key={columnId} className={className}>
 			<Button
 				type="button"
@@ -739,14 +706,14 @@ export default function Page() {
 		</TableHead>
 	);
 
-	const toggleColumnVisibility = (columnId: TeamTableColumnId, checked: boolean) => {
+	const toggleColumnVisibility = (columnId: RoleTableColumnId, checked: boolean) => {
 		setHiddenColumnIds(previous => {
 			const isHidden = previous.includes(columnId);
 			if(checked)
 				return isHidden ? previous.filter(value => value != columnId) : previous;
 			if(isHidden)
 				return previous;
-			const visibleCount = teamTableColumns.length - previous.length;
+			const visibleCount = roleTableColumns.length - previous.length;
 			if(visibleCount <= 1)
 				return previous;
 			return [...previous, columnId];
@@ -754,15 +721,15 @@ export default function Page() {
 	};
 
 	const resetColumnPreferences = () => {
-		setColumnOrder(defaultTeamColumnOrder);
-		setHiddenColumnIds(defaultTeamHiddenColumns);
+		setColumnOrder(defaultRoleColumnOrder);
+		setHiddenColumnIds(defaultRoleHiddenColumns);
 	};
 
-	const handleColumnDragStart = (columnId: TeamTableColumnId) => {
+	const handleColumnDragStart = (columnId: RoleTableColumnId) => {
 		setDraggedColumnId(columnId);
 	};
 
-	const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, targetColumnId: TeamTableColumnId) => {
+	const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, targetColumnId: RoleTableColumnId) => {
 		event.preventDefault();
 		if(draggedColumnId == null || draggedColumnId == targetColumnId)
 			return;
@@ -880,7 +847,10 @@ export default function Page() {
 		});
 	};
 
-	const normalizeFilterItemValue = (columnConfig: FilterColumnOption, rawValue: string): string | boolean | null => {
+	const normalizeFilterItemValue = (
+		columnConfig: FilterColumnOption,
+		rawValue: string
+	): string | boolean | null => {
 		if(columnConfig.valueType == "boolean")
 			return rawValue == "true" ? true : rawValue == "false" ? false : null;
 		if(columnConfig.valueType == "date") {
@@ -994,7 +964,7 @@ export default function Page() {
 				setErrorMessage(null);
 				try {
 					await action();
-					await queryClient.invalidateQueries({ queryKey: ["team-management"] });
+					await queryClient.invalidateQueries({ queryKey: ["role-management"] });
 				} catch(error) {
 					setErrorMessage(error instanceof Error ? error.message : "Operation failed.");
 				}
@@ -1008,62 +978,69 @@ export default function Page() {
 		setIsFormOpen(true);
 	};
 
-	const openEditDialog = (row: TeamTableRow) => {
+	const openEditDialog = (row: RoleTableRow) => {
 		setFormError(null);
 		setFormState({
-			teamId: row.id,
+			roleId: row.id,
 			name: row.name,
-			supervisorId: row.supervisorId ?? "",
-			officerIds: row.officerIds
+			level: row.level,
+			menus: row.menus
 		});
 		setIsFormOpen(true);
+	};
+
+	const toggleMenu = (menu: RoleMenu) => {
+		setFormState(previous => ({
+			...previous,
+			menus: previous.menus.includes(menu) ?
+				previous.menus.filter(value => value != menu) :
+				[...previous.menus, menu]
+		}));
 	};
 
 	const submitForm = () => {
 		setFormError(null);
 		if(formState.name.trim().length == 0)
-			return setFormError("Team name is required.");
-		if(formState.supervisorId.trim().length == 0)
-			return setFormError("Supervisor is required.");
-		if(formState.officerIds.length == 0)
-			return setFormError("At least one officer is required.");
+			return setFormError("Role name is required.");
+		if(formState.menus.length == 0)
+			return setFormError("At least one menu is required.");
 		runMutation(async () => {
-			await teamActions.upsertTeamRequestAction({
-				teamId: formState.teamId,
+			await roleActions.upsertRoleRequestAction({
+				roleId: formState.roleId,
 				name: formState.name,
-				supervisorId: formState.supervisorId,
-				officerIds: formState.officerIds
+				level: formState.level,
+				menus: formState.menus
 			});
 			setIsFormOpen(false);
 		});
 	};
 
-	const requestDelete = (row: TeamTableRow) => {
+	const requestDelete = (row: RoleTableRow) => {
 		runMutation(async () => {
-			await teamActions.requestDeleteTeamAction(row.id);
+			await roleActions.requestDeleteRoleAction(row.id);
 			setDeleteTarget(null);
 		});
 	};
 
-	const cancelRequest = (row: TeamTableRow) => {
+	const cancelRequest = (row: RoleTableRow) => {
 		runMutation(async () => {
-			await teamActions.cancelTeamRequestAction(row.id);
+			await roleActions.cancelRoleRequestAction(row.id);
 		});
 	};
 
-	const requestRestore = (row: TeamTableRow) => {
+	const requestRestore = (row: RoleTableRow) => {
 		runMutation(async () => {
-			await teamActions.requestRestoreTeamAction(row.id);
+			await roleActions.requestRestoreRoleAction(row.id);
 		});
 	};
 
-	const openReviewDrawer = (row: TeamTableRow) => {
+	const openReviewDrawer = (row: RoleTableRow) => {
 		setReviewReason("");
 		setReviewDrawerState({ row, diff: null });
 		setIsReviewDiffLoading(true);
 		void (async () => {
 			try {
-				const diff = await teamActions.getTeamRequestReviewDiffAction(row.id);
+				const diff = await roleActions.getRoleRequestReviewDiffAction(row.id);
 				setReviewDrawerState(previous => previous != null && previous.row.id == row.id ? { ...previous, diff } : previous);
 			} catch(error) {
 				setReviewDrawerState(null);
@@ -1077,8 +1054,8 @@ export default function Page() {
 	const submitReview = (decision: "approve" | "reject") => {
 		if(reviewDrawerState == null) return;
 		runMutation(async () => {
-			await teamActions.reviewTeamRequestAction({
-				teamId: reviewDrawerState.row.id,
+			await roleActions.reviewRoleRequestAction({
+				roleId: reviewDrawerState.row.id,
 				decision,
 				reason: reviewReason
 			});
@@ -1087,27 +1064,19 @@ export default function Page() {
 		});
 	};
 
-	const renderTeamCell = (columnId: TeamTableColumnId, row: TeamTableRow) => {
+	const renderRoleCell = (columnId: RoleTableColumnId, row: RoleTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "name":
 				return row.name;
-			case "supervisorName":
-				if(isRelationLoading && resolvedValues.supervisorName == null)
-					return <Skeleton className="h-4 w-28" />;
-				return resolvedValues.supervisorName ?? row.supervisorName;
-			case "supervisorEmail":
-				if(isRelationLoading && resolvedValues.supervisorEmail == null)
-					return <Skeleton className="h-4 w-36" />;
-				return resolvedValues.supervisorEmail ?? row.supervisorEmail;
-			case "officerNames":
-				if(isRelationLoading && resolvedValues.officerNames == null)
-					return <Skeleton className="h-4 w-36" />;
-				return resolvedValues.officerNames ?? (row.officerNames.length > 0 ? row.officerNames.join(", ") : "-");
-			case "officerEmails":
-				if(isRelationLoading && resolvedValues.officerEmails == null)
-					return <Skeleton className="h-4 w-40" />;
-				return resolvedValues.officerEmails ?? (row.officerEmails.length > 0 ? row.officerEmails.join(", ") : "-");
+			case "level":
+				return roleLevelOptions.find(option => option.value == row.level)?.label ?? row.level;
+			case "menus": {
+				if(row.menus.length == 0)
+					return "-";
+				const labels = row.menus.map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu);
+				return labels.join(", ");
+			}
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
@@ -1150,12 +1119,12 @@ export default function Page() {
 	return (
 		<main className="bg-muted/30 p-4 md:p-6">
 			<div className="mb-4 space-y-1">
-				<h1 className="text-2xl font-semibold font-serif">Team Management</h1>
-				<p className="text-muted-foreground text-sm">Manage team structure requests with editor and approver workflows for supervisor and officer assignments.</p>
+				<h1 className="text-2xl font-semibold font-serif">Role Management</h1>
+				<p className="text-muted-foreground text-sm">Manage role requests with editor and approver workflows, including level and menu access changes.</p>
 			</div>
 			<Card>
 				<CardContent className="space-y-4">
-					<Tabs value={mode} onValueChange={value => setMode(value as TeamManagementTabMode)}>
+					<Tabs value={mode} onValueChange={value => setMode(value as RoleManagementTabMode)}>
 						<TabsList>
 							<TabsTrigger value="editor">Editor</TabsTrigger>
 							<TabsTrigger value="approver">Approver</TabsTrigger>
@@ -1168,7 +1137,7 @@ export default function Page() {
 										<Input
 											value={keyword}
 											onChange={event => setKeyword(event.target.value)}
-											placeholder="Search teams by team name, supervisor, or officer"
+											placeholder="Search roles by name, level, or menu"
 											className="pl-8"
 										/>
 									</div>
@@ -1185,9 +1154,9 @@ export default function Page() {
 								<div className="flex items-center gap-3">
 									{mode == "editor" ? (
 										<div className="flex items-center gap-2">
-											<label htmlFor="team-show-deleted" className="text-sm">Show Deleted</label>
+											<label htmlFor="role-show-deleted" className="text-sm">Show Deleted</label>
 											<Switch
-												id="team-show-deleted"
+												id="role-show-deleted"
 												checked={showSoftDeleted}
 												onCheckedChange={checked => setShowSoftDeleted(checked)}
 												disabled={isLoading || isMutating}
@@ -1208,7 +1177,7 @@ export default function Page() {
 									<div className="space-y-3 rounded-xl border p-4">
 										<div className="flex items-center justify-between gap-2">
 											<div className="space-y-1">
-												<h3 className="text-sm font-semibold">Filter Team Requests</h3>
+												<h3 className="text-sm font-semibold">Filter Role Requests</h3>
 												<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
 											</div>
 											{appliedFilters.length > 0 ? (
@@ -1250,7 +1219,7 @@ export default function Page() {
 																<Select value={draft.column} onValueChange={value => handleFilterColumnChange(draft.id, value as FilterColumn)}>
 																	<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
 																	<SelectContent>
-																		{teamFilterColumns.map(column => (
+																		{roleFilterColumns.map(column => (
 																			<SelectItem key={column.value} value={column.value}>{column.label}</SelectItem>
 																		))}
 																	</SelectContent>
@@ -1431,14 +1400,14 @@ export default function Page() {
 												<p className="text-muted-foreground text-sm">Toggle visibility and drag cards to reorder columns.</p>
 											</div>
 											<div className="flex items-center gap-2">
-												<p className="text-muted-foreground text-sm">Visible {visibleColumns.length} of {teamTableColumns.length}</p>
+												<p className="text-muted-foreground text-sm">Visible {visibleColumns.length} of {roleTableColumns.length}</p>
 												<Button type="button" variant="outline" size="sm" onClick={resetColumnPreferences}>Reset</Button>
 											</div>
 										</div>
 										<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
 											{orderedColumns.map(column => {
 												const isVisible = !hiddenColumnIds.includes(column.id);
-												const isOnlyVisibleColumn = isVisible && hiddenColumnIds.length >= teamTableColumns.length - 1;
+												const isOnlyVisibleColumn = isVisible && hiddenColumnIds.length >= roleTableColumns.length - 1;
 												return (
 													<div
 														key={column.id}
@@ -1505,12 +1474,12 @@ export default function Page() {
 									<TableBody>
 										{isLoading ? (
 											<TableRow>
-												<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading team requests...</TableCell>
+												<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading role requests...</TableCell>
 											</TableRow>
 										) : null}
 										{!isLoading && queryResult.docs.length == 0 ? (
 											<TableRow>
-												<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No team requests found.</TableCell>
+												<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No role requests found.</TableCell>
 											</TableRow>
 										) : null}
 										{queryResult.docs.map(row => {
@@ -1520,7 +1489,7 @@ export default function Page() {
 												<TableRow key={row.id}>
 													{visibleColumns.map(column => (
 														<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
-															{renderTeamCell(column.id, row)}
+															{renderRoleCell(column.id, row)}
 														</TableCell>
 													))}
 													<TableCell>
@@ -1607,38 +1576,51 @@ export default function Page() {
 			<Drawer open={isFormOpen} onOpenChange={setIsFormOpen} direction="right">
 				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 					<DrawerHeader>
-						<DrawerTitle>{formState.teamId == null ? "Add Team Request" : "Edit Team Request"}</DrawerTitle>
-						<DrawerDescription>Changes in editor mode create pending team requests that require approver review before publication.</DrawerDescription>
+						<DrawerTitle>{formState.roleId == null ? "Add Role Request" : "Edit Role Request"}</DrawerTitle>
+						<DrawerDescription>Changes in editor mode create pending role requests that require approver review before publication.</DrawerDescription>
 					</DrawerHeader>
 					<div className="flex-1 overflow-y-auto px-4">
 						<div className="grid gap-3 pb-4 sm:grid-cols-2">
 							<div className="space-y-2 sm:col-span-2">
-								<label className="text-sm font-medium">Team Name</label>
-								<Input value={formState.name} onChange={event => setFormState(previous => ({ ...previous, name: event.target.value }))} placeholder="Collection Team Alpha" />
+								<label className="text-sm font-medium">Role Name</label>
+								<Input value={formState.name} onChange={event => setFormState(previous => ({ ...previous, name: event.target.value }))} placeholder="Credit Approval Supervisor" />
 							</div>
 							<div className="space-y-2 sm:col-span-2">
-								<label className="text-sm font-medium">Supervisor</label>
-								<SearchableSelect
-									value={formState.supervisorId}
-									onValueChange={value => setFormState(previous => ({ ...previous, supervisorId: value }))}
-									options={supervisorSelectionOptions}
-									placeholder="Select supervisor"
-									searchPlaceholder="Type supervisor name or email"
-								/>
+								<label className="text-sm font-medium">Level</label>
+								<Select value={formState.level} onValueChange={value => setFormState(previous => ({ ...previous, level: value as RoleLevel }))}>
+									<SelectTrigger className="w-full">
+										<SelectValue placeholder="Select level" />
+									</SelectTrigger>
+									<SelectContent>
+										{roleLevelOptions.map(option => (
+											<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 							</div>
 							<div className="space-y-2 sm:col-span-2">
 								<div className="flex items-center justify-between">
-									<label className="text-sm font-medium">Officers</label>
-									<Badge variant="outline">{formState.officerIds.length} selected</Badge>
+									<label className="text-sm font-medium">Menus</label>
+									<Badge variant="outline">{formState.menus.length} selected</Badge>
 								</div>
-								<SearchableMultiSelect
-									values={formState.officerIds}
-									onValuesChange={values => setFormState(previous => ({ ...previous, officerIds: values }))}
-									options={officerSelectionOptions}
-									placeholder="Select officers"
-									searchPlaceholder="Type officer name or email"
-								/>
-								<p className="text-muted-foreground text-xs">{selectedOfficerLabels.length > 0 ? selectedOfficerLabels.join(", ") : "No officers selected."}</p>
+								<div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border p-2">
+									{roleMenuOptions.map(menu => {
+										const selected = formState.menus.includes(menu.value);
+										return (
+											<Button
+												key={menu.value}
+												type="button"
+												variant={selected ? "secondary" : "outline"}
+												onClick={() => toggleMenu(menu.value)}
+												className="h-auto w-full justify-between py-2"
+											>
+												<span className="text-left text-sm">{menu.label}</span>
+												{selected ? <CheckIcon className="size-4" /> : null}
+											</Button>
+										);
+									})}
+								</div>
+								<p className="text-muted-foreground text-xs">{selectedMenuLabels.length > 0 ? selectedMenuLabels.join(", ") : "No menu selected."}</p>
 							</div>
 							{formError != null ? <p className="text-destructive text-sm sm:col-span-2">{formError}</p> : null}
 						</div>

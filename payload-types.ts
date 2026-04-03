@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     users: User;
     'staged-users': StagedUser;
+    roles: Role;
     teams: Team;
     'credit-application-imports': CreditApplicationImport;
     'credit-applications': CreditApplication;
@@ -89,6 +90,7 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
+    roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
@@ -159,7 +161,7 @@ export interface User {
   updatedBy?: (string | null) | User;
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
-  role: 'admin' | 'manager' | 'supervisor' | 'officer';
+  role: string | Role;
   name: string;
   employeeId: string;
   supervisor?: (string | null) | User;
@@ -184,6 +186,51 @@ export interface User {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "roles".
+ */
+export interface Role {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  level: 'admin' | 'manager' | 'supervisor' | 'officer';
+  menus: (
+    | 'user-management-viewer'
+    | 'user-management-editor'
+    | 'user-management-approver'
+    | 'role-management-viewer'
+    | 'role-management-editor'
+    | 'role-management-approver'
+    | 'team-management-viewer'
+    | 'team-management-editor'
+    | 'team-management-approver'
+  )[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "staged-users".
  */
 export interface StagedUser {
@@ -195,7 +242,7 @@ export interface StagedUser {
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
   email: string;
-  role: 'admin' | 'manager' | 'supervisor' | 'officer';
+  role: string | Role;
   initialPassword?: string | null;
   name: string;
   employeeId: string;
@@ -612,6 +659,10 @@ export interface PayloadLockedDocument {
         value: string | StagedUser;
       } | null)
     | ({
+        relationTo: 'roles';
+        value: string | Role;
+      } | null)
+    | ({
         relationTo: 'teams';
         value: string | Team;
       } | null)
@@ -728,6 +779,26 @@ export interface StagedUsersSelect<T extends boolean = true> {
   name?: T;
   employeeId?: T;
   supervisor?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "roles_select".
+ */
+export interface RolesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  level?: T;
+  menus?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;

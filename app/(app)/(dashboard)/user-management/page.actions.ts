@@ -5,7 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { User, StagedUser } from "@/payload-types";
+import type { Role, User, StagedUser } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
 const sortableFields = new Set<UserManagementSortField>([
@@ -29,14 +29,15 @@ const filterableColumns = new Set<UserManagementFilterColumn>([
 	"email",
 	"employeeId",
 	"role",
-	"supervisor.name",
-	"supervisor.email",
+	"supervisor",
 	"createdAt",
+	"createdBy",
 	"updatedAt",
+	"updatedBy",
 	"deletedAt",
+	"deletedBy",
 	"reviewedAt",
-	"reviewedBy.name",
-	"reviewedBy.email",
+	"reviewedBy",
 	"reviewApproved"
 ]);
 const filterOperators = new Set<UserManagementFilterOperator>([
@@ -101,14 +102,15 @@ export type UserManagementFilterColumn = "name" |
 	"email" |
 	"employeeId" |
 	"role" |
-	"supervisor.name" |
-	"supervisor.email" |
+	"supervisor" |
 	"createdAt" |
+	"createdBy" |
 	"updatedAt" |
+	"updatedBy" |
 	"deletedAt" |
+	"deletedBy" |
 	"reviewedAt" |
-	"reviewedBy.name" |
-	"reviewedBy.email" |
+	"reviewedBy" |
 	"reviewApproved";
 export type UserManagementFilterOperator = "equals" |
 	"not_equals" |
@@ -135,7 +137,8 @@ export type StagedUserTableRow = {
 	email: string;
 	name: string;
 	employeeId: string;
-	role: StagedUser["role"];
+	roleId: string | null;
+	roleName: string;
 	supervisorId: string | null;
 	supervisorName: string;
 	isSoftDeleted: boolean;
@@ -180,6 +183,18 @@ export type QueryStagedUsersOutput = {
 	hasPreviousPage: boolean;
 };
 
+export type UserRoleOption = {
+	id: string;
+	name: string;
+	level: Role["level"];
+};
+
+export type UserReviewerOption = {
+	id: string;
+	name: string;
+	email: string;
+};
+
 export type QueryStagedUsersInput = {
 	keyword: string;
 	sort: string[];
@@ -196,7 +211,7 @@ export type UpsertStagedUserRequestInput = {
 	email: string;
 	name: string;
 	employeeId: string;
-	role: StagedUser["role"];
+	roleId: string;
 	supervisorId?: string | null;
 	initialPassword: string;
 };
@@ -402,7 +417,7 @@ function formatReviewDateValue(value: string | null | undefined): string {
 	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
-function formatReviewRoleValue(value: StagedUser["role"] | null | undefined): string {
+function formatReviewRoleValue(value: string | null | undefined): string {
 	if(value == null)
 		return "-";
 	return value;
@@ -443,11 +458,70 @@ async function findUsersByIds(payload: Payload, user: User, ids: string[]): Prom
 	return map;
 }
 
+async function findRolesByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, string>> {
+	if(ids.length == 0)
+		return new Map();
+
+	const rolesResult = await payload.find({
+		collection: "roles",
+		user,
+		overrideAccess: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: Math.max(ids.length, 1),
+		where: {
+			id: {
+				in: ids
+			}
+		},
+		select: {
+			name: true
+		}
+	});
+
+	const map = new Map<string, string>();
+	for(const doc of rolesResult.docs)
+		map.set(String(doc.id), doc.name);
+
+	return map;
+}
+
+async function findActiveRoleOptions(payload: Payload, user: User): Promise<UserRoleOption[]> {
+	const result = await payload.find({
+		collection: "roles",
+		user,
+		overrideAccess: false,
+		pagination: false,
+		depth: 0,
+		limit: 200,
+		sort: "name",
+		where: {
+			and: [
+				{ _status: { equals: "published" } },
+				{ deletedAt: { exists: false } }
+			]
+		},
+		select: {
+			name: true,
+			level: true
+		}
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		name: doc.name,
+		level: doc.level
+	}));
+}
+
 function toPayloadSort(sort: UserManagementSortToken[]): string {
 	return sort.map(token => {
 		const direction = token.startsWith("-") ? "-" : "";
 		const field = token.slice(1) as SortFieldKey;
 		switch(field) {
+			case "role":
+				return `${direction}role.name`;
 			case "requestType":
 				return `${direction}deletedAt`;
 			case "status":
@@ -462,6 +536,42 @@ function toPayloadSort(sort: UserManagementSortToken[]): string {
 				return `${direction}${field}`;
 		}
 	}).join(",");
+}
+
+export async function listUserRoleOptionsAction(): Promise<UserRoleOption[]> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	return findActiveRoleOptions(payload, user);
+}
+
+export async function listUserReviewerOptionsAction(): Promise<UserReviewerOption[]> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		collection: "users",
+		user,
+		overrideAccess: false,
+		pagination: false,
+		depth: 0,
+		limit: 500,
+		sort: "name",
+		select: {
+			name: true,
+			email: true
+		}
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		name: doc.name,
+		email: doc.email
+	}));
 }
 
 function toPayloadFilterWhere(filters: UserManagementFilterInput[]): Where | null {
@@ -567,6 +677,12 @@ export async function searchUserSupervisorsAction(keyword: string): Promise<Arra
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
+	const supervisorRoleIds = (await findActiveRoleOptions(payload, user))
+		.filter(role => role.level == "supervisor")
+		.map(role => role.id);
+	if(supervisorRoleIds.length == 0)
+		return [];
+
 	const normalizedKeyword = keyword.trim();
 	const keywordFilters: Where[] = normalizedKeyword.length > 0 ? [
 		{ email: { like: normalizedKeyword } },
@@ -584,7 +700,7 @@ export async function searchUserSupervisorsAction(keyword: string): Promise<Arra
 		sort: "name",
 		where: {
 			and: [
-				{ role: { equals: "supervisor" } },
+				{ role: { in: supervisorRoleIds } },
 				...(keywordFilters.length > 0 ? [{ or: keywordFilters }] : [])
 			]
 		},
@@ -661,8 +777,13 @@ export async function queryStagedUsersAction({ keyword, sort, filters, filterCom
 
 	const stagedIds = stagedFindResult.docs.map(doc => String(doc.id));
 	const linkedUserIdByStagedId = await queryLinkedUsersByStagedIds(payload, user, stagedIds);
+	const roleIds = [...new Set(stagedFindResult.docs
+		.map(doc => getRelationshipId(doc.role))
+		.filter((value): value is string => value != null))];
+	const roleNamesById = await findRolesByIds(payload, user, roleIds);
 
 	const mappedRows: StagedUserTableRow[] = stagedFindResult.docs.map(doc => {
+		const roleId = getRelationshipId(doc.role);
 		const supervisorId = getRelationshipId(doc.supervisor);
 		const reviewedById = getRelationshipId(doc.reviewedBy);
 		const createdById = getRelationshipId(doc.createdBy);
@@ -675,7 +796,8 @@ export async function queryStagedUsersAction({ keyword, sort, filters, filterCom
 			email: doc.email,
 			name: doc.name,
 			employeeId: doc.employeeId,
-			role: doc.role,
+			roleId,
+			roleName: roleId != null ? (roleNamesById.get(roleId) ?? roleId) : "-",
 			supervisorId,
 			supervisorName: "-",
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
@@ -762,6 +884,7 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 	const email = input.email.trim();
 	const name = input.name.trim();
 	const employeeId = input.employeeId.trim();
+	const roleId = input.roleId.trim();
 	const supervisorId = (input.supervisorId ?? "").trim();
 	const initialPassword = input.initialPassword.trim();
 
@@ -771,8 +894,18 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 		throw new Error("Name is required.");
 	if(employeeId.length == 0)
 		throw new Error("Employee ID is required.");
+	if(roleId.length == 0)
+		throw new Error("Role is required.");
 	if(initialPassword.length > 0 && initialPassword.length < 8)
 		throw new Error("Initial password must be at least 8 characters.");
+
+	await payload.findByID({
+		collection: "roles",
+		user,
+		overrideAccess: false,
+		id: roleId,
+		depth: 0
+	});
 
 	if(input.stagedUserId == null) {
 		if(initialPassword.length < 8)
@@ -787,7 +920,7 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 				email,
 				name,
 				employeeId,
-				role: input.role,
+				role: roleId,
 				supervisor: supervisorId.length > 0 ? supervisorId : null,
 				initialPassword,
 				deletedAt: null,
@@ -830,7 +963,7 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 			email,
 			name,
 			employeeId,
-			role: input.role,
+			role: roleId,
 			supervisor: supervisorId.length > 0 ? supervisorId : null,
 			initialPassword: nextInitialPassword.length > 0 ? nextInitialPassword : null,
 			deletedAt: null,
@@ -1083,12 +1216,16 @@ export async function reviewStagedUserRequestAction({ stagedUserId, decision, re
 			});
 		}
 	} else {
+		const roleId = getRelationshipId(stagedUser.role);
+		if(roleId == null)
+			throw new Error("Cannot approve request without a valid role.");
+
 		const supervisorId = getRelationshipId(stagedUser.supervisor);
 		const upsertData = {
 			email: stagedUser.email,
 			name: stagedUser.name,
 			employeeId: stagedUser.employeeId,
-			role: stagedUser.role,
+			role: roleId,
 			supervisor: supervisorId,
 			deletedAt: null,
 			deletedBy: null,
@@ -1191,9 +1328,13 @@ export async function getStagedUserRequestReviewDiffAction(stagedUserId: string)
 	const approvedVersion = approvedVersions.docs[0]?.version;
 	const approvedSupervisorId = approvedVersion != null ? getRelationshipId(approvedVersion.supervisor) : null;
 	const requestedSupervisorId = getRelationshipId(stagedUser.supervisor);
+	const approvedRoleId = approvedVersion != null ? getRelationshipId(approvedVersion.role) : null;
+	const requestedRoleId = getRelationshipId(stagedUser.role);
 
 	const userIds = [approvedSupervisorId, requestedSupervisorId].filter((value): value is string => value != null);
 	const usersById = await findUsersByIds(payload, user, [...new Set(userIds)]);
+	const roleIds = [approvedRoleId, requestedRoleId].filter((value): value is string => value != null);
+	const roleNamesById = await findRolesByIds(payload, user, [...new Set(roleIds)]);
 
 	const requestType: UserRequestReviewDiffOutput["requestType"] =
 		stagedUser.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
@@ -1220,8 +1361,8 @@ export async function getStagedUserRequestReviewDiffAction(stagedUserId: string)
 		{
 			field: "role",
 			label: "Role",
-			previousValue: formatReviewRoleValue(approvedVersion?.role ?? null),
-			requestedValue: formatReviewRoleValue(stagedUser.role)
+			previousValue: formatReviewRoleValue(approvedRoleId != null ? (roleNamesById.get(approvedRoleId) ?? approvedRoleId) : null),
+			requestedValue: formatReviewRoleValue(requestedRoleId != null ? (roleNamesById.get(requestedRoleId) ?? requestedRoleId) : null)
 		},
 		{
 			field: "supervisor",

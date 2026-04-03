@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useMemo, useState, useEffect, useCallback, useTransition, type DragEvent } from "react";
+import { useMemo, useState, useEffect, useCallback, useTransition, type DragEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { XIcon, Trash2Icon, SearchIcon, PlusIcon, PencilIcon, HistoryIcon, FilterIcon, CheckIcon, ArrowUpIcon, ArrowUpDownIcon, ArrowDownIcon, CalendarIcon, Columns3Icon, GripVerticalIcon } from "lucide-react";
 
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -14,6 +15,7 @@ import { Input } from "@/components/radix/Input";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@/components/radix/InputGroup";
 import { Calendar } from "@/components/radix/Calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/radix/Popover";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Switch } from "@/components/radix/Switch";
@@ -34,7 +36,7 @@ type QueryStagedUsersOutput = Awaited<ReturnType<typeof userActions.queryStagedU
 type StagedUserTableRow = QueryStagedUsersOutput["docs"][number];
 type UserManagementTabMode = Parameters<typeof userActions.queryStagedUsersAction>[0]["mode"];
 type UserRelationColumn = userActions.UserRelationColumn;
-type RoleValue = "admin" | "manager" | "supervisor" | "officer";
+type RoleOption = Awaited<ReturnType<typeof userActions.listUserRoleOptionsAction>>[number];
 type SupervisorOption = Awaited<ReturnType<typeof userActions.searchUserSupervisorsAction>>[number];
 type UserRequestReviewDiff = Awaited<ReturnType<typeof userActions.getStagedUserRequestReviewDiffAction>>;
 type FilterValueType = "text" | "date" | "select" | "boolean";
@@ -89,7 +91,7 @@ type FormState = {
 	email: string;
 	name: string;
 	employeeId: string;
-	role: RoleValue;
+	roleId: string;
 	supervisorId: string;
 	initialPassword: string;
 };
@@ -106,7 +108,7 @@ const defaultFormState: FormState = {
 	email: "",
 	name: "",
 	employeeId: "",
-	role: "officer",
+	roleId: "",
 	supervisorId: "",
 	initialPassword: ""
 };
@@ -160,24 +162,39 @@ const userFilterColumns: FilterColumnOption[] = [
 	{ value: "name", label: "Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter name" },
 	{ value: "email", label: "Email", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter email" },
 	{ value: "employeeId", label: "Employee ID", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter employee ID" },
-	{ value: "role", label: "Role", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [
-		{ value: "admin", label: "Admin" },
-		{ value: "manager", label: "Manager" },
-		{ value: "supervisor", label: "Supervisor" },
-		{ value: "officer", label: "Officer" }
-	] },
-	{ value: "supervisor.name", label: "Supervisor Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter supervisor name" },
-	{ value: "supervisor.email", label: "Supervisor Email", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter supervisor email" },
+	{ value: "role", label: "Role", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "supervisor", label: "Supervisor", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "updatedBy", label: "Updated By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "deletedAt", label: "Deleted At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
-	{ value: "reviewedBy.name", label: "Reviewed By Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter reviewer name" },
-	{ value: "reviewedBy.email", label: "Reviewed By Email", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter reviewer email" },
+	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "exists"] }
 ];
 
 const defaultFilterCombinator: FilterCombinator = "and";
+
+function dedupeSelectOptions(options: SearchableSelectOption[]): SearchableSelectOption[] {
+	const seen = new Set<string>();
+	const deduplicated: SearchableSelectOption[] = [];
+	for(const option of options) {
+		const normalizedValue = option.value.trim();
+		if(normalizedValue.length == 0)
+			continue;
+		const dedupeKey = normalizedValue.toLowerCase();
+		if(seen.has(dedupeKey))
+			continue;
+		seen.add(dedupeKey);
+		deduplicated.push({
+			...option,
+			value: normalizedValue
+		});
+	}
+	return deduplicated;
+}
 
 function getFilterColumnConfig(column: FilterColumn): FilterColumnOption {
 	return userFilterColumns.find(option => option.value == column) ?? userFilterColumns[0];
@@ -368,12 +385,9 @@ export default function Page() {
 	]);
 	const [showSoftDeleted, setShowSoftDeleted] = useState(false);
 	const [pageIndex, setPageIndex] = useState(1);
-	const [queryResult, setQueryResult] = useState<QueryStagedUsersOutput>(emptyQueryResult);
-	const [isLoading, setIsLoading] = useState(false);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
-	const requestSequence = useRef(0);
+	const queryClient = useQueryClient();
 
-	const [supervisors, setSupervisors] = useState<SupervisorOption[]>([]);
 	const [isFormOpen, setIsFormOpen] = useState(false);
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<string | null>(null);
@@ -390,8 +404,6 @@ export default function Page() {
 	const [columnOrder, setColumnOrder] = useState<UserTableColumnId[]>(defaultUserColumnOrder);
 	const [hiddenColumnIds, setHiddenColumnIds] = useState<UserTableColumnId[]>(defaultUserHiddenColumns);
 	const [draggedColumnId, setDraggedColumnId] = useState<UserTableColumnId | null>(null);
-	const [relationValuesByRowId, setRelationValuesByRowId] = useState<Record<string, Partial<Record<UserRelationColumn, string>>>>({});
-	const [isRelationLoading, setIsRelationLoading] = useState(false);
 	const [isMutating, startMutationTransition] = useTransition();
 
 	const sortTokens = useMemo(() => (
@@ -420,10 +432,139 @@ export default function Page() {
 			.filter((columnId): columnId is UserRelationColumn => userRelationColumnSet.has(columnId as UserRelationColumn))
 	), [visibleColumns]);
 
+	const includeSoftDeleted = mode == "editor" ? showSoftDeleted : false;
+
+	const stagedUsersQuery = useQuery({
+		queryKey: ["user-management", "staged-users", {
+			mode,
+			debouncedKeyword,
+			sortTokens,
+			appliedFilters,
+			pageIndex,
+			includeSoftDeleted
+		}],
+		queryFn: () => userActions.queryStagedUsersAction({
+			keyword: debouncedKeyword,
+			sort: sortTokens,
+			filters: appliedFilters,
+			page: pageIndex,
+			limit: PAGE_SIZE,
+			mode,
+			includeSoftDeleted
+		}),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+	const queryResult = stagedUsersQuery.data ?? emptyQueryResult;
+	const isLoading = stagedUsersQuery.isPending;
+	const queryErrorMessage = stagedUsersQuery.error instanceof Error ? stagedUsersQuery.error.message : stagedUsersQuery.error != null ? "Failed to load staged users." : null;
+	const displayErrorMessage = errorMessage ?? queryErrorMessage;
+
+	const supervisorsQuery = useQuery({
+		queryKey: ["user-management", "supervisors"],
+		queryFn: () => userActions.searchUserSupervisorsAction(""),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+	const roleOptionsQuery = useQuery({
+		queryKey: ["user-management", "role-options"],
+		queryFn: () => userActions.listUserRoleOptionsAction(),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+	const reviewerOptionsQuery = useQuery({
+		queryKey: ["user-management", "reviewer-options"],
+		queryFn: () => userActions.listUserReviewerOptionsAction(),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const supervisors = supervisorsQuery.data ?? [] as SupervisorOption[];
+	const roleOptions = roleOptionsQuery.data ?? [] as RoleOption[];
+	const reviewerOptions = reviewerOptionsQuery.data ?? [];
+
+	const relationRows = useMemo(() => queryResult.docs.map(row => ({
+		id: row.id,
+		supervisorId: row.supervisorId,
+		reviewedById: row.reviewedById,
+		createdById: row.createdById,
+		updatedById: row.updatedById,
+		deletedById: row.deletedById
+	})), [queryResult.docs]);
+
+	const relationsQuery = useQuery({
+		queryKey: ["user-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
+		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
+		queryFn: () => userActions.resolveStagedUserRelationColumnsAction({
+			rows: relationRows,
+			columns: visibleRelationColumns
+		}),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const relationValuesByRowId = useMemo(() => Object.fromEntries(
+		(relationsQuery.data ?? []).map(item => [item.id, item.values])
+	) as Record<string, Partial<Record<UserRelationColumn, string>>>, [relationsQuery.data]);
+	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
+
 	const visibleColumnCount = visibleColumns.length + 1;
+	const roleSelectOptions = useMemo(() => roleOptions.map(role => ({
+		value: role.id,
+		label: role.name,
+		keywords: `${role.name} ${role.level}`
+	})), [roleOptions]);
+	const supervisorSelectionOptions = useMemo(() => dedupeSelectOptions(supervisors.map(supervisor => ({
+		value: supervisor.id,
+		label: `${supervisor.name} (${supervisor.email})`,
+		keywords: `${supervisor.name} ${supervisor.email}`
+	}))), [supervisors]);
+	const reviewedBySelectionOptions = useMemo(() => dedupeSelectOptions(reviewerOptions.map(reviewer => ({
+		value: reviewer.id,
+		label: `${reviewer.name} (${reviewer.email})`,
+		keywords: `${reviewer.name} ${reviewer.email}`
+	}))), [reviewerOptions]);
+
+	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => {
+		const config = getFilterColumnConfig(column);
+		switch(column) {
+			case "role":
+				return {
+					...config,
+					selectOptions: roleSelectOptions.map(option => ({ value: option.value, label: option.label }))
+				};
+			case "supervisor":
+				return {
+					...config,
+					selectOptions: supervisorSelectionOptions.map(option => ({ value: option.value, label: option.label }))
+				};
+			case "createdBy":
+				return {
+					...config,
+					selectOptions: reviewedBySelectionOptions.map(option => ({ value: option.value, label: option.label }))
+				};
+			case "updatedBy":
+				return {
+					...config,
+					selectOptions: reviewedBySelectionOptions.map(option => ({ value: option.value, label: option.label }))
+				};
+			case "deletedBy":
+				return {
+					...config,
+					selectOptions: reviewedBySelectionOptions.map(option => ({ value: option.value, label: option.label }))
+				};
+			case "reviewedBy":
+				return {
+					...config,
+					selectOptions: reviewedBySelectionOptions.map(option => ({ value: option.value, label: option.label }))
+				};
+			default:
+				return config;
+		}
+	}, [reviewedBySelectionOptions, roleSelectOptions, supervisorSelectionOptions]);
 
 	const getFilterSummaryValue = useCallback((filter: FilterInput) => {
-		const columnConfig = getFilterColumnConfig(filter.column);
+		const columnConfig = getResolvedFilterColumnConfig(filter.column);
 		if(filter.operator == "exists")
 			return filter.value == true ? "true" : "false";
 		if(Array.isArray(filter.value)) {
@@ -445,46 +586,17 @@ export default function Page() {
 		if(columnConfig.valueType == "select")
 			return columnConfig.selectOptions?.find(option => option.value == String(filter.value))?.label ?? String(filter.value ?? "");
 		return String(filter.value ?? "");
-	}, []);
+	}, [getResolvedFilterColumnConfig]);
 
 	const filterSummaryItems = useMemo(() => (
 		appliedFilters.map((filter, index) => ({
 			id: `${filter.column}-${filter.operator}-${index}`,
 			combinator: index == 0 ? null : (filter.joinWithPrevious ?? defaultFilterCombinator).toUpperCase(),
-			columnLabel: getFilterColumnConfig(filter.column).label,
+			columnLabel: getResolvedFilterColumnConfig(filter.column).label,
 			operatorLabel: filterOperatorOptions.find(operator => operator.value == filter.operator)?.label ?? filter.operator,
 			valueLabel: getFilterSummaryValue(filter)
 		}))
-	), [appliedFilters, getFilterSummaryValue]);
-
-	const loadStagedUsersPage = useCallback(async (targetPage: number) => {
-		const requestId = ++requestSequence.current;
-		setIsLoading(true);
-		setErrorMessage(null);
-		try {
-			const response = await userActions.queryStagedUsersAction({
-				keyword: debouncedKeyword,
-				sort: sortTokens,
-				filters: appliedFilters,
-				page: targetPage,
-				limit: PAGE_SIZE,
-				mode,
-				includeSoftDeleted: mode == "editor" ? showSoftDeleted : false
-			});
-			if(requestId != requestSequence.current) return;
-			setQueryResult(response);
-			setPageIndex(response.page);
-		} catch(error) {
-			console.error(error);
-			if(requestId != requestSequence.current) return;
-			setQueryResult(emptyQueryResult);
-			setPageIndex(1);
-			setErrorMessage(error instanceof Error ? error.message : "Failed to load staged users.");
-		} finally {
-			if(requestId == requestSequence.current)
-				setIsLoading(false);
-		}
-	}, [appliedFilters, debouncedKeyword, mode, showSoftDeleted, sortTokens]);
+	), [appliedFilters, getFilterSummaryValue, getResolvedFilterColumnConfig]);
 
 	useEffect(() => {
 		const timeout = window.setTimeout(() => {
@@ -494,6 +606,17 @@ export default function Page() {
 			window.clearTimeout(timeout);
 		};
 	}, [keyword]);
+
+	useEffect(() => {
+		setPageIndex(1);
+	}, [appliedFilters, debouncedKeyword, includeSoftDeleted, mode, sortTokens]);
+
+	useEffect(() => {
+		if(stagedUsersQuery.data == null || stagedUsersQuery.isFetching)
+			return;
+		if(stagedUsersQuery.data.page != pageIndex)
+			setPageIndex(stagedUsersQuery.data.page);
+	}, [pageIndex, stagedUsersQuery.data, stagedUsersQuery.isFetching]);
 
 	useEffect(() => {
 		if(typeof window == "undefined")
@@ -575,64 +698,13 @@ export default function Page() {
 	}, [filterDraftCombinators, filterDrafts]);
 
 	useEffect(() => {
-		void loadStagedUsersPage(1);
-	}, [loadStagedUsersPage]);
-
-	useEffect(() => {
-		if(queryResult.docs.length == 0 || visibleRelationColumns.length == 0) {
-			setIsRelationLoading(false);
+		if(!isFormOpen || formState.stagedUserId != null || formState.roleId.length > 0 || roleOptions.length == 0)
 			return;
-		}
-
-		let cancelled = false;
-		void (async () => {
-			setIsRelationLoading(true);
-			try {
-				const rows = queryResult.docs.map(row => ({
-					id: row.id,
-					supervisorId: row.supervisorId,
-					reviewedById: row.reviewedById,
-					createdById: row.createdById,
-					updatedById: row.updatedById,
-					deletedById: row.deletedById
-				}));
-
-				const resolved = await userActions.resolveStagedUserRelationColumnsAction({
-					rows,
-					columns: visibleRelationColumns
-				});
-
-				if(cancelled)
-					return;
-
-				setRelationValuesByRowId(previous => ({
-					...previous,
-					...Object.fromEntries(resolved.map(item => [item.id, item.values]))
-				}));
-			} catch(error) {
-				if(!cancelled)
-					console.error(error);
-			} finally {
-				if(!cancelled)
-					setIsRelationLoading(false);
-			}
-		})();
-
-		return () => {
-			cancelled = true;
-		};
-	}, [queryResult.docs, visibleRelationColumns]);
-
-	useEffect(() => {
-		void (async () => {
-			try {
-				const results = await userActions.searchUserSupervisorsAction("");
-				setSupervisors(results);
-			} catch(_error) {
-				setSupervisors([]);
-			}
-		})();
-	}, []);
+		setFormState(previous => ({
+			...previous,
+			roleId: roleOptions[0].id
+		}));
+	}, [formState.roleId, formState.stagedUserId, isFormOpen, roleOptions]);
 
 	const getSortDirection = (field: SortField): SortDirection | null => {
 		const activeSort = sortState.find(sortItem => sortItem.field == field);
@@ -719,7 +791,7 @@ export default function Page() {
 
 		setFilterDraftCombinators(appliedFilters.slice(1).map(filter => filter.joinWithPrevious ?? defaultFilterCombinator));
 		setFilterDrafts(appliedFilters.map(filter => {
-			const columnConfig = getFilterColumnConfig(filter.column);
+			const columnConfig = getResolvedFilterColumnConfig(filter.column);
 			const values = Array.isArray(filter.value) ? filter.value.map(value => {
 				if(columnConfig.valueType != "date")
 					return String(value);
@@ -762,7 +834,7 @@ export default function Page() {
 	};
 
 	const handleFilterColumnChange = (id: string, column: FilterColumn) => {
-		const nextColumnConfig = getFilterColumnConfig(column);
+		const nextColumnConfig = getResolvedFilterColumnConfig(column);
 		updateFilterDraft(id, draft => ({
 			...draft,
 			column,
@@ -847,7 +919,7 @@ export default function Page() {
 			if(draft.operator != "in" && draft.operator != "not_in")
 				return draft;
 
-			const columnConfig = getFilterColumnConfig(draft.column);
+			const columnConfig = getResolvedFilterColumnConfig(draft.column);
 			return {
 				...draft,
 				values: [...draft.values, createListDraftValue(columnConfig)]
@@ -870,7 +942,7 @@ export default function Page() {
 	};
 
 	const buildFilterPayload = (draft: FilterDraft): FilterInput | null => {
-		const columnConfig = getFilterColumnConfig(draft.column);
+		const columnConfig = getResolvedFilterColumnConfig(draft.column);
 		if(draft.operator == "exists") {
 			return {
 				column: draft.column,
@@ -933,7 +1005,7 @@ export default function Page() {
 				setErrorMessage(null);
 				try {
 					await action();
-					await loadStagedUsersPage(pageIndex);
+					await queryClient.invalidateQueries({ queryKey: ["user-management"] });
 				} catch(error) {
 					setErrorMessage(error instanceof Error ? error.message : "Operation failed.");
 				}
@@ -943,7 +1015,10 @@ export default function Page() {
 
 	const openCreateDialog = () => {
 		setFormError(null);
-		setFormState(defaultFormState);
+		setFormState({
+			...defaultFormState,
+			roleId: roleOptions[0]?.id ?? ""
+		});
 		setIsFormOpen(true);
 	};
 
@@ -954,7 +1029,7 @@ export default function Page() {
 			email: row.email,
 			name: row.name,
 			employeeId: row.employeeId,
-			role: row.role,
+			roleId: row.roleId ?? "",
 			supervisorId: row.supervisorId ?? "",
 			initialPassword: row.initialPassword
 		});
@@ -969,6 +1044,8 @@ export default function Page() {
 			return setFormError("Name is required.");
 		if(formState.employeeId.trim().length == 0)
 			return setFormError("Employee ID is required.");
+		if(formState.roleId.trim().length == 0)
+			return setFormError("Role is required.");
 		if(formState.stagedUserId == null && formState.initialPassword.trim().length < 8)
 			return setFormError("Initial password is required for new requests and must be at least 8 characters.");
 		runMutation(async () => {
@@ -977,7 +1054,7 @@ export default function Page() {
 				email: formState.email,
 				name: formState.name,
 				employeeId: formState.employeeId,
-				role: formState.role,
+				roleId: formState.roleId,
 				supervisorId: formState.supervisorId.length > 0 ? formState.supervisorId : null,
 				initialPassword: formState.initialPassword
 			});
@@ -1044,7 +1121,7 @@ export default function Page() {
 			case "employeeId":
 				return row.employeeId;
 			case "role":
-				return row.role;
+				return row.roleName;
 			case "supervisorName":
 				if(isRelationLoading && resolvedValues.supervisorName == null)
 					return <Skeleton className="h-4 w-28" />;
@@ -1157,7 +1234,7 @@ export default function Page() {
 											) : null}
 										</div>
 										{filterDrafts.map((draft, index) => {
-											const columnConfig = getFilterColumnConfig(draft.column);
+											const columnConfig = getResolvedFilterColumnConfig(draft.column);
 											const isListOperator = draft.operator == "in" || draft.operator == "not_in";
 
 											return (
@@ -1239,14 +1316,14 @@ export default function Page() {
 																								<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
 																							</Select>
 																						) : columnConfig.valueType == "select" ? (
-																							<Select value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")} onValueChange={nextValue => updateFilterListValue(draft.id, valueIndex, nextValue)}>
-																								<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
-																								<SelectContent>
-																									{columnConfig.selectOptions?.map(option => (
-																										<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-																									))}
-																								</SelectContent>
-																							</Select>
+																							<SearchableSelect
+																								value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")}
+																								onValueChange={nextValue => updateFilterListValue(draft.id, valueIndex, nextValue)}
+																								options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
+																								placeholder="Select value"
+																								searchPlaceholder="Type to filter values"
+																								className="min-w-0 flex-1"
+																							/>
 																						) : columnConfig.valueType == "date" ? (
 																							<div className="grid flex-1 grid-cols-2 gap-2">
 																								<Popover>
@@ -1284,12 +1361,13 @@ export default function Page() {
 																	)}
 																</div>
 															) : columnConfig.valueType == "select" ? (
-																<Select value={draft.value.length > 0 ? draft.value : ""} onValueChange={value => updateFilterDraft(draft.id, previous => ({ ...previous, value }))}>
-																	<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
-																	<SelectContent>
-																		{columnConfig.selectOptions?.map(option => (<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>))}
-																	</SelectContent>
-																</Select>
+																<SearchableSelect
+																	value={draft.value.length > 0 ? draft.value : ""}
+																	onValueChange={value => updateFilterDraft(draft.id, previous => ({ ...previous, value }))}
+																	options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
+																	placeholder="Select value"
+																	searchPlaceholder="Type to filter values"
+																/>
 															) : columnConfig.valueType == "boolean" ? (
 																<Select value={draft.value.length > 0 ? draft.value : ""} onValueChange={value => updateFilterDraft(draft.id, previous => ({ ...previous, value }))}>
 																	<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
@@ -1426,8 +1504,8 @@ export default function Page() {
 								</div>
 							) : null}
 
-							{errorMessage != null ? (
-								<div className="text-destructive bg-destructive/10 rounded-lg border px-3 py-2 text-sm">{errorMessage}</div>
+							{displayErrorMessage != null ? (
+								<div className="text-destructive bg-destructive/10 rounded-lg border px-3 py-2 text-sm">{displayErrorMessage}</div>
 							) : null}
 
 							<div className="rounded-xl border">
@@ -1523,7 +1601,7 @@ export default function Page() {
 										type="button"
 										variant="outline"
 										size="sm"
-										onClick={() => void loadStagedUsersPage(pageIndex - 1)}
+										onClick={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 										disabled={pageIndex <= 1 || !queryResult.hasPreviousPage || isLoading || isMutating}
 									>
 										Previous
@@ -1532,7 +1610,7 @@ export default function Page() {
 										type="button"
 										variant="outline"
 										size="sm"
-										onClick={() => void loadStagedUsersPage(pageIndex + 1)}
+										onClick={() => setPageIndex(previous => previous + 1)}
 										disabled={!queryResult.hasNextPage || isLoading || isMutating}
 									>
 										Next
@@ -1566,31 +1644,25 @@ export default function Page() {
 							</div>
 							<div className="space-y-2">
 								<label className="text-sm font-medium">Role</label>
-								<Select value={formState.role} onValueChange={value => setFormState(previous => ({ ...previous, role: value as RoleValue }))}>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select role" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="admin">Admin</SelectItem>
-										<SelectItem value="manager">Manager</SelectItem>
-										<SelectItem value="supervisor">Supervisor</SelectItem>
-										<SelectItem value="officer">Officer</SelectItem>
-									</SelectContent>
-								</Select>
+								<SearchableSelect
+									value={formState.roleId}
+									onValueChange={value => setFormState(previous => ({ ...previous, roleId: value }))}
+									options={roleSelectOptions}
+									placeholder="Select role"
+									searchPlaceholder="Type role name"
+								/>
 							</div>
 							<div className="space-y-2">
 								<label className="text-sm font-medium">Supervisor</label>
-								<Select value={formState.supervisorId.length > 0 ? formState.supervisorId : "none"} onValueChange={value => setFormState(previous => ({ ...previous, supervisorId: value == "none" ? "" : value }))}>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="No supervisor" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="none">No supervisor</SelectItem>
-										{supervisors.map(supervisor => (
-											<SelectItem key={supervisor.id} value={supervisor.id}>{supervisor.name} ({supervisor.email})</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
+								<SearchableSelect
+									value={formState.supervisorId}
+									onValueChange={value => setFormState(previous => ({ ...previous, supervisorId: value }))}
+									options={supervisorSelectionOptions}
+									placeholder="No supervisor"
+									searchPlaceholder="Type supervisor name or email"
+									allowClear
+									clearLabel="No supervisor"
+								/>
 							</div>
 							<div className="space-y-2 sm:col-span-2">
 								<label className="text-sm font-medium">Initial Password {formState.stagedUserId == null ? "(required)" : "(optional reset)"}</label>

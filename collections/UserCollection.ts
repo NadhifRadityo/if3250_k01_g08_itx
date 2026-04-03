@@ -110,16 +110,6 @@ export const Users = (): CollectionConfig => ({
 			admin: {
 				hidden: true,
 				disableBulkEdit: true
-			},
-			hooks: {
-				beforeChange: [
-					// Prevent admin user self-trash
-					({ previousValue, value, data, originalDoc, req: { user } }) => {
-						const doc = effectiveDoc(originalDoc, data);
-						if(doc.id == user?.id && doc.role == "admin" && previousValue == null && value != null)
-							throw new APIError("Cannot trash admin user by itself", 400, undefined, true);
-					}
-				]
 			}
 		},
 		{
@@ -147,16 +137,9 @@ export const Users = (): CollectionConfig => ({
 		{
 			name: "role",
 			label: "Role",
-			type: "select",
-			options: [
-				{ value: "admin", label: "Admin" },
-				{ value: "manager", label: "Manager" },
-				{ value: "supervisor", label: "Supervisor" },
-				{ value: "officer", label: "Officer" }
-			],
-			required: true,
-			index: true,
-			defaultValue: "officer"
+			type: "relationship",
+			relationTo: "roles",
+			required: true
 		},
 		// {
 		// 	name: "salt",
@@ -381,16 +364,9 @@ export const StagedUsers = (): CollectionConfig => ({
 		{
 			name: "role",
 			label: "Role",
-			type: "select",
-			options: [
-				{ value: "admin", label: "Admin" },
-				{ value: "manager", label: "Manager" },
-				{ value: "supervisor", label: "Supervisor" },
-				{ value: "officer", label: "Officer" }
-			],
-			required: true,
-			index: true,
-			defaultValue: "officer"
+			type: "relationship",
+			relationTo: "roles",
+			required: true
 		},
 		{
 			name: "initialPassword",
