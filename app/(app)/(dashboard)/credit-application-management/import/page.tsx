@@ -31,11 +31,11 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
-import * as creditActions from "../layout.actions";
+import * as creditApplicationActions from "../layout.actions";
 
 type SortDirection = "asc" | "desc";
 
-type ImportSortStateItem = { field: creditActions.CreditApplicationImportSortField, direction: SortDirection };
+type ImportSortStateItem = { field: creditApplicationActions.CreditApplicationImportSortField, direction: SortDirection };
 
 const DEBOUNCE_MS = 300;
 const IMPORT_PREVIEW_MAX_DATA_ROWS = 12;
@@ -179,7 +179,7 @@ function formatDateTime(value: string): string {
 	});
 }
 
-function importReviewPhase(row: creditActions.CreditApplicationImportTableRow): "pending" | "rejected" | "approved" {
+function importReviewPhase(row: creditApplicationActions.CreditApplicationImportTableRow): "pending" | "rejected" | "approved" {
 	if(row.reviewedAt == null)
 		return "pending";
 	if(row.reviewApproved == false)
@@ -215,7 +215,7 @@ export default function CreditApplicationImportPage() {
 	const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
 	const [importPreviewHeaders, setImportPreviewHeaders] = useState<string[]>([]);
 	const [importPreviewRows, setImportPreviewRows] = useState<string[][]>([]);
-	const [deleteTarget, setDeleteTarget] = useState<creditActions.CreditApplicationImportTableRow | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<creditApplicationActions.CreditApplicationImportTableRow | null>(null);
 	const [sortState, setSortState] = useState<ImportSortStateItem[]>([
 		{ field: "createdAt", direction: "desc" }
 	]);
@@ -224,12 +224,12 @@ export default function CreditApplicationImportPage() {
 		sortState.map(sortItem => `${sortItem.direction == "desc" ? "-" : "+"}${sortItem.field}`)
 	), [sortState]);
 
-	const getSortDirection = (field: creditActions.CreditApplicationImportSortField): SortDirection | null => {
+	const getSortDirection = (field: creditApplicationActions.CreditApplicationImportSortField): SortDirection | null => {
 		const active = sortState.find(sortItem => sortItem.field == field);
 		return active?.direction ?? null;
 	};
 
-	const toggleSortField = (field: creditActions.CreditApplicationImportSortField) => {
+	const toggleSortField = (field: creditApplicationActions.CreditApplicationImportSortField) => {
 		setSortState(previous => {
 			const current = previous.find(sortItem => sortItem.field == field);
 			if(current == null)
@@ -240,7 +240,7 @@ export default function CreditApplicationImportPage() {
 		});
 	};
 
-	const renderSortIcon = (field: creditActions.CreditApplicationImportSortField) => {
+	const renderSortIcon = (field: creditApplicationActions.CreditApplicationImportSortField) => {
 		const direction = getSortDirection(field);
 		if(direction == "asc")
 			return <ArrowUpIcon className="size-3.5 shrink-0 text-foreground" />;
@@ -262,7 +262,7 @@ export default function CreditApplicationImportPage() {
 
 	const importsQuery = useQuery({
 		queryKey: ["credit-application-management", "imports", { pageIndex, debouncedKeyword, sortTokens }],
-		queryFn: () => creditActions.queryCreditApplicationImportsEditorAction({
+		queryFn: () => creditApplicationActions.queryCreditApplicationImportsEditorAction({
 			page: pageIndex,
 			keyword: debouncedKeyword,
 			sort: sortTokens
@@ -401,7 +401,7 @@ export default function CreditApplicationImportPage() {
 				setUploadError(null);
 				setPageError(null);
 				try {
-					await creditActions.softDeleteCreditApplicationImportAction(id);
+					await creditApplicationActions.softDeleteCreditApplicationImportAction(id);
 					setDeleteTarget(null);
 					await invalidateImportQueries();
 				} catch(error) {
@@ -417,7 +417,7 @@ export default function CreditApplicationImportPage() {
 				setUploadError(null);
 				setPageError(null);
 				try {
-					await creditActions.reopenCreditApplicationImportReviewAction(importId);
+					await creditApplicationActions.reopenCreditApplicationImportReviewAction(importId);
 					await invalidateImportQueries();
 				} catch(error) {
 					setUploadError(resolvePageError(error, "Could not send import back for review."));

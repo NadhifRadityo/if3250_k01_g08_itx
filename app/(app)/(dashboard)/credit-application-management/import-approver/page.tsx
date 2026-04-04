@@ -21,13 +21,13 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/radix/Tabs";
 import { Textarea } from "@/components/radix/Textarea";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
-import * as creditActions from "../layout.actions";
+import * as creditApplicationActions from "../layout.actions";
 
 type SortDirection = "asc" | "desc";
 
-type ImportSortStateItem = { field: creditActions.CreditApplicationImportSortField, direction: SortDirection };
+type ImportSortStateItem = { field: creditApplicationActions.CreditApplicationImportSortField, direction: SortDirection };
 
-type ReviewedSortStateItem = { field: creditActions.CreditApplicationReviewedSortField, direction: SortDirection };
+type ReviewedSortStateItem = { field: creditApplicationActions.CreditApplicationReviewedSortField, direction: SortDirection };
 
 const DEBOUNCE_MS = 300;
 
@@ -63,17 +63,17 @@ export default function CreditApplicationImportApproverPage() {
 	const [keyword, setKeyword] = useState("");
 	const [debouncedKeyword, setDebouncedKeyword] = useState("");
 	const [pageIndex, setPageIndex] = useState(1);
-	const [queue, setQueue] = useState<creditActions.CreditApplicationImportApproverQueue>("pending");
+	const [queue, setQueue] = useState<creditApplicationActions.CreditApplicationImportApproverQueue>("pending");
 	const [sortState, setSortState] = useState<ImportSortStateItem[]>([
 		{ field: "createdAt", direction: "asc" }
 	]);
 	const [reviewedSortState, setReviewedSortState] = useState<ReviewedSortStateItem[]>([
 		{ field: "importUploadedAt", direction: "desc" }
 	]);
-	const [reviewRow, setReviewRow] = useState<creditActions.CreditApplicationImportApproverTableRow | null>(null);
+	const [reviewRow, setReviewRow] = useState<creditApplicationActions.CreditApplicationImportApproverTableRow | null>(null);
 	const [reviewReason, setReviewReason] = useState("");
 	const [reviewError, setReviewError] = useState<{ title: string, message: string } | null>(null);
-	const [filePreview, setFilePreview] = useState<creditActions.CreditApplicationImportFilePreviewOutput | null>(null);
+	const [filePreview, setFilePreview] = useState<creditApplicationActions.CreditApplicationImportFilePreviewOutput | null>(null);
 	const [filePreviewLoading, setFilePreviewLoading] = useState(false);
 	const [filePreviewError, setFilePreviewError] = useState<{ title: string, message: string } | null>(null);
 	const [pageError, setPageError] = useState<{ title: string, message: string } | null>(null);
@@ -115,7 +115,7 @@ export default function CreditApplicationImportApproverPage() {
 		setFilePreview(null);
 		setFilePreviewError(null);
 		setFilePreviewLoading(true);
-		void creditActions.getCreditApplicationImportFilePreviewAction(reviewRow.id).then(data => {
+		void creditApplicationActions.getCreditApplicationImportFilePreviewAction(reviewRow.id).then(data => {
 			if(!cancelled) {
 				setFilePreview(data);
 				setFilePreviewLoading(false);
@@ -131,12 +131,12 @@ export default function CreditApplicationImportApproverPage() {
 		};
 	}, [reviewRow?.id]);
 
-	const getSortDirection = (field: creditActions.CreditApplicationImportSortField): SortDirection | null => {
+	const getSortDirection = (field: creditApplicationActions.CreditApplicationImportSortField): SortDirection | null => {
 		const active = sortState.find(sortItem => sortItem.field == field);
 		return active?.direction ?? null;
 	};
 
-	const toggleSortField = (field: creditActions.CreditApplicationImportSortField) => {
+	const toggleSortField = (field: creditApplicationActions.CreditApplicationImportSortField) => {
 		setSortState(previous => {
 			const current = previous.find(sortItem => sortItem.field == field);
 			if(current == null)
@@ -147,7 +147,7 @@ export default function CreditApplicationImportApproverPage() {
 		});
 	};
 
-	const renderSortIcon = (field: creditActions.CreditApplicationImportSortField) => {
+	const renderSortIcon = (field: creditApplicationActions.CreditApplicationImportSortField) => {
 		const direction = getSortDirection(field);
 		if(direction == "asc")
 			return <ArrowUpIcon className="size-3.5 shrink-0 text-foreground" />;
@@ -156,12 +156,12 @@ export default function CreditApplicationImportApproverPage() {
 		return <ArrowUpDownIcon className="text-muted-foreground size-3.5 shrink-0" />;
 	};
 
-	const getReviewedSortDirection = (field: creditActions.CreditApplicationReviewedSortField): SortDirection | null => {
+	const getReviewedSortDirection = (field: creditApplicationActions.CreditApplicationReviewedSortField): SortDirection | null => {
 		const active = reviewedSortState.find(sortItem => sortItem.field == field);
 		return active?.direction ?? null;
 	};
 
-	const toggleReviewedSortField = (field: creditActions.CreditApplicationReviewedSortField) => {
+	const toggleReviewedSortField = (field: creditApplicationActions.CreditApplicationReviewedSortField) => {
 		setReviewedSortState(previous => {
 			const current = previous.find(sortItem => sortItem.field == field);
 			if(current == null)
@@ -172,7 +172,7 @@ export default function CreditApplicationImportApproverPage() {
 		});
 	};
 
-	const renderReviewedSortIcon = (field: creditActions.CreditApplicationReviewedSortField) => {
+	const renderReviewedSortIcon = (field: creditApplicationActions.CreditApplicationReviewedSortField) => {
 		const direction = getReviewedSortDirection(field);
 		if(direction == "asc")
 			return <ArrowUpIcon className="size-3.5 shrink-0 text-foreground" />;
@@ -183,7 +183,7 @@ export default function CreditApplicationImportApproverPage() {
 
 	const pendingQuery = useQuery({
 		queryKey: ["credit-application-management", "imports-approver-pending", { pageIndex, debouncedKeyword, sortTokens }],
-		queryFn: () => creditActions.queryCreditApplicationImportsPendingApproverAction({
+		queryFn: () => creditApplicationActions.queryCreditApplicationImportsPendingApproverAction({
 			page: pageIndex,
 			keyword: debouncedKeyword,
 			sort: sortTokens
@@ -194,7 +194,7 @@ export default function CreditApplicationImportApproverPage() {
 
 	const reviewedQuery = useQuery({
 		queryKey: ["credit-application-management", "imports-approver-reviewed-rows", { pageIndex, debouncedKeyword, reviewedSortTokens }],
-		queryFn: () => creditActions.queryCreditApplicationsReviewedListingAction({
+		queryFn: () => creditApplicationActions.queryCreditApplicationsReviewedListingAction({
 			page: pageIndex,
 			keyword: debouncedKeyword,
 			sort: reviewedSortTokens
@@ -264,7 +264,7 @@ export default function CreditApplicationImportApproverPage() {
 				setReviewError(null);
 				setPageError(null);
 				try {
-					await creditActions.reviewCreditApplicationImportAction({
+					await creditApplicationActions.reviewCreditApplicationImportAction({
 						importId: reviewRow.id,
 						decision,
 						reason: reviewReason
