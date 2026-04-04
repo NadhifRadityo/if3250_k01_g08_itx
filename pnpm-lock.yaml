@@ -132,9 +132,6 @@ importers:
       globals:
         specifier: ^17.4.0
         version: 17.4.0
-      ignore:
-        specifier: ^7.0.5
-        version: 7.0.5
       postcss:
         specifier: ^8.5.8
         version: 8.5.8

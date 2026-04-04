@@ -133,14 +133,12 @@ const elementChildrenRegex = new reactRegex(({ Anchor, Group, Any, Count }) => (
 ));
 
 export default async function Root({
-	withBuildMeta = true,
 	withAnalytics = true,
 	withAsciiComment = true,
 	withSonner = true,
 	theme,
 	children: childrenNode
 }: {
-	withBuildMeta?: boolean;
 	withAnalytics?: boolean;
 	withAsciiComment?: boolean;
 	withSonner?: boolean;
@@ -153,19 +151,6 @@ export default async function Root({
 			<Html lang={Html.props.lang ?? "id"} suppressHydrationWarning>
 				{children!.groups!.head!.c0!<"head">(Head => (
 					<Head>
-						{withBuildMeta ? (
-							<>
-								<Comment>
-									Build ID: {process.env.NEXT_PUBLIC_BUILD_ID} (Build Date: {process.env.NEXT_PUBLIC_BUILD_DATE})
-								</Comment>
-								<Comment>
-									Revision was commited by {process.env.NEXT_PUBLIC_BUILD_COMMIT_COMMITTER_NAME} at {process.env.NEXT_PUBLIC_BUILD_COMMIT_COMMITTER_TIME}
-								</Comment>
-								<Comment>
-									Revision was authored by {process.env.NEXT_PUBLIC_BUILD_COMMIT_AUTHOR_NAME} at {process.env.NEXT_PUBLIC_BUILD_COMMIT_AUTHOR_TIME}
-								</Comment>
-							</>
-						) : null}
 						{Head.children.map(c => c(Child => (<Child />)))}
 						{withAnalytics ? (
 							<>
