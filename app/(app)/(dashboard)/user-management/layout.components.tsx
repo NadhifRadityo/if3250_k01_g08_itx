@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback, type DragEvent, type ReactNode, type MouseEvent } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, ArrowUpIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
+import { XIcon, PlusIcon, ArrowUpIcon, HistoryIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import { Link } from "@/components/Link";
@@ -42,6 +42,7 @@ export type UserRelationColumn = userActions.UserRelationColumn;
 export type RoleOption = Awaited<ReturnType<typeof userActions.searchUserRoleOptionsAction>>[number];
 export type SupervisorOption = Awaited<ReturnType<typeof userActions.searchUserSupervisorUserOptionsAction>>[number];
 export type UserRequestReviewDiff = Awaited<ReturnType<typeof userActions.getStagedUserRequestReviewDiffAction>>;
+export type UserRequestHistory = Awaited<ReturnType<typeof userActions.getStagedUserRequestHistoryAction>>;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
 export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
 export type ActionError = {
@@ -199,6 +200,7 @@ export const userRelationColumnSet = new Set<UserRelationColumn>([
 const userNonEligibleColumnSet = new Set<string>([
 	"actions",
 	"status",
+	"requestType",
 	"role",
 	"supervisor",
 	"reviewedBy",
@@ -433,6 +435,33 @@ export function getReviewStatus(row: StagedUserTableRow): { label: string, varia
 	if(row.reviewApproved == true)
 		return { label: "Approved", variant: "default" };
 	return { label: "Rejected", variant: "destructive" };
+}
+
+function renderRequestTypeTrigger({
+	row,
+	onOpenRequestChanges,
+	className,
+	requestTypeLabel
+}: {
+	row: StagedUserTableRow;
+	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
+	className?: string;
+	requestTypeLabel?: string;
+}): ReactNode {
+	const label = requestTypeLabel ?? getRequestType(row);
+	if(onOpenRequestChanges == null)
+		return label;
+
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => onOpenRequestChanges(row)}
+			className={cn("text-primary h-auto p-0", className)}
+		>
+			{label}
+		</Button>
+	);
 }
 
 export function reorderColumns(order: UserTableColumnId[], sourceId: UserTableColumnId, targetId: UserTableColumnId): UserTableColumnId[] {
@@ -964,6 +993,7 @@ type UserRequestReviewDrawerProps = {
 	onApprove: () => void;
 	onReject: () => void;
 	isMutating: boolean;
+	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
 };
 
 export function UserRequestReviewDrawer({
@@ -976,7 +1006,8 @@ export function UserRequestReviewDrawer({
 	onReviewReasonChange,
 	onApprove,
 	onReject,
-	isMutating
+	isMutating,
+	onOpenRequestChanges
 }: UserRequestReviewDrawerProps) {
 	const entrySummary = useEntrySummaryDrawer();
 
@@ -1025,7 +1056,13 @@ export function UserRequestReviewDrawer({
 					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
 							<p>
-								<span className="font-medium">Request Type:</span> {reviewDrawerState?.diff?.requestType ?? "-"}
+								<span className="font-medium">Request Type:</span>{" "}
+								{reviewDrawerState?.row != null ? renderRequestTypeTrigger({
+									row: reviewDrawerState.row,
+									onOpenRequestChanges,
+									className: "align-baseline",
+									requestTypeLabel: reviewDrawerState.diff?.requestType ?? getRequestType(reviewDrawerState.row)
+								}) : "-"}
 							</p>
 							<p className="text-muted-foreground">
 								{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
@@ -1080,6 +1117,128 @@ export function UserRequestReviewDrawer({
 						<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
 						<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || reviewDrawerState?.diff == null}>Approve</Button>
 						<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || reviewDrawerState?.diff == null}>Reject</Button>
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+
+			<EntrySummaryDrawer
+				isOpen={entrySummary.isOpen}
+				onOpenChange={entrySummary.onOpenChange}
+				isLoading={entrySummary.isLoading}
+				errorMessage={entrySummary.errorMessage}
+				summary={entrySummary.summary}
+			/>
+		</>
+	);
+}
+
+type UserRequestChangePreviewDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	row: StagedUserTableRow | null;
+};
+
+export function UserRequestChangePreviewDrawer({
+	open,
+	onOpenChange,
+	row
+}: UserRequestChangePreviewDrawerProps) {
+	const entrySummary = useEntrySummaryDrawer();
+	const diffQuery = useQuery({
+		queryKey: ["user-management", "request-change-preview", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: () => userActions.getStagedUserRequestReviewDiffAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const renderReferenceValue = (
+		value: string,
+		references: Array<{ type: "user" | "role", id: string, label: string }> | undefined,
+		sectionLabel: string,
+		valueClassName: string
+	) => {
+		if(references == null || references.length == 0)
+			return <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>{value}</div>;
+
+		return (
+			<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>
+				<div className="flex flex-wrap gap-1.5">
+					{references.map(reference => (
+						<Button
+							key={`${reference.type}-${reference.id}-${sectionLabel}`}
+							type="button"
+							variant="link"
+							size="sm"
+							onClick={() => entrySummary.openSummary({
+								type: reference.type,
+								id: reference.id,
+								fallbackTitle: reference.label,
+								fallbackDescription: sectionLabel
+							})}
+							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word"
+						>
+							{reference.label}
+						</Button>
+					))}
+				</div>
+			</div>
+		);
+	};
+
+	return (
+		<>
+			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+					<DrawerHeader>
+						<DrawerTitle>Request Changes</DrawerTitle>
+						<DrawerDescription>Review the differences between the last approved version and the selected request.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+							<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? (row != null ? getRequestType(row) : "-")}</p>
+							<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+						</div>
+
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No request selected.</p>
+						) : diffQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+							</div>
+						) : diffQuery.isError || diffQuery.data == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load request changes.</AlertDescription>
+							</Alert>
+						) : (
+							<div className="space-y-2">
+								{diffQuery.data.items.map(item => (
+									<div key={item.field} className="space-y-2 rounded-lg border p-3">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-sm font-medium">{item.label}</p>
+											<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+										</div>
+										<div className="grid gap-2 sm:grid-cols-2">
+											<div className="space-y-1">
+												<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+												{renderReferenceValue(item.previousValue, item.previousReferences, `User ${item.label} (last approved)`, getUserDrawerValueClassName(item.field))}
+											</div>
+											<div className="space-y-1">
+												<p className="text-muted-foreground text-xs font-medium">Requested</p>
+												{renderReferenceValue(item.requestedValue, item.requestedReferences, `User ${item.label} (requested)`, getUserDrawerValueClassName(item.field))}
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
 					</DrawerFooter>
 				</DrawerContent>
 			</Drawer>
@@ -1209,6 +1368,7 @@ type UserRequestDetailsDrawerProps = {
 	row: StagedUserTableRow | null;
 	renderActions: (row: StagedUserTableRow) => ReactNode;
 	relationNavigation?: UserRelationNavigation;
+	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
 };
 
 type UserRelationNavigation = {
@@ -1314,12 +1474,37 @@ export function UserRequestDetailsDrawer({
 	onOpenChange,
 	row,
 	renderActions,
-	relationNavigation
+	relationNavigation,
+	onOpenRequestChanges
 }: UserRequestDetailsDrawerProps) {
+	const [historyOpen, setHistoryOpen] = useState(false);
+
+	useEffect(() => {
+		if(!open)
+			setHistoryOpen(false);
+	}, [open]);
+
 	const detailsQuery = useQuery({
 		queryKey: ["user-management", "details", row?.id ?? null],
 		enabled: open && row != null,
 		queryFn: () => userActions.getStagedUserRequestDetailsAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const historyAccessQuery = useQuery({
+		queryKey: ["user-management", "history-access"],
+		queryFn: () => userActions.canAccessStagedUserRequestHistoryAction(),
+		staleTime: 60_000,
+		refetchOnWindowFocus: true
+	});
+
+	const canAccessHistory = historyAccessQuery.data == true;
+
+	const historyQuery = useQuery({
+		queryKey: ["user-management", "history", row?.id ?? null],
+		enabled: historyOpen && row != null && canAccessHistory,
+		queryFn: () => userActions.getStagedUserRequestHistoryAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -1358,7 +1543,7 @@ export function UserRequestDetailsDrawer({
 			case "deletedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
 			case "requestType":
-				return renderDetailColumnValue(columnId, getRequestType(data.row));
+				return renderDetailColumnValue(columnId, renderRequestTypeTrigger({ row: data.row, onOpenRequestChanges, className: "text-left whitespace-normal" }));
 			case "status": {
 				const status = getReviewStatus(data.row);
 				return <Badge variant={status.variant}>{status.label}</Badge>;
@@ -1368,7 +1553,7 @@ export function UserRequestDetailsDrawer({
 			case "reviewedBy":
 				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
 			case "reviewApproved":
-				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved == true ? "True" : "False");
+				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
 			case "reviewCommentText":
 				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
 			default:
@@ -1377,46 +1562,108 @@ export function UserRequestDetailsDrawer({
 	};
 
 	return (
-		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-				<DrawerHeader>
-					<DrawerTitle>User Request Details</DrawerTitle>
-					<DrawerDescription>Review all available columns for this staged user request entry.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
-					{row == null ? (
-						<p className="text-muted-foreground text-sm">No staged user request selected.</p>
-					) : detailsQuery.isPending ? (
-						<div className="space-y-2">
-							<Skeleton className="h-20 w-full" />
-							<Skeleton className="h-20 w-full" />
-							<Skeleton className="h-20 w-full" />
-						</div>
-					) : detailsQuery.isError || details == null ? (
-						<Alert variant="destructive">
-							<CircleAlertIcon />
-							<AlertTitle>Error</AlertTitle>
-							<AlertDescription>Unable to load staged user request details.</AlertDescription>
-						</Alert>
-					) : (
-						userTableColumns.map(column => (
-							<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
-								<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
-								{renderDetailValue(column.id, details)}
+		<>
+			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+					<DrawerHeader>
+						<DrawerTitle>User Request Details</DrawerTitle>
+						<DrawerDescription>Review all available columns for this staged user request entry.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No staged user request selected.</p>
+						) : detailsQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
 							</div>
-						))
-					)}
-				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-					{actionRow != null ? (
-						<div className="flex flex-wrap justify-end gap-2">
-							{renderActions(actionRow)}
-						</div>
-					) : null}
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
+						) : detailsQuery.isError || details == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load staged user request details.</AlertDescription>
+							</Alert>
+						) : (
+							userTableColumns.map(column => (
+								<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
+									<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
+									{renderDetailValue(column.id, details)}
+								</div>
+							))
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+						{!historyAccessQuery.isPending && canAccessHistory ? (
+							<Button type="button" variant="secondary" onClick={() => setHistoryOpen(true)} disabled={row == null}><HistoryIcon />History</Button>
+						) : null}
+						{actionRow != null ? (
+							renderActions(actionRow)
+						) : null}
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+
+			<Drawer open={historyOpen} onOpenChange={setHistoryOpen} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+					<DrawerHeader>
+						<DrawerTitle>User Request History</DrawerTitle>
+						<DrawerDescription>Changes are shown from the most recent version to the earliest version.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No staged user request selected.</p>
+						) : historyAccessQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-28 w-full" />
+								<Skeleton className="h-28 w-full" />
+							</div>
+						) : !canAccessHistory ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Unauthorized</AlertTitle>
+								<AlertDescription>You need User Management auditor access to view history.</AlertDescription>
+							</Alert>
+						) : historyQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-28 w-full" />
+								<Skeleton className="h-28 w-full" />
+							</div>
+						) : historyQuery.isError || historyQuery.data == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load staged user request history.</AlertDescription>
+							</Alert>
+						) : historyQuery.data.entries.length == 0 ? (
+							<p className="text-muted-foreground text-sm">No history entries found for this staged user request.</p>
+						) : (
+							historyQuery.data.entries.map(entry => (
+								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
+										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+									</div>
+									<div className="space-y-1">
+										{entry.changes.map(change => (
+											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed == true ? "border-primary/30 bg-primary/5" : "opacity-70")}>
+												<p className="font-medium">{change.label}</p>
+												<p className="text-muted-foreground">From: {change.previousValue}</p>
+												<p>To: {change.nextValue}</p>
+											</div>
+										))}
+									</div>
+								</div>
+							))
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => setHistoryOpen(false)}>Close</Button>
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+		</>
 	);
 }
 
@@ -1424,9 +1671,10 @@ type UseUserCellRendererOptions = {
 	relationValuesByRowId: Record<string, userActions.StagedUserRelationValues>;
 	isRelationLoading: boolean;
 	relationNavigation?: UserRelationNavigation;
+	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
 };
 
-export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseUserCellRendererOptions) {
+export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseUserCellRendererOptions) {
 	return useCallback((columnId: UserTableColumnId, row: StagedUserTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
@@ -1463,7 +1711,7 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "deletedAt":
 				return formatDateTime(row.deletedAt);
 			case "requestType":
-				return getRequestType(row);
+				return renderRequestTypeTrigger({ row, onOpenRequestChanges, className: "text-left whitespace-normal" });
 			case "status": {
 				const status = getReviewStatus(row);
 				return <Badge variant={status.variant}>{status.label}</Badge>;
@@ -1481,7 +1729,7 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, relationNavigation, relationValuesByRowId]);
+	}, [isRelationLoading, onOpenRequestChanges, relationNavigation, relationValuesByRowId]);
 }
 
 export function useUserColumnPreferences() {

@@ -14,6 +14,7 @@ import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
 import { UserRequestCancelDialog } from "../layout.components";
+import { UserRequestChangePreviewDrawer } from "../layout.components";
 import { UserRequestDetailsDrawer } from "../layout.components";
 import { UserRequestDeleteDialog } from "../layout.components";
 import { UserRequestFilterCard } from "../layout.components";
@@ -44,6 +45,7 @@ export default function UserManagementEditorPage() {
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [detailRow, setDetailRow] = useState<StagedUserTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<StagedUserTableRow | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<StagedUserTableRow | null>(null);
 	const [cancelTarget, setCancelTarget] = useState<StagedUserTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
@@ -84,6 +86,7 @@ export default function UserManagementEditorPage() {
 	const renderUserCell = useUserCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -327,11 +330,21 @@ export default function UserManagementEditorPage() {
 				}}
 				row={detailRow}
 				renderActions={renderUserActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
 					onOpenSummary: relationNavigation.openSummary
 				}}
+			/>
+
+			<UserRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			<UserRequestFormDrawer

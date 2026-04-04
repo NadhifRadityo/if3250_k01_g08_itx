@@ -12,7 +12,8 @@ const dashboardManagementKeys = ["user-management", "role-management", "team-man
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
 export type DashboardMode = "viewer" | "editor" | "approver";
-export type DashboardRoleMenu = `${DashboardManagementKey}-${DashboardMode}`;
+type DashboardRoleMenuMode = DashboardMode | "auditor";
+export type DashboardRoleMenu = `${DashboardManagementKey}-${DashboardRoleMenuMode}`;
 
 export type DashboardNavLink = {
 	label: string;
@@ -67,14 +68,19 @@ const modeLabelMap: Record<DashboardMode, string> = {
 	approver: "Approver"
 };
 
+const auditorLabel = "Auditor";
+
 const dashboardRoleMenus = [
 	"user-management-viewer",
+	"user-management-auditor",
 	"user-management-editor",
 	"user-management-approver",
 	"role-management-viewer",
+	"role-management-auditor",
 	"role-management-editor",
 	"role-management-approver",
 	"team-management-viewer",
+	"team-management-auditor",
 	"team-management-editor",
 	"team-management-approver"
 ] as const satisfies DashboardRoleMenu[];
@@ -101,28 +107,32 @@ function normalizeDashboardRoleMenus(value: unknown): DashboardRoleMenu[] {
 
 function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey): {
 	hasViewer: boolean;
+	hasAuditor: boolean;
 	hasEditor: boolean;
 	hasApprover: boolean;
 	canView: boolean;
 } {
 	const hasViewer = menus.has(`${key}-viewer` as DashboardRoleMenu);
+	const hasAuditor = menus.has(`${key}-auditor` as DashboardRoleMenu);
 	const hasEditor = menus.has(`${key}-editor` as DashboardRoleMenu);
 	const hasApprover = menus.has(`${key}-approver` as DashboardRoleMenu);
 
 	return {
 		hasViewer,
+		hasAuditor,
 		hasEditor,
 		hasApprover,
-		canView: hasViewer || hasEditor
+		canView: hasViewer || hasAuditor || hasEditor
 	};
 }
 
 function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey): DashboardManagementNavigationItem | null {
-	const { hasViewer, hasEditor, hasApprover, canView } = getModeFlags(menus, key);
+	const { hasViewer, hasAuditor, hasEditor, hasApprover, canView } = getModeFlags(menus, key);
 	if(!canView && !hasApprover)
 		return null;
 
 	const baseHref = `/${key}`;
+	const viewLinkLabel = hasViewer ? modeLabelMap.viewer : auditorLabel;
 
 	if(hasEditor && hasApprover) {
 		const links: DashboardNavLink[] = [
@@ -140,9 +150,9 @@ function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: Dashb
 		};
 	}
 
-	if(!hasEditor && hasViewer && hasApprover) {
+	if(!hasEditor && (hasViewer || hasAuditor) && hasApprover) {
 		const links: DashboardNavLink[] = [
-			{ label: modeLabelMap.viewer, mode: "viewer", href: `${baseHref}/viewer` },
+			{ label: viewLinkLabel, mode: "viewer", href: `${baseHref}/viewer` },
 			{ label: modeLabelMap.approver, mode: "approver", href: `${baseHref}/approver` }
 		];
 		return {
@@ -156,7 +166,7 @@ function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: Dashb
 		};
 	}
 
-	const defaultMode: DashboardMode = hasEditor ? "editor" : hasViewer ? "viewer" : "approver";
+	const defaultMode: DashboardMode = hasEditor ? "editor" : (hasViewer || hasAuditor) ? "viewer" : "approver";
 	const defaultHref = `${baseHref}/${defaultMode}`;
 
 	return {
@@ -164,7 +174,7 @@ function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: Dashb
 		label: managementLabelMap[key],
 		baseHref,
 		hasSubmenu: false,
-		links: [{ label: modeLabelMap[defaultMode], mode: defaultMode, href: defaultHref }],
+		links: [{ label: defaultMode == "viewer" ? viewLinkLabel : modeLabelMap[defaultMode], mode: defaultMode, href: defaultHref }],
 		defaultHref,
 		defaultMode
 	};
@@ -208,12 +218,12 @@ function resolveDefaultManagementHref(menus: DashboardRoleMenu[], key: Dashboard
 
 function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: DashboardManagementKey, mode: DashboardMode): string | null {
 	const menuSet = new Set(menus);
-	const { hasViewer, hasEditor, hasApprover } = getModeFlags(menuSet, key);
+	const { hasViewer, hasAuditor, hasEditor, hasApprover } = getModeFlags(menuSet, key);
 
 	if(mode == "viewer") {
 		if(hasEditor)
 			return `/${key}/editor`;
-		if(hasViewer)
+		if(hasViewer || hasAuditor)
 			return null;
 		return "/";
 	}
@@ -226,7 +236,7 @@ function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: Dash
 
 function resolveViewerEditorTarget(menus: DashboardRoleMenu[], key: DashboardManagementKey): DashboardViewerEditorTarget {
 	const menuSet = new Set(menus);
-	const hasViewer = menuSet.has(`${key}-viewer` as DashboardRoleMenu);
+	const hasViewer = menuSet.has(`${key}-viewer` as DashboardRoleMenu) || menuSet.has(`${key}-auditor` as DashboardRoleMenu);
 	const hasEditor = menuSet.has(`${key}-editor` as DashboardRoleMenu);
 	const viewerHref = hasViewer ? `/${key}/viewer` : null;
 	const editorHref = hasEditor ? `/${key}/editor` : null;
@@ -254,18 +264,24 @@ function resolveDashboardHomeHref(navigation: DashboardManagementNavigationItem[
 function formatMenuLabel(menu: Role["menus"][number]): string {
 	if(menu == "user-management-viewer")
 		return "User Management - Viewer";
+	if(menu == "user-management-auditor")
+		return "User Management - Auditor";
 	if(menu == "user-management-editor")
 		return "User Management - Editor";
 	if(menu == "user-management-approver")
 		return "User Management - Approver";
 	if(menu == "role-management-viewer")
 		return "Role Management - Viewer";
+	if(menu == "role-management-auditor")
+		return "Role Management - Auditor";
 	if(menu == "role-management-editor")
 		return "Role Management - Editor";
 	if(menu == "role-management-approver")
 		return "Role Management - Approver";
 	if(menu == "team-management-viewer")
 		return "Team Management - Viewer";
+	if(menu == "team-management-auditor")
+		return "Team Management - Auditor";
 	if(menu == "team-management-editor")
 		return "Team Management - Editor";
 	if(menu == "team-management-approver")

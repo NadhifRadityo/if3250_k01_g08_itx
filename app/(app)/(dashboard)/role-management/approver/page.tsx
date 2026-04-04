@@ -13,6 +13,7 @@ import * as roleActions from "../layout.actions";
 import { RoleActiveFiltersSummary } from "../layout.components";
 import { RoleColumnConfigCard } from "../layout.components";
 import { RoleRequestDetailsDrawer } from "../layout.components";
+import { RoleRequestChangePreviewDrawer } from "../layout.components";
 import { RoleRequestFilterCard } from "../layout.components";
 import { RoleRequestReviewDrawer } from "../layout.components";
 import { RoleRequestsTable } from "../layout.components";
@@ -39,6 +40,7 @@ export default function RoleManagementApproverPage() {
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
 	const [detailRow, setDetailRow] = useState<RoleTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<RoleTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useRoleColumnPreferences();
@@ -71,6 +73,7 @@ export default function RoleManagementApproverPage() {
 	const renderRoleCell = useRoleCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -226,6 +229,7 @@ export default function RoleManagementApproverPage() {
 				}}
 				row={detailRow}
 				renderActions={renderRoleActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -249,6 +253,16 @@ export default function RoleManagementApproverPage() {
 				onApprove={() => submitReview("approve")}
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}
+				onOpenRequestChanges={setRequestChangeRow}
+			/>
+
+			<RoleRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />

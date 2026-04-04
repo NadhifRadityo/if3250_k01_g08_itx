@@ -75,6 +75,7 @@ const dateFilterColumns = new Set<UserManagementFilterColumn>([
 const booleanFilterColumns = new Set<UserManagementFilterColumn>(["reviewApproved"]);
 export type UserManagementStatus = typeof userStatusValues[number];
 const userStatusSet = new Set<UserManagementStatus>(userStatusValues);
+const userHistoryRequiredMenu = "user-management-auditor";
 
 type ReviewCommentValue = NonNullable<StagedUser["reviewComment"]>;
 const defaultReviewComment: ReviewCommentValue = {
@@ -269,6 +270,45 @@ export type UserRequestDetailsOutput = {
 	relationReferences: Partial<Record<"role" | UserRelationColumn, Array<{ type: "user" | "role", id: string, label: string }>>>;
 };
 
+export type UserRequestHistoryColumn = "id" |
+	"name" |
+	"email" |
+	"employeeId" |
+	"role" |
+	"supervisor" |
+	"createdBy" |
+	"updatedBy" |
+	"deletedBy" |
+	"createdAt" |
+	"updatedAt" |
+	"deletedAt" |
+	"requestType" |
+	"status" |
+	"reviewedAt" |
+	"reviewedBy" |
+	"reviewApproved" |
+	"reviewCommentText";
+
+export type UserRequestHistoryChangeItem = {
+	column: UserRequestHistoryColumn;
+	label: string;
+	previousValue: string;
+	nextValue: string;
+	changed: boolean;
+};
+
+export type UserRequestHistoryEntry = {
+	versionId: string;
+	changedAt: string | null;
+	changes: UserRequestHistoryChangeItem[];
+	changedCount: number;
+};
+
+export type UserRequestHistoryOutput = {
+	requestId: string;
+	entries: UserRequestHistoryEntry[];
+};
+
 type SortFieldKey = UserManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
 
 function clampPageSize(limit: number): number {
@@ -452,6 +492,47 @@ function getRelationshipId(value: unknown): string | null {
 	return null;
 }
 
+function normalizeRoleMenus(value: unknown): string[] {
+	if(!Array.isArray(value))
+		return [];
+
+	const normalized = value
+		.filter((menu): menu is string => typeof menu == "string")
+		.map(menu => menu.trim().toLowerCase())
+		.filter(menu => menu.length > 0);
+
+	return [...new Set(normalized)];
+}
+
+async function resolveUserRoleMenus(payload: Payload, user: User): Promise<string[]> {
+	const rawRole = user.role;
+	if(rawRole != null && typeof rawRole == "object" && "menus" in rawRole)
+		return normalizeRoleMenus(rawRole.menus);
+
+	const roleId = getRelationshipId(rawRole);
+	if(roleId == null)
+		return [];
+
+	const role = await payload.findByID({
+		collection: "roles",
+		id: roleId,
+		user,
+		overrideAccess: true,
+		trash: true,
+		depth: 0,
+		select: {
+			menus: true
+		}
+	});
+
+	return normalizeRoleMenus(role.menus);
+}
+
+async function hasStagedUserRequestHistoryAccess(payload: Payload, user: User): Promise<boolean> {
+	const roleMenus = await resolveUserRoleMenus(payload, user);
+	return roleMenus.includes(userHistoryRequiredMenu);
+}
+
 function formatReviewDateValue(value: string | null | undefined): string {
 	if(value == null)
 		return "-";
@@ -471,6 +552,64 @@ function formatReviewPasswordPresence(value: string | null | undefined): string 
 	if((value ?? "").trim().length == 0)
 		return "-";
 	return "Set";
+}
+
+const userRequestHistoryColumns = [
+	"id",
+	"name",
+	"email",
+	"employeeId",
+	"role",
+	"supervisor",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"requestType",
+	"status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewCommentText"
+] as const satisfies UserRequestHistoryColumn[];
+
+const userRequestHistoryColumnLabelMap: Record<UserRequestHistoryColumn, string> = {
+	id: "ID",
+	name: "Name",
+	email: "Email",
+	employeeId: "Employee ID",
+	role: "Role",
+	supervisor: "Supervisor",
+	createdBy: "Created By",
+	updatedBy: "Updated By",
+	deletedBy: "Deleted By",
+	createdAt: "Created At",
+	updatedAt: "Updated At",
+	deletedAt: "Deleted At",
+	requestType: "Request",
+	status: "Status",
+	reviewedAt: "Reviewed At",
+	reviewedBy: "Reviewed By",
+	reviewApproved: "Review Approved",
+	reviewCommentText: "Review Comment"
+};
+
+function getUserRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
+	if(deletedAt != null)
+		return "Delete";
+	if(createdAt == null || updatedAt == null)
+		return "Update";
+	return createdAt == updatedAt ? "Create" : "Update";
+}
+
+function getUserHistoryStatusLabel(reviewedAt: string | null | undefined, reviewApproved: boolean | null | undefined): string {
+	if(reviewedAt == null)
+		return "Pending";
+	if(reviewApproved == true)
+		return "Approved";
+	return "Rejected";
 }
 
 async function findUsersByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, { name: string, email: string, stagedUserId: string | null }>> {
@@ -545,11 +684,9 @@ async function searchActiveRoleOptions(
 	limit: number = RELATION_SEARCH_LIMIT
 ): Promise<UserRoleOption[]> {
 	const normalizedKeyword = keyword.trim();
-	const normalizedKeywordLower = normalizedKeyword.toLowerCase();
 	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
 	const keywordFilters: Where[] = [
-		{ name: { like: normalizedKeyword } },
-		{ level: { equals: normalizedKeywordLower } }
+		{ name: { like: normalizedKeyword } }
 	];
 	const searchWhereTerms: Where[] = [];
 	if(keywordFilters.length > 0)
@@ -1266,6 +1403,197 @@ export async function getStagedUserRequestDetailsAction(stagedUserId: string): P
 		row,
 		relationValues,
 		relationReferences
+	};
+}
+
+export async function canAccessStagedUserRequestHistoryAction(): Promise<boolean> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null)
+		return false;
+
+	return hasStagedUserRequestHistoryAccess(payload, user);
+}
+
+export async function getStagedUserRequestHistoryAction(stagedUserId: string): Promise<UserRequestHistoryOutput> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+	if(!await hasStagedUserRequestHistoryAccess(payload, user)) return unauthorized();
+
+	const versionsResult = await payload.findVersions({
+		collection: "staged-users",
+		user,
+		overrideAccess: true,
+		trash: true,
+		pagination: false,
+		limit: 100,
+		sort: "-updatedAt",
+		where: {
+			parent: {
+				equals: stagedUserId
+			}
+		},
+		select: {
+			updatedAt: true,
+			version: {
+				id: true,
+				email: true,
+				name: true,
+				employeeId: true,
+				role: true,
+				supervisor: true,
+				createdBy: true,
+				updatedBy: true,
+				deletedBy: true,
+				createdAt: true,
+				updatedAt: true,
+				deletedAt: true,
+				reviewedAt: true,
+				reviewedBy: true,
+				reviewApproved: true,
+				reviewComment: true
+			}
+		}
+	});
+
+	type StagedUserVersionSnapshotDoc = {
+		id?: string | number;
+		updatedAt?: string | null;
+		version?: {
+			id?: string | number;
+			email?: string;
+			name?: string;
+			employeeId?: string;
+			role?: unknown;
+			supervisor?: unknown;
+			createdBy?: unknown;
+			updatedBy?: unknown;
+			deletedBy?: unknown;
+			createdAt?: string | null;
+			updatedAt?: string | null;
+			deletedAt?: string | null;
+			reviewedAt?: string | null;
+			reviewedBy?: unknown;
+			reviewApproved?: boolean | null;
+			reviewComment?: unknown;
+		};
+	};
+
+	const historyDocs = versionsResult.docs as StagedUserVersionSnapshotDoc[];
+
+	const relationUserIds = new Set<string>();
+	const roleIds = new Set<string>();
+	for(const historyDoc of historyDocs) {
+		const version = historyDoc.version;
+		if(version == null)
+			continue;
+
+		const roleId = getRelationshipId(version.role);
+		const supervisorId = getRelationshipId(version.supervisor);
+		const createdById = getRelationshipId(version.createdBy);
+		const updatedById = getRelationshipId(version.updatedBy);
+		const deletedById = getRelationshipId(version.deletedBy);
+		const reviewedById = getRelationshipId(version.reviewedBy);
+
+		if(roleId != null)
+			roleIds.add(roleId);
+		if(supervisorId != null)
+			relationUserIds.add(supervisorId);
+		if(createdById != null)
+			relationUserIds.add(createdById);
+		if(updatedById != null)
+			relationUserIds.add(updatedById);
+		if(deletedById != null)
+			relationUserIds.add(deletedById);
+		if(reviewedById != null)
+			relationUserIds.add(reviewedById);
+	}
+
+	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+	const roleNamesById = await findRolesByIds(payload, user, [...roleIds]);
+
+	type UserHistorySnapshot = {
+		versionId: string;
+		changedAt: string | null;
+		values: Record<UserRequestHistoryColumn, string>;
+	};
+
+	const snapshotsMaybe = historyDocs
+		.map<UserHistorySnapshot | null>(historyDoc => {
+			const version = historyDoc.version;
+			if(version == null)
+				return null;
+
+			const roleId = getRelationshipId(version.role);
+			const supervisorId = getRelationshipId(version.supervisor);
+			const createdById = getRelationshipId(version.createdBy);
+			const updatedById = getRelationshipId(version.updatedBy);
+			const deletedById = getRelationshipId(version.deletedBy);
+			const reviewedById = getRelationshipId(version.reviewedBy);
+			const reviewCommentText = richTextToPlainText(version.reviewComment);
+
+			const createdAt = version.createdAt ?? null;
+			const updatedAt = version.updatedAt ?? null;
+			const deletedAt = version.deletedAt ?? null;
+			const reviewedAt = version.reviewedAt ?? null;
+
+			return {
+				versionId: String(version.id ?? historyDoc.id ?? stagedUserId),
+				changedAt: historyDoc.updatedAt ?? updatedAt,
+				values: {
+					id: String(version.id ?? stagedUserId),
+					name: (version.name ?? "-").trim().length > 0 ? version.name ?? "-" : "-",
+					email: (version.email ?? "-").trim().length > 0 ? version.email ?? "-" : "-",
+					employeeId: (version.employeeId ?? "-").trim().length > 0 ? version.employeeId ?? "-" : "-",
+					role: roleId != null ? (roleNamesById.get(roleId) ?? roleId) : "-",
+					supervisor: supervisorId != null ? (usersById.get(supervisorId)?.name ?? "-") : "-",
+					createdBy: createdById != null ? (usersById.get(createdById)?.name ?? "-") : "-",
+					updatedBy: updatedById != null ? (usersById.get(updatedById)?.name ?? "-") : "-",
+					deletedBy: deletedById != null ? (usersById.get(deletedById)?.name ?? "-") : "-",
+					createdAt: formatReviewDateValue(createdAt),
+					updatedAt: formatReviewDateValue(updatedAt),
+					deletedAt: formatReviewDateValue(deletedAt),
+					requestType: getUserRequestType(deletedAt, createdAt, updatedAt),
+					status: getUserHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
+					reviewedAt: formatReviewDateValue(reviewedAt),
+					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
+					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
+					reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
+				} as Record<UserRequestHistoryColumn, string>
+			};
+		});
+
+	const snapshots = snapshotsMaybe.filter(snapshot => snapshot != null) as UserHistorySnapshot[];
+
+	const entries: UserRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
+		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
+
+		const changes: UserRequestHistoryChangeItem[] = userRequestHistoryColumns.map(column => {
+			const previousValue = previousSnapshot?.values[column] ?? "-";
+			const nextValue = snapshot.values[column];
+			return {
+				column,
+				label: userRequestHistoryColumnLabelMap[column],
+				previousValue,
+				nextValue,
+				changed: previousValue != nextValue
+			};
+		});
+
+		return {
+			versionId: snapshot.versionId,
+			changedAt: snapshot.changedAt,
+			changes,
+			changedCount: changes.filter(change => change.changed).length
+		};
+	});
+
+	return {
+		requestId: stagedUserId,
+		entries
 	};
 }
 

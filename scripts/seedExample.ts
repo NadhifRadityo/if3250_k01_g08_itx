@@ -112,6 +112,7 @@ const ROLE_SEEDS: SeedRole[] = [
 			"user-management-editor",
 			"user-management-approver",
 			"team-management-viewer",
+			"team-management-auditor",
 			"team-management-approver"
 		]
 	},

@@ -11,6 +11,7 @@ import * as roleActions from "../layout.actions";
 import { RoleActiveFiltersSummary } from "../layout.components";
 import { RoleColumnConfigCard } from "../layout.components";
 import { RoleRequestDetailsDrawer } from "../layout.components";
+import { RoleRequestChangePreviewDrawer } from "../layout.components";
 import { RoleRequestFilterCard } from "../layout.components";
 import { RoleRequestsTable } from "../layout.components";
 import { getEligibleDetailTriggerRoleColumnId } from "../layout.components";
@@ -25,6 +26,7 @@ import { type RoleTableRow } from "../layout.components";
 
 export default function RoleManagementViewerPage() {
 	const [detailRow, setDetailRow] = useState<RoleTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<RoleTableRow | null>(null);
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useRoleColumnPreferences();
 	const queryState = useRoleManagementQueryState();
@@ -57,6 +59,7 @@ export default function RoleManagementViewerPage() {
 	const renderRoleCell = useRoleCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -152,11 +155,21 @@ export default function RoleManagementViewerPage() {
 				}}
 				row={detailRow}
 				renderActions={renderRoleActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
 					onOpenSummary: relationNavigation.openSummary
 				}}
+			/>
+
+			<RoleRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />

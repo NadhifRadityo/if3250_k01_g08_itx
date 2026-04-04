@@ -70,6 +70,7 @@ const dateFilterColumns = new Set<TeamManagementFilterColumn>([
 const booleanFilterColumns = new Set<TeamManagementFilterColumn>(["reviewApproved"]);
 export type TeamManagementStatus = typeof teamStatusValues[number];
 const teamStatusSet = new Set<TeamManagementStatus>(teamStatusValues);
+const teamHistoryRequiredMenu = "team-management-auditor";
 
 type ReviewCommentValue = NonNullable<Team["reviewComment"]>;
 const defaultReviewComment: ReviewCommentValue = {
@@ -261,6 +262,43 @@ export type TeamRequestDetailsOutput = {
 	relationReferences: Partial<Record<TeamRelationColumn, Array<{ type: "user", id: string, label: string }>>>;
 };
 
+export type TeamRequestHistoryColumn = "id" |
+	"name" |
+	"supervisor" |
+	"officers" |
+	"createdBy" |
+	"updatedBy" |
+	"deletedBy" |
+	"createdAt" |
+	"updatedAt" |
+	"deletedAt" |
+	"requestType" |
+	"status" |
+	"reviewedAt" |
+	"reviewedBy" |
+	"reviewApproved" |
+	"reviewCommentText";
+
+export type TeamRequestHistoryChangeItem = {
+	column: TeamRequestHistoryColumn;
+	label: string;
+	previousValue: string;
+	nextValue: string;
+	changed: boolean;
+};
+
+export type TeamRequestHistoryEntry = {
+	versionId: string;
+	changedAt: string | null;
+	changes: TeamRequestHistoryChangeItem[];
+	changedCount: number;
+};
+
+export type TeamRequestHistoryOutput = {
+	requestId: string;
+	entries: TeamRequestHistoryEntry[];
+};
+
 type SortFieldKey = TeamManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
 
 function normalizeSortTokens(sort: string[]): TeamManagementSortToken[] {
@@ -438,6 +476,47 @@ function getRelationshipId(value: unknown): string | null {
 	return null;
 }
 
+function normalizeRoleMenus(value: unknown): string[] {
+	if(!Array.isArray(value))
+		return [];
+
+	const normalized = value
+		.filter((menu): menu is string => typeof menu == "string")
+		.map(menu => menu.trim().toLowerCase())
+		.filter(menu => menu.length > 0);
+
+	return [...new Set(normalized)];
+}
+
+async function resolveUserRoleMenus(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<string[]> {
+	const rawRole = user.role;
+	if(rawRole != null && typeof rawRole == "object" && "menus" in rawRole)
+		return normalizeRoleMenus(rawRole.menus);
+
+	const roleId = getRelationshipId(rawRole);
+	if(roleId == null)
+		return [];
+
+	const role = await payload.findByID({
+		collection: "roles",
+		id: roleId,
+		user,
+		overrideAccess: true,
+		trash: true,
+		depth: 0,
+		select: {
+			menus: true
+		}
+	});
+
+	return normalizeRoleMenus(role.menus);
+}
+
+async function hasTeamRequestHistoryAccess(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<boolean> {
+	const roleMenus = await resolveUserRoleMenus(payload, user);
+	return roleMenus.includes(teamHistoryRequiredMenu);
+}
+
 function formatReviewDateValue(value: string | null | undefined): string {
 	if(value == null)
 		return "-";
@@ -459,6 +538,60 @@ function formatReviewUserList(ids: string[], usersById: Map<string, { name: stri
 	if(ids.length == 0)
 		return "-";
 	return ids.map(id => usersById.get(id)?.name ?? "-").join(", ");
+}
+
+const teamRequestHistoryColumns = [
+	"id",
+	"name",
+	"supervisor",
+	"officers",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"requestType",
+	"status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewCommentText"
+] as const satisfies TeamRequestHistoryColumn[];
+
+const teamRequestHistoryColumnLabelMap: Record<TeamRequestHistoryColumn, string> = {
+	id: "ID",
+	name: "Name",
+	supervisor: "Supervisor",
+	officers: "Officers",
+	createdBy: "Created By",
+	updatedBy: "Updated By",
+	deletedBy: "Deleted By",
+	createdAt: "Created At",
+	updatedAt: "Updated At",
+	deletedAt: "Deleted At",
+	requestType: "Request",
+	status: "Status",
+	reviewedAt: "Reviewed At",
+	reviewedBy: "Reviewed By",
+	reviewApproved: "Review Approved",
+	reviewCommentText: "Review Comment"
+};
+
+function getTeamRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
+	if(deletedAt != null)
+		return "Delete";
+	if(createdAt == null || updatedAt == null)
+		return "Update";
+	return createdAt == updatedAt ? "Create" : "Update";
+}
+
+function getTeamHistoryStatusLabel(reviewedAt: string | null | undefined, reviewApproved: boolean | null | undefined): string {
+	if(reviewedAt == null)
+		return "Pending";
+	if(reviewApproved == true)
+		return "Approved";
+	return "Rejected";
 }
 
 async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>, ids: string[]): Promise<Map<string, { name: string, email: string, stagedUserId: string | null }>> {
@@ -1111,6 +1244,189 @@ export async function getTeamRequestDetailsAction(teamId: string): Promise<TeamR
 		row,
 		relationValues,
 		relationReferences
+	};
+}
+
+export async function canAccessTeamRequestHistoryAction(): Promise<boolean> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null)
+		return false;
+
+	return hasTeamRequestHistoryAccess(payload, user);
+}
+
+export async function getTeamRequestHistoryAction(teamId: string): Promise<TeamRequestHistoryOutput> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+	if(!await hasTeamRequestHistoryAccess(payload, user)) return unauthorized();
+
+	const versionsResult = await payload.findVersions({
+		collection: "teams",
+		user,
+		overrideAccess: true,
+		trash: true,
+		pagination: false,
+		limit: 100,
+		sort: "-updatedAt",
+		where: {
+			parent: {
+				equals: teamId
+			}
+		},
+		select: {
+			updatedAt: true,
+			version: {
+				id: true,
+				name: true,
+				supervisor: true,
+				officers: true,
+				createdBy: true,
+				updatedBy: true,
+				deletedBy: true,
+				createdAt: true,
+				updatedAt: true,
+				deletedAt: true,
+				reviewedAt: true,
+				reviewedBy: true,
+				reviewApproved: true,
+				reviewComment: true
+			}
+		}
+	});
+
+	type TeamVersionSnapshotDoc = {
+		id?: string | number;
+		updatedAt?: string | null;
+		version?: {
+			id?: string | number;
+			name?: string;
+			supervisor?: unknown;
+			officers?: unknown;
+			createdBy?: unknown;
+			updatedBy?: unknown;
+			deletedBy?: unknown;
+			createdAt?: string | null;
+			updatedAt?: string | null;
+			deletedAt?: string | null;
+			reviewedAt?: string | null;
+			reviewedBy?: unknown;
+			reviewApproved?: boolean | null;
+			reviewComment?: unknown;
+		};
+	};
+
+	const historyDocs = versionsResult.docs as TeamVersionSnapshotDoc[];
+
+	const relationUserIds = new Set<string>();
+	for(const historyDoc of historyDocs) {
+		const version = historyDoc.version;
+		if(version == null)
+			continue;
+
+		const supervisorId = getRelationshipId(version.supervisor);
+		const officerIds = getRelationshipIds(version.officers);
+		const createdById = getRelationshipId(version.createdBy);
+		const updatedById = getRelationshipId(version.updatedBy);
+		const deletedById = getRelationshipId(version.deletedBy);
+		const reviewedById = getRelationshipId(version.reviewedBy);
+
+		if(supervisorId != null)
+			relationUserIds.add(supervisorId);
+		for(const officerId of officerIds)
+			relationUserIds.add(officerId);
+		if(createdById != null)
+			relationUserIds.add(createdById);
+		if(updatedById != null)
+			relationUserIds.add(updatedById);
+		if(deletedById != null)
+			relationUserIds.add(deletedById);
+		if(reviewedById != null)
+			relationUserIds.add(reviewedById);
+	}
+
+	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+
+	type TeamHistorySnapshot = {
+		versionId: string;
+		changedAt: string | null;
+		values: Record<TeamRequestHistoryColumn, string>;
+	};
+
+	const snapshotsMaybe = historyDocs
+		.map<TeamHistorySnapshot | null>(historyDoc => {
+			const version = historyDoc.version;
+			if(version == null)
+				return null;
+
+			const supervisorId = getRelationshipId(version.supervisor);
+			const officerIds = getRelationshipIds(version.officers);
+			const createdById = getRelationshipId(version.createdBy);
+			const updatedById = getRelationshipId(version.updatedBy);
+			const deletedById = getRelationshipId(version.deletedBy);
+			const reviewedById = getRelationshipId(version.reviewedBy);
+			const reviewCommentText = richTextToPlainText(version.reviewComment);
+
+			const createdAt = version.createdAt ?? null;
+			const updatedAt = version.updatedAt ?? null;
+			const deletedAt = version.deletedAt ?? null;
+			const reviewedAt = version.reviewedAt ?? null;
+
+			return {
+				versionId: String(version.id ?? historyDoc.id ?? teamId),
+				changedAt: historyDoc.updatedAt ?? updatedAt,
+				values: {
+					id: String(version.id ?? teamId),
+					name: (version.name ?? "-").trim().length > 0 ? version.name ?? "-" : "-",
+					supervisor: supervisorId != null ? (usersById.get(supervisorId)?.name ?? "-") : "-",
+					officers: officerIds.length > 0 ? officerIds.map(officerId => usersById.get(officerId)?.name ?? "-").join(", ") : "-",
+					createdBy: createdById != null ? (usersById.get(createdById)?.name ?? "-") : "-",
+					updatedBy: updatedById != null ? (usersById.get(updatedById)?.name ?? "-") : "-",
+					deletedBy: deletedById != null ? (usersById.get(deletedById)?.name ?? "-") : "-",
+					createdAt: formatReviewDateValue(createdAt),
+					updatedAt: formatReviewDateValue(updatedAt),
+					deletedAt: formatReviewDateValue(deletedAt),
+					requestType: getTeamRequestType(deletedAt, createdAt, updatedAt),
+					status: getTeamHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
+					reviewedAt: formatReviewDateValue(reviewedAt),
+					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
+					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
+					reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
+				}
+			};
+		});
+
+	const snapshots = snapshotsMaybe.filter((snapshot): snapshot is TeamHistorySnapshot => snapshot != null);
+
+	const entries: TeamRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
+		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
+
+		const changes: TeamRequestHistoryChangeItem[] = teamRequestHistoryColumns.map(column => {
+			const previousValue = previousSnapshot?.values[column] ?? "-";
+			const nextValue = snapshot.values[column];
+			return {
+				column,
+				label: teamRequestHistoryColumnLabelMap[column],
+				previousValue,
+				nextValue,
+				changed: previousValue != nextValue
+			};
+		});
+
+		return {
+			versionId: snapshot.versionId,
+			changedAt: snapshot.changedAt,
+			changes,
+			changedCount: changes.filter(change => change.changed).length
+		};
+	});
+
+	return {
+		requestId: teamId,
+		entries
 	};
 }
 

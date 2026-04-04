@@ -11,12 +11,15 @@ const DEFAULT_ADMIN_EMPLOYEE_ID = "ADMIN-1";
 const DEFAULT_REVIEW_COMMENT = "Seeded admin role and admin user for local bootstrap.";
 const ALL_MENUS: Role["menus"] = [
 	"user-management-viewer",
+	"user-management-auditor",
 	"user-management-editor",
 	"user-management-approver",
 	"role-management-viewer",
+	"role-management-auditor",
 	"role-management-editor",
 	"role-management-approver",
 	"team-management-viewer",
+	"team-management-auditor",
 	"team-management-editor",
 	"team-management-approver"
 ];

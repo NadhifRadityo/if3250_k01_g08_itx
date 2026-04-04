@@ -10,6 +10,7 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
+import { UserRequestChangePreviewDrawer } from "../layout.components";
 import { UserRequestDetailsDrawer } from "../layout.components";
 import { UserRequestFilterCard } from "../layout.components";
 import { UserRequestsTable } from "../layout.components";
@@ -25,6 +26,7 @@ import { type StagedUserTableRow } from "../layout.components";
 
 export default function UserManagementViewerPage() {
 	const [detailRow, setDetailRow] = useState<StagedUserTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<StagedUserTableRow | null>(null);
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useUserColumnPreferences();
 	const queryState = useUserManagementQueryState();
@@ -56,6 +58,7 @@ export default function UserManagementViewerPage() {
 	const renderUserCell = useUserCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -151,11 +154,21 @@ export default function UserManagementViewerPage() {
 				}}
 				row={detailRow}
 				renderActions={renderUserActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
 					onOpenSummary: relationNavigation.openSummary
 				}}
+			/>
+
+			<UserRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />

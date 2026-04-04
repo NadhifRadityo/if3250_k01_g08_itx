@@ -16,6 +16,7 @@ import { RoleColumnConfigCard } from "../layout.components";
 import { RoleRequestCancelDialog } from "../layout.components";
 import { RoleRequestDeleteDialog } from "../layout.components";
 import { RoleRequestDetailsDrawer } from "../layout.components";
+import { RoleRequestChangePreviewDrawer } from "../layout.components";
 import { RoleRequestFilterCard } from "../layout.components";
 import { RoleRequestFormDrawer } from "../layout.components";
 import { RoleRequestsTable } from "../layout.components";
@@ -46,6 +47,7 @@ export default function RoleManagementEditorPage() {
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [detailRow, setDetailRow] = useState<RoleTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<RoleTableRow | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<RoleTableRow | null>(null);
 	const [cancelTarget, setCancelTarget] = useState<RoleTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
@@ -82,6 +84,7 @@ export default function RoleManagementEditorPage() {
 	const renderRoleCell = useRoleCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -330,11 +333,21 @@ export default function RoleManagementEditorPage() {
 				}}
 				row={detailRow}
 				renderActions={renderRoleActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
 					onOpenSummary: relationNavigation.openSummary
 				}}
+			/>
+
+			<RoleRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			<RoleRequestFormDrawer

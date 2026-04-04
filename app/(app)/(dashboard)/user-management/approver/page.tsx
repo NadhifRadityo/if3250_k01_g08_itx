@@ -12,6 +12,7 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as userActions from "../layout.actions";
 import { UserActiveFiltersSummary } from "../layout.components";
 import { UserColumnConfigCard } from "../layout.components";
+import { UserRequestChangePreviewDrawer } from "../layout.components";
 import { UserRequestDetailsDrawer } from "../layout.components";
 import { UserRequestFilterCard } from "../layout.components";
 import { UserRequestReviewDrawer } from "../layout.components";
@@ -39,6 +40,7 @@ export default function UserManagementApproverPage() {
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
 	const [detailRow, setDetailRow] = useState<StagedUserTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<StagedUserTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useUserColumnPreferences();
@@ -71,6 +73,7 @@ export default function UserManagementApproverPage() {
 	const renderUserCell = useUserCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -226,6 +229,7 @@ export default function UserManagementApproverPage() {
 				}}
 				row={detailRow}
 				renderActions={renderUserActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -249,6 +253,16 @@ export default function UserManagementApproverPage() {
 				onApprove={() => submitReview("approve")}
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}
+				onOpenRequestChanges={setRequestChangeRow}
+			/>
+
+			<UserRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />

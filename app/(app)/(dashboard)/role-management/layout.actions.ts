@@ -45,6 +45,7 @@ const roleMenuLabelMap: Record<RoleMenu, string> = {
 	"team-management-editor": "Team Management - Editor",
 	"team-management-approver": "Team Management - Approver"
 };
+const roleHistoryRequiredMenu: RoleMenu = "role-management-auditor";
 
 export type RoleLevel = Role["level"];
 export type RoleMenu = Role["menus"][number];
@@ -285,6 +286,43 @@ export type RoleRequestDetailsOutput = {
 	relationReferences: Partial<Record<RoleRelationColumn, Array<{ type: "user", id: string, label: string }>>>;
 };
 
+export type RoleRequestHistoryColumn = "id" |
+	"name" |
+	"level" |
+	"menus" |
+	"createdBy" |
+	"updatedBy" |
+	"deletedBy" |
+	"createdAt" |
+	"updatedAt" |
+	"deletedAt" |
+	"requestType" |
+	"status" |
+	"reviewedAt" |
+	"reviewedBy" |
+	"reviewApproved" |
+	"reviewCommentText";
+
+export type RoleRequestHistoryChangeItem = {
+	column: RoleRequestHistoryColumn;
+	label: string;
+	previousValue: string;
+	nextValue: string;
+	changed: boolean;
+};
+
+export type RoleRequestHistoryEntry = {
+	versionId: string;
+	changedAt: string | null;
+	changes: RoleRequestHistoryChangeItem[];
+	changedCount: number;
+};
+
+export type RoleRequestHistoryOutput = {
+	requestId: string;
+	entries: RoleRequestHistoryEntry[];
+};
+
 type SortFieldKey = RoleManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
 
 function normalizeSortTokens(sort: string[]): RoleManagementSortToken[] {
@@ -512,6 +550,89 @@ function formatReviewRoleMenusValue(value: unknown): string {
 	if(menus.length == 0)
 		return "-";
 	return menus.map(menu => roleMenuLabelMap[menu]).join(", ");
+}
+
+async function resolveUserRoleMenus(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<RoleMenu[]> {
+	const rawRole = user.role;
+	if(rawRole != null && typeof rawRole == "object" && "menus" in rawRole)
+		return normalizeRoleMenuValues(rawRole.menus);
+
+	const roleId = getRelationshipId(rawRole);
+	if(roleId == null)
+		return [];
+
+	const role = await payload.findByID({
+		collection: "roles",
+		id: roleId,
+		user,
+		overrideAccess: true,
+		trash: true,
+		depth: 0,
+		select: {
+			menus: true
+		}
+	});
+
+	return normalizeRoleMenuValues(role.menus);
+}
+
+async function hasRoleRequestHistoryAccess(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<boolean> {
+	const roleMenus = await resolveUserRoleMenus(payload, user);
+	return roleMenus.includes(roleHistoryRequiredMenu);
+}
+
+const roleRequestHistoryColumns = [
+	"id",
+	"name",
+	"level",
+	"menus",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"requestType",
+	"status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewCommentText"
+] as const satisfies RoleRequestHistoryColumn[];
+
+const roleRequestHistoryColumnLabelMap: Record<RoleRequestHistoryColumn, string> = {
+	id: "ID",
+	name: "Name",
+	level: "Level",
+	menus: "Menus",
+	createdBy: "Created By",
+	updatedBy: "Updated By",
+	deletedBy: "Deleted By",
+	createdAt: "Created At",
+	updatedAt: "Updated At",
+	deletedAt: "Deleted At",
+	requestType: "Request",
+	status: "Status",
+	reviewedAt: "Reviewed At",
+	reviewedBy: "Reviewed By",
+	reviewApproved: "Review Approved",
+	reviewCommentText: "Review Comment"
+};
+
+function getRoleRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
+	if(deletedAt != null)
+		return "Delete";
+	if(createdAt == null || updatedAt == null)
+		return "Update";
+	return createdAt == updatedAt ? "Create" : "Update";
+}
+
+function getRoleHistoryStatusLabel(reviewedAt: string | null | undefined, reviewApproved: boolean | null | undefined): string {
+	if(reviewedAt == null)
+		return "Pending";
+	if(reviewApproved == true)
+		return "Approved";
+	return "Rejected";
 }
 
 async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>, ids: string[]): Promise<Map<string, { name: string, email: string, stagedUserId: string | null }>> {
@@ -1057,6 +1178,181 @@ export async function getRoleRequestDetailsAction(roleId: string): Promise<RoleR
 		row,
 		relationValues,
 		relationReferences
+	};
+}
+
+export async function canAccessRoleRequestHistoryAction(): Promise<boolean> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null)
+		return false;
+
+	return hasRoleRequestHistoryAccess(payload, user);
+}
+
+export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleRequestHistoryOutput> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+	if(!await hasRoleRequestHistoryAccess(payload, user)) return unauthorized();
+
+	const versionsResult = await payload.findVersions({
+		collection: "roles",
+		user,
+		overrideAccess: true,
+		trash: true,
+		pagination: false,
+		limit: 100,
+		sort: "-updatedAt",
+		where: {
+			parent: {
+				equals: roleId
+			}
+		},
+		select: {
+			updatedAt: true,
+			version: {
+				id: true,
+				name: true,
+				level: true,
+				menus: true,
+				createdBy: true,
+				updatedBy: true,
+				deletedBy: true,
+				createdAt: true,
+				updatedAt: true,
+				deletedAt: true,
+				reviewedAt: true,
+				reviewedBy: true,
+				reviewApproved: true,
+				reviewComment: true
+			}
+		}
+	});
+
+	type RoleVersionSnapshotDoc = {
+		id?: string | number;
+		updatedAt?: string | null;
+		version?: {
+			id?: string | number;
+			name?: string;
+			level?: unknown;
+			menus?: unknown;
+			createdBy?: unknown;
+			updatedBy?: unknown;
+			deletedBy?: unknown;
+			createdAt?: string | null;
+			updatedAt?: string | null;
+			deletedAt?: string | null;
+			reviewedAt?: string | null;
+			reviewedBy?: unknown;
+			reviewApproved?: boolean | null;
+			reviewComment?: unknown;
+		};
+	};
+
+	const historyDocs = versionsResult.docs as RoleVersionSnapshotDoc[];
+
+	const relationUserIds = new Set<string>();
+	for(const historyDoc of historyDocs) {
+		const version = historyDoc.version;
+		if(version == null)
+			continue;
+
+		const createdById = getRelationshipId(version.createdBy);
+		const updatedById = getRelationshipId(version.updatedBy);
+		const deletedById = getRelationshipId(version.deletedBy);
+		const reviewedById = getRelationshipId(version.reviewedBy);
+
+		if(createdById != null)
+			relationUserIds.add(createdById);
+		if(updatedById != null)
+			relationUserIds.add(updatedById);
+		if(deletedById != null)
+			relationUserIds.add(deletedById);
+		if(reviewedById != null)
+			relationUserIds.add(reviewedById);
+	}
+
+	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+
+	type RoleHistorySnapshot = {
+		versionId: string;
+		changedAt: string | null;
+		values: Record<RoleRequestHistoryColumn, string>;
+	};
+
+	const snapshotsMaybe = historyDocs
+		.map<RoleHistorySnapshot | null>(historyDoc => {
+			const version = historyDoc.version;
+			if(version == null)
+				return null;
+
+			const createdById = getRelationshipId(version.createdBy);
+			const updatedById = getRelationshipId(version.updatedBy);
+			const deletedById = getRelationshipId(version.deletedBy);
+			const reviewedById = getRelationshipId(version.reviewedBy);
+			const reviewCommentText = richTextToPlainText(version.reviewComment);
+
+			const createdAt = version.createdAt ?? null;
+			const updatedAt = version.updatedAt ?? null;
+			const deletedAt = version.deletedAt ?? null;
+			const reviewedAt = version.reviewedAt ?? null;
+
+			return {
+				versionId: String(version.id ?? historyDoc.id ?? roleId),
+				changedAt: historyDoc.updatedAt ?? updatedAt,
+				values: {
+					id: String(version.id ?? roleId),
+					name: (version.name ?? "-").trim().length > 0 ? version.name ?? "-" : "-",
+					level: formatReviewRoleLevelValue(version.level),
+					menus: formatReviewRoleMenusValue(version.menus),
+					createdBy: createdById != null ? (usersById.get(createdById)?.name ?? "-") : "-",
+					updatedBy: updatedById != null ? (usersById.get(updatedById)?.name ?? "-") : "-",
+					deletedBy: deletedById != null ? (usersById.get(deletedById)?.name ?? "-") : "-",
+					createdAt: formatReviewDateValue(createdAt),
+					updatedAt: formatReviewDateValue(updatedAt),
+					deletedAt: formatReviewDateValue(deletedAt),
+					requestType: getRoleRequestType(deletedAt, createdAt, updatedAt),
+					status: getRoleHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
+					reviewedAt: formatReviewDateValue(reviewedAt),
+					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
+					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
+					reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
+				}
+			};
+		});
+
+	const snapshots = snapshotsMaybe.filter((snapshot): snapshot is RoleHistorySnapshot => snapshot != null);
+
+	const entries: RoleRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
+		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
+
+		const changes: RoleRequestHistoryChangeItem[] = roleRequestHistoryColumns.map(column => {
+			const previousValue = previousSnapshot?.values[column] ?? "-";
+			const nextValue = snapshot.values[column];
+			return {
+				column,
+				label: roleRequestHistoryColumnLabelMap[column],
+				previousValue,
+				nextValue,
+				changed: previousValue != nextValue
+			};
+		});
+
+		return {
+			versionId: snapshot.versionId,
+			changedAt: snapshot.changedAt,
+			changes,
+			changedCount: changes.filter(change => change.changed).length
+		};
+	});
+
+	return {
+		requestId: roleId,
+		entries
 	};
 }
 

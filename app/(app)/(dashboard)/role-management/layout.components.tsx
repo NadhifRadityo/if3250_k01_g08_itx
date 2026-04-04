@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback, type DragEvent, type ReactNode, type MouseEvent } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, CheckIcon, ArrowUpIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
+import { XIcon, PlusIcon, CheckIcon, ArrowUpIcon, HistoryIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import { Link } from "@/components/Link";
@@ -40,6 +40,7 @@ export type RoleTableRow = QueryRolesOutput["docs"][number];
 export type RoleManagementTabMode = "viewer" | Parameters<typeof roleActions.queryRolesAction>[0]["mode"];
 export type RoleRelationColumn = roleActions.RoleRelationColumn;
 export type RoleRequestReviewDiff = Awaited<ReturnType<typeof roleActions.getRoleRequestReviewDiffAction>>;
+export type RoleRequestHistory = Awaited<ReturnType<typeof roleActions.getRoleRequestHistoryAction>>;
 export type RoleLevel = roleActions.RoleLevel;
 export type RoleMenu = roleActions.RoleMenu;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
@@ -133,12 +134,15 @@ export const roleLevelOptions: Array<{ value: RoleLevel, label: string }> = [
 
 export const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
 	{ value: "user-management-viewer", label: "User Management - Viewer" },
+	{ value: "user-management-auditor", label: "User Management - Auditor" },
 	{ value: "user-management-editor", label: "User Management - Editor" },
 	{ value: "user-management-approver", label: "User Management - Approver" },
 	{ value: "role-management-viewer", label: "Role Management - Viewer" },
+	{ value: "role-management-auditor", label: "Role Management - Auditor" },
 	{ value: "role-management-editor", label: "Role Management - Editor" },
 	{ value: "role-management-approver", label: "Role Management - Approver" },
 	{ value: "team-management-viewer", label: "Team Management - Viewer" },
+	{ value: "team-management-auditor", label: "Team Management - Auditor" },
 	{ value: "team-management-editor", label: "Team Management - Editor" },
 	{ value: "team-management-approver", label: "Team Management - Approver" }
 ];
@@ -207,6 +211,7 @@ export const roleRelationColumnSet = new Set<RoleRelationColumn>([
 const roleNonEligibleColumnSet = new Set<string>([
 	"actions",
 	"status",
+	"requestType",
 	"reviewedBy",
 	"createdBy",
 	"updatedBy",
@@ -413,6 +418,30 @@ export function getReviewStatus(row: RoleTableRow): { label: string, variant: "d
 	if(row.reviewApproved == true)
 		return { label: "Approved", variant: "default" };
 	return { label: "Rejected", variant: "destructive" };
+}
+
+function renderRequestTypeTrigger({
+	row,
+	onOpenRequestChanges,
+	className
+}: {
+	row: RoleTableRow;
+	onOpenRequestChanges?: (row: RoleTableRow) => void;
+	className?: string;
+}): ReactNode {
+	if(onOpenRequestChanges == null)
+		return row.requestType;
+
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => onOpenRequestChanges(row)}
+			className={cn("text-primary h-auto p-0", className)}
+		>
+			{row.requestType}
+		</Button>
+	);
 }
 
 export function reorderColumns(order: RoleTableColumnId[], sourceId: RoleTableColumnId, targetId: RoleTableColumnId): RoleTableColumnId[] {
@@ -932,6 +961,7 @@ type RoleRequestReviewDrawerProps = {
 	onApprove: () => void;
 	onReject: () => void;
 	isMutating: boolean;
+	onOpenRequestChanges?: (row: RoleTableRow) => void;
 };
 
 export function RoleRequestReviewDrawer({
@@ -944,7 +974,8 @@ export function RoleRequestReviewDrawer({
 	onReviewReasonChange,
 	onApprove,
 	onReject,
-	isMutating
+	isMutating,
+	onOpenRequestChanges
 }: RoleRequestReviewDrawerProps) {
 	return (
 		<Drawer
@@ -962,7 +993,15 @@ export function RoleRequestReviewDrawer({
 				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
 						<p>
-							<span className="font-medium">Request Type:</span> {reviewDrawerState?.diff?.requestType ?? "-"}
+							<span className="font-medium">Request Type:</span>{" "}
+							{reviewDrawerState?.row != null ? renderRequestTypeTrigger({
+								row: {
+									...reviewDrawerState.row,
+									requestType: reviewDrawerState.diff?.requestType ?? reviewDrawerState.row.requestType
+								},
+								onOpenRequestChanges,
+								className: "align-baseline"
+							}) : "-"}
 						</p>
 						<p className="text-muted-foreground">
 							{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
@@ -1017,6 +1056,83 @@ export function RoleRequestReviewDrawer({
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
 					<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || reviewDrawerState?.diff == null}>Approve</Button>
 					<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || reviewDrawerState?.diff == null}>Reject</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
+type RoleRequestChangePreviewDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	row: RoleTableRow | null;
+};
+
+export function RoleRequestChangePreviewDrawer({
+	open,
+	onOpenChange,
+	row
+}: RoleRequestChangePreviewDrawerProps) {
+	const diffQuery = useQuery({
+		queryKey: ["role-management", "request-change-preview", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: () => roleActions.getRoleRequestReviewDiffAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>Request Changes</DrawerTitle>
+					<DrawerDescription>Review the differences between the last approved version and the selected request.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+						<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
+						<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+					</div>
+
+					{row == null ? (
+						<p className="text-muted-foreground text-sm">No request selected.</p>
+					) : diffQuery.isPending ? (
+						<div className="space-y-2">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					) : diffQuery.isError || diffQuery.data == null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>Error</AlertTitle>
+							<AlertDescription>Unable to load request changes.</AlertDescription>
+						</Alert>
+					) : (
+						<div className="space-y-2">
+							{diffQuery.data.items.map(item => (
+								<div key={item.field} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-medium">{item.label}</p>
+										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+									</div>
+									<div className="grid gap-2 sm:grid-cols-2">
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getRoleDrawerValueClassName(item.field))}>{item.previousValue}</div>
+										</div>
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Requested</p>
+											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getRoleDrawerValueClassName(item.field))}>{item.requestedValue}</div>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
@@ -1137,6 +1253,7 @@ type RoleRequestDetailsDrawerProps = {
 	row: RoleTableRow | null;
 	renderActions: (row: RoleTableRow) => ReactNode;
 	relationNavigation?: RoleRelationNavigation;
+	onOpenRequestChanges?: (row: RoleTableRow) => void;
 };
 
 type RoleRelationNavigation = {
@@ -1248,12 +1365,37 @@ export function RoleRequestDetailsDrawer({
 	onOpenChange,
 	row,
 	renderActions,
-	relationNavigation
+	relationNavigation,
+	onOpenRequestChanges
 }: RoleRequestDetailsDrawerProps) {
+	const [historyOpen, setHistoryOpen] = useState(false);
+
+	useEffect(() => {
+		if(!open)
+			setHistoryOpen(false);
+	}, [open]);
+
 	const detailsQuery = useQuery({
 		queryKey: ["role-management", "details", row?.id ?? null],
 		enabled: open && row != null,
 		queryFn: () => roleActions.getRoleRequestDetailsAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const historyAccessQuery = useQuery({
+		queryKey: ["role-management", "history-access"],
+		queryFn: () => roleActions.canAccessRoleRequestHistoryAction(),
+		staleTime: 60_000,
+		refetchOnWindowFocus: true
+	});
+
+	const canAccessHistory = historyAccessQuery.data == true;
+
+	const historyQuery = useQuery({
+		queryKey: ["role-management", "history", row?.id ?? null],
+		enabled: historyOpen && row != null && canAccessHistory,
+		queryFn: () => roleActions.getRoleRequestHistoryAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -1290,7 +1432,7 @@ export function RoleRequestDetailsDrawer({
 			case "deletedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
 			case "requestType":
-				return renderDetailColumnValue(columnId, data.row.requestType);
+				return renderDetailColumnValue(columnId, renderRequestTypeTrigger({ row: data.row, onOpenRequestChanges, className: "text-left whitespace-normal" }));
 			case "status": {
 				const status = getReviewStatus(data.row);
 				return <Badge variant={status.variant}>{status.label}</Badge>;
@@ -1309,46 +1451,108 @@ export function RoleRequestDetailsDrawer({
 	};
 
 	return (
-		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-				<DrawerHeader>
-					<DrawerTitle>Role Request Details</DrawerTitle>
-					<DrawerDescription>Review all available columns for this role request entry.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
-					{row == null ? (
-						<p className="text-muted-foreground text-sm">No role request selected.</p>
-					) : detailsQuery.isPending ? (
-						<div className="space-y-2">
-							<Skeleton className="h-20 w-full" />
-							<Skeleton className="h-20 w-full" />
-							<Skeleton className="h-20 w-full" />
-						</div>
-					) : detailsQuery.isError || details == null ? (
-						<Alert variant="destructive">
-							<CircleAlertIcon />
-							<AlertTitle>Error</AlertTitle>
-							<AlertDescription>Unable to load role request details.</AlertDescription>
-						</Alert>
-					) : (
-						roleTableColumns.map(column => (
-							<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
-								<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
-								{renderDetailValue(column.id, details)}
+		<>
+			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+					<DrawerHeader>
+						<DrawerTitle>Role Request Details</DrawerTitle>
+						<DrawerDescription>Review all available columns for this role request entry.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No role request selected.</p>
+						) : detailsQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
 							</div>
-						))
-					)}
-				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-					{actionRow != null ? (
-						<div className="flex flex-wrap justify-end gap-2">
-							{renderActions(actionRow)}
-						</div>
-					) : null}
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
+						) : detailsQuery.isError || details == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load role request details.</AlertDescription>
+							</Alert>
+						) : (
+							roleTableColumns.map(column => (
+								<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
+									<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
+									{renderDetailValue(column.id, details)}
+								</div>
+							))
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+						{!historyAccessQuery.isPending && canAccessHistory ? (
+							<Button type="button" variant="secondary" onClick={() => setHistoryOpen(true)} disabled={row == null}><HistoryIcon />History</Button>
+						) : null}
+						{actionRow != null ? (
+							renderActions(actionRow)
+						) : null}
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+
+			<Drawer open={historyOpen} onOpenChange={setHistoryOpen} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+					<DrawerHeader>
+						<DrawerTitle>Role Request History</DrawerTitle>
+						<DrawerDescription>Changes are shown from the most recent version to the earliest version.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No role request selected.</p>
+						) : historyAccessQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-28 w-full" />
+								<Skeleton className="h-28 w-full" />
+							</div>
+						) : !canAccessHistory ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Unauthorized</AlertTitle>
+								<AlertDescription>You need Role Management auditor access to view history.</AlertDescription>
+							</Alert>
+						) : historyQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-28 w-full" />
+								<Skeleton className="h-28 w-full" />
+							</div>
+						) : historyQuery.isError || historyQuery.data == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load role request history.</AlertDescription>
+							</Alert>
+						) : historyQuery.data.entries.length == 0 ? (
+							<p className="text-muted-foreground text-sm">No history entries found for this role request.</p>
+						) : (
+							historyQuery.data.entries.map(entry => (
+								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
+										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+									</div>
+									<div className="space-y-1">
+										{entry.changes.map(change => (
+											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed ? "border-primary/30 bg-primary/5" : "opacity-70")}>
+												<p className="font-medium">{change.label}</p>
+												<p className="text-muted-foreground">From: {change.previousValue}</p>
+												<p>To: {change.nextValue}</p>
+											</div>
+										))}
+									</div>
+								</div>
+							))
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => setHistoryOpen(false)}>Close</Button>
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+		</>
 	);
 }
 
@@ -1356,9 +1560,10 @@ type UseRoleCellRendererOptions = {
 	relationValuesByRowId: Record<string, roleActions.RoleRelationValues>;
 	isRelationLoading: boolean;
 	relationNavigation?: RoleRelationNavigation;
+	onOpenRequestChanges?: (row: RoleTableRow) => void;
 };
 
-export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseRoleCellRendererOptions) {
+export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseRoleCellRendererOptions) {
 	return useCallback((columnId: RoleTableColumnId, row: RoleTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
@@ -1393,7 +1598,7 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "deletedAt":
 				return formatDateTime(row.deletedAt);
 			case "requestType":
-				return row.requestType;
+				return renderRequestTypeTrigger({ row, onOpenRequestChanges, className: "text-left whitespace-normal" });
 			case "status": {
 				const status = getReviewStatus(row);
 				return <Badge variant={status.variant}>{status.label}</Badge>;
@@ -1411,7 +1616,7 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, relationValuesByRowId, relationNavigation]);
+	}, [isRelationLoading, onOpenRequestChanges, relationValuesByRowId, relationNavigation]);
 }
 
 export function useRoleColumnPreferences() {

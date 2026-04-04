@@ -14,6 +14,7 @@ import * as teamActions from "../layout.actions";
 import { TeamActiveFiltersSummary } from "../layout.components";
 import { TeamColumnConfigCard } from "../layout.components";
 import { TeamRequestCancelDialog } from "../layout.components";
+import { TeamRequestChangePreviewDrawer } from "../layout.components";
 import { TeamRequestDetailsDrawer } from "../layout.components";
 import { TeamRequestDeleteDialog } from "../layout.components";
 import { TeamRequestFilterCard } from "../layout.components";
@@ -44,6 +45,7 @@ export default function TeamManagementEditorPage() {
 	const [formState, setFormState] = useState<FormState>(defaultFormState);
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [detailRow, setDetailRow] = useState<TeamTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<TeamTableRow | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<TeamTableRow | null>(null);
 	const [cancelTarget, setCancelTarget] = useState<TeamTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
@@ -84,6 +86,7 @@ export default function TeamManagementEditorPage() {
 	const renderTeamCell = useTeamCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -317,11 +320,21 @@ export default function TeamManagementEditorPage() {
 				}}
 				row={detailRow}
 				renderActions={renderTeamActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
 					onOpenSummary: relationNavigation.openSummary
 				}}
+			/>
+
+			<TeamRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			<TeamRequestFormDrawer

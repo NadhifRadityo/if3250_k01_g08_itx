@@ -10,6 +10,7 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as teamActions from "../layout.actions";
 import { TeamActiveFiltersSummary } from "../layout.components";
 import { TeamColumnConfigCard } from "../layout.components";
+import { TeamRequestChangePreviewDrawer } from "../layout.components";
 import { TeamRequestDetailsDrawer } from "../layout.components";
 import { TeamRequestFilterCard } from "../layout.components";
 import { TeamRequestsTable } from "../layout.components";
@@ -25,6 +26,7 @@ import { type TeamTableRow } from "../layout.components";
 
 export default function TeamManagementViewerPage() {
 	const [detailRow, setDetailRow] = useState<TeamTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<TeamTableRow | null>(null);
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useTeamColumnPreferences();
 	const queryState = useTeamManagementQueryState();
@@ -56,6 +58,7 @@ export default function TeamManagementViewerPage() {
 	const renderTeamCell = useTeamCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -151,11 +154,21 @@ export default function TeamManagementViewerPage() {
 				}}
 				row={detailRow}
 				renderActions={renderTeamActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
 					onOpenSummary: relationNavigation.openSummary
 				}}
+			/>
+
+			<TeamRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			{renderTeamCell.relationSummaryPickerDrawer}

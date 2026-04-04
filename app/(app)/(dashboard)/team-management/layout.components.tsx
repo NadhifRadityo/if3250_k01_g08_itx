@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback, type DragEvent, type ReactNode, type MouseEvent } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, ArrowUpIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
+import { XIcon, PlusIcon, ArrowUpIcon, HistoryIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import { Link } from "@/components/Link";
@@ -47,6 +47,7 @@ export type TeamManagementTabMode = "viewer" | Parameters<typeof teamActions.que
 export type AssignableUsers = Awaited<ReturnType<typeof teamActions.searchTeamAssignableUsersAction>>;
 export type TeamRelationColumn = teamActions.TeamRelationColumn;
 export type TeamRequestReviewDiff = Awaited<ReturnType<typeof teamActions.getTeamRequestReviewDiffAction>>;
+export type TeamRequestHistory = Awaited<ReturnType<typeof teamActions.getTeamRequestHistoryAction>>;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
 export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
 export type ActionError = {
@@ -200,6 +201,7 @@ export const teamRelationColumnSet = new Set<TeamRelationColumn>([
 const teamNonEligibleColumnSet = new Set<string>([
 	"actions",
 	"status",
+	"requestType",
 	"supervisor",
 	"officers",
 	"reviewedBy",
@@ -424,6 +426,33 @@ export function getReviewStatus(row: TeamTableRow): { label: string, variant: "d
 	if(row.reviewApproved == true)
 		return { label: "Approved", variant: "default" };
 	return { label: "Rejected", variant: "destructive" };
+}
+
+function renderRequestTypeTrigger({
+	row,
+	onOpenRequestChanges,
+	className,
+	requestTypeLabel
+}: {
+	row: TeamTableRow;
+	onOpenRequestChanges?: (row: TeamTableRow) => void;
+	className?: string;
+	requestTypeLabel?: string;
+}): ReactNode {
+	const label = requestTypeLabel ?? row.requestType;
+	if(onOpenRequestChanges == null)
+		return label;
+
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => onOpenRequestChanges(row)}
+			className={cn("text-primary h-auto p-0", className)}
+		>
+			{label}
+		</Button>
+	);
 }
 
 export function reorderColumns(order: TeamTableColumnId[], sourceId: TeamTableColumnId, targetId: TeamTableColumnId): TeamTableColumnId[] {
@@ -934,6 +963,7 @@ type TeamRequestReviewDrawerProps = {
 	onApprove: () => void;
 	onReject: () => void;
 	isMutating: boolean;
+	onOpenRequestChanges?: (row: TeamTableRow) => void;
 };
 
 export function TeamRequestReviewDrawer({
@@ -946,7 +976,8 @@ export function TeamRequestReviewDrawer({
 	onReviewReasonChange,
 	onApprove,
 	onReject,
-	isMutating
+	isMutating,
+	onOpenRequestChanges
 }: TeamRequestReviewDrawerProps) {
 	const entrySummary = useEntrySummaryDrawer();
 
@@ -995,7 +1026,13 @@ export function TeamRequestReviewDrawer({
 					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
 							<p>
-								<span className="font-medium">Request Type:</span> {reviewDrawerState?.diff?.requestType ?? "-"}
+								<span className="font-medium">Request Type:</span>{" "}
+								{reviewDrawerState?.row != null ? renderRequestTypeTrigger({
+									row: reviewDrawerState.row,
+									onOpenRequestChanges,
+									className: "align-baseline",
+									requestTypeLabel: reviewDrawerState.diff?.requestType ?? reviewDrawerState.row.requestType
+								}) : "-"}
 							</p>
 							<p className="text-muted-foreground">
 								{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
@@ -1050,6 +1087,128 @@ export function TeamRequestReviewDrawer({
 						<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
 						<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || reviewDrawerState?.diff == null}>Approve</Button>
 						<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || reviewDrawerState?.diff == null}>Reject</Button>
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+
+			<EntrySummaryDrawer
+				isOpen={entrySummary.isOpen}
+				onOpenChange={entrySummary.onOpenChange}
+				isLoading={entrySummary.isLoading}
+				errorMessage={entrySummary.errorMessage}
+				summary={entrySummary.summary}
+			/>
+		</>
+	);
+}
+
+type TeamRequestChangePreviewDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	row: TeamTableRow | null;
+};
+
+export function TeamRequestChangePreviewDrawer({
+	open,
+	onOpenChange,
+	row
+}: TeamRequestChangePreviewDrawerProps) {
+	const entrySummary = useEntrySummaryDrawer();
+	const diffQuery = useQuery({
+		queryKey: ["team-management", "request-change-preview", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: () => teamActions.getTeamRequestReviewDiffAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const renderReferenceValue = (
+		value: string,
+		references: Array<{ type: "user", id: string, label: string }> | undefined,
+		sectionLabel: string,
+		valueClassName: string
+	) => {
+		if(references == null || references.length == 0)
+			return <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>{value}</div>;
+
+		return (
+			<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>
+				<div className="flex flex-wrap gap-1.5">
+					{references.map(reference => (
+						<Button
+							key={`${reference.type}-${reference.id}-${sectionLabel}`}
+							type="button"
+							variant="link"
+							size="sm"
+							onClick={() => entrySummary.openSummary({
+								type: reference.type,
+								id: reference.id,
+								fallbackTitle: reference.label,
+								fallbackDescription: sectionLabel
+							})}
+							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word"
+						>
+							{reference.label}
+						</Button>
+					))}
+				</div>
+			</div>
+		);
+	};
+
+	return (
+		<>
+			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+					<DrawerHeader>
+						<DrawerTitle>Request Changes</DrawerTitle>
+						<DrawerDescription>Review the differences between the last approved version and the selected request.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+							<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
+							<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+						</div>
+
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No request selected.</p>
+						) : diffQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+							</div>
+						) : diffQuery.isError || diffQuery.data == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load request changes.</AlertDescription>
+							</Alert>
+						) : (
+							<div className="space-y-2">
+								{diffQuery.data.items.map(item => (
+									<div key={item.field} className="space-y-2 rounded-lg border p-3">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-sm font-medium">{item.label}</p>
+											<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+										</div>
+										<div className="grid gap-2 sm:grid-cols-2">
+											<div className="space-y-1">
+												<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+												{renderReferenceValue(item.previousValue, item.previousReferences, `Team ${item.label} (last approved)`, getTeamDrawerValueClassName(item.field))}
+											</div>
+											<div className="space-y-1">
+												<p className="text-muted-foreground text-xs font-medium">Requested</p>
+												{renderReferenceValue(item.requestedValue, item.requestedReferences, `Team ${item.label} (requested)`, getTeamDrawerValueClassName(item.field))}
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
 					</DrawerFooter>
 				</DrawerContent>
 			</Drawer>
@@ -1179,6 +1338,7 @@ type TeamRequestDetailsDrawerProps = {
 	row: TeamTableRow | null;
 	renderActions: (row: TeamTableRow) => ReactNode;
 	relationNavigation?: TeamRelationNavigation;
+	onOpenRequestChanges?: (row: TeamTableRow) => void;
 };
 
 type TeamRelationNavigation = {
@@ -1336,10 +1496,17 @@ export function TeamRequestDetailsDrawer({
 	onOpenChange,
 	row,
 	renderActions,
-	relationNavigation
+	relationNavigation,
+	onOpenRequestChanges
 }: TeamRequestDetailsDrawerProps) {
+	const [historyOpen, setHistoryOpen] = useState(false);
 	const [relationSummaryPickerOpen, setRelationSummaryPickerOpen] = useState(false);
 	const [relationSummaryPicker, setRelationSummaryPicker] = useState<RelationSummaryPickerState | null>(null);
+
+	useEffect(() => {
+		if(!open)
+			setHistoryOpen(false);
+	}, [open]);
 
 	const openRelationSummary = useCallback((cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => {
 		if(relationNavigation == null || normalizedRelationIds.length == 0)
@@ -1386,6 +1553,23 @@ export function TeamRequestDetailsDrawer({
 		refetchOnWindowFocus: true
 	});
 
+	const historyAccessQuery = useQuery({
+		queryKey: ["team-management", "history-access"],
+		queryFn: () => teamActions.canAccessTeamRequestHistoryAction(),
+		staleTime: 60_000,
+		refetchOnWindowFocus: true
+	});
+
+	const canAccessHistory = historyAccessQuery.data == true;
+
+	const historyQuery = useQuery({
+		queryKey: ["team-management", "history", row?.id ?? null],
+		enabled: historyOpen && row != null && canAccessHistory,
+		queryFn: () => teamActions.getTeamRequestHistoryAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
 	const details = detailsQuery.data;
 	const actionRow = details?.row ?? row;
 
@@ -1416,7 +1600,7 @@ export function TeamRequestDetailsDrawer({
 			case "deletedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
 			case "requestType":
-				return renderDetailColumnValue(columnId, data.row.requestType);
+				return renderDetailColumnValue(columnId, renderRequestTypeTrigger({ row: data.row, onOpenRequestChanges, className: "text-left whitespace-normal" }));
 			case "status": {
 				const status = getReviewStatus(data.row);
 				return <Badge variant={status.variant}>{status.label}</Badge>;
@@ -1426,7 +1610,7 @@ export function TeamRequestDetailsDrawer({
 			case "reviewedBy":
 				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationIds: data.row.reviewedById != null ? [data.row.reviewedById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
 			case "reviewApproved":
-				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved == true ? "True" : "False");
+				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
 			case "reviewCommentText":
 				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
 			default:
@@ -1468,11 +1652,71 @@ export function TeamRequestDetailsDrawer({
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
 						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-						{actionRow != null ? (
-							<div className="flex flex-wrap justify-end gap-2">
-								{renderActions(actionRow)}
-							</div>
+						{!historyAccessQuery.isPending && canAccessHistory ? (
+							<Button type="button" variant="secondary" onClick={() => setHistoryOpen(true)} disabled={row == null}><HistoryIcon />History</Button>
 						) : null}
+						{actionRow != null ? (
+							renderActions(actionRow)
+						) : null}
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+
+			<Drawer open={historyOpen} onOpenChange={setHistoryOpen} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+					<DrawerHeader>
+						<DrawerTitle>Team Request History</DrawerTitle>
+						<DrawerDescription>Changes are shown from the most recent version to the earliest version.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No team request selected.</p>
+						) : historyAccessQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-28 w-full" />
+								<Skeleton className="h-28 w-full" />
+							</div>
+						) : !canAccessHistory ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Unauthorized</AlertTitle>
+								<AlertDescription>You need Team Management auditor access to view history.</AlertDescription>
+							</Alert>
+						) : historyQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-28 w-full" />
+								<Skeleton className="h-28 w-full" />
+							</div>
+						) : historyQuery.isError || historyQuery.data == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load team request history.</AlertDescription>
+							</Alert>
+						) : historyQuery.data.entries.length == 0 ? (
+							<p className="text-muted-foreground text-sm">No history entries found for this team request.</p>
+						) : (
+							historyQuery.data.entries.map(entry => (
+								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
+										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+									</div>
+									<div className="space-y-1">
+										{entry.changes.map(change => (
+											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed ? "border-primary/30 bg-primary/5" : "opacity-70")}>
+												<p className="font-medium">{change.label}</p>
+												<p className="text-muted-foreground">From: {change.previousValue}</p>
+												<p>To: {change.nextValue}</p>
+											</div>
+										))}
+									</div>
+								</div>
+							))
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => setHistoryOpen(false)}>Close</Button>
 					</DrawerFooter>
 				</DrawerContent>
 			</Drawer>
@@ -1491,9 +1735,10 @@ type UseTeamCellRendererOptions = {
 	relationValuesByRowId: Record<string, teamActions.TeamRelationValues>;
 	isRelationLoading: boolean;
 	relationNavigation?: TeamRelationNavigation;
+	onOpenRequestChanges?: (row: TeamTableRow) => void;
 };
 
-export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: UseTeamCellRendererOptions) {
+export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseTeamCellRendererOptions) {
 	const [relationSummaryPickerOpen, setRelationSummaryPickerOpen] = useState(false);
 	const [relationSummaryPicker, setRelationSummaryPicker] = useState<RelationSummaryPickerState | null>(null);
 
@@ -1577,7 +1822,7 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "deletedAt":
 				return formatDateTime(row.deletedAt);
 			case "requestType":
-				return row.requestType;
+				return renderRequestTypeTrigger({ row, onOpenRequestChanges, className: "text-left whitespace-normal" });
 			case "status": {
 				const status = getReviewStatus(row);
 				return <Badge variant={status.variant}>{status.label}</Badge>;
@@ -1595,7 +1840,7 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, openRelationSummary, relationNavigation, relationValuesByRowId]);
+	}, [isRelationLoading, onOpenRequestChanges, openRelationSummary, relationNavigation, relationValuesByRowId]);
 	const result2 = result as typeof result & { relationSummaryPickerDrawer: typeof relationSummaryPickerDrawer };
 	result2.relationSummaryPickerDrawer = relationSummaryPickerDrawer;
 	return result2;

@@ -12,6 +12,7 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as teamActions from "../layout.actions";
 import { TeamActiveFiltersSummary } from "../layout.components";
 import { TeamColumnConfigCard } from "../layout.components";
+import { TeamRequestChangePreviewDrawer } from "../layout.components";
 import { TeamRequestDetailsDrawer } from "../layout.components";
 import { TeamRequestFilterCard } from "../layout.components";
 import { TeamRequestReviewDrawer } from "../layout.components";
@@ -39,6 +40,7 @@ export default function TeamManagementApproverPage() {
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
 	const [detailRow, setDetailRow] = useState<TeamTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<TeamTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
 	const relationNavigation = useDashboardRelationNavigation();
 	const columnPreferences = useTeamColumnPreferences();
@@ -71,6 +73,7 @@ export default function TeamManagementApproverPage() {
 	const renderTeamCell = useTeamCellRenderer({
 		relationValuesByRowId,
 		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -226,6 +229,7 @@ export default function TeamManagementApproverPage() {
 				}}
 				row={detailRow}
 				renderActions={renderTeamActions}
+				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -249,6 +253,16 @@ export default function TeamManagementApproverPage() {
 				onApprove={() => submitReview("approve")}
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}
+				onOpenRequestChanges={setRequestChangeRow}
+			/>
+
+			<TeamRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			{renderTeamCell.relationSummaryPickerDrawer}
