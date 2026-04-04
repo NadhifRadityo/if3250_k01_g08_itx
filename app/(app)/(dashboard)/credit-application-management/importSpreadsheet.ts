@@ -58,7 +58,7 @@ export const CREDIT_IMPORT_TEMPLATE_COLUMN_HEADERS = [
 	"Phone",
 	"WhatsApp",
 	"Email",
-	"Apply ID"
+	"Asset ID"
 ] as const;
 
 function columnIndexMap(headers: string[]): Map<string, number> {
@@ -186,7 +186,7 @@ export function mapRowToIngestCreate(
 		phoneParts :
 		whatsappNumber != "—" ? [whatsappNumber] : ["—"];
 	const emailRaw = cellString(row, templateColumnIndex(map, "Email"));
-	const assetRaw = cellString(row, templateColumnIndex(map, "Apply ID"));
+	const assetRaw = cellString(row, templateColumnIndex(map, "Asset ID"));
 	return {
 		ok: true,
 		data: {

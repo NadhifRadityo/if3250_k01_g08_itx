@@ -290,7 +290,7 @@ export default function CreditApplicationImportApproverPage() {
 
 	const searchPlaceholder = queue == "pending" ?
 		"Search by file name" :
-		"Search by account name or apply ID";
+		"Search by account name or asset ID";
 
 	return (
 		<>
@@ -476,12 +476,12 @@ export default function CreditApplicationImportApproverPage() {
 														type="button"
 														variant="ghost"
 														size="sm"
-														onClick={() => toggleReviewedSortField("applyId")}
+														onClick={() => toggleReviewedSortField("assetId")}
 														disabled={isLoading || isMutating}
 														className="-ml-2 h-7 gap-1 px-2 text-foreground"
 													>
-														Apply ID
-														{renderReviewedSortIcon("applyId")}
+														Asset ID
+														{renderReviewedSortIcon("assetId")}
 													</Button>
 												</TableHead>
 												<TableHead>
@@ -529,7 +529,7 @@ export default function CreditApplicationImportApproverPage() {
 													</TableCell>
 													<TableCell>{formatDateTime(row.importUploadedAt)}</TableCell>
 													<TableCell>{row.uploadByName}</TableCell>
-													<TableCell className="font-mono text-xs">{row.applyId}</TableCell>
+													<TableCell className="font-mono text-xs">{row.assetId}</TableCell>
 													<TableCell>{row.accountName}</TableCell>
 													<TableCell className="max-w-40 truncate" title={row.address1}>{row.address1}</TableCell>
 													<TableCell className="max-w-40 truncate" title={row.address2}>{row.address2}</TableCell>

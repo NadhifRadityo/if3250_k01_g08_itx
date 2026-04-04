@@ -147,7 +147,7 @@ export type CreditApplicationReviewedSortField =
 	"importFilename" |
 	"importUploadedAt" |
 	"uploadBy" |
-	"applyId" |
+	"assetId" |
 	"accountName";
 
 export type CreditApplicationReviewedSortToken = `${"+" | "-"}${CreditApplicationReviewedSortField}`;
@@ -156,7 +156,7 @@ const sortableReviewedFields = new Set<CreditApplicationReviewedSortField>([
 	"importFilename",
 	"importUploadedAt",
 	"uploadBy",
-	"applyId",
+	"assetId",
 	"accountName"
 ]);
 
@@ -186,8 +186,8 @@ function reviewedSortToPayloadSort(tokens: CreditApplicationReviewedSortToken[])
 			key == "importFilename" ? "import.filename" :
 				key == "importUploadedAt" ? "import.createdAt" :
 					key == "uploadBy" ? "import.createdBy.name" :
-						key == "applyId" ? "assetId" :
-							"name";
+						key == "accountName" ? "name" :
+							key;
 		return `${direction}${path}`;
 	}).join(",");
 }
@@ -278,7 +278,7 @@ export type CreditApplicationImportApproverTableRow = CreditApplicationImportTab
 
 export type CreditApplicationReviewedListingRow = {
 	id: string;
-	applyId: string;
+	assetId: string;
 	importFilename: string;
 	importUrl: string | null;
 	importUploadedAt: string;
@@ -348,11 +348,11 @@ function isPopulatedCreditApplicationImport(value: string | CreditApplicationImp
 function mapCreditApplicationReviewedListingRow(doc: CreditApplication): CreditApplicationReviewedListingRow {
 	const imp = isPopulatedCreditApplicationImport(doc.import) ? doc.import : null;
 	const addresses = Array.isArray(doc.addresses) ? doc.addresses : [];
-	const assetId = typeof doc.assetId == "string" ? doc.assetId.trim() : "";
-	const applyId = assetId.length > 0 ? assetId : String(doc.id);
+	const storedAssetId = typeof doc.assetId == "string" ? doc.assetId.trim() : "";
+	const assetId = storedAssetId.length > 0 ? storedAssetId : String(doc.id);
 	return {
 		id: String(doc.id),
-		applyId,
+		assetId,
 		importFilename: imp?.filename ?? "-",
 		importUrl: imp?.url ?? null,
 		importUploadedAt: imp?.createdAt ?? doc.createdAt,
