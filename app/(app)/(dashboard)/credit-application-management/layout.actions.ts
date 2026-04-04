@@ -840,7 +840,7 @@ export async function reopenCreditApplicationImportReviewAction(importId: string
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
-			reviewComment: defaultCreditApplicationImportReviewComment
+			reviewComment: null
 		}
 	});
 }

@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 
 import {
 	MAX_CREDIT_IMPORT_UPLOAD_BYTES,
-	defaultCreditApplicationImportReviewComment,
 	isAllowedCreditImportUploadMime,
 	validateCreditImportSpreadsheetBuffer,
 	formatCreditImportValidationMessagesForUser
@@ -139,7 +138,7 @@ export async function handleCreditApplicationImportFilePut(
 		reviewedAt: null,
 		reviewedBy: null,
 		reviewApproved: null,
-		reviewComment: defaultCreditApplicationImportReviewComment
+		reviewComment: null
 	};
 
 	await payload.update({
