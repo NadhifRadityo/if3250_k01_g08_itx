@@ -75,7 +75,7 @@ export async function handleCreditApplicationImportPost(
 		return NextResponse.json(
 			{
 				error: "unsupported_type",
-				messages: ["Only Excel (.xlsx, .xls) or CSV files are allowed."]
+				messages: ["Only .xlsx files are allowed. Download the template for the required columns."]
 			},
 			{ status: 400 }
 		);

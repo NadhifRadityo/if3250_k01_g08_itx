@@ -2,6 +2,7 @@
 
 import { useRef, useMemo, useState, useEffect, useTransition, type ChangeEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { CellValue } from "exceljs";
 import {
 	PencilIcon,
 	Trash2Icon,
@@ -10,7 +11,8 @@ import {
 	ArrowDownIcon,
 	RotateCcwIcon,
 	ArrowUpDownIcon,
-	CircleAlertIcon
+	CircleAlertIcon,
+	DownloadIcon
 } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -36,8 +38,8 @@ type SortDirection = "asc" | "desc";
 type ImportSortStateItem = { field: creditActions.CreditApplicationImportSortField, direction: SortDirection };
 
 const DEBOUNCE_MS = 300;
-const CSV_PREVIEW_BYTES = 512 * 1024;
-const CSV_PREVIEW_MAX_ROWS = 12;
+const IMPORT_PREVIEW_MAX_DATA_ROWS = 12;
+const CREDIT_IMPORT_TEMPLATE_PATH = "/credit-application-import-template.xlsx";
 
 const CREDIT_IMPORT_REST_UPLOAD_URL = "/api/credit-application-imports/upload";
 
@@ -84,6 +86,61 @@ async function parseCreditImportRestErrorMessage(response: Response): Promise<st
 	);
 }
 
+function isXlsxFilename(name: string): boolean {
+	return name.toLowerCase().endsWith(".xlsx");
+}
+
+function cellValueToString(value: CellValue): string {
+	if(value == null)
+		return "";
+	if(typeof value == "string" || typeof value == "number" || typeof value == "boolean")
+		return String(value);
+	if(typeof value == "object") {
+		if("richText" in value && Array.isArray(value.richText))
+			return value.richText.map(part => (typeof part.text == "string" ? part.text : "")).join("");
+		if("text" in value && typeof value.text == "string")
+			return value.text;
+		if("result" in value && value.result != null)
+			return cellValueToString(value.result as CellValue);
+	}
+	return "";
+}
+
+async function buildImportPreviewFromXlsxFile(file: File, maxDataRows: number): Promise<{ headers: string[], rows: string[][] }> {
+	const ExcelJS = (await import("exceljs")).default;
+	const workbook = new ExcelJS.Workbook();
+	await workbook.xlsx.load(await file.arrayBuffer());
+	const worksheet = workbook.worksheets[0];
+	if(worksheet == null)
+		return { headers: [], rows: [] };
+
+	const headerRow = worksheet.getRow(1);
+	let columnCount = headerRow.cellCount;
+	if(columnCount < 1)
+		columnCount = 1;
+
+	const headers: string[] = [];
+	for(let c = 1; c <= columnCount; c++)
+		headers.push(cellValueToString(headerRow.getCell(c).value));
+
+	const rows: string[][] = [];
+	const limitRow = Math.min(worksheet.rowCount, 1 + maxDataRows);
+	for(let r = 2; r <= limitRow; r++) {
+		const row = worksheet.getRow(r);
+		if(row.hasValues == false)
+			continue;
+		const cells: string[] = [];
+		for(let c = 1; c <= columnCount; c++)
+			cells.push(cellValueToString(row.getCell(c).value));
+		if(cells.every(cell => cell.length == 0))
+			continue;
+		rows.push(cells);
+		if(rows.length >= maxDataRows)
+			break;
+	}
+	return { headers, rows };
+}
+
 async function uploadCreditImportFileViaRest(file: File): Promise<void> {
 	const formData = new FormData();
 	formData.append("file", file);
@@ -106,20 +163,6 @@ async function replaceCreditImportFileViaRest(importId: string, file: File): Pro
 	});
 	if(!response.ok)
 		throw new Error(await parseCreditImportRestErrorMessage(response));
-}
-
-function isCsvFilename(name: string): boolean {
-	return name.toLowerCase().endsWith(".csv");
-}
-
-function parseCsvPreview(text: string, maxDataRows: number): { headers: string[], rows: string[][] } {
-	const lines = text.split(/\r?\n/).map(line => line.trimEnd()).filter(line => line.length > 0);
-	if(lines.length == 0)
-		return { headers: [], rows: [] };
-	const splitLine = (line: string): string[] => line.split(",").map(cell => cell.trim().replace(/^"|"$/g, ""));
-	const headers = splitLine(lines[0]);
-	const rows = lines.slice(1, 1 + maxDataRows).map(splitLine);
-	return { headers, rows };
 }
 
 function formatDateTime(value: string): string {
@@ -167,11 +210,11 @@ export default function CreditApplicationImportPage() {
 	const [pageError, setPageError] = useState<{ title: string, message: string } | null>(null);
 	const [uploadError, setUploadError] = useState<{ title: string, message: string } | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
-	const [csvDialogOpen, setCsvDialogOpen] = useState(false);
-	const [csvDialogReplaceImportId, setCsvDialogReplaceImportId] = useState<string | null>(null);
+	const [importPreviewDialogOpen, setImportPreviewDialogOpen] = useState(false);
+	const [importPreviewReplaceImportId, setImportPreviewReplaceImportId] = useState<string | null>(null);
 	const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
-	const [csvPreviewHeaders, setCsvPreviewHeaders] = useState<string[]>([]);
-	const [csvPreviewRows, setCsvPreviewRows] = useState<string[][]>([]);
+	const [importPreviewHeaders, setImportPreviewHeaders] = useState<string[]>([]);
+	const [importPreviewRows, setImportPreviewRows] = useState<string[][]>([]);
 	const [deleteTarget, setDeleteTarget] = useState<creditActions.CreditApplicationImportTableRow | null>(null);
 	const [sortState, setSortState] = useState<ImportSortStateItem[]>([
 		{ field: "createdAt", direction: "desc" }
@@ -307,42 +350,41 @@ export default function CreditApplicationImportPage() {
 		replaceImportIdRef.current = null;
 		if(file == null)
 			return;
-		if(isCsvFilename(file.name)) {
-			void (async () => {
-				try {
-					const text = await file.slice(0, CSV_PREVIEW_BYTES).text();
-					const preview = parseCsvPreview(text, CSV_PREVIEW_MAX_ROWS);
-					setCsvPreviewHeaders(preview.headers);
-					setCsvPreviewRows(preview.rows);
-					setPendingUploadFile(file);
-					setCsvDialogReplaceImportId(replaceId);
-					setCsvDialogOpen(true);
-					setUploadError(null);
-				} catch(error) {
-					setUploadError(resolvePageError(error, "Could not read CSV for preview."));
-				} finally {
-					event.target.value = "";
-				}
-			})();
+		if(!isXlsxFilename(file.name)) {
+			setUploadError({
+				title: "Unsupported file",
+				message: "Only .xlsx files are accepted. Download the template for the correct columns."
+			});
+			event.target.value = "";
 			return;
 		}
-		if(replaceId != null) {
-			runReplaceUpload(replaceId, file, event.target);
-			return;
-		}
-		runUpload(file, event.target);
+		void (async () => {
+			try {
+				const preview = await buildImportPreviewFromXlsxFile(file, IMPORT_PREVIEW_MAX_DATA_ROWS);
+				setImportPreviewHeaders(preview.headers);
+				setImportPreviewRows(preview.rows);
+				setPendingUploadFile(file);
+				setImportPreviewReplaceImportId(replaceId);
+				setImportPreviewDialogOpen(true);
+				setUploadError(null);
+			} catch(error) {
+				setUploadError(resolvePageError(error, "Could not read the Excel file for preview."));
+			} finally {
+				event.target.value = "";
+			}
+		})();
 	};
 
-	const confirmCsvUpload = () => {
+	const confirmImportUpload = () => {
 		if(pendingUploadFile == null)
 			return;
 		const file = pendingUploadFile;
-		const replaceId = csvDialogReplaceImportId;
-		setCsvDialogOpen(false);
+		const replaceId = importPreviewReplaceImportId;
+		setImportPreviewDialogOpen(false);
 		setPendingUploadFile(null);
-		setCsvPreviewHeaders([]);
-		setCsvPreviewRows([]);
-		setCsvDialogReplaceImportId(null);
+		setImportPreviewHeaders([]);
+		setImportPreviewRows([]);
+		setImportPreviewReplaceImportId(null);
 		if(replaceId != null) {
 			runReplaceUpload(replaceId, file, fileInputRef.current);
 			return;
@@ -388,13 +430,13 @@ export default function CreditApplicationImportPage() {
 		<>
 			<DashboardManagementPageFrame
 				title="Account upload"
-				description="Upload Excel or CSV files for checker review. Rows are not created until Import approver approves. While status is pending or rejected you can replace the file, delete the upload, or clear a rejection to queue again; approved imports are read-only."
+				description="Upload .xlsx files using the template columns for checker review. Rows are not created until Import approver approves. While status is pending or rejected you can replace the file, delete the upload, or clear a rejection to queue again; approved imports are read-only."
 			>
 				<input
 					ref={fileInputRef}
 					type="file"
 					className="hidden"
-					accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+					accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 					onChange={handleFileChange}
 				/>
 
@@ -408,10 +450,18 @@ export default function CreditApplicationImportPage() {
 					isLoading={isLoading}
 					isMutating={isMutating}
 					rightSlot={(
-						<Button type="button" onClick={openFilePicker} disabled={isLoading || isMutating}>
-							<UploadIcon />
-							Upload file
-						</Button>
+						<div className="flex flex-wrap items-center gap-2">
+							<Button type="button" variant="outline" asChild>
+								<a href={CREDIT_IMPORT_TEMPLATE_PATH} download>
+									<DownloadIcon />
+									Download template
+								</a>
+							</Button>
+							<Button type="button" onClick={openFilePicker} disabled={isLoading || isMutating}>
+								<UploadIcon />
+								Upload file
+							</Button>
+						</div>
 					)}
 				/>
 
@@ -503,7 +553,7 @@ export default function CreditApplicationImportPage() {
 							{!isLoading && queryResult.docs.length == 0 ? (
 								<TableRow>
 									<TableCell colSpan={7} className="text-muted-foreground py-8 text-center">
-										No uploads yet. Use Upload file to add an Excel or CSV file.
+										No uploads yet. Download the template, then use Upload file to add a .xlsx file.
 									</TableCell>
 								</TableRow>
 							) : null}
@@ -619,51 +669,51 @@ export default function CreditApplicationImportPage() {
 			</AlertDialog>
 
 			<Dialog
-				open={csvDialogOpen}
+				open={importPreviewDialogOpen}
 				onOpenChange={open => {
 					if(!open) {
-						setCsvDialogOpen(false);
+						setImportPreviewDialogOpen(false);
 						setPendingUploadFile(null);
-						setCsvPreviewHeaders([]);
-						setCsvPreviewRows([]);
-						setCsvDialogReplaceImportId(null);
+						setImportPreviewHeaders([]);
+						setImportPreviewRows([]);
+						setImportPreviewReplaceImportId(null);
 					}
 				}}
 			>
 				<DialogContent className="sm:max-w-3xl" showCloseButton={true}>
 					<DialogHeader>
-						<DialogTitle>Preview CSV</DialogTitle>
+						<DialogTitle>Preview spreadsheet</DialogTitle>
 						<DialogDescription>
-							{csvDialogReplaceImportId != null ?
+							{importPreviewReplaceImportId != null ?
 								"This file will replace the current upload for this import. Rejection will be cleared so the checker can review again." :
-								`First rows from the file (up to ${CSV_PREVIEW_MAX_ROWS} data rows for this dialog; the server still validates the full sheet on upload).`}
+								`First rows from the workbook (up to ${IMPORT_PREVIEW_MAX_DATA_ROWS} data rows in this dialog; the server still validates the full sheet on upload).`}
 						</DialogDescription>
 					</DialogHeader>
 					<div className="max-h-[50vh] overflow-auto rounded-lg border">
 						<Table>
 							<TableHeader>
 								<TableRow>
-									{csvPreviewHeaders.length == 0 ? (
+									{importPreviewHeaders.length == 0 ? (
 										<TableHead className="text-muted-foreground">No header row detected</TableHead>
 									) : (
-										csvPreviewHeaders.map((header, index) => (
+										importPreviewHeaders.map((header, index) => (
 											<TableHead key={index} className="whitespace-nowrap">{header.length > 0 ? header : `Column ${index + 1}`}</TableHead>
 										))
 									)}
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{csvPreviewRows.length == 0 ? (
+								{importPreviewRows.length == 0 ? (
 									<TableRow>
-										<TableCell colSpan={Math.max(csvPreviewHeaders.length, 1)} className="text-muted-foreground py-6 text-center">
+										<TableCell colSpan={Math.max(importPreviewHeaders.length, 1)} className="text-muted-foreground py-6 text-center">
 											No data rows in the preview slice.
 										</TableCell>
 									</TableRow>
 								) : (
-									csvPreviewRows.map((cells, rowIndex) => (
+									importPreviewRows.map((cells, rowIndex) => (
 										<TableRow key={rowIndex}>
 											{cells.map((cell, cellIndex) => (
-												<TableCell key={cellIndex} className="max-w-[12rem] truncate whitespace-nowrap" title={cell}>
+												<TableCell key={cellIndex} className="max-w-48 truncate whitespace-nowrap" title={cell}>
 													{cell}
 												</TableCell>
 											))}
@@ -678,17 +728,17 @@ export default function CreditApplicationImportPage() {
 							type="button"
 							variant="outline"
 							onClick={() => {
-								setCsvDialogOpen(false);
+								setImportPreviewDialogOpen(false);
 								setPendingUploadFile(null);
-								setCsvPreviewHeaders([]);
-								setCsvPreviewRows([]);
-								setCsvDialogReplaceImportId(null);
+								setImportPreviewHeaders([]);
+								setImportPreviewRows([]);
+								setImportPreviewReplaceImportId(null);
 							}}
 							disabled={isMutating}
 						>
 							Cancel
 						</Button>
-						<Button type="button" onClick={confirmCsvUpload} disabled={isMutating || pendingUploadFile == null}>
+						<Button type="button" onClick={confirmImportUpload} disabled={isMutating || pendingUploadFile == null}>
 							<UploadIcon />
 							Upload file
 						</Button>

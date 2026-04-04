@@ -8,18 +8,16 @@ import {
 export const MAX_CREDIT_IMPORT_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 const allowedUploadMimeTypes = new Set([
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-	"application/vnd.ms-excel",
-	"text/csv",
-	"application/csv",
-	"application/vnd.ms-excel.sheet.macroEnabled.12"
+	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 ]);
 
 export function isAllowedCreditImportUploadMime(mimeType: string, filename: string): boolean {
+	const lower = filename.toLowerCase();
+	if(!lower.endsWith(".xlsx"))
+		return false;
 	if(allowedUploadMimeTypes.has(mimeType))
 		return true;
-	const lower = filename.toLowerCase();
-	if(lower.endsWith(".xlsx") || lower.endsWith(".xls") || lower.endsWith(".csv"))
+	if(mimeType == "application/octet-stream" || mimeType.length == 0)
 		return true;
 	return false;
 }
@@ -43,7 +41,7 @@ export function validateCreditImportSpreadsheetBuffer(
 			ok: false,
 			code: "parse_error",
 			messages: [
-				"Could not read the spreadsheet. Use a valid Excel (.xlsx, .xls) or CSV file."
+				"Could not read the spreadsheet. Use a valid .xlsx file (see the downloadable template)."
 			]
 		};
 	}
