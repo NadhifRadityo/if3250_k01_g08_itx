@@ -19,7 +19,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=builder --chown=node:node /home/node .
+COPY --from=builder --exclude=node_modules --chown=node:node /home/node .
 
 USER node
 EXPOSE 3000
