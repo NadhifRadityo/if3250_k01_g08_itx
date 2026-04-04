@@ -11,6 +11,9 @@ const MAX_PAGE_SIZE = 20;
 const RELATION_SEARCH_LIMIT = 20;
 const roleLevelValues = ["admin", "manager", "supervisor", "officer"] as const;
 const roleMenuValues = [
+	"account-assignment-viewer",
+	"account-assignment-maker",
+	"account-assignment-checker",
 	"user-management-viewer",
 	"user-management-auditor",
 	"user-management-editor",
@@ -32,6 +35,9 @@ const roleLevelLabelMap: Record<RoleLevel, string> = {
 	officer: "Officer"
 };
 const roleMenuLabelMap: Record<RoleMenu, string> = {
+	"account-assignment-viewer": "Account Assignment - Viewer",
+	"account-assignment-maker": "Account Assignment - Maker",
+	"account-assignment-checker": "Account Assignment - Checker",
 	"user-management-viewer": "User Management - Viewer",
 	"user-management-auditor": "User Management - Auditor",
 	"user-management-editor": "User Management - Editor",

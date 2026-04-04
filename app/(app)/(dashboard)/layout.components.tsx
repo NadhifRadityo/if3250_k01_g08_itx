@@ -20,7 +20,7 @@ import { Sidebar, SidebarMenu, SidebarRail, SidebarGroup, SidebarInset, SidebarF
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
 
-const managementPathRegex = /^\/(user-management|role-management|team-management)(?:\/(viewer|editor|approver))?$/;
+const managementPathRegex = /^\/(user-management|role-management|team-management|account-assignment)(?:\/(viewer|editor|approver|maker|checker))?$/;
 
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
@@ -37,6 +37,8 @@ function getManagementIcon(key: DashboardManagementKey) {
 		return UserCogIcon;
 	if(key == "role-management")
 		return ShieldCheckIcon;
+	if(key == "account-assignment")
+		return FileTextIcon;
 	return UsersIcon;
 }
 

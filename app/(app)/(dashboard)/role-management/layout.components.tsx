@@ -133,6 +133,9 @@ export const roleLevelOptions: Array<{ value: RoleLevel, label: string }> = [
 ];
 
 export const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
+	{ value: "account-assignment-viewer", label: "Account Assignment - Viewer" },
+	{ value: "account-assignment-maker", label: "Account Assignment - Maker" },
+	{ value: "account-assignment-checker", label: "Account Assignment - Checker" },
 	{ value: "user-management-viewer", label: "User Management - Viewer" },
 	{ value: "user-management-auditor", label: "User Management - Auditor" },
 	{ value: "user-management-editor", label: "User Management - Editor" },
