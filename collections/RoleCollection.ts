@@ -146,7 +146,11 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "team-management-viewer", label: "Team Management - Viewer" },
 				{ value: "team-management-auditor", label: "Team Management - Auditor" },
 				{ value: "team-management-editor", label: "Team Management - Editor" },
-				{ value: "team-management-approver", label: "Team Management - Approver" }
+				{ value: "team-management-approver", label: "Team Management - Approver" },
+				{ value: "credit-application-import-editor", label: "Credit Application — Import" },
+				{ value: "credit-application-import-approver", label: "Credit Application — Import Approver" },
+				{ value: "credit-application-entry-editor", label: "Credit Application — Entry Editor" },
+				{ value: "credit-application-entry-approver", label: "Credit Application — Entry Approver" }
 			],
 			required: true,
 			hasMany: true,
