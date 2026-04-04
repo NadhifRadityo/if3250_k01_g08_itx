@@ -47,33 +47,41 @@ function creditImportRestReplaceFileUrl(importId: string): string {
 
 async function parseCreditImportRestErrorMessage(response: Response): Promise<string> {
 	const text = await response.text();
-	if(text.length == 0)
-		return response.statusText.length > 0 ? response.statusText : "Request failed.";
-	try {
-		const body = JSON.parse(text) as Record<string, unknown>;
-		if(typeof body.summary == "string" && body.summary.length > 0)
-			return body.summary;
-		if(Array.isArray(body.messages)) {
-			const parts = body.messages.filter((item): item is string => typeof item == "string");
-			if(parts.length > 0)
-				return parts.join(" ");
-		}
-		if(typeof body.error == "string") {
-			const preset: Record<string, string> = {
-				unauthorized: "Unauthorized.",
-				forbidden: "Forbidden.",
-				not_found: "Import not found.",
-				deleted: "This upload has been deleted.",
-				read_only: "Approved imports are read-only."
-			};
-			if(body.error in preset)
-				return preset[body.error];
-			return body.error;
-		}
-	} catch{
-		/* use raw text */
+	if(text.length == 0) {
+		return response.statusText.length > 0 ?
+			`Request failed (${response.status}): ${response.statusText}` :
+			`Request failed (${response.status}).`;
 	}
-	return text;
+	let body: Record<string, unknown>;
+	try {
+		body = JSON.parse(text) as Record<string, unknown>;
+	} catch{
+		throw new Error(
+			`Unexpected non-JSON response (${response.status}). The upload API should always return JSON; this often means a proxy or server error.`
+		);
+	}
+	if(typeof body.summary == "string" && body.summary.length > 0)
+		return body.summary;
+	if(Array.isArray(body.messages)) {
+		const parts = body.messages.filter((item): item is string => typeof item == "string");
+		if(parts.length > 0)
+			return parts.join(" ");
+	}
+	if(typeof body.error == "string") {
+		const preset: Record<string, string> = {
+			unauthorized: "Unauthorized.",
+			forbidden: "Forbidden.",
+			not_found: "Import not found.",
+			deleted: "This upload has been deleted.",
+			read_only: "Approved imports are read-only."
+		};
+		if(body.error in preset)
+			return preset[body.error as keyof typeof preset];
+		return body.error;
+	}
+	throw new Error(
+		`Unexpected error response shape (${response.status}). Expected JSON with error, messages, or summary.`
+	);
 }
 
 async function uploadCreditImportFileViaRest(file: File): Promise<void> {
