@@ -11,8 +11,11 @@ import payloadConfig from "@payload-config";
 import type { User, CreditApplication, CreditApplicationImport } from "@/payload-types";
 
 import { getDashboardShellContext, type DashboardRoleMenu } from "../layout.actions";
-import { defaultCreditApplicationImportReviewComment } from "./creditApplicationImportDefaultReviewComment";
-import { formatCreditImportValidationMessagesForUser } from "./creditApplicationImportUploadPolicy";
+import {
+	defaultCreditApplicationImportReviewComment,
+	formatCreditImportValidationMessagesForUser,
+	type CreditApplicationImportReviewComment
+} from "./creditApplicationImportUploadPolicy";
 import {
 	formatRowsForPreview,
 	MAX_PREVIEW_DATA_ROWS,
@@ -25,8 +28,6 @@ const PAGE_SIZE = 20;
 
 const creditImportEditorMenu: DashboardRoleMenu = "credit-application-import-editor";
 const creditImportApproverMenu: DashboardRoleMenu = "credit-application-import-approver";
-
-type ReviewCommentValue = NonNullable<CreditApplicationImport["reviewComment"]>;
 
 function richTextToPlainText(value: unknown): string {
 	if(value == null || typeof value != "object")
@@ -48,7 +49,7 @@ function richTextToPlainText(value: unknown): string {
 		.trim();
 }
 
-function plainTextToReviewComment(value: string | null | undefined): ReviewCommentValue {
+function plainTextToReviewComment(value: string | null | undefined): CreditApplicationImportReviewComment {
 	const text = (value ?? "").trim();
 	if(text.length == 0)
 		return defaultCreditApplicationImportReviewComment;
@@ -554,7 +555,7 @@ async function ingestCreditApplicationsForApprovedImport(
 	user: User,
 	importId: string,
 	creates: CreditApplicationIngestCreate[],
-	reviewComment: ReviewCommentValue,
+	reviewComment: CreditApplicationImportReviewComment,
 	now: string
 ): Promise<void> {
 	const existingApps = await payload.find({

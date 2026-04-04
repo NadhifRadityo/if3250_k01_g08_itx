@@ -1,3 +1,5 @@
+import type { CreditApplicationImport } from "@/payload-types";
+
 import {
 	parseImportSpreadsheetBuffer,
 	CREDIT_IMPORT_VALIDATION_PLACEHOLDER_ID,
@@ -56,3 +58,25 @@ export function formatCreditImportValidationMessagesForUser(messages: string[]):
 	const more = messages.length > 8 ? ` (+${messages.length - 8} more)` : "";
 	return `Validation failed: ${sample}${more}`;
 }
+
+export type CreditApplicationImportReviewComment = NonNullable<CreditApplicationImport["reviewComment"]>;
+
+export const defaultCreditApplicationImportReviewComment: CreditApplicationImportReviewComment = {
+	root: {
+		type: "root",
+		version: 1,
+		format: "",
+		indent: 0,
+		direction: null,
+		children: [
+			{
+				type: "paragraph",
+				version: 1,
+				format: "",
+				indent: 0,
+				direction: null,
+				children: []
+			}
+		]
+	}
+};

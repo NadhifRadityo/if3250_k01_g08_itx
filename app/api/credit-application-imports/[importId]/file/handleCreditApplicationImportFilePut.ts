@@ -1,9 +1,9 @@
 import { Buffer } from "node:buffer";
 import { NextResponse } from "next/server";
 
-import { defaultCreditApplicationImportReviewComment } from "@/app/(app)/(dashboard)/credit-application-management/creditApplicationImportDefaultReviewComment";
 import {
 	MAX_CREDIT_IMPORT_UPLOAD_BYTES,
+	defaultCreditApplicationImportReviewComment,
 	isAllowedCreditImportUploadMime,
 	validateCreditImportSpreadsheetBuffer,
 	formatCreditImportValidationMessagesForUser
