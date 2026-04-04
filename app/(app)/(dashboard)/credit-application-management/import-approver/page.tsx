@@ -30,6 +30,7 @@ type ImportSortStateItem = { field: creditApplicationActions.CreditApplicationIm
 type ReviewedSortStateItem = { field: creditApplicationActions.CreditApplicationReviewedSortField, direction: SortDirection };
 
 const DEBOUNCE_MS = 300;
+const CREDIT_IMPORT_TEMPLATE_PATH = "/credit-application-import-template.xlsx";
 
 function formatDateTime(value: string): string {
 	const date = new Date(value);
@@ -563,7 +564,9 @@ export default function CreditApplicationImportApproverPage() {
 					<DialogHeader>
 						<DialogTitle>Review import</DialogTitle>
 						<DialogDescription>
-							Preview the first rows from the uploaded spreadsheet. Approve creates account records from every data row (required columns: account name; optional: address 1/2, phone, WhatsApp, email, apply ID). Reject stores your decision without creating records.
+							Preview the first rows from the uploaded .xlsx. Makers should follow the{" "}
+							<a href={CREDIT_IMPORT_TEMPLATE_PATH} download>import template</a>
+							{" "}for columns and layout. Approve creates account records from every data row. Reject stores your decision without creating records.
 						</DialogDescription>
 					</DialogHeader>
 					{reviewRow != null ? (
