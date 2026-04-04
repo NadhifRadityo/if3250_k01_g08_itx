@@ -4,11 +4,11 @@ import { Buffer } from "node:buffer";
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
 import {
-	commitTransaction,
-	createLocalReq,
 	getPayload,
+	createLocalReq,
 	initTransaction,
 	killTransaction,
+	commitTransaction,
 	type Where
 } from "payload";
 
@@ -32,6 +32,7 @@ import {
 const PAGE_SIZE = 20;
 
 const creditImportEditorMenu: DashboardRoleMenu = "credit-application-import-editor";
+const creditImportImportViewerMenu: DashboardRoleMenu = "credit-application-import-viewer";
 const creditImportApproverMenu: DashboardRoleMenu = "credit-application-import-approver";
 
 function richTextToPlainText(value: unknown): string {
@@ -201,6 +202,10 @@ function reviewedSortToPayloadSort(tokens: CreditApplicationReviewedSortToken[])
 
 function assertImportEditorAccess(roleMenus: DashboardRoleMenu[]): boolean {
 	return roleMenus.includes(creditImportEditorMenu);
+}
+
+function assertImportEditorListAccess(roleMenus: DashboardRoleMenu[]): boolean {
+	return roleMenus.includes(creditImportEditorMenu) || roleMenus.includes(creditImportImportViewerMenu);
 }
 
 function assertImportApproverAccess(roleMenus: DashboardRoleMenu[]): boolean {
@@ -721,6 +726,18 @@ export async function reviewCreditApplicationImportAction(
 	return { importId: input.importId, decision: "approve" };
 }
 
+export type CreditApplicationImportPageCapabilities = { canMutateImport: boolean };
+
+export async function queryCreditApplicationImportPageCapabilitiesAction(): Promise<
+	{ ok: true, capabilities: CreditApplicationImportPageCapabilities } | { ok: false }
+> {
+	const shell = await getDashboardShellContext();
+	if(shell == null)
+		return { ok: false };
+	const canMutateImport = shell.roleMenus.includes(creditImportEditorMenu);
+	return { ok: true, capabilities: { canMutateImport } };
+}
+
 export async function queryCreditApplicationImportsEditorAction(
 	input: QueryCreditApplicationImportsInput
 ): Promise<QueryCreditApplicationImportsOutput> {
@@ -733,7 +750,7 @@ export async function queryCreditApplicationImportsEditorAction(
 	const shell = await getDashboardShellContext();
 	if(shell == null)
 		return unauthorized();
-	if(!assertImportEditorAccess(shell.roleMenus))
+	if(!assertImportEditorListAccess(shell.roleMenus))
 		return unauthorized();
 
 	const page = input.page < 1 ? 1 : input.page;

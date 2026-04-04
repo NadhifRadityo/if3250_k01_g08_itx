@@ -2,18 +2,18 @@
 
 import { useRef, useMemo, useState, useEffect, useTransition, type ChangeEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CellValue } from "exceljs";
 import {
 	PencilIcon,
 	Trash2Icon,
 	UploadIcon,
 	ArrowUpIcon,
+	DownloadIcon,
 	ArrowDownIcon,
 	RotateCcwIcon,
 	ArrowUpDownIcon,
-	CircleAlertIcon,
-	DownloadIcon
+	CircleAlertIcon
 } from "lucide-react";
+import type { CellValue } from "exceljs";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -77,8 +77,9 @@ async function parseCreditImportRestErrorMessage(response: Response): Promise<st
 			deleted: "This upload has been deleted.",
 			read_only: "Approved imports are read-only."
 		};
-		if(body.error in preset)
-			return preset[body.error as keyof typeof preset];
+		const errKey = body.error;
+		if(typeof errKey == "string" && errKey in preset)
+			return preset[errKey];
 		return body.error;
 	}
 	throw new Error(
@@ -127,7 +128,7 @@ async function buildImportPreviewFromXlsxFile(file: File, maxDataRows: number): 
 	const limitRow = Math.min(worksheet.rowCount, 1 + maxDataRows);
 	for(let r = 2; r <= limitRow; r++) {
 		const row = worksheet.getRow(r);
-		if(row.hasValues == false)
+		if(!row.hasValues)
 			continue;
 		const cells: string[] = [];
 		for(let c = 1; c <= columnCount; c++)
@@ -270,6 +271,15 @@ export default function CreditApplicationImportPage() {
 		refetchOnWindowFocus: true
 	});
 
+	const importCapabilitiesQuery = useQuery({
+		queryKey: ["credit-application-management", "import-capabilities"],
+		queryFn: () => creditApplicationActions.queryCreditApplicationImportPageCapabilitiesAction(),
+		staleTime: 60_000
+	});
+
+	const userCanMutateImport =
+		importCapabilitiesQuery.data?.ok == true && importCapabilitiesQuery.data.capabilities.canMutateImport;
+
 	useEffect(() => {
 		if(importsQuery.data == null || importsQuery.isFetching)
 			return;
@@ -299,11 +309,15 @@ export default function CreditApplicationImportPage() {
 	};
 
 	const openFilePicker = () => {
+		if(!userCanMutateImport)
+			return;
 		replaceImportIdRef.current = null;
 		fileInputRef.current?.click();
 	};
 
 	const startReplaceFile = (importId: string) => {
+		if(!userCanMutateImport)
+			return;
 		replaceImportIdRef.current = importId;
 		fileInputRef.current?.click();
 	};
@@ -348,6 +362,10 @@ export default function CreditApplicationImportPage() {
 		const file = event.target.files?.[0];
 		const replaceId = replaceImportIdRef.current;
 		replaceImportIdRef.current = null;
+		if(!userCanMutateImport) {
+			event.target.value = "";
+			return;
+		}
 		if(file == null)
 			return;
 		if(!isXlsxFilename(file.name)) {
@@ -426,11 +444,15 @@ export default function CreditApplicationImportPage() {
 		});
 	};
 
+	const pageDescription = userCanMutateImport ?
+		"Upload .xlsx files using the template columns for checker review. Rows are not created until Import approver approves. While status is pending or rejected you can replace the file, delete the upload, or clear a rejection to queue again; approved imports are read-only." :
+		"View account uploads and review status. Import editors upload .xlsx files for checker review; rows are created only after Import approver approval.";
+
 	return (
 		<>
 			<DashboardManagementPageFrame
 				title="Account upload"
-				description="Upload .xlsx files using the template columns for checker review. Rows are not created until Import approver approves. While status is pending or rejected you can replace the file, delete the upload, or clear a rejection to queue again; approved imports are read-only."
+				description={pageDescription}
 			>
 				<input
 					ref={fileInputRef}
@@ -457,10 +479,12 @@ export default function CreditApplicationImportPage() {
 									Download template
 								</a>
 							</Button>
-							<Button type="button" onClick={openFilePicker} disabled={isLoading || isMutating}>
-								<UploadIcon />
-								Upload file
-							</Button>
+							{userCanMutateImport ? (
+								<Button type="button" onClick={openFilePicker} disabled={isLoading || isMutating}>
+									<UploadIcon />
+									Upload file
+								</Button>
+							) : null}
 						</div>
 					)}
 				/>
@@ -553,13 +577,15 @@ export default function CreditApplicationImportPage() {
 							{!isLoading && queryResult.docs.length == 0 ? (
 								<TableRow>
 									<TableCell colSpan={7} className="text-muted-foreground py-8 text-center">
-										No uploads yet. Download the template, then use Upload file to add a .xlsx file.
+										{userCanMutateImport ?
+											"No uploads yet. Download the template, then use Upload file to add a .xlsx file." :
+											"No uploads yet."}
 									</TableCell>
 								</TableRow>
 							) : null}
 							{!isLoading ? queryResult.docs.map(row => {
 								const phase = importReviewPhase(row);
-								const canMutate = phase != "approved";
+								const canMutateRow = phase != "approved" && userCanMutateImport;
 								return (
 									<TableRow key={row.id}>
 										<TableCell className="font-medium">
@@ -587,7 +613,7 @@ export default function CreditApplicationImportPage() {
 										<TableCell>{row.approvedByLabel}</TableCell>
 										<TableCell>{row.approveName}</TableCell>
 										<TableCell className="text-end">
-											{canMutate ? (
+											{canMutateRow ? (
 												<div className="flex flex-wrap items-center justify-end gap-1">
 													<Button
 														type="button"
@@ -623,7 +649,9 @@ export default function CreditApplicationImportPage() {
 													</Button>
 												</div>
 											) : (
-												<span className="text-muted-foreground text-xs">Read-only</span>
+												<span className="text-muted-foreground text-xs">
+													{userCanMutateImport ? "Read-only" : "View only"}
+												</span>
 											)}
 										</TableCell>
 									</TableRow>

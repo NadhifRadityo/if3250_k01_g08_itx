@@ -84,8 +84,11 @@ const dashboardRoleMenus = [
 	"team-management-auditor",
 	"team-management-editor",
 	"team-management-approver",
+	"credit-application-import-viewer",
 	"credit-application-import-editor",
 	"credit-application-import-approver",
+	"credit-application-entry-viewer",
+	"credit-application-entry-auditor",
 	"credit-application-entry-editor",
 	"credit-application-entry-approver"
 ] as const;
@@ -134,17 +137,19 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 }
 
 function buildCreditApplicationManagementNavigationItem(menus: Set<DashboardRoleMenu>): DashboardManagementNavigationItem | null {
-	const linkDefinitions: Array<{ menu: DashboardRoleMenu, label: string, href: string, mode: DashboardMode }> = [
-		{ menu: "credit-application-import-editor", label: "Import", href: `${creditApplicationManagementBaseHref}/import`, mode: "viewer" },
-		{ menu: "credit-application-import-approver", label: "Import Approver", href: `${creditApplicationManagementBaseHref}/import-approver`, mode: "approver" },
-		{ menu: "credit-application-entry-editor", label: "Editor", href: `${creditApplicationManagementBaseHref}/editor`, mode: "editor" },
-		{ menu: "credit-application-entry-approver", label: "Approver", href: `${creditApplicationManagementBaseHref}/approver`, mode: "approver" }
-	];
 	const links: DashboardNavLink[] = [];
-	for(const definition of linkDefinitions) {
-		if(menus.has(definition.menu))
-			links.push({ label: definition.label, mode: definition.mode, href: definition.href });
-	}
+	if(menus.has("credit-application-import-viewer") || menus.has("credit-application-import-editor"))
+		links.push({ label: "Import", mode: "viewer", href: `${creditApplicationManagementBaseHref}/import` });
+	if(menus.has("credit-application-import-approver"))
+		links.push({ label: "Import Approver", mode: "approver", href: `${creditApplicationManagementBaseHref}/import-approver` });
+	if(
+		menus.has("credit-application-entry-viewer") ||
+		menus.has("credit-application-entry-auditor") ||
+		menus.has("credit-application-entry-editor")
+	)
+		links.push({ label: "Editor", mode: "editor", href: `${creditApplicationManagementBaseHref}/editor` });
+	if(menus.has("credit-application-entry-approver"))
+		links.push({ label: "Approver", mode: "approver", href: `${creditApplicationManagementBaseHref}/approver` });
 	if(links.length == 0)
 		return null;
 
@@ -261,8 +266,11 @@ async function resolveRoleMenus(payload: Payload, user: User): Promise<Dashboard
 		return normalized;
 
 	const adminCreditMenus: DashboardRoleMenu[] = [
+		"credit-application-import-viewer",
 		"credit-application-import-editor",
 		"credit-application-import-approver",
+		"credit-application-entry-viewer",
+		"credit-application-entry-auditor",
 		"credit-application-entry-editor",
 		"credit-application-entry-approver"
 	];
@@ -353,10 +361,16 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Team Management - Editor";
 	if(menu == "team-management-approver")
 		return "Team Management - Approver";
+	if(menu == "credit-application-import-viewer")
+		return "Credit Application - Import Viewer";
 	if(menu == "credit-application-import-editor")
 		return "Credit Application — Import";
 	if(menu == "credit-application-import-approver")
 		return "Credit Application — Import Approver";
+	if(menu == "credit-application-entry-viewer")
+		return "Credit Application - Entry Viewer";
+	if(menu == "credit-application-entry-auditor")
+		return "Credit Application - Entry Auditor";
 	if(menu == "credit-application-entry-editor")
 		return "Credit Application — Entry Editor";
 	if(menu == "credit-application-entry-approver")
@@ -472,11 +486,15 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 
 export type CreditApplicationSectionSlug = "import" | "import-approver" | "editor" | "approver";
 
-const creditApplicationSectionRequiredMenu: Record<CreditApplicationSectionSlug, DashboardRoleMenu> = {
-	import: "credit-application-import-editor",
-	"import-approver": "credit-application-import-approver",
-	editor: "credit-application-entry-editor",
-	approver: "credit-application-entry-approver"
+const creditApplicationSectionAllowedMenus: Record<CreditApplicationSectionSlug, readonly DashboardRoleMenu[]> = {
+	import: ["credit-application-import-viewer", "credit-application-import-editor"],
+	"import-approver": ["credit-application-import-approver"],
+	editor: [
+		"credit-application-entry-viewer",
+		"credit-application-entry-auditor",
+		"credit-application-entry-editor"
+	],
+	approver: ["credit-application-entry-approver"]
 };
 
 export async function resolveCreditApplicationSectionRedirectHrefAction(section: CreditApplicationSectionSlug): Promise<string | null> {
@@ -485,7 +503,7 @@ export async function resolveCreditApplicationSectionRedirectHrefAction(section:
 		return "/login";
 
 	const menuSet = new Set(context.roleMenus);
-	if(menuSet.has(creditApplicationSectionRequiredMenu[section]))
+	if(creditApplicationSectionAllowedMenus[section].some(menu => menuSet.has(menu)))
 		return null;
 
 	const creditNav = buildCreditApplicationManagementNavigationItem(menuSet);
