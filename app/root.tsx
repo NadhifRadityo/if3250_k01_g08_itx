@@ -156,26 +156,13 @@ export default async function Root({
 						{withBuildMeta ? (
 							<>
 								<Comment>
-									Build ID:
-									{process.env.NEXT_PUBLIC_BUILD_ID}
-									{" "}
-									(Build Date:
-									{process.env.NEXT_PUBLIC_BUILD_DATE}
-									)
+									Build ID: {process.env.NEXT_PUBLIC_BUILD_ID} (Build Date: {process.env.NEXT_PUBLIC_BUILD_DATE})
 								</Comment>
 								<Comment>
-									Revision was commited by
-									{process.env.NEXT_PUBLIC_BUILD_COMMIT_COMMITTER_NAME}
-									{" "}
-									at
-									{process.env.NEXT_PUBLIC_BUILD_COMMIT_COMMITTER_TIME}
+									Revision was commited by {process.env.NEXT_PUBLIC_BUILD_COMMIT_COMMITTER_NAME} at {process.env.NEXT_PUBLIC_BUILD_COMMIT_COMMITTER_TIME}
 								</Comment>
 								<Comment>
-									Revision was authored by
-									{process.env.NEXT_PUBLIC_BUILD_COMMIT_AUTHOR_NAME}
-									{" "}
-									at
-									{process.env.NEXT_PUBLIC_BUILD_COMMIT_AUTHOR_TIME}
+									Revision was authored by {process.env.NEXT_PUBLIC_BUILD_COMMIT_AUTHOR_NAME} at {process.env.NEXT_PUBLIC_BUILD_COMMIT_AUTHOR_TIME}
 								</Comment>
 							</>
 						) : null}
