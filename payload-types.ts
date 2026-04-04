@@ -211,10 +211,6 @@ export interface Role {
     | 'team-management-auditor'
     | 'team-management-editor'
     | 'team-management-approver'
-    | 'credit-application-import-editor'
-    | 'credit-application-import-approver'
-    | 'credit-application-entry-editor'
-    | 'credit-application-entry-approver'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;

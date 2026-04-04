@@ -22,8 +22,6 @@ import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigati
 
 const managementPathRegex = /^\/(user-management|role-management|team-management)(?:\/(viewer|editor|approver))?$/;
 
-const creditApplicationManagementBaseHref = "/credit-application-management";
-
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
 	if(match == null)
@@ -39,8 +37,6 @@ function getManagementIcon(key: DashboardManagementKey) {
 		return UserCogIcon;
 	if(key == "role-management")
 		return ShieldCheckIcon;
-	if(key == "credit-application-management")
-		return FileTextIcon;
 	return UsersIcon;
 }
 
@@ -53,17 +49,8 @@ function getBreadcrumbModel(pathname: string, managementNavigation: DashboardMan
 	modeLabel: string | null;
 	isCreditApplication: boolean;
 } {
-	const creditItem = managementNavigation.find(candidate => candidate.key == "credit-application-management");
-	if(pathname == "/credit-application-management" || pathname.startsWith(`${creditApplicationManagementBaseHref}/`)) {
-		const segmentLink = creditItem != null ?
-			creditItem.links.find(link => pathname == link.href || pathname.startsWith(`${link.href}/`)) :
-			null;
-		return {
-			managementLabel: creditItem?.label ?? "Credit Application Management",
-			modeLabel: segmentLink?.label ?? null,
-			isCreditApplication: true
-		};
-	}
+	if(pathname == "/credit-application-management")
+		return { managementLabel: "Credit Application Management", modeLabel: null, isCreditApplication: true };
 
 	const parsedPath = parseManagementPath(pathname);
 	if(parsedPath == null)
@@ -79,12 +66,6 @@ function getBreadcrumbModel(pathname: string, managementNavigation: DashboardMan
 		modeLabel,
 		isCreditApplication: false
 	};
-}
-
-function isManagementSubmenuLinkActive(pathname: string, linkHref: string, managementKey: DashboardManagementKey): boolean {
-	if(managementKey == "credit-application-management")
-		return pathname == linkHref || pathname.startsWith(`${linkHref}/`);
-	return pathname == linkHref;
 }
 
 export function DashboardManagementPageFrame({ title, description, children }: { title: string, description: string, children: ReactNode }) {
@@ -289,7 +270,7 @@ export function DashboardShell({
 												<SidebarMenuSub>
 													{item.links.map(link => (
 														<SidebarMenuSubItem key={link.href}>
-															<SidebarMenuSubButton asChild isActive={isManagementSubmenuLinkActive(pathname, link.href, item.key)}>
+															<SidebarMenuSubButton asChild isActive={pathname == link.href}>
 																<Link href={link.href}>
 																	<span>{link.label}</span>
 																</Link>
@@ -302,6 +283,14 @@ export function DashboardShell({
 									</Collapsible>
 								);
 							})}
+							<SidebarMenuItem>
+								<SidebarMenuButton asChild isActive={pathname == "/credit-application-management"} tooltip="Credit Application Management">
+									<Link href="/credit-application-management">
+										<FileTextIcon />
+										<span>Credit Application Management</span>
+									</Link>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
 						</SidebarMenu>
 					</SidebarGroup>
 				</SidebarContent>
