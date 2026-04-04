@@ -3,13 +3,13 @@ import { NextResponse } from "next/server";
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
-import { getDashboardShellContext } from "@/app/(app)/(dashboard)/layout.actions";
 import {
 	MAX_CREDIT_IMPORT_UPLOAD_BYTES,
 	isAllowedCreditImportUploadMime,
 	validateCreditImportSpreadsheetBuffer,
 	formatCreditImportValidationMessagesForUser
 } from "@/app/(app)/(dashboard)/credit-application-management/creditApplicationImportUploadPolicy";
+import { getDashboardShellContext } from "@/app/(app)/(dashboard)/layout.actions";
 
 const CREDIT_IMPORT_EDITOR_MENU = "credit-application-import-editor";
 
@@ -85,7 +85,7 @@ export async function handleCreditApplicationImportPost(
 	}
 
 	const buffer = Buffer.from(await file.arrayBuffer());
-	const sheetCheck = validateCreditImportSpreadsheetBuffer(buffer, file.name);
+	const sheetCheck = await validateCreditImportSpreadsheetBuffer(buffer, file.name);
 	if(!sheetCheck.ok) {
 		const body =
 			sheetCheck.code == "parse_error" ?

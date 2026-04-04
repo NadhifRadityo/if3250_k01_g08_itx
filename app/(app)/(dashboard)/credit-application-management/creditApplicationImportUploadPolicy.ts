@@ -30,14 +30,13 @@ export type CreditImportSpreadsheetBufferValidation =
 	| { ok: true } |
 	{ ok: false, code: CreditImportSpreadsheetValidationFailureCode, messages: string[] };
 
-
-export function validateCreditImportSpreadsheetBuffer(
+export async function validateCreditImportSpreadsheetBuffer(
 	buffer: Buffer,
 	filename: string
-): CreditImportSpreadsheetBufferValidation {
+): Promise<CreditImportSpreadsheetBufferValidation> {
 	let parsed: ParsedImportSheet;
 	try {
-		parsed = parseImportSpreadsheetBuffer(buffer, filename);
+		parsed = await parseImportSpreadsheetBuffer(buffer, filename);
 	} catch{
 		return {
 			ok: false,

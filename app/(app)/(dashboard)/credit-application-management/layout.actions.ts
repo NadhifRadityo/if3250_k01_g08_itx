@@ -26,6 +26,7 @@ import {
 	MAX_PREVIEW_DATA_ROWS,
 	parseImportSpreadsheetBuffer,
 	validateCreditImportParsedSheetForIngest,
+	type ParsedImportSheet,
 	type CreditApplicationIngestCreate
 } from "./importSpreadsheet";
 
@@ -570,7 +571,7 @@ export async function getCreditApplicationImportFilePreviewAction(
 		throw new Error("Import has no file.");
 
 	const buffer = await readCreditImportUploadBuffer(doc);
-	const { headers: sheetHeaders, dataRows } = parseImportSpreadsheetBuffer(buffer, filename);
+	const { headers: sheetHeaders, dataRows } = await parseImportSpreadsheetBuffer(buffer, filename);
 	const rows = formatRowsForPreview(sheetHeaders, dataRows, MAX_PREVIEW_DATA_ROWS);
 	return {
 		headers: sheetHeaders,
@@ -704,9 +705,9 @@ export async function reviewCreditApplicationImportAction(
 		throw new Error("Import has no file.");
 
 	const buffer = await readCreditImportUploadBuffer(doc);
-	let parsed: ReturnType<typeof parseImportSpreadsheetBuffer>;
+	let parsed: ParsedImportSheet;
 	try {
-		parsed = parseImportSpreadsheetBuffer(buffer, filename);
+		parsed = await parseImportSpreadsheetBuffer(buffer, filename);
 	} catch{
 		throw new Error("Could not read spreadsheet file.");
 	}
