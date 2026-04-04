@@ -9,7 +9,6 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack prepare
 RUN pnpm install --frozen-lockfile
 COPY . .
-RUN apk add --no-cache git
 RUN pnpm run build
 
 FROM base AS runner
@@ -20,7 +19,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=builder --chown=node:node /node .
+COPY --from=builder --chown=node:node /home/node .
 
 USER node
 EXPOSE 3000
