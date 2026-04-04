@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { XIcon, CheckIcon, ArrowUpIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon } from "lucide-react";
+import { CheckIcon, ArrowUpIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
@@ -257,6 +257,15 @@ export default function CreditApplicationImportApproverPage() {
 		await queryClient.invalidateQueries({ queryKey: ["credit-application-management", "imports-approver-reviewed-rows"] });
 	};
 
+	const closeReviewDialog = () => {
+		setReviewRow(null);
+		setReviewReason("");
+		setReviewError(null);
+		setFilePreview(null);
+		setFilePreviewError(null);
+		setFilePreviewLoading(false);
+	};
+
 	const submitReview = (decision: "approve" | "reject") => {
 		if(reviewRow == null)
 			return;
@@ -270,9 +279,8 @@ export default function CreditApplicationImportApproverPage() {
 						decision,
 						reason: reviewReason
 					});
-					setReviewRow(null);
-					setReviewReason("");
 					await invalidateImportQueries();
+					closeReviewDialog();
 				} catch(error) {
 					setReviewError(resolvePageError(error, "Review failed."));
 				}
@@ -550,14 +558,8 @@ export default function CreditApplicationImportApproverPage() {
 			<Dialog
 				open={reviewRow != null}
 				onOpenChange={open => {
-					if(!open) {
-						setReviewRow(null);
-						setReviewReason("");
-						setReviewError(null);
-						setFilePreview(null);
-						setFilePreviewError(null);
-						setFilePreviewLoading(false);
-					}
+					if(!open)
+						closeReviewDialog();
 				}}
 			>
 				<DialogContent className="sm:max-w-3xl" showCloseButton={true}>
@@ -651,15 +653,10 @@ export default function CreditApplicationImportApproverPage() {
 							<AlertDescription>{reviewError.message}</AlertDescription>
 						</Alert>
 					) : null}
-					<DialogFooter className="border-0 bg-transparent p-0 flex flex-col gap-2 sm:flex-row sm:justify-between">
-						<Button type="button" variant="outline" onClick={() => submitReview("reject")} disabled={isMutating || reviewRow == null}>
-							<XIcon />
-							Reject
-						</Button>
-						<Button type="button" variant="default" onClick={() => submitReview("approve")} disabled={isMutating || reviewRow == null || filePreviewLoading}>
-							<CheckIcon />
-							Approve
-						</Button>
+					<DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+						<Button type="button" variant="outline" onClick={closeReviewDialog} disabled={isMutating}>Cancel</Button>
+						<Button type="button" variant="default" onClick={() => submitReview("approve")} disabled={isMutating || reviewRow == null || filePreviewLoading}>Approve</Button>
+						<Button type="button" variant="destructive" onClick={() => submitReview("reject")} disabled={isMutating || reviewRow == null}>Reject</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
