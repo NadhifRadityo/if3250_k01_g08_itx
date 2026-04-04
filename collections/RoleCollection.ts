@@ -135,6 +135,9 @@ export const Roles = (): CollectionConfig => ({
 			label: "Menus",
 			type: "select",
 			options: [
+				{ value: "account-assignment-viewer", label: "Account Assignment - Viewer" },
+				{ value: "account-assignment-maker", label: "Account Assignment - Maker" },
+				{ value: "account-assignment-checker", label: "Account Assignment - Checker" },
 				{ value: "user-management-viewer", label: "User Management - Viewer" },
 				{ value: "user-management-auditor", label: "User Management - Auditor" },
 				{ value: "user-management-editor", label: "User Management - Editor" },
