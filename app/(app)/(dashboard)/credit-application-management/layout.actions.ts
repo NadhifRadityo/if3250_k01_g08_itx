@@ -1,8 +1,6 @@
 "use server";
 
 import { Buffer } from "node:buffer";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
@@ -488,15 +486,35 @@ function assertSafeUploadFilename(filename: string): void {
 		throw new Error("Invalid file name.");
 }
 
-async function readCreditImportUploadBuffer(doc: CreditApplicationImport): Promise<Buffer> {
-	const fn = doc.filename ?? "";
-	assertSafeUploadFilename(fn);
-	const fullPath = path.join(process.cwd(), "uploads", "credit-application-imports", fn);
-	try {
-		return await readFile(fullPath);
-	} catch{
-		throw new Error("Could not read uploaded file from disk.");
+function resolveCreditImportFileDownloadUrl(doc: CreditApplicationImport): string {
+	const originRaw = process.env.PROJECT_WEB_ORIGIN ?? process.env.NEXT_PUBLIC_PROJECT_WEB_ORIGIN;
+	if(originRaw == null || originRaw.trim().length == 0)
+		throw new Error("Server origin is not configured (PROJECT_WEB_ORIGIN).");
+	const origin = originRaw.replace(/\/$/, "");
+
+	const fromDoc = doc.url?.trim() ?? "";
+	if(fromDoc.length > 0) {
+		if(fromDoc.startsWith("http://") || fromDoc.startsWith("https://"))
+			return fromDoc;
+		return `${origin}${fromDoc.startsWith("/") ? fromDoc : `/${fromDoc}`}`;
 	}
+
+	const filename = doc.filename ?? "";
+	assertSafeUploadFilename(filename);
+	return `${origin}/api/credit-application-imports/file/${encodeURIComponent(filename)}`;
+}
+
+async function readCreditImportUploadBuffer(doc: CreditApplicationImport): Promise<Buffer> {
+	const requestHeaders = await nextHeaders();
+	const cookie = requestHeaders.get("cookie");
+	const url = resolveCreditImportFileDownloadUrl(doc);
+	const response = await fetch(url, {
+		...(cookie != null && cookie.length > 0 ? { headers: { cookie } } : {}),
+		cache: "no-store"
+	});
+	if(!response.ok)
+		throw new Error("Could not download uploaded file.");
+	return Buffer.from(await response.arrayBuffer());
 }
 
 export type CreditApplicationImportFilePreviewOutput = {
