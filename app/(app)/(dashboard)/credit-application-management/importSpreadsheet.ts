@@ -50,13 +50,16 @@ export function parseImportSpreadsheetBuffer(buffer: Buffer, filename: string): 
 	return { headers, dataRows };
 }
 
-const NAME_KEYS = ["name", "account name", "account_name", "nama", "nama nasabah", "customer name", "accountname"];
-const ADDR1_KEYS = ["address 1", "address1", "alamat 1", "alamat1", "address"];
-const ADDR2_KEYS = ["address 2", "address2", "alamat 2", "alamat2"];
-const EMAIL_KEYS = ["email", "e-mail", "mail"];
-const PHONE_KEYS = ["phone", "phone number", "phone_numbers", "tel", "telepon", "hp", "no hp", "nomor hp"];
-const WA_KEYS = ["whatsapp", "wa", "whatsapp number", "whats app", "no wa"];
-const APPLY_KEYS = ["apply id", "apply_id", "asset id", "asset_id", "id aplikasi", "applyid"];
+/** Column titles in `public/credit-application-import-template.xlsx` (case-insensitive, extra spaces collapsed). */
+export const CREDIT_IMPORT_TEMPLATE_COLUMN_HEADERS = [
+	"Account Name",
+	"Address 1",
+	"Address 2",
+	"Phone",
+	"WhatsApp",
+	"Email",
+	"Apply ID"
+] as const;
 
 function columnIndexMap(headers: string[]): Map<string, number> {
 	const map = new Map<string, number>();
@@ -66,20 +69,19 @@ function columnIndexMap(headers: string[]): Map<string, number> {
 	return map;
 }
 
-function findColumnIndex(map: Map<string, number>, keys: string[]): number | null {
-	for(const key of keys) {
-		const normalized = normalizeHeader(key);
-		if(map.has(normalized))
-			return map.get(normalized) ?? null;
+function missingTemplateColumnLabels(headers: string[]): string[] {
+	const map = columnIndexMap(headers);
+	const missing: string[] = [];
+	for(const label of CREDIT_IMPORT_TEMPLATE_COLUMN_HEADERS) {
+		if(!map.has(normalizeHeader(label)))
+			missing.push(label);
 	}
-	for(const key of keys) {
-		const normalized = normalizeHeader(key);
-		for(const [header, index] of map) {
-			if(header == normalized || header.includes(normalized) || normalized.includes(header))
-				return index;
-		}
-	}
-	return null;
+	return missing;
+}
+
+function templateColumnIndex(map: Map<string, number>, label: (typeof CREDIT_IMPORT_TEMPLATE_COLUMN_HEADERS)[number]): number | null {
+	const index = map.get(normalizeHeader(label));
+	return index == null ? null : index;
 }
 
 function cellString(row: unknown[], columnIndex: number | null): string {
@@ -136,6 +138,16 @@ export function validateCreditImportParsedSheetForIngest(
 	const { headers, dataRows } = parsed;
 	if(headers.length == 0 || !headers.some(header => header.trim().length > 0))
 		return { ok: false, errors: ["The spreadsheet has no header row."] };
+	const missingColumns = missingTemplateColumnLabels(headers);
+	if(missingColumns.length > 0) {
+		const listed = missingColumns.map(label => `"${label}"`).join(", ");
+		return {
+			ok: false,
+			errors: [
+				`Missing required column(s): ${listed}. Download the import template and use its header row.`
+			]
+		};
+	}
 	if(dataRows.length == 0)
 		return { ok: false, errors: ["No data rows to import."] };
 	return buildCreditImportCreatesOrErrors(dataRows, headers, importId);
@@ -147,26 +159,34 @@ export function mapRowToIngestCreate(
 	importId: string
 ): { ok: true, data: CreditApplicationIngestCreate } | { ok: false, error: string } {
 	const map = columnIndexMap(headers);
-	const name = cellString(row, findColumnIndex(map, NAME_KEYS));
+	const missing = missingTemplateColumnLabels(headers);
+	if(missing.length > 0) {
+		const listed = missing.map(label => `"${label}"`).join(", ");
+		return {
+			ok: false,
+			error: `Missing required column(s): ${listed}. Download the import template and use its header row.`
+		};
+	}
+	const name = cellString(row, templateColumnIndex(map, "Account Name"));
 	if(name.length == 0)
 		return { ok: false, error: "Missing account name." };
-	const address1 = cellString(row, findColumnIndex(map, ADDR1_KEYS));
-	const address2 = cellString(row, findColumnIndex(map, ADDR2_KEYS));
+	const address1 = cellString(row, templateColumnIndex(map, "Address 1"));
+	const address2 = cellString(row, templateColumnIndex(map, "Address 2"));
 	const addressList = [address1, address2].filter(part => part.length > 0);
 	const addresses = addressList.length > 0 ? addressList : ["—"];
-	const phoneRaw = cellString(row, findColumnIndex(map, PHONE_KEYS));
+	const phoneRaw = cellString(row, templateColumnIndex(map, "Phone"));
 	const phoneParts = phoneRaw.length > 0 ?
 		phoneRaw.split(/[,;/|]/).map(part => part.trim()).filter(part => part.length > 0) :
 		[];
-	const whatsappRaw = cellString(row, findColumnIndex(map, WA_KEYS));
+	const whatsappRaw = cellString(row, templateColumnIndex(map, "WhatsApp"));
 	const whatsappNumber = whatsappRaw.length > 0 ?
 		whatsappRaw :
 		phoneRaw.length > 0 ? phoneRaw : "—";
 	const phoneNumbers = phoneParts.length > 0 ?
 		phoneParts :
 		whatsappNumber != "—" ? [whatsappNumber] : ["—"];
-	const emailRaw = cellString(row, findColumnIndex(map, EMAIL_KEYS));
-	const assetRaw = cellString(row, findColumnIndex(map, APPLY_KEYS));
+	const emailRaw = cellString(row, templateColumnIndex(map, "Email"));
+	const assetRaw = cellString(row, templateColumnIndex(map, "Apply ID"));
 	return {
 		ok: true,
 		data: {
