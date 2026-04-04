@@ -22,7 +22,7 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN addgroup -S -g 1001 app \
 	&& adduser -S -D -H -u 1001 -G app app
-COPY --from=builder /app .
+COPY --from=builder --chown=app:app /app .
 
 USER app
 EXPOSE 3000
