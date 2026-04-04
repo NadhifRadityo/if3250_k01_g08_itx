@@ -71,6 +71,7 @@ export interface Config {
     'staged-users': StagedUser;
     roles: Role;
     teams: Team;
+    'account-assignments': AccountAssignment;
     'credit-application-imports': CreditApplicationImport;
     'credit-applications': CreditApplication;
     'credit-application-field-masks': CreditApplicationFieldMask;
@@ -92,6 +93,7 @@ export interface Config {
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
+    'account-assignments': AccountAssignmentsSelect<false> | AccountAssignmentsSelect<true>;
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
@@ -199,6 +201,9 @@ export interface Role {
   name: string;
   level: 'admin' | 'manager' | 'supervisor' | 'officer';
   menus: (
+    | 'account-assignment-viewer'
+    | 'account-assignment-maker'
+    | 'account-assignment-checker'
     | 'user-management-viewer'
     | 'user-management-auditor'
     | 'user-management-editor'
@@ -307,48 +312,21 @@ export interface Team {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-imports".
+ * via the `definition` "account-assignments".
  */
-export interface CreditApplicationImport {
+export interface AccountAssignment {
   id: string;
-  createdAt: string;
-  createdBy?: (string | null) | User;
+  account: string | CreditApplication;
+  lastUser?: (string | null) | User;
+  currentUser?: (string | null) | User;
+  status: 'pending_approval' | 'approved' | 'rejected';
+  createdBy: string | User;
+  approvedBy?: (string | null) | User;
+  approvedTime?: string | null;
+  notificationMessage?: string | null;
   updatedAt: string;
-  updatedBy?: (string | null) | User;
+  createdAt: string;
   deletedAt?: string | null;
-  deletedBy?: (string | null) | User;
-  reviewedAt?: string | null;
-  reviewedBy?: (string | null) | User;
-  reviewApproved?: boolean | null;
-  reviewComment?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  creditApplications?: {
-    docs?: (string | CreditApplication)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -438,6 +416,51 @@ export interface CreditApplication {
     | number
     | boolean
     | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-imports".
+ */
+export interface CreditApplicationImport {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  creditApplications?: {
+    docs?: (string | CreditApplication)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -670,6 +693,10 @@ export interface PayloadLockedDocument {
         value: string | Team;
       } | null)
     | ({
+        relationTo: 'account-assignments';
+        value: string | AccountAssignment;
+      } | null)
+    | ({
         relationTo: 'credit-application-imports';
         value: string | CreditApplicationImport;
       } | null)
@@ -827,6 +854,23 @@ export interface TeamsSelect<T extends boolean = true> {
   reviewApproved?: T;
   reviewComment?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "account-assignments_select".
+ */
+export interface AccountAssignmentsSelect<T extends boolean = true> {
+  account?: T;
+  lastUser?: T;
+  currentUser?: T;
+  status?: T;
+  createdBy?: T;
+  approvedBy?: T;
+  approvedTime?: T;
+  notificationMessage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

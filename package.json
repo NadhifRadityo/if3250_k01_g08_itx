@@ -9,7 +9,8 @@
 		"dev": "next dev",
 		"db:reset": "payload run ./scripts/resetDatabase.ts",
 		"seed:admin": "payload run ./scripts/seedAdmin.ts",
-		"seed:example": "payload run ./scripts/seedExample.ts"
+		"seed:example": "payload run ./scripts/seedExample.ts",
+		"seed:account-assignment": "payload run ./scripts/seedAccountAssignment.ts"
 	},
 	"packageManager": "pnpm@10.30.3",
 	"dependencies": {
