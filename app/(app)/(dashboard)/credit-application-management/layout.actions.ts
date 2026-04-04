@@ -3,7 +3,14 @@
 import { Buffer } from "node:buffer";
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { getPayload, type Where } from "payload";
+import {
+	commitTransaction,
+	createLocalReq,
+	getPayload,
+	initTransaction,
+	killTransaction,
+	type Where
+} from "payload";
 
 import payloadConfig from "@payload-config";
 import type { User, CreditApplication, CreditApplicationImport } from "@/payload-types";
@@ -589,10 +596,12 @@ async function ingestCreditApplicationsForApprovedImport(
 	if(existingApps.totalDocs > 0)
 		throw new Error("This import already has linked account rows.");
 
-	const createdIds: string[] = [];
+	const req = await createLocalReq({ user }, payload);
 	try {
+		const shouldCommit = await initTransaction(req);
 		for(const row of creates) {
-			const created = await payload.create({
+			await payload.create({
+				req,
 				collection: "credit-applications",
 				user,
 				overrideAccess: true,
@@ -606,10 +615,10 @@ async function ingestCreditApplicationsForApprovedImport(
 					...(row.assetId != null && row.assetId.length > 0 ? { assetId: row.assetId } : {})
 				}
 			});
-			createdIds.push(String(created.id));
 		}
 
 		await payload.update({
+			req,
 			collection: "credit-application-imports",
 			id: importId,
 			user,
@@ -622,21 +631,11 @@ async function ingestCreditApplicationsForApprovedImport(
 				reviewComment
 			}
 		});
+
+		if(shouldCommit)
+			await commitTransaction(req);
 	} catch(error) {
-		const rollbackAt = new Date().toISOString();
-		for(const id of createdIds) {
-			await payload.update({
-				collection: "credit-applications",
-				id,
-				user,
-				overrideAccess: true,
-				trash: true,
-				data: {
-					deletedAt: rollbackAt,
-					deletedBy: user.id
-				}
-			}).catch(() => {});
-		}
+		await killTransaction(req);
 		if(error instanceof Error)
 			throw error;
 		throw new Error("Ingest failed.", { cause: error });
