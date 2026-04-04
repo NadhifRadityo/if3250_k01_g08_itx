@@ -1,6 +1,6 @@
 FROM node:24-alpine AS base
 
-WORKDIR /app
+WORKDIR /home/node
 RUN corepack enable
 
 FROM base AS builder
@@ -20,10 +20,8 @@ RUN pnpm install --frozen-lockfile --prod
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN addgroup -S -g 1001 app \
-	&& adduser -S -D -H -u 1001 -G app app
-COPY --from=builder --chown=app:app /app .
+COPY --from=builder --chown=node:node /node .
 
-USER app
+USER node
 EXPOSE 3000
 CMD ["pnpm", "exec", "next", "start", "-H", "0.0.0.0", "-p", "3000"]
