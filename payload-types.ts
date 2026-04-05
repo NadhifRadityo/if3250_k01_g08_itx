@@ -71,7 +71,7 @@ export interface Config {
     'staged-users': StagedUser;
     roles: Role;
     teams: Team;
-    'credit-application-assignments': AccountAssignment;
+    'credit-application-assignments': CreditApplicationAssignment;
     'credit-application-imports': CreditApplicationImport;
     'credit-applications': CreditApplication;
     'credit-application-field-masks': CreditApplicationFieldMask;
@@ -93,7 +93,7 @@ export interface Config {
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
-    'credit-application-assignments': AccountAssignmentsSelect<false> | AccountAssignmentsSelect<true>;
+    'credit-application-assignments': CreditApplicationAssignmentsSelect<false> | CreditApplicationAssignmentsSelect<true>;
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
@@ -201,10 +201,6 @@ export interface Role {
   name: string;
   level: 'admin' | 'manager' | 'supervisor' | 'officer';
   menus: (
-    | 'credit-application-assignment-viewer'
-    | 'credit-application-assignment-auditor'
-    | 'credit-application-assignment-editor'
-    | 'credit-application-assignment-approver'
     | 'user-management-viewer'
     | 'user-management-auditor'
     | 'user-management-editor'
@@ -217,6 +213,10 @@ export interface Role {
     | 'team-management-auditor'
     | 'team-management-editor'
     | 'team-management-approver'
+    | 'credit-application-assignment-viewer'
+    | 'credit-application-assignment-auditor'
+    | 'credit-application-assignment-editor'
+    | 'credit-application-assignment-approver'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
@@ -315,19 +315,35 @@ export interface Team {
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "credit-application-assignments".
  */
-export interface AccountAssignment {
+export interface CreditApplicationAssignment {
   id: string;
-  account: string | CreditApplication;
-  lastUser?: (string | null) | User;
-  currentUser?: (string | null) | User;
-  status: 'pending_approval' | 'approved' | 'rejected';
-  createdBy: string | User;
-  approvedBy?: (string | null) | User;
-  approvedTime?: string | null;
-  notificationMessage?: string | null;
-  updatedAt: string;
   createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
   deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  account: string | CreditApplication;
+  user: string | User;
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -695,7 +711,7 @@ export interface PayloadLockedDocument {
       } | null)
     | ({
         relationTo: 'credit-application-assignments';
-        value: string | AccountAssignment;
+        value: string | CreditApplicationAssignment;
       } | null)
     | ({
         relationTo: 'credit-application-imports';
@@ -860,18 +876,20 @@ export interface TeamsSelect<T extends boolean = true> {
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "credit-application-assignments_select".
  */
-export interface AccountAssignmentsSelect<T extends boolean = true> {
-  account?: T;
-  lastUser?: T;
-  currentUser?: T;
-  status?: T;
-  createdBy?: T;
-  approvedBy?: T;
-  approvedTime?: T;
-  notificationMessage?: T;
-  updatedAt?: T;
+export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
   createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
   deletedAt?: T;
+  deletedBy?: T;
+  account?: T;
+  user?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

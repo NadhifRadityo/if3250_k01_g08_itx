@@ -14,8 +14,40 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
-export type AssignmentStatus = "pending_approval" | "approved" | "rejected";
+const assignmentStatusValues = ["pending_approval", "approved", "rejected"] as const;
+
+export type AssignmentStatus = typeof assignmentStatusValues[number];
 export type AccountAssignmentMode = "viewer" | "editor" | "approver";
+
+export type AccountAssignmentSortField =
+	| "applyId"
+	| "accountName"
+	| "officerName"
+	| "address"
+	| "productCode"
+	| "assignmentStatus"
+	| "createdAt"
+	| "updatedAt";
+
+export type AccountAssignmentSortToken = `${"+" | "-"}${AccountAssignmentSortField}`;
+
+export type AccountAssignmentFilterColumn =
+	| "applyId"
+	| "accountName"
+	| "officerName"
+	| "address"
+	| "productCode"
+	| "assignmentStatus";
+
+export type AccountAssignmentFilterOperator = "equals" | "not_equals" | "contains" | "not_contains" | "in" | "not_in" | "exists";
+export type AccountAssignmentFilterCombinator = "and" | "or";
+
+export type AccountAssignmentFilterInput = {
+	column: AccountAssignmentFilterColumn;
+	operator: AccountAssignmentFilterOperator;
+	value?: string | Array<string | boolean> | boolean | null;
+	joinWithPrevious?: AccountAssignmentFilterCombinator;
+};
 
 export type AssignmentContext = {
 	payload: Payload;
@@ -25,12 +57,18 @@ export type AssignmentContext = {
 
 export type AccountAssignmentEditorRow = {
 	assignmentId: string | null;
-	assignmentStatus: AssignmentStatus | null;
+	assignmentStatus: AssignmentStatus;
 	applyId: string;
 	accountName: string;
 	officerName: string | null;
 	address: string;
 	productCode: string;
+	userId: string | null;
+	createdById: string | null;
+	updatedById: string | null;
+	deletedById: string | null;
+	reviewedById: string | null;
+	requestedAt: string | null;
 };
 
 export type AccountAssignmentOfficerOption = {
@@ -46,29 +84,84 @@ export type AccountAssignmentEditorListOutput = {
 	hasPreviousPage: boolean;
 };
 
-export type AccountAssignmentApproverGroup = {
-	createdBy: {
-		id: string;
-		name: string | null;
-	};
-	requests: Array<{
-		assignmentId: string;
-		applyId: string;
-		accountName: string;
-		officerName: string | null;
-		address: string;
-		productCode: string;
-		requestedAt: string;
-	}>;
+export type AccountAssignmentApproverListOutput = AccountAssignmentEditorListOutput;
+
+export type AccountAssignmentQueryInput = {
+	keyword: string;
+	sort: string[];
+	filters?: AccountAssignmentFilterInput[];
+	filterCombinator?: AccountAssignmentFilterCombinator;
+	page: number;
+	limit: number;
 };
 
-export type AccountAssignmentApproverListOutput = {
-	docs: AccountAssignmentApproverGroup[];
-	totalDocs: number;
+export type AccountAssignmentQueryActionInput = {
+	keyword?: string;
+	search?: string;
+	sort?: string[];
+	filters?: AccountAssignmentFilterInput[];
+	filterCombinator?: AccountAssignmentFilterCombinator;
 	page: number;
-	hasNextPage: boolean;
-	hasPreviousPage: boolean;
+	limit: number;
 };
+
+export type ReviewAssignmentInput = {
+	assignmentId: string;
+	decision: "approve" | "reject";
+	notes?: string;
+};
+
+const sortableFields = new Set<AccountAssignmentSortField>([
+	"applyId",
+	"accountName",
+	"officerName",
+	"address",
+	"productCode",
+	"assignmentStatus",
+	"createdAt",
+	"updatedAt"
+]);
+
+const filterableColumns = new Set<AccountAssignmentFilterColumn>([
+	"applyId",
+	"accountName",
+	"officerName",
+	"address",
+	"productCode",
+	"assignmentStatus"
+]);
+
+const filterOperators = new Set<AccountAssignmentFilterOperator>([
+	"equals",
+	"not_equals",
+	"contains",
+	"not_contains",
+	"in",
+	"not_in",
+	"exists"
+]);
+
+const statusFilterOperators = new Set<AccountAssignmentFilterOperator>([
+	"equals",
+	"not_equals",
+	"in",
+	"not_in",
+	"exists"
+]);
+
+export type AccountAssignmentRelationColumn = "createdBy" | "updatedBy" | "deletedBy" | "account" | "user" | "reviewedBy";
+
+export type AccountAssignmentRelationValues = Partial<Record<AccountAssignmentRelationColumn, string>>;
+
+export type ResolveAccountAssignmentRelationColumnsInput = {
+	rows: Array<Pick<AccountAssignmentEditorRow, "assignmentId" | "applyId" | "userId" | "createdById" | "updatedById" | "deletedById" | "reviewedById">>;
+	columns: AccountAssignmentRelationColumn[];
+};
+
+export type ResolveAccountAssignmentRelationColumnsOutput = Array<{
+	id: string;
+	values: AccountAssignmentRelationValues;
+}>;
 
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string")
@@ -94,28 +187,358 @@ function normalizeSearch(search: string): string {
 	return search.trim();
 }
 
-function buildAccountSearchWhere(search: string): Where | null {
-	if(search.length == 0)
+function parseBooleanValue(value: unknown): boolean | null {
+	if(typeof value == "boolean")
+		return value;
+	if(typeof value != "string")
+		return null;
+	const normalized = value.trim().toLowerCase();
+	if(normalized == "true" || normalized == "1" || normalized == "yes")
+		return true;
+	if(normalized == "false" || normalized == "0" || normalized == "no")
+		return false;
+	return null;
+}
+
+function normalizeAssignmentStatusValue(value: unknown): AssignmentStatus | null {
+	if(typeof value != "string")
+		return null;
+	const normalized = value.trim().toLowerCase() as AssignmentStatus;
+	return assignmentStatusValues.includes(normalized) ? normalized : null;
+}
+
+function normalizeSortTokens(sort: string[]): AccountAssignmentSortToken[] {
+	const prefixed = sort
+		.map(token => token.trim())
+		.filter(token => token.length > 0)
+		.map(token => token.startsWith("+") || token.startsWith("-") ? token : `+${token}`)
+		.filter(token => sortableFields.has(token.slice(1) as AccountAssignmentSortField)) as AccountAssignmentSortToken[];
+	const deduplicated = prefixed.filter((token, index, source) =>
+		index == source.findIndex(candidate => candidate.slice(1) == token.slice(1))
+	);
+	if(deduplicated.length == 0)
+		return ["-updatedAt"];
+	return deduplicated;
+}
+
+function normalizeFilterCombinator(filterCombinator: AccountAssignmentFilterCombinator | undefined): AccountAssignmentFilterCombinator {
+	return filterCombinator == "or" ? "or" : "and";
+}
+
+function normalizeScalarFilterValue(column: AccountAssignmentFilterColumn, rawValue: unknown): string | boolean | null {
+	if(rawValue == null)
+		return null;
+
+	if(column == "assignmentStatus")
+		return normalizeAssignmentStatusValue(rawValue);
+
+	if(typeof rawValue != "string")
+		return null;
+	const trimmed = rawValue.trim();
+	if(trimmed.length == 0)
+		return null;
+	return trimmed;
+}
+
+function normalizeFilters(filters: AccountAssignmentFilterInput[] | undefined, fallbackCombinator: AccountAssignmentFilterCombinator): AccountAssignmentFilterInput[] {
+	if(filters == null)
+		return [];
+
+	const normalized: AccountAssignmentFilterInput[] = [];
+	for(const filter of filters) {
+		if(filter == null || !filterableColumns.has(filter.column) || !filterOperators.has(filter.operator))
+			continue;
+		if(filter.column == "assignmentStatus" && !statusFilterOperators.has(filter.operator))
+			continue;
+
+		if(filter.operator == "exists") {
+			const existsValue = parseBooleanValue(filter.value) ?? true;
+			normalized.push({
+				column: filter.column,
+				operator: filter.operator,
+				value: existsValue,
+				joinWithPrevious: normalized.length == 0 ? undefined : (filter.joinWithPrevious == "or" ? "or" : fallbackCombinator)
+			});
+			continue;
+		}
+
+		if(filter.operator == "in" || filter.operator == "not_in") {
+			const values = (Array.isArray(filter.value) ? filter.value : String(filter.value ?? "").split(","))
+				.map(value => normalizeScalarFilterValue(filter.column, value))
+				.filter((value): value is string | boolean => value != null);
+			if(values.length == 0)
+				continue;
+			normalized.push({
+				column: filter.column,
+				operator: filter.operator,
+				value: values,
+				joinWithPrevious: normalized.length == 0 ? undefined : (filter.joinWithPrevious == "or" ? "or" : fallbackCombinator)
+			});
+			continue;
+		}
+
+		const scalarValue = normalizeScalarFilterValue(filter.column, filter.value);
+		if(scalarValue == null)
+			continue;
+
+		normalized.push({
+			column: filter.column,
+			operator: filter.operator,
+			value: scalarValue,
+			joinWithPrevious: normalized.length == 0 ? undefined : (filter.joinWithPrevious == "or" ? "or" : fallbackCombinator)
+		});
+	}
+
+	return normalized;
+}
+
+function toPayloadFieldPath(field: AccountAssignmentSortField | AccountAssignmentFilterColumn): string {
+	if(field == "applyId")
+		return "account.id";
+	if(field == "accountName")
+		return "account.name";
+	if(field == "officerName")
+		return "user.name";
+	if(field == "address")
+		return "account.addresses";
+	if(field == "productCode")
+		return "account.assetId";
+	if(field == "assignmentStatus")
+		return "reviewedAt";
+	if(field == "createdAt")
+		return "createdAt";
+	return "updatedAt";
+}
+
+function toPayloadSort(sortTokens: AccountAssignmentSortToken[]): string {
+	return sortTokens.map(token => {
+		const direction = token.startsWith("-") ? "-" : "";
+		const field = token.slice(1) as AccountAssignmentSortField;
+		return `${direction}${toPayloadFieldPath(field)}`;
+	}).join(",");
+}
+
+function toPayloadFilterWhere(filters: AccountAssignmentFilterInput[]): Where | null {
+	if(filters.length == 0)
+		return null;
+
+	const operatorMap: Record<AccountAssignmentFilterOperator, string> = {
+		equals: "equals",
+		not_equals: "not_equals",
+		contains: "like",
+		not_contains: "not_like",
+		in: "in",
+		not_in: "not_in",
+		exists: "exists"
+	};
+
+	const impossibleWhere: Where = {
+		and: [
+			{ reviewedAt: { exists: true } },
+			{ reviewedAt: { exists: false } }
+		]
+	};
+
+	const getStatusWhere = (status: AssignmentStatus): Where => {
+		if(status == "pending_approval")
+			return { reviewedAt: { exists: false } };
+		if(status == "approved") {
+			return {
+				and: [
+					{ reviewedAt: { exists: true } },
+					{ reviewApproved: { equals: true } }
+				]
+			};
+		}
+		return {
+			and: [
+				{ reviewedAt: { exists: true } },
+				{ reviewApproved: { equals: false } }
+			]
+		};
+	};
+
+	const buildStatusFilterWhere = (filter: AccountAssignmentFilterInput): Where | null => {
+		if(filter.operator == "exists")
+			return filter.value == true ? null : impossibleWhere;
+
+		const rawStatuses = Array.isArray(filter.value) ? filter.value : [filter.value];
+		const statuses = rawStatuses
+			.map(normalizeAssignmentStatusValue)
+			.filter((status): status is AssignmentStatus => status != null)
+			.filter((status, index, source) => source.indexOf(status) == index);
+		if(statuses.length == 0)
+			return null;
+
+		if(filter.operator == "equals" || filter.operator == "in")
+			return statuses.length == 1 ? getStatusWhere(statuses[0]) : { or: statuses.map(getStatusWhere) };
+
+		if(filter.operator == "not_equals" || filter.operator == "not_in") {
+			const excluded = new Set(statuses);
+			const remaining = assignmentStatusValues.filter(status => !excluded.has(status));
+			if(remaining.length == 0)
+				return impossibleWhere;
+			return remaining.length == 1 ? getStatusWhere(remaining[0]) : { or: remaining.map(getStatusWhere) };
+		}
+
+		return null;
+	};
+
+	const conditions = filters
+		.map(filter => {
+			if(filter.column == "assignmentStatus") {
+				const statusWhere = buildStatusFilterWhere(filter);
+				if(statusWhere == null)
+					return null;
+				return {
+					where: statusWhere,
+					joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
+				};
+			}
+
+			const fieldPath = toPayloadFieldPath(filter.column);
+			return {
+				where: {
+					[fieldPath]: {
+						[operatorMap[filter.operator]]: filter.value
+					}
+				} as Where,
+				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
+			};
+		})
+		.filter((condition): condition is { where: Where, joinWithPrevious: "and" | "or" } => condition != null);
+
+	if(conditions.length == 0)
+		return null;
+
+	const andTerms: Where[][] = [];
+	let currentAndTerm: Where[] = [conditions[0].where];
+	for(let index = 1; index < conditions.length; index++) {
+		const condition = conditions[index];
+		if(condition.joinWithPrevious == "or") {
+			andTerms.push(currentAndTerm);
+			currentAndTerm = [condition.where];
+			continue;
+		}
+		currentAndTerm.push(condition.where);
+	}
+	andTerms.push(currentAndTerm);
+
+	if(andTerms.length == 1)
+		return andTerms[0].length == 1 ? andTerms[0][0] : { and: andTerms[0] };
+
+	return {
+		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm } as Where))
+	};
+}
+
+function deriveAssignmentStatus(reviewedAt: string | null | undefined, reviewApproved: boolean | null | undefined): AssignmentStatus {
+	if(reviewedAt == null)
+		return "pending_approval";
+	return reviewApproved == true ? "approved" : "rejected";
+}
+
+function buildKeywordWhere(keyword: string): Where | null {
+	if(keyword.length == 0)
 		return null;
 
 	return {
 		or: [
-			{ id: { like: search } },
-			{ name: { like: search } }
+			{ "account.id": { like: keyword } },
+			{ "account.name": { like: keyword } },
+			{ "user.name": { like: keyword } },
+			{ "account.assetId": { like: keyword } }
 		]
 	};
 }
 
-function buildSupervisorAccountScope(roleLevel: string | null, userId: string): Where | null {
+function buildSupervisorAssignmentScope(roleLevel: string | null, userId: string): Where | null {
 	if(roleLevel != "supervisor")
 		return null;
 
 	return {
 		or: [
-			{ createdBy: { equals: userId } },
-			{ "createdBy.supervisor": { equals: userId } }
+			{ "account.createdBy": { equals: userId } },
+			{ "account.createdBy.supervisor": { equals: userId } }
 		]
 	};
+}
+
+function mapAssignmentDocToRow(assignment: any): AccountAssignmentEditorRow {
+	const accountId = getRelationshipId(assignment.account);
+	const account = assignment.account != null && typeof assignment.account == "object" ? assignment.account : null;
+	const assignedUser = assignment.user != null && typeof assignment.user == "object" ? assignment.user : null;
+	const addresses = Array.isArray(account?.addresses) ? account.addresses : [];
+
+	return {
+		assignmentId: assignment?.id != null ? String(assignment.id) : null,
+		assignmentStatus: deriveAssignmentStatus(assignment?.reviewedAt ?? null, assignment?.reviewApproved ?? null),
+		applyId: accountId ?? "",
+		accountName: typeof account?.name == "string" ? account.name : "",
+		officerName: typeof assignedUser?.name == "string" ? assignedUser.name : null,
+		address: addresses.length > 0 ? String(addresses[0]) : "",
+		productCode: account?.assetId != null ? String(account.assetId) : "",
+		userId: getRelationshipId(assignment?.user),
+		createdById: getRelationshipId(assignment?.createdBy),
+		updatedById: getRelationshipId(assignment?.updatedBy),
+		deletedById: getRelationshipId(assignment?.deletedBy),
+		reviewedById: getRelationshipId(assignment?.reviewedBy),
+		requestedAt: typeof assignment?.createdAt == "string" ? assignment.createdAt : null
+	};
+}
+
+async function mapUserNamesById(payload: Payload, user: any, userIds: string[]): Promise<Map<string, string>> {
+	const ids = [...new Set(userIds.filter((value): value is string => value != null && value.length > 0))];
+	if(ids.length == 0)
+		return new Map();
+
+	const result = await payload.find({
+		collection: "users",
+		user,
+		overrideAccess: false,
+		pagination: false,
+		depth: 0,
+		where: {
+			id: { in: ids }
+		},
+		select: {
+			id: true,
+			name: true
+		}
+	});
+
+	const map = new Map<string, string>();
+	for(const doc of result.docs as any[])
+		map.set(String(doc.id), String(doc.name ?? "-"));
+
+	return map;
+}
+
+async function mapAccountNamesById(payload: Payload, user: any, accountIds: string[]): Promise<Map<string, string>> {
+	const ids = [...new Set(accountIds.filter((value): value is string => value != null && value.length > 0))];
+	if(ids.length == 0)
+		return new Map();
+
+	const result = await payload.find({
+		collection: "credit-applications",
+		user,
+		overrideAccess: false,
+		pagination: false,
+		depth: 0,
+		where: {
+			id: { in: ids }
+		},
+		select: {
+			id: true,
+			name: true
+		}
+	});
+
+	const map = new Map<string, string>();
+	for(const doc of result.docs as any[])
+		map.set(String(doc.id), String(doc.name ?? "-"));
+
+	return map;
 }
 
 function parseAssignPayload(input: unknown): Array<{ applyId: string; officerId: string }> {
@@ -167,33 +590,6 @@ export async function resolveRoleLevel(payload: Payload, user: any): Promise<str
 	});
 
 	return typeof role.level == "string" ? role.level : null;
-}
-
-async function mapUserNamesById(payload: Payload, user: any, userIds: string[]): Promise<Map<string, string>> {
-	const ids = [...new Set(userIds.filter((value): value is string => value != null && value.length > 0))];
-	if(ids.length == 0)
-		return new Map();
-
-	const result = await payload.find({
-		collection: "users",
-		user,
-		overrideAccess: false,
-		pagination: false,
-		depth: 0,
-		where: {
-			id: { in: ids }
-		},
-		select: {
-			id: true,
-			name: true
-		}
-	});
-
-	const map = new Map<string, string>();
-	for(const doc of result.docs as any[])
-		map.set(String(doc.id), String(doc.name ?? "-"));
-
-	return map;
 }
 
 async function assertOfficerUsers(payload: Payload, user: any, officerIds: string[]): Promise<void> {
@@ -248,7 +644,7 @@ async function findPendingAssignmentsByApplyIds(
 ): Promise<any[]> {
 	const whereAnd: Where[] = [
 		{ account: { in: applyIds } },
-		{ status: { equals: "pending_approval" } }
+		{ reviewedAt: { exists: false } }
 	];
 	if(excludeAssignmentId != null)
 		whereAnd.push({ id: { not_equals: excludeAssignmentId } });
@@ -257,17 +653,77 @@ async function findPendingAssignmentsByApplyIds(
 		collection: "credit-application-assignments" as never,
 		user,
 		overrideAccess: true,
+		draft: true,
+		trash: true,
 		pagination: false,
 		depth: 0,
 		where: { and: whereAnd },
 		select: {
 			id: true,
 			account: true,
-			status: true
+			reviewedAt: true,
+			reviewApproved: true
 		} as never
 	});
 
 	return result.docs as any[];
+}
+
+async function queryAssignmentRowsService(
+	context: AssignmentContext,
+	input: AccountAssignmentQueryInput,
+	options: { pendingOnly: boolean }
+): Promise<AccountAssignmentEditorListOutput> {
+	const { payload, user, roleLevel } = context;
+	const page = normalizePage(input.page);
+	const limit = normalizeLimit(input.limit);
+	const keyword = normalizeSearch(input.keyword);
+	const sortTokens = normalizeSortTokens(input.sort);
+	const normalizedFilterCombinator = normalizeFilterCombinator(input.filterCombinator);
+	const normalizedFilters = normalizeFilters(input.filters, normalizedFilterCombinator);
+	const payloadFilterWhere = toPayloadFilterWhere(normalizedFilters);
+	const payloadSort = toPayloadSort(sortTokens);
+
+	const whereTerms: Where[] = [
+		...(options.pendingOnly ? [{ reviewedAt: { exists: false } }] : []),
+		...(keyword.length > 0 ? [buildKeywordWhere(keyword)!] : []),
+		...(payloadFilterWhere != null ? [payloadFilterWhere] : []),
+		...(buildSupervisorAssignmentScope(roleLevel, String(user.id)) != null ? [buildSupervisorAssignmentScope(roleLevel, String(user.id))!] : [])
+	];
+
+	const assignmentsResult = await payload.find({
+		collection: "credit-application-assignments" as never,
+		user,
+		overrideAccess: true,
+		draft: true,
+		trash: true,
+		depth: 1,
+		page,
+		limit,
+		sort: payloadSort,
+		where: whereTerms.length == 0 ? undefined : ({ and: whereTerms } as Where),
+		select: {
+			id: true,
+			account: true,
+			user: true,
+			createdBy: true,
+			updatedBy: true,
+			deletedBy: true,
+			reviewedBy: true,
+			createdAt: true,
+			updatedAt: true,
+			reviewedAt: true,
+			reviewApproved: true
+		} as never
+	});
+
+	return {
+		docs: (assignmentsResult.docs as any[]).map(mapAssignmentDocToRow),
+		totalDocs: assignmentsResult.totalDocs,
+		page: assignmentsResult.page ?? page,
+		hasNextPage: assignmentsResult.hasNextPage,
+		hasPreviousPage: assignmentsResult.hasPrevPage
+	};
 }
 
 export async function listAssignmentOfficerOptionsService(context: AssignmentContext): Promise<AccountAssignmentOfficerOption[]> {
@@ -294,115 +750,8 @@ export async function listAssignmentOfficerOptionsService(context: AssignmentCon
 	}));
 }
 
-export async function queryEditorAssignmentsService(context: AssignmentContext, input: {
-	search: string;
-	page: number;
-	limit: number;
-}): Promise<AccountAssignmentEditorListOutput> {
-	const { payload, user, roleLevel } = context;
-	const page = normalizePage(input.page);
-	const limit = normalizeLimit(input.limit);
-	const search = normalizeSearch(input.search);
-	const accountSearchWhere = buildAccountSearchWhere(search);
-	const supervisorScope = buildSupervisorAccountScope(roleLevel, String(user.id));
-
-	const accountWhereTerms: Where[] = [
-		{
-			or: [
-				{ deletedAt: { exists: false } },
-				{ deletedAt: { equals: null } }
-			]
-		},
-		...(accountSearchWhere != null ? [accountSearchWhere] : []),
-		...(supervisorScope != null ? [supervisorScope] : [])
-	];
-
-	const accountsResult = await payload.find({
-		collection: "credit-applications",
-		user,
-		overrideAccess: false,
-		depth: 0,
-		page,
-		limit,
-		sort: "-updatedAt",
-		where: {
-			and: accountWhereTerms
-		},
-		select: {
-			id: true,
-			name: true,
-			addresses: true,
-			assetId: true
-		}
-	});
-
-	const accountIds = accountsResult.docs.map((doc: any) => String(doc.id));
-	if(accountIds.length == 0) {
-		return {
-			docs: [],
-			totalDocs: accountsResult.totalDocs,
-			page: accountsResult.page ?? page,
-			hasNextPage: accountsResult.hasNextPage,
-			hasPreviousPage: accountsResult.hasPrevPage
-		};
-	}
-
-	const assignmentsResult = await payload.find({
-		collection: "credit-application-assignments" as never,
-		user,
-		overrideAccess: true,
-		pagination: false,
-		depth: 0,
-		sort: "-updatedAt",
-		where: {
-			account: { in: accountIds }
-		},
-		select: {
-			id: true,
-			account: true,
-			user: true,
-			status: true,
-			updatedAt: true
-		} as never
-	});
-
-	const assignmentByAccountId = new Map<string, any>();
-	for(const assignment of assignmentsResult.docs as any[]) {
-		const accountId = getRelationshipId(assignment.account);
-		if(accountId != null && assignmentByAccountId.has(accountId) == false)
-			assignmentByAccountId.set(accountId, assignment);
-	}
-
-	const officerIds = [...new Set((assignmentsResult.docs as any[])
-		.map(doc => getRelationshipId(doc.user))
-		.filter((value): value is string => value != null))];
-	const officerNameById = await mapUserNamesById(payload, user, officerIds);
-
-	const docs: AccountAssignmentEditorRow[] = (accountsResult.docs as any[]).map(account => {
-		const assignment = assignmentByAccountId.get(String(account.id)) ?? null;
-		const assignmentId = assignment != null ? String(assignment.id) : null;
-		const currentOfficerId = assignment != null ? getRelationshipId(assignment.user) : null;
-		const officerName = currentOfficerId != null ? (officerNameById.get(currentOfficerId) ?? null) : null;
-		const addresses = Array.isArray(account.addresses) ? account.addresses : [];
-
-		return {
-			assignmentId: assignmentId,
-			assignmentStatus: assignment != null ? String(assignment.status) as AssignmentStatus : null,
-			applyId: String(account.id),
-			accountName: String(account.name ?? ""),
-			officerName: officerName,
-			address: addresses.length > 0 ? String(addresses[0]) : "",
-			productCode: String(account.assetId ?? "")
-		};
-	});
-
-	return {
-		docs,
-		totalDocs: accountsResult.totalDocs,
-		page: accountsResult.page ?? page,
-		hasNextPage: accountsResult.hasNextPage,
-		hasPreviousPage: accountsResult.hasPrevPage
-	};
+export async function queryEditorAssignmentsService(context: AssignmentContext, input: AccountAssignmentQueryInput): Promise<AccountAssignmentEditorListOutput> {
+	return queryAssignmentRowsService(context, input, { pendingOnly: false });
 }
 
 export async function createAssignmentRequestsService(context: AssignmentContext, input: {
@@ -425,6 +774,8 @@ export async function createAssignmentRequestsService(context: AssignmentContext
 		collection: "credit-application-assignments" as never,
 		user,
 		overrideAccess: true,
+		draft: true,
+		trash: true,
 		pagination: false,
 		depth: 0,
 		where: {
@@ -432,8 +783,7 @@ export async function createAssignmentRequestsService(context: AssignmentContext
 		},
 		select: {
 			id: true,
-			account: true,
-			status: true
+			account: true
 		} as never
 	});
 	if(existingAssignments.docs.length > 0)
@@ -448,11 +798,10 @@ export async function createAssignmentRequestsService(context: AssignmentContext
 			data: {
 				account: pair.applyId,
 				user: pair.officerId,
-				status: "pending_approval" as AssignmentStatus,
 				createdBy: user.id,
 				reviewedBy: null,
 				reviewedAt: null,
-				reviewApproved: false,
+				reviewApproved: null,
 				reviewComment: null
 			} as never
 		});
@@ -491,16 +840,18 @@ export async function reassignAssignmentRequestService(context: AssignmentContex
 		id: assignmentId,
 		user,
 		overrideAccess: true,
+		draft: true,
+		trash: true,
 		depth: 0,
 		select: {
 			id: true,
 			account: true,
-			user: true,
-			status: true
+			reviewedAt: true,
+			reviewApproved: true
 		} as never
 	}) as any;
 
-	if(assignment.status == "pending_approval")
+	if(deriveAssignmentStatus(assignment.reviewedAt ?? null, assignment.reviewApproved ?? null) == "pending_approval")
 		throw new Error("This assignment is still pending approval and cannot be reassigned yet.");
 
 	const accountId = getRelationshipId(assignment.account);
@@ -518,11 +869,10 @@ export async function reassignAssignmentRequestService(context: AssignmentContex
 		overrideAccess: true,
 		data: {
 			user: nextOfficerId,
-			status: "pending_approval",
 			createdBy: user.id,
 			reviewedBy: null,
 			reviewedAt: null,
-			reviewApproved: false,
+			reviewApproved: null,
 			reviewComment: null
 		} as never
 	});
@@ -533,177 +883,70 @@ export async function reassignAssignmentRequestService(context: AssignmentContex
 	};
 }
 
-export async function queryApproverAssignmentsService(context: AssignmentContext, input: {
-	search: string;
-	page: number;
-	limit: number;
-}): Promise<AccountAssignmentApproverListOutput> {
+export async function queryApproverAssignmentsService(context: AssignmentContext, input: AccountAssignmentQueryInput): Promise<AccountAssignmentApproverListOutput> {
+	return queryAssignmentRowsService(context, input, { pendingOnly: true });
+}
+
+export async function reviewAssignmentService(context: AssignmentContext, input: ReviewAssignmentInput): Promise<{ message: string; id: string; notification?: string }> {
 	const { payload, user } = context;
-	const search = normalizeSearch(input.search);
-	const page = normalizePage(input.page);
-	const limit = normalizeLimit(input.limit);
+	const assignmentId = input.assignmentId.trim();
+	if(assignmentId.length == 0)
+		throw new Error("Assignment id is required.");
 
-	const whereTerms: Where[] = [
-		{ status: { equals: "pending_approval" } }
-	];
-	if(search.length > 0) {
-		whereTerms.push({
-			or: [
-				{ "account.id": { like: search } },
-				{ "account.name": { like: search } }
-			]
-		});
-	}
-
-	const assignmentsResult = await payload.find({
+	const assignment = await payload.findByID({
 		collection: "credit-application-assignments" as never,
+		id: assignmentId,
 		user,
 		overrideAccess: true,
-		depth: 1,
-		page,
-		limit,
-		sort: "-updatedAt",
-		where: {
-			and: whereTerms
-		},
+		draft: true,
+		trash: true,
+		depth: 0,
 		select: {
 			id: true,
-			account: true,
-			createdBy: true,
-			user: true,
-			status: true,
-			createdAt: true
+			reviewedAt: true,
+			reviewApproved: true
+		} as never
+	}) as any;
+
+	if(deriveAssignmentStatus(assignment.reviewedAt ?? null, assignment.reviewApproved ?? null) != "pending_approval")
+		throw new Error("Only pending approval assignments can be reviewed.");
+
+	const approved = input.decision == "approve";
+
+	await payload.update({
+		collection: "credit-application-assignments" as never,
+		id: assignmentId,
+		user,
+		overrideAccess: true,
+		data: {
+			reviewedBy: user.id,
+			reviewedAt: new Date().toISOString(),
+			reviewApproved: approved,
+			reviewComment: null
 		} as never
 	});
 
-	const userIds = [...new Set((assignmentsResult.docs as any[]).flatMap(doc => [
-		getRelationshipId(doc.createdBy),
-		getRelationshipId(doc.user)
-	].filter((value): value is string => value != null)))];
-	const userNameById = await mapUserNamesById(payload, user, userIds);
-
-	const grouped = new Map<string, AccountAssignmentApproverGroup>();
-
-	for(const assignment of assignmentsResult.docs as any[]) {
-		const createdById = getRelationshipId(assignment.createdBy) ?? "unknown";
-		const currentUserId = getRelationshipId(assignment.user);
-		const account = assignment.account != null && typeof assignment.account == "object" ? assignment.account : null;
-		if(account == null)
-			continue;
-
-		const addresses = Array.isArray(account.addresses) ? account.addresses : [];
-		const requestItem = {
-			assignmentId: String(assignment.id),
-			applyId: String(account.id),
-			accountName: String(account.name ?? ""),
-			officerName: currentUserId != null ? (userNameById.get(currentUserId) ?? null) : null,
-			address: addresses.length > 0 ? String(addresses[0]) : "",
-			productCode: String(account.assetId ?? ""),
-			requestedAt: String(assignment.createdAt ?? "")
-		};
-
-		if(!grouped.has(createdById)) {
-			grouped.set(createdById, {
-				createdBy: {
-					id: createdById,
-					name: userNameById.get(createdById) ?? null
-				},
-				requests: []
-			});
-		}
-
-		grouped.get(createdById)?.requests.push(requestItem);
-	}
-
 	return {
-		docs: [...grouped.values()],
-		totalDocs: assignmentsResult.totalDocs,
-		page: assignmentsResult.page ?? page,
-		hasNextPage: assignmentsResult.hasNextPage,
-		hasPreviousPage: assignmentsResult.hasPrevPage
+		message: approved ? "Assignment approved." : "Assignment rejected.",
+		id: assignmentId,
+		notification: approved ? "Data has changed" : undefined
 	};
 }
 
 export async function approveAssignmentService(context: AssignmentContext, input: { assignmentId: string; notes?: string }): Promise<{ message: string; id: string; notification: string }> {
-	const { payload, user } = context;
-	const assignmentId = input.assignmentId.trim();
-	if(assignmentId.length == 0)
-		throw new Error("Assignment id is required.");
-
-	const assignment = await payload.findByID({
-		collection: "credit-application-assignments" as never,
-		id: assignmentId,
-		user,
-		overrideAccess: true,
-		depth: 0,
-		select: {
-			id: true,
-			status: true
-		} as never
-	}) as any;
-
-	if(assignment.status != "pending_approval")
-		throw new Error("Only pending approval assignments can be approved.");
-
-	await payload.update({
-		collection: "credit-application-assignments" as never,
-		id: assignmentId,
-		user,
-		overrideAccess: true,
-		data: {
-			status: "approved",
-			reviewedBy: user.id,
-			reviewedAt: new Date().toISOString(),
-			reviewApproved: true,
-			reviewComment: null
-		} as never
-	});
-
+	const result = await reviewAssignmentService(context, { assignmentId: input.assignmentId, decision: "approve", notes: input.notes });
 	return {
-		message: "Assignment approved.",
-		id: assignmentId,
-		notification: "Data has changed"
+		message: result.message,
+		id: result.id,
+		notification: result.notification ?? "Data has changed"
 	};
 }
 
 export async function rejectAssignmentService(context: AssignmentContext, input: { assignmentId: string; notes?: string }): Promise<{ message: string; id: string }> {
-	const { payload, user } = context;
-	const assignmentId = input.assignmentId.trim();
-	if(assignmentId.length == 0)
-		throw new Error("Assignment id is required.");
-
-	const assignment = await payload.findByID({
-		collection: "credit-application-assignments" as never,
-		id: assignmentId,
-		user,
-		overrideAccess: true,
-		depth: 0,
-		select: {
-			id: true,
-			status: true
-		} as never
-	}) as any;
-
-	if(assignment.status != "pending_approval")
-		throw new Error("Only pending approval assignments can be rejected.");
-
-	await payload.update({
-		collection: "credit-application-assignments" as never,
-		id: assignmentId,
-		user,
-		overrideAccess: true,
-		data: {
-			status: "rejected",
-			reviewedBy: user.id,
-			reviewedAt: new Date().toISOString(),
-			reviewApproved: false,
-			reviewComment: null
-		} as never
-	});
-
+	const result = await reviewAssignmentService(context, { assignmentId: input.assignmentId, decision: "reject", notes: input.notes });
 	return {
-		message: "Assignment rejected.",
-		id: assignmentId
+		message: result.message,
+		id: result.id
 	};
 }
 
@@ -728,6 +971,17 @@ async function getModeAuthContext(_mode: AccountAssignmentMode): Promise<AuthCon
 	return getAuthContext();
 }
 
+function normalizeQueryActionInput(input: AccountAssignmentQueryActionInput): AccountAssignmentQueryInput {
+	return {
+		keyword: typeof input.keyword == "string" ? input.keyword : String(input.search ?? ""),
+		sort: Array.isArray(input.sort) ? input.sort : [],
+		filters: input.filters,
+		filterCombinator: input.filterCombinator,
+		page: input.page,
+		limit: input.limit
+	};
+}
+
 export async function resolveAccountAssignmentModeRedirectHrefAction(mode: AccountAssignmentMode): Promise<string | null> {
 	return resolveDashboardManagementModeRedirectHrefAction("credit-application-assignment", mode);
 }
@@ -736,13 +990,9 @@ export async function resolveAccountAssignmentRootHrefAction(): Promise<string> 
 	return resolveManagementRootHref("credit-application-assignment");
 }
 
-export async function queryViewerAssignmentsAction(input: {
-	search: string;
-	page: number;
-	limit: number;
-}): Promise<AccountAssignmentEditorListOutput> {
+export async function queryViewerAssignmentsAction(input: AccountAssignmentQueryActionInput): Promise<AccountAssignmentEditorListOutput> {
 	const context = await getModeAuthContext("viewer");
-	return queryEditorAssignmentsService(context, input);
+	return queryEditorAssignmentsService(context, normalizeQueryActionInput(input));
 }
 
 export async function listAssignmentOfficerOptionsAction(): Promise<AccountAssignmentOfficerOption[]> {
@@ -750,13 +1000,9 @@ export async function listAssignmentOfficerOptionsAction(): Promise<AccountAssig
 	return listAssignmentOfficerOptionsService(context);
 }
 
-export async function queryEditorAssignmentsAction(input: {
-	search: string;
-	page: number;
-	limit: number;
-}): Promise<AccountAssignmentEditorListOutput> {
+export async function queryEditorAssignmentsAction(input: AccountAssignmentQueryActionInput): Promise<AccountAssignmentEditorListOutput> {
 	const context = await getModeAuthContext("editor");
-	return queryEditorAssignmentsService(context, input);
+	return queryEditorAssignmentsService(context, normalizeQueryActionInput(input));
 }
 
 export async function createAssignmentRequestsAction(input: {
@@ -775,176 +1021,88 @@ export async function reassignAssignmentRequestAction(input: {
 	return reassignAssignmentRequestService(context, input);
 }
 
-export async function queryApproverAssignmentsAction(input: {
-	search: string;
-	page: number;
-	limit: number;
-}): Promise<AccountAssignmentApproverListOutput> {
-	const { payload, user } = await getModeAuthContext("approver");
-	const search = normalizeSearch(input.search);
-	const page = normalizePage(input.page);
-	const limit = normalizeLimit(input.limit);
+export async function queryApproverAssignmentsAction(input: AccountAssignmentQueryActionInput): Promise<AccountAssignmentApproverListOutput> {
+	const context = await getModeAuthContext("approver");
+	return queryApproverAssignmentsService(context, normalizeQueryActionInput(input));
+}
 
-	const whereTerms: Where[] = [
-		{ status: { equals: "pending_approval" } }
-	];
-	if(search.length > 0) {
-		whereTerms.push({
-			or: [
-				{ "account.id": { like: search } },
-				{ "account.name": { like: search } }
-			]
-		});
-	}
-
-	const assignmentsResult = await payload.find({
-		collection: "credit-application-assignments" as never,
-		user,
-		overrideAccess: true,
-		depth: 1,
-		page,
-		limit,
-		sort: "-updatedAt",
-		where: {
-			and: whereTerms
-		},
-		select: {
-			id: true,
-			account: true,
-			createdBy: true,
-			user: true,
-			status: true,
-			createdAt: true
-		} as never
-	});
-
-	const userIds = [...new Set((assignmentsResult.docs as any[]).flatMap(doc => [
-		getRelationshipId(doc.createdBy),
-		getRelationshipId(doc.user)
-	].filter((value): value is string => value != null)))];
-	const userNameById = await mapUserNamesById(payload, user, userIds);
-
-	const grouped = new Map<string, AccountAssignmentApproverGroup>();
-
-	for(const assignment of assignmentsResult.docs as any[]) {
-		const createdById = getRelationshipId(assignment.createdBy) ?? "unknown";
-		const assignedUserId = getRelationshipId(assignment.user);
-		const account = assignment.account != null && typeof assignment.account == "object" ? assignment.account : null;
-		if(account == null)
-			continue;
-
-		const addresses = Array.isArray(account.addresses) ? account.addresses : [];
-		const requestItem = {
-			assignmentId: String(assignment.id),
-			applyId: String(account.id),
-			accountName: String(account.name ?? ""),
-			officerName: assignedUserId != null ? (userNameById.get(assignedUserId) ?? null) : null,
-			address: addresses.length > 0 ? String(addresses[0]) : "",
-			productCode: String(account.assetId ?? ""),
-			requestedAt: String(assignment.createdAt ?? "")
-		};
-
-		if(!grouped.has(createdById)) {
-			grouped.set(createdById, {
-				createdBy: {
-					id: createdById,
-					name: userNameById.get(createdById) ?? null
-				},
-				requests: []
-			});
-		}
-
-		grouped.get(createdById)?.requests.push(requestItem);
-	}
-
-	return {
-		docs: [...grouped.values()],
-		totalDocs: assignmentsResult.totalDocs,
-		page: assignmentsResult.page ?? page,
-		hasNextPage: assignmentsResult.hasNextPage,
-		hasPreviousPage: assignmentsResult.hasPrevPage
-	};
+export async function reviewAssignmentAction(input: ReviewAssignmentInput): Promise<{ message: string; id: string; notification?: string }> {
+	const context = await getModeAuthContext("approver");
+	return reviewAssignmentService(context, input);
 }
 
 export async function approveAssignmentAction(input: { assignmentId: string; notes?: string }): Promise<{ message: string; id: string; notification: string }> {
-	const { payload, user } = await getModeAuthContext("approver");
-	const assignmentId = input.assignmentId.trim();
-	if(assignmentId.length == 0)
-		throw new Error("Assignment id is required.");
-
-	const assignment = await payload.findByID({
-		collection: "credit-application-assignments" as never,
-		id: assignmentId,
-		user,
-		overrideAccess: true,
-		depth: 0,
-		select: {
-			id: true,
-			status: true
-		} as never
-	}) as any;
-
-	if(assignment.status != "pending_approval")
-		throw new Error("Only pending approval assignments can be approved.");
-
-	await payload.update({
-		collection: "credit-application-assignments" as never,
-		id: assignmentId,
-		user,
-		overrideAccess: true,
-		data: {
-			status: "approved",
-			reviewedBy: user.id,
-			reviewedAt: new Date().toISOString(),
-			reviewApproved: true,
-			reviewComment: null
-		} as never
-	});
-
+	const result = await reviewAssignmentAction({ assignmentId: input.assignmentId, decision: "approve", notes: input.notes });
 	return {
-		message: "Assignment approved.",
-		id: assignmentId,
-		notification: "Data has changed"
+		message: result.message,
+		id: result.id,
+		notification: result.notification ?? "Data has changed"
 	};
 }
 
 export async function rejectAssignmentAction(input: { assignmentId: string; notes?: string }): Promise<{ message: string; id: string }> {
-	const { payload, user } = await getModeAuthContext("approver");
-	const assignmentId = input.assignmentId.trim();
-	if(assignmentId.length == 0)
-		throw new Error("Assignment id is required.");
-
-	const assignment = await payload.findByID({
-		collection: "credit-application-assignments" as never,
-		id: assignmentId,
-		user,
-		overrideAccess: true,
-		depth: 0,
-		select: {
-			id: true,
-			status: true
-		} as never
-	}) as any;
-
-	if(assignment.status != "pending_approval")
-		throw new Error("Only pending approval assignments can be rejected.");
-
-	await payload.update({
-		collection: "credit-application-assignments" as never,
-		id: assignmentId,
-		user,
-		overrideAccess: true,
-		data: {
-			status: "rejected",
-			reviewedBy: user.id,
-			reviewedAt: new Date().toISOString(),
-			reviewApproved: false,
-			reviewComment: null
-		} as never
-	});
-
+	const result = await reviewAssignmentAction({ assignmentId: input.assignmentId, decision: "reject", notes: input.notes });
 	return {
-		message: "Assignment rejected.",
-		id: assignmentId
+		message: result.message,
+		id: result.id
 	};
+}
+
+function getAssignmentRowKey(row: Pick<AccountAssignmentEditorRow, "assignmentId" | "applyId">): string {
+	return row.assignmentId ?? row.applyId;
+}
+
+export async function resolveAccountAssignmentRelationColumnsAction({ rows, columns }: ResolveAccountAssignmentRelationColumnsInput): Promise<ResolveAccountAssignmentRelationColumnsOutput> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null)
+		return unauthorized();
+
+	if(rows.length == 0 || columns.length == 0)
+		return [];
+
+	const requestedColumns = [...new Set(columns)];
+
+	const userIds = new Set<string>();
+	const accountIds = new Set<string>();
+	for(const row of rows) {
+		if(requestedColumns.includes("user") && row.userId != null)
+			userIds.add(row.userId);
+		if(requestedColumns.includes("createdBy") && row.createdById != null)
+			userIds.add(row.createdById);
+		if(requestedColumns.includes("updatedBy") && row.updatedById != null)
+			userIds.add(row.updatedById);
+		if(requestedColumns.includes("deletedBy") && row.deletedById != null)
+			userIds.add(row.deletedById);
+		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
+			userIds.add(row.reviewedById);
+		if(requestedColumns.includes("account") && row.applyId.length > 0)
+			accountIds.add(row.applyId);
+	}
+
+	const userNameById = await mapUserNamesById(payload, user, [...userIds]);
+	const accountNameById = await mapAccountNamesById(payload, user, [...accountIds]);
+
+	return rows.map(row => {
+		const values: AccountAssignmentRelationValues = {};
+
+		if(requestedColumns.includes("account"))
+			values.account = row.applyId.length > 0 ? (accountNameById.get(row.applyId) ?? row.applyId) : "-";
+		if(requestedColumns.includes("user"))
+			values.user = row.userId != null ? (userNameById.get(row.userId) ?? "-") : "-";
+		if(requestedColumns.includes("createdBy"))
+			values.createdBy = row.createdById != null ? (userNameById.get(row.createdById) ?? "-") : "-";
+		if(requestedColumns.includes("updatedBy"))
+			values.updatedBy = row.updatedById != null ? (userNameById.get(row.updatedById) ?? "-") : "-";
+		if(requestedColumns.includes("deletedBy"))
+			values.deletedBy = row.deletedById != null ? (userNameById.get(row.deletedById) ?? "-") : "-";
+		if(requestedColumns.includes("reviewedBy"))
+			values.reviewedBy = row.reviewedById != null ? (userNameById.get(row.reviewedById) ?? "-") : "-";
+
+		return {
+			id: getAssignmentRowKey(row),
+			values
+		};
+	});
 }

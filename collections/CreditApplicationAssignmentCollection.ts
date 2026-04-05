@@ -18,9 +18,9 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 		}
 	},
 	admin: {
-		useAsTitle: "status",
-		listSearchableFields: ["status", "reviewComment"],
-		defaultColumns: ["account", "user", "status", "createdBy", "reviewedBy", "reviewedAt", "updatedAt"]
+		useAsTitle: "account",
+		listSearchableFields: ["reviewComment"],
+		defaultColumns: ["account", "user", "createdBy", "reviewedBy", "reviewedAt", "updatedAt"]
 	},
 	hooks: {
 		beforeChange: [
@@ -131,19 +131,6 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			type: "relationship",
 			relationTo: "users",
 			required: true,
-			index: true
-		},
-		{
-			name: "status",
-			label: "Status",
-			type: "select",
-			options: [
-				{ value: "pending_approval", label: "Pending Approval" },
-				{ value: "approved", label: "Approved" },
-				{ value: "rejected", label: "Rejected" }
-			],
-			required: true,
-			defaultValue: "pending_approval",
 			index: true
 		},
 		{
