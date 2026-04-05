@@ -22,7 +22,11 @@ const roleMenuValues = [
 	"team-management-viewer",
 	"team-management-auditor",
 	"team-management-editor",
-	"team-management-approver"
+	"team-management-approver",
+	"credit-application-assignment-viewer",
+	"credit-application-assignment-auditor",
+	"credit-application-assignment-editor",
+	"credit-application-assignment-approver"
 ] as const;
 const roleStatusValues = ["pending", "approved", "rejected"] as const;
 const roleLevelLabelMap: Record<RoleLevel, string> = {
@@ -43,7 +47,11 @@ const roleMenuLabelMap: Record<RoleMenu, string> = {
 	"team-management-viewer": "Team Management - Viewer",
 	"team-management-auditor": "Team Management - Auditor",
 	"team-management-editor": "Team Management - Editor",
-	"team-management-approver": "Team Management - Approver"
+	"team-management-approver": "Team Management - Approver",
+	"credit-application-assignment-viewer": "Credit Application Assignment - Viewer",
+	"credit-application-assignment-auditor": "Credit Application Assignment - Auditor",
+	"credit-application-assignment-editor": "Credit Application Assignment - Editor",
+	"credit-application-assignment-approver": "Credit Application Assignment - Approver"
 };
 const roleHistoryRequiredMenu: RoleMenu = "role-management-auditor";
 

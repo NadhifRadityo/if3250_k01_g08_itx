@@ -1,10 +1,10 @@
 import { APIError, CollectionConfig } from "payload";
 
-export const Roles = (): CollectionConfig => ({
-	slug: "roles",
+export const CreditApplicationAssignments = (): CollectionConfig => ({
+	slug: "credit-application-assignments",
 	labels: {
-		singular: "Role",
-		plural: "Roles"
+		singular: "Credit Application Assignment",
+		plural: "Credit Application Assignments"
 	},
 	trash: true,
 	timestamps: true,
@@ -18,26 +18,31 @@ export const Roles = (): CollectionConfig => ({
 		}
 	},
 	admin: {
-		useAsTitle: "name",
-		listSearchableFields: ["name", "level", "menus"],
-		defaultColumns: ["name", "level", "menus", "updatedAt"]
+		useAsTitle: "account",
+		listSearchableFields: ["reviewComment"],
+		defaultColumns: ["account", "user", "createdBy", "reviewedBy", "reviewedAt", "updatedAt"]
 	},
 	hooks: {
 		beforeChange: [
 			({ req, operation, data }) => {
-				if(req.user == null) return;
+				if(req.user == null)
+					return data;
+
 				if(data.deletedAt != null)
 					data = { deletedBy: req.user.id, ...data };
+
 				if(operation == "create")
 					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
+
 				if(operation == "update")
 					data = { updatedBy: req.user.id, ...data };
+
 				return data;
 			}
 		],
 		beforeDelete: [
 			() => {
-				throw new APIError("Cannot hard delete a role", 400, undefined, true);
+				throw new APIError("Cannot hard delete a credit application assignment", 400, undefined, true);
 			}
 		]
 	},
@@ -112,49 +117,21 @@ export const Roles = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "name",
-			label: "Name",
-			type: "text",
-			required: true
-		},
-		{
-			name: "level",
-			label: "Level",
-			type: "select",
-			options: [
-				{ value: "admin", label: "Admin" },
-				{ value: "manager", label: "Manager" },
-				{ value: "supervisor", label: "Supervisor" },
-				{ value: "officer", label: "Officer" }
-			],
+			name: "account",
+			label: "Account",
+			type: "relationship",
+			relationTo: "credit-applications",
 			required: true,
+			unique: true,
 			index: true
 		},
 		{
-			name: "menus",
-			label: "Menus",
-			type: "select",
-			options: [
-				{ value: "user-management-viewer", label: "User Management - Viewer" },
-				{ value: "user-management-auditor", label: "User Management - Auditor" },
-				{ value: "user-management-editor", label: "User Management - Editor" },
-				{ value: "user-management-approver", label: "User Management - Approver" },
-				{ value: "role-management-viewer", label: "Role Management - Viewer" },
-				{ value: "role-management-auditor", label: "Role Management - Auditor" },
-				{ value: "role-management-editor", label: "Role Management - Editor" },
-				{ value: "role-management-approver", label: "Role Management - Approver" },
-				{ value: "team-management-viewer", label: "Team Management - Viewer" },
-				{ value: "team-management-auditor", label: "Team Management - Auditor" },
-				{ value: "team-management-editor", label: "Team Management - Editor" },
-				{ value: "team-management-approver", label: "Team Management - Approver" },
-				{ value: "credit-application-assignment-viewer", label: "Credit Application Assignment - Viewer" },
-				{ value: "credit-application-assignment-auditor", label: "Credit Application Assignment - Auditor" },
-				{ value: "credit-application-assignment-editor", label: "Credit Application Assignment - Editor" },
-				{ value: "credit-application-assignment-approver", label: "Credit Application Assignment - Approver" }
-			],
+			name: "user",
+			label: "user",
+			type: "relationship",
+			relationTo: "users",
 			required: true,
-			hasMany: true,
-			defaultValue: []
+			index: true
 		},
 		{
 			name: "reviewedAt",

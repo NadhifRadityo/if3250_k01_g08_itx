@@ -8,7 +8,7 @@ import { getPayload, type Payload } from "payload";
 import payloadConfig from "@payload-config";
 import type { Role, User } from "@/payload-types";
 
-const dashboardManagementKeys = ["user-management", "role-management", "team-management"] as const;
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-assignment"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
 export type DashboardMode = "viewer" | "editor" | "approver";
@@ -59,7 +59,8 @@ export type DashboardEntrySummary = {
 const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"user-management": "User Management",
 	"role-management": "Role Management",
-	"team-management": "Team Management"
+	"team-management": "Team Management",
+	"credit-application-assignment": "Credit Application Assignment"
 };
 
 const modeLabelMap: Record<DashboardMode, string> = {
@@ -82,7 +83,11 @@ const dashboardRoleMenus = [
 	"team-management-viewer",
 	"team-management-auditor",
 	"team-management-editor",
-	"team-management-approver"
+	"team-management-approver",
+	"credit-application-assignment-viewer",
+	"credit-application-assignment-auditor",
+	"credit-application-assignment-editor",
+	"credit-application-assignment-approver"
 ] as const satisfies DashboardRoleMenu[];
 
 const dashboardRoleMenuSet = new Set<DashboardRoleMenu>(dashboardRoleMenus);
@@ -128,6 +133,7 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 
 function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey): DashboardManagementNavigationItem | null {
 	const { hasViewer, hasAuditor, hasEditor, hasApprover, canView } = getModeFlags(menus, key);
+
 	if(!canView && !hasApprover)
 		return null;
 
@@ -253,7 +259,8 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 	return {
 		"user-management": resolveViewerEditorTarget(menus, "user-management"),
 		"role-management": resolveViewerEditorTarget(menus, "role-management"),
-		"team-management": resolveViewerEditorTarget(menus, "team-management")
+		"team-management": resolveViewerEditorTarget(menus, "team-management"),
+		"credit-application-assignment": resolveViewerEditorTarget(menus, "credit-application-assignment")
 	};
 }
 
@@ -262,6 +269,14 @@ function resolveDashboardHomeHref(navigation: DashboardManagementNavigationItem[
 }
 
 function formatMenuLabel(menu: Role["menus"][number]): string {
+	if(menu == "credit-application-assignment-viewer")
+		return "Credit Application Assignment - Viewer";
+	if(menu == "credit-application-assignment-auditor")
+		return "Credit Application Assignment - Auditor";
+	if(menu == "credit-application-assignment-editor")
+		return "Credit Application Assignment - Editor";
+	if(menu == "credit-application-assignment-approver")
+		return "Credit Application Assignment - Approver";
 	if(menu == "user-management-viewer")
 		return "User Management - Viewer";
 	if(menu == "user-management-auditor")
@@ -387,7 +402,8 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 		return {
 			"user-management": { key: "user-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"role-management": { key: "role-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null }
+			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null },
+			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null }
 		};
 	}
 

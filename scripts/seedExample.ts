@@ -113,7 +113,11 @@ const ROLE_SEEDS: SeedRole[] = [
 			"user-management-approver",
 			"team-management-viewer",
 			"team-management-auditor",
-			"team-management-approver"
+			"team-management-approver",
+			"credit-application-assignment-viewer",
+			"credit-application-assignment-auditor",
+			"credit-application-assignment-editor",
+			"credit-application-assignment-approver"
 		]
 	},
 	{
@@ -121,7 +125,10 @@ const ROLE_SEEDS: SeedRole[] = [
 		level: "supervisor",
 		menus: [
 			"team-management-viewer",
-			"team-management-editor"
+			"team-management-editor",
+			"credit-application-assignment-viewer",
+			"credit-application-assignment-auditor",
+			"credit-application-assignment-editor"
 		]
 	},
 	{

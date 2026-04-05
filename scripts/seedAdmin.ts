@@ -21,7 +21,11 @@ const ALL_MENUS: Role["menus"] = [
 	"team-management-viewer",
 	"team-management-auditor",
 	"team-management-editor",
-	"team-management-approver"
+	"team-management-approver",
+	"credit-application-assignment-viewer",
+	"credit-application-assignment-auditor",
+	"credit-application-assignment-editor",
+	"credit-application-assignment-approver"
 ];
 
 type ReviewCommentValue = NonNullable<Role["reviewComment"]>;

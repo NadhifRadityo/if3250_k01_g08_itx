@@ -3,6 +3,7 @@ import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig } from "payload";
 import sharp from "sharp";
 
+import { CreditApplicationAssignments } from "./collections/CreditApplicationAssignmentCollection";
 import { CreditApplications, CreditApplicationImports, CreditApplicationFieldMasks, CreditApplicationDefaultFieldMask } from "./collections/CreditApplicationCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { Roles } from "./collections/RoleCollection";
@@ -29,6 +30,7 @@ export default buildConfig({
 		StagedUsers(),
 		Roles(),
 		Teams(),
+		CreditApplicationAssignments(),
 		CreditApplicationImports(),
 		CreditApplications(),
 		CreditApplicationFieldMasks()
