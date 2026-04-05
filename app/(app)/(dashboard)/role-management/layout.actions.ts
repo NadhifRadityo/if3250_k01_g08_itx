@@ -11,9 +11,6 @@ const MAX_PAGE_SIZE = 20;
 const RELATION_SEARCH_LIMIT = 20;
 const roleLevelValues = ["admin", "manager", "supervisor", "officer"] as const;
 const roleMenuValues = [
-	"account-assignment-viewer",
-	"account-assignment-maker",
-	"account-assignment-checker",
 	"user-management-viewer",
 	"user-management-auditor",
 	"user-management-editor",
@@ -25,7 +22,11 @@ const roleMenuValues = [
 	"team-management-viewer",
 	"team-management-auditor",
 	"team-management-editor",
-	"team-management-approver"
+	"team-management-approver",
+	"credit-application-assignment-viewer",
+	"credit-application-assignment-auditor",
+	"credit-application-assignment-editor",
+	"credit-application-assignment-approver"
 ] as const;
 const roleStatusValues = ["pending", "approved", "rejected"] as const;
 const roleLevelLabelMap: Record<RoleLevel, string> = {
@@ -35,9 +36,6 @@ const roleLevelLabelMap: Record<RoleLevel, string> = {
 	officer: "Officer"
 };
 const roleMenuLabelMap: Record<RoleMenu, string> = {
-	"account-assignment-viewer": "Account Assignment - Viewer",
-	"account-assignment-maker": "Account Assignment - Maker",
-	"account-assignment-checker": "Account Assignment - Checker",
 	"user-management-viewer": "User Management - Viewer",
 	"user-management-auditor": "User Management - Auditor",
 	"user-management-editor": "User Management - Editor",
@@ -49,7 +47,11 @@ const roleMenuLabelMap: Record<RoleMenu, string> = {
 	"team-management-viewer": "Team Management - Viewer",
 	"team-management-auditor": "Team Management - Auditor",
 	"team-management-editor": "Team Management - Editor",
-	"team-management-approver": "Team Management - Approver"
+	"team-management-approver": "Team Management - Approver",
+	"credit-application-assignment-viewer": "Credit Application Assignment - Viewer",
+	"credit-application-assignment-auditor": "Credit Application Assignment - Auditor",
+	"credit-application-assignment-editor": "Credit Application Assignment - Editor",
+	"credit-application-assignment-approver": "Credit Application Assignment - Approver"
 };
 const roleHistoryRequiredMenu: RoleMenu = "role-management-auditor";
 

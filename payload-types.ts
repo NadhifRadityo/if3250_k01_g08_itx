@@ -71,7 +71,7 @@ export interface Config {
     'staged-users': StagedUser;
     roles: Role;
     teams: Team;
-    'account-assignments': AccountAssignment;
+    'credit-application-assignments': AccountAssignment;
     'credit-application-imports': CreditApplicationImport;
     'credit-applications': CreditApplication;
     'credit-application-field-masks': CreditApplicationFieldMask;
@@ -93,7 +93,7 @@ export interface Config {
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
-    'account-assignments': AccountAssignmentsSelect<false> | AccountAssignmentsSelect<true>;
+    'credit-application-assignments': AccountAssignmentsSelect<false> | AccountAssignmentsSelect<true>;
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
@@ -201,9 +201,10 @@ export interface Role {
   name: string;
   level: 'admin' | 'manager' | 'supervisor' | 'officer';
   menus: (
-    | 'account-assignment-viewer'
-    | 'account-assignment-maker'
-    | 'account-assignment-checker'
+    | 'credit-application-assignment-viewer'
+    | 'credit-application-assignment-auditor'
+    | 'credit-application-assignment-editor'
+    | 'credit-application-assignment-approver'
     | 'user-management-viewer'
     | 'user-management-auditor'
     | 'user-management-editor'
@@ -312,7 +313,7 @@ export interface Team {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "account-assignments".
+ * via the `definition` "credit-application-assignments".
  */
 export interface AccountAssignment {
   id: string;
@@ -693,7 +694,7 @@ export interface PayloadLockedDocument {
         value: string | Team;
       } | null)
     | ({
-        relationTo: 'account-assignments';
+        relationTo: 'credit-application-assignments';
         value: string | AccountAssignment;
       } | null)
     | ({
@@ -857,7 +858,7 @@ export interface TeamsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "account-assignments_select".
+ * via the `definition` "credit-application-assignments_select".
  */
 export interface AccountAssignmentsSelect<T extends boolean = true> {
   account?: T;

@@ -95,13 +95,13 @@ async function ensureSampleAccounts(payload: any, manager: any, supervisor: any)
 async function upsertAssignmentForAccount(payload: any, input: {
 	accountId: string;
 	createdBy: string;
-	currentUser: string;
+	user: string;
 	status: "pending_approval" | "approved" | "rejected";
-	approvedBy: string | null;
+	reviewedBy: string | null;
 	message: string | null;
 }): Promise<void> {
 	const { docs } = await payload.find({
-		collection: "account-assignments",
+		collection: "credit-application-assignments",
 		overrideAccess: true,
 		trash: true,
 		pagination: false,
@@ -114,18 +114,18 @@ async function upsertAssignmentForAccount(payload: any, input: {
 
 	const data = {
 		account: input.accountId,
-		lastUser: null,
-		currentUser: input.currentUser,
+		user: input.user,
 		status: input.status,
 		createdBy: input.createdBy,
-		approvedBy: input.approvedBy,
-		approvedTime: input.approvedBy != null ? new Date().toISOString() : null,
-		notificationMessage: input.message
+		reviewedBy: input.reviewedBy,
+		reviewedAt: input.reviewedBy != null ? new Date().toISOString() : null,
+		reviewApproved: input.status == "approved" ? true : input.status == "rejected" ? false : null,
+		reviewComment: null
 	};
 
 	if(docs.length == 0) {
 		await payload.create({
-			collection: "account-assignments",
+			collection: "credit-application-assignments",
 			overrideAccess: true,
 			data
 		});
@@ -133,7 +133,7 @@ async function upsertAssignmentForAccount(payload: any, input: {
 	}
 
 	await payload.update({
-		collection: "account-assignments",
+		collection: "credit-application-assignments",
 		id: String(docs[0].id),
 		overrideAccess: true,
 		data
@@ -151,54 +151,54 @@ const sampleAccounts = await ensureSampleAccounts(payload, manager, supervisor);
 await upsertAssignmentForAccount(payload, {
 	accountId: String(sampleAccounts[0].id),
 	createdBy: String(manager.id),
-	currentUser: String(officers[0].id),
+	user: String(officers[0].id),
 	status: "pending_approval",
-	approvedBy: null,
+	reviewedBy: null,
 	message: null
 });
 
 await upsertAssignmentForAccount(payload, {
 	accountId: String(sampleAccounts[1].id),
 	createdBy: String(supervisor.id),
-	currentUser: String(officers[1].id),
+	user: String(officers[1].id),
 	status: "pending_approval",
-	approvedBy: null,
+	reviewedBy: null,
 	message: null
 });
 
 await upsertAssignmentForAccount(payload, {
 	accountId: String(sampleAccounts[2].id),
 	createdBy: String(manager.id),
-	currentUser: String(officers[0].id),
+	user: String(officers[0].id),
 	status: "approved",
-	approvedBy: String(manager.id),
+	reviewedBy: String(manager.id),
 	message: "Data has changed"
 });
 
 await upsertAssignmentForAccount(payload, {
 	accountId: String(sampleAccounts[3].id),
 	createdBy: String(supervisor.id),
-	currentUser: String(officers[2].id),
+	user: String(officers[2].id),
 	status: "rejected",
-	approvedBy: String(manager.id),
+	reviewedBy: String(manager.id),
 	message: "Rejected for revision"
 });
 
 await upsertAssignmentForAccount(payload, {
 	accountId: String(sampleAccounts[4].id),
 	createdBy: String(manager.id),
-	currentUser: String(officers[1].id),
+	user: String(officers[1].id),
 	status: "approved",
-	approvedBy: String(manager.id),
+	reviewedBy: String(manager.id),
 	message: "Data has changed"
 });
 
 await upsertAssignmentForAccount(payload, {
 	accountId: String(sampleAccounts[5].id),
 	createdBy: String(supervisor.id),
-	currentUser: String(officers[0].id),
+	user: String(officers[0].id),
 	status: "pending_approval",
-	approvedBy: null,
+	reviewedBy: null,
 	message: null
 });
 
@@ -211,7 +211,7 @@ const accountCount = await payload.count({
 });
 
 const assignmentSummary = await payload.find({
-	collection: "account-assignments",
+	collection: "credit-application-assignments",
 	overrideAccess: true,
 	pagination: false,
 	where: {
@@ -224,7 +224,7 @@ const assignmentSummary = await payload.find({
 		status: true,
 		account: true,
 		createdBy: true,
-		currentUser: true
+		user: true
 	}
 });
 
