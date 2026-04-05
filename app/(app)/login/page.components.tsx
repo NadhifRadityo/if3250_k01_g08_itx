@@ -65,10 +65,11 @@ export function LoginForm() {
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel>Email</FieldLabel>
+							<FieldLabel className="font-semibold text-[#334155]">Email</FieldLabel>
 							<Input
 								{...field}
 								aria-invalid={fieldState.invalid}
+								className="h-13 rounded-2xl border-[#E2E8F0] bg-[#f8fafc] px-5 text-base text-[#181934] placeholder:text-[#94A3B8]"
 								placeholder="Masukkan email anda"
 								autoComplete="email"
 								required
@@ -84,14 +85,22 @@ export function LoginForm() {
 					control={form.control}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
-							<FieldLabel>Password</FieldLabel>
-							<InputGroup>
+							{/* <div className="flex items-center justify-between gap-4"> */}
+								<FieldLabel className="font-semibold text-[#334155]">Password</FieldLabel>
+								{/* <button
+									type="button"
+									className="font-semibold text-[#4796BD]"
+								>
+									Forgot password?
+								</button> */}
+							{/* </div> */}
+							<InputGroup className="h-13 rounded-2xl border-[#E2E8F0] bg-[#f8fafc] px-2.5 text-base text-[#181934] placeholder:text-[#94A3B8]">
 								<InputGroupInput
 									{...field}
 									aria-invalid={fieldState.invalid}
 									className="not-noscript:hide-native-password-toggle"
 									type={showPassword ? "text" : "password"}
-									placeholder="Masukkan password"
+									placeholder="Masukkan kata sandi anda"
 								/>
 								<InputGroupAddon align="inline-end" className="noscript:hidden">
 									<InputGroupButton
@@ -99,9 +108,9 @@ export function LoginForm() {
 										disabled={field.disabled}
 									>
 										{!showPassword ? (
-											<EyeIcon className="h-4 w-4" aria-hidden="true" />
+											<EyeIcon/>
 										) : (
-											<EyeOffIcon className="h-4 w-4" aria-hidden="true" />
+											<EyeOffIcon/>
 										)}
 										<VisuallyHidden>
 											{showPassword ? "Hide password" : "Show password"}
@@ -116,7 +125,10 @@ export function LoginForm() {
 					)}
 				/>
 			</FieldGroup>
-			<Button type="submit" className="w-full">
+			<Button
+				type="submit"
+				className="h-13 w-full rounded-2xl bg-[#4f9bc3] font-bold text-white shadow-[0_10px_20px_rgba(79,155,195,0.28)] hover:bg-[#468eb5]"
+			>
 				Masuk
 			</Button>
 		</form>
