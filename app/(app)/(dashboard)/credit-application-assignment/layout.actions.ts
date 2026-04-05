@@ -5,30 +5,32 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Payload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
+import {
+	resolveManagementModeRedirectHrefAction as resolveDashboardManagementModeRedirectHrefAction,
+	resolveManagementRootHref
+} from "../layout.actions";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 export type AssignmentStatus = "pending_approval" | "approved" | "rejected";
-export type AccountAssignmentMode = "viewer" | "maker" | "checker";
-export type AccountAssignmentRoleMenu = "account-assignment-viewer" | "account-assignment-maker" | "account-assignment-checker";
+export type AccountAssignmentMode = "viewer" | "editor" | "approver";
 
 export type AssignmentContext = {
 	payload: Payload;
 	user: any;
 	roleLevel: string | null;
-	roleMenus: AccountAssignmentRoleMenu[];
 };
 
-export type AccountAssignmentMakerRow = {
-	assignment_id: string | null;
-	assignment_status: AssignmentStatus | null;
-	apply_id: string;
-	account_name: string;
-	officer_name: string | null;
+export type AccountAssignmentEditorRow = {
+	assignmentId: string | null;
+	assignmentStatus: AssignmentStatus | null;
+	applyId: string;
+	accountName: string;
+	officerName: string | null;
 	address: string;
-	product_code: string;
+	productCode: string;
 };
 
 export type AccountAssignmentOfficerOption = {
@@ -36,91 +38,37 @@ export type AccountAssignmentOfficerOption = {
 	name: string;
 };
 
-export type AccountAssignmentMakerListOutput = {
-	docs: AccountAssignmentMakerRow[];
+export type AccountAssignmentEditorListOutput = {
+	docs: AccountAssignmentEditorRow[];
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
 	hasPreviousPage: boolean;
 };
 
-export type AccountAssignmentCheckerGroup = {
-	created_by: {
+export type AccountAssignmentApproverGroup = {
+	createdBy: {
 		id: string;
 		name: string | null;
 	};
 	requests: Array<{
-		assignment_id: string;
-		apply_id: string;
-		account_name: string;
-		officer_name: string | null;
+		assignmentId: string;
+		applyId: string;
+		accountName: string;
+		officerName: string | null;
 		address: string;
-		product_code: string;
-		requested_at: string;
+		productCode: string;
+		requestedAt: string;
 	}>;
 };
 
-export type AccountAssignmentCheckerListOutput = {
-	docs: AccountAssignmentCheckerGroup[];
+export type AccountAssignmentApproverListOutput = {
+	docs: AccountAssignmentApproverGroup[];
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
 	hasPreviousPage: boolean;
 };
-
-const accountAssignmentRoleMenuSet = new Set<AccountAssignmentRoleMenu>([
-	"account-assignment-viewer",
-	"account-assignment-maker",
-	"account-assignment-checker"
-]);
-
-function normalizeAccountAssignmentRoleMenus(value: unknown): AccountAssignmentRoleMenu[] {
-	if(!Array.isArray(value))
-		return [];
-
-	const normalized = value
-		.filter((menu): menu is AccountAssignmentRoleMenu => typeof menu == "string" && accountAssignmentRoleMenuSet.has(menu as AccountAssignmentRoleMenu));
-
-	return [...new Set(normalized)];
-}
-
-function hasAccountAssignmentModeAccess(roleMenus: AccountAssignmentRoleMenu[], mode: AccountAssignmentMode): boolean {
-	const menus = new Set(roleMenus);
-	if(mode == "viewer")
-		return menus.has("account-assignment-viewer");
-	if(mode == "maker")
-		return menus.has("account-assignment-maker");
-
-	return menus.has("account-assignment-checker");
-}
-
-function resolveAccountAssignmentDefaultHref(roleMenus: AccountAssignmentRoleMenu[]): string {
-	const menus = new Set(roleMenus);
-	if(menus.has("account-assignment-maker"))
-		return "/account-assignment/maker";
-	if(menus.has("account-assignment-checker"))
-		return "/account-assignment/checker";
-	if(menus.has("account-assignment-viewer"))
-		return "/account-assignment/viewer";
-	return "/";
-}
-
-function resolveAccountAssignmentModeRedirectHref(roleMenus: AccountAssignmentRoleMenu[], mode: AccountAssignmentMode): string | null {
-	const menus = new Set(roleMenus);
- 
-	if(mode == "viewer") {
-		if(menus.has("account-assignment-maker"))
-			return "/account-assignment/maker";
-		if(menus.has("account-assignment-viewer"))
-			return null;
-		return "/";
-	}
-
-	if(mode == "maker")
-		return menus.has("account-assignment-maker") ? null : "/";
-
-	return menus.has("account-assignment-checker") ? null : "/";
-}
 
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string")
@@ -171,9 +119,9 @@ function buildSupervisorAccountScope(roleLevel: string | null, userId: string): 
 }
 
 function parseAssignPayload(input: unknown): Array<{ applyId: string; officerId: string }> {
-	const raw = input != null && typeof input == "object" ? input as { apply_ids?: unknown[]; officer_ids?: unknown[] } : {};
-	const rawApplyIds = Array.isArray(raw.apply_ids) ? raw.apply_ids : [];
-	const rawOfficerIds = Array.isArray(raw.officer_ids) ? raw.officer_ids : [];
+	const raw = input != null && typeof input == "object" ? input as { applyIds?: unknown[]; officerIds?: unknown[] } : {};
+	const rawApplyIds = Array.isArray(raw.applyIds) ? raw.applyIds : [];
+	const rawOfficerIds = Array.isArray(raw.officerIds) ? raw.officerIds : [];
 
 	const normalizedApplyIds = rawApplyIds
 		.map((value: unknown): string => typeof value == "string" ? value.trim() : "")
@@ -184,11 +132,11 @@ function parseAssignPayload(input: unknown): Array<{ applyId: string; officerId:
 		.filter((value: string) => value.length > 0);
 
 	if(applyIds.length == 0)
-		throw new Error("apply_ids is required.");
+		throw new Error("applyIds is required.");
 	if(officerIds.length == 0)
-		throw new Error("officer_ids is required.");
+		throw new Error("officerIds is required.");
 	if(officerIds.length != 1 && officerIds.length != applyIds.length)
-		throw new Error("officer_ids length must be 1 or match apply_ids length.");
+		throw new Error("officerIds length must be 1 or match applyIds length.");
 
 	const pairs: Array<{ applyId: string; officerId: string }> = [];
 	for(let index = 0; index < applyIds.length; index++) {
@@ -219,30 +167,6 @@ export async function resolveRoleLevel(payload: Payload, user: any): Promise<str
 	});
 
 	return typeof role.level == "string" ? role.level : null;
-}
-
-export async function resolveRoleMenus(payload: Payload, user: any): Promise<AccountAssignmentRoleMenu[]> {
-	const roleValue = user?.role;
-	if(roleValue != null && typeof roleValue == "object" && "menus" in roleValue)
-		return normalizeAccountAssignmentRoleMenus((roleValue as { menus?: unknown }).menus);
-
-	const roleId = getRelationshipId(roleValue);
-	if(roleId == null)
-		return [];
-
-	const role = await payload.findByID({
-		collection: "roles",
-		id: roleId,
-		user,
-		overrideAccess: true,
-		trash: true,
-		depth: 0,
-		select: {
-			menus: true
-		}
-	});
-
-	return normalizeAccountAssignmentRoleMenus(role.menus);
 }
 
 async function mapUserNamesById(payload: Payload, user: any, userIds: string[]): Promise<Map<string, string>> {
@@ -290,7 +214,7 @@ async function assertOfficerUsers(payload: Payload, user: any, officerIds: strin
 	});
 
 	if(usersResult.docs.length != ids.length)
-		throw new Error("One or more officer_ids are invalid.");
+		throw new Error("One or more officerIds are invalid.");
 
 	for(const officer of usersResult.docs as any[]) {
 		const roleLevel = officer?.role != null && typeof officer.role == "object" ? officer.role.level : null;
@@ -313,7 +237,7 @@ async function assertAccountsExist(payload: Payload, user: any, applyIds: string
 	});
 
 	if(result.docs.length != ids.length)
-		throw new Error("One or more apply_ids are invalid.");
+		throw new Error("One or more applyIds are invalid.");
 }
 
 async function findPendingAssignmentsByApplyIds(
@@ -330,7 +254,7 @@ async function findPendingAssignmentsByApplyIds(
 		whereAnd.push({ id: { not_equals: excludeAssignmentId } });
 
 	const result = await payload.find({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		user,
 		overrideAccess: true,
 		pagination: false,
@@ -370,11 +294,11 @@ export async function listAssignmentOfficerOptionsService(context: AssignmentCon
 	}));
 }
 
-export async function queryMakerAssignmentsService(context: AssignmentContext, input: {
+export async function queryEditorAssignmentsService(context: AssignmentContext, input: {
 	search: string;
 	page: number;
 	limit: number;
-}): Promise<AccountAssignmentMakerListOutput> {
+}): Promise<AccountAssignmentEditorListOutput> {
 	const { payload, user, roleLevel } = context;
 	const page = normalizePage(input.page);
 	const limit = normalizeLimit(input.limit);
@@ -424,7 +348,7 @@ export async function queryMakerAssignmentsService(context: AssignmentContext, i
 	}
 
 	const assignmentsResult = await payload.find({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		user,
 		overrideAccess: true,
 		pagination: false,
@@ -436,7 +360,7 @@ export async function queryMakerAssignmentsService(context: AssignmentContext, i
 		select: {
 			id: true,
 			account: true,
-			currentUser: true,
+			user: true,
 			status: true,
 			updatedAt: true
 		} as never
@@ -450,25 +374,25 @@ export async function queryMakerAssignmentsService(context: AssignmentContext, i
 	}
 
 	const officerIds = [...new Set((assignmentsResult.docs as any[])
-		.map(doc => getRelationshipId(doc.currentUser))
+		.map(doc => getRelationshipId(doc.user))
 		.filter((value): value is string => value != null))];
 	const officerNameById = await mapUserNamesById(payload, user, officerIds);
 
-	const docs: AccountAssignmentMakerRow[] = (accountsResult.docs as any[]).map(account => {
+	const docs: AccountAssignmentEditorRow[] = (accountsResult.docs as any[]).map(account => {
 		const assignment = assignmentByAccountId.get(String(account.id)) ?? null;
 		const assignmentId = assignment != null ? String(assignment.id) : null;
-		const currentOfficerId = assignment != null ? getRelationshipId(assignment.currentUser) : null;
+		const currentOfficerId = assignment != null ? getRelationshipId(assignment.user) : null;
 		const officerName = currentOfficerId != null ? (officerNameById.get(currentOfficerId) ?? null) : null;
 		const addresses = Array.isArray(account.addresses) ? account.addresses : [];
 
 		return {
-			assignment_id: assignmentId,
-			assignment_status: assignment != null ? String(assignment.status) as AssignmentStatus : null,
-			apply_id: String(account.id),
-			account_name: String(account.name ?? ""),
-			officer_name: officerName,
+			assignmentId: assignmentId,
+			assignmentStatus: assignment != null ? String(assignment.status) as AssignmentStatus : null,
+			applyId: String(account.id),
+			accountName: String(account.name ?? ""),
+			officerName: officerName,
 			address: addresses.length > 0 ? String(addresses[0]) : "",
-			product_code: String(account.assetId ?? "")
+			productCode: String(account.assetId ?? "")
 		};
 	});
 
@@ -482,8 +406,8 @@ export async function queryMakerAssignmentsService(context: AssignmentContext, i
 }
 
 export async function createAssignmentRequestsService(context: AssignmentContext, input: {
-	apply_ids: string[];
-	officer_ids: string[];
+	applyIds: string[];
+	officerIds: string[];
 }): Promise<{ message: string; ids: string[] }> {
 	const { payload, user } = context;
 	const pairs = parseAssignPayload(input);
@@ -498,7 +422,7 @@ export async function createAssignmentRequestsService(context: AssignmentContext
 		throw new Error("One or more accounts are currently pending another assignment approval.");
 
 	const existingAssignments = await payload.find({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		user,
 		overrideAccess: true,
 		pagination: false,
@@ -518,18 +442,18 @@ export async function createAssignmentRequestsService(context: AssignmentContext
 	const createdIds: string[] = [];
 	for(const pair of pairs) {
 		const created = await payload.create({
-			collection: "account-assignments" as never,
+			collection: "credit-application-assignments" as never,
 			user,
 			overrideAccess: true,
 			data: {
 				account: pair.applyId,
-				currentUser: pair.officerId,
-				lastUser: null,
+				user: pair.officerId,
 				status: "pending_approval" as AssignmentStatus,
 				createdBy: user.id,
-				approvedBy: null,
-				approvedTime: null,
-				notificationMessage: null
+				reviewedBy: null,
+				reviewedAt: null,
+				reviewApproved: false,
+				reviewComment: null
 			} as never
 		});
 		createdIds.push(String((created as any).id));
@@ -543,19 +467,19 @@ export async function createAssignmentRequestsService(context: AssignmentContext
 
 export async function reassignAssignmentRequestService(context: AssignmentContext, input: {
 	assignmentId: string;
-	officer_ids: string[];
+	officerIds: string[];
 }): Promise<{ message: string; id: string }> {
 	const { payload, user } = context;
 	const assignmentId = input.assignmentId.trim();
 	if(assignmentId.length == 0)
 		throw new Error("Assignment id is required.");
 
-	const rawOfficerIds = Array.isArray(input.officer_ids) ? input.officer_ids : [];
+	const rawOfficerIds = Array.isArray(input.officerIds) ? input.officerIds : [];
 	const officerIds = rawOfficerIds
 		.map((value: unknown) => typeof value == "string" ? value.trim() : "")
 		.filter((value: string) => value.length > 0);
 	if(officerIds.length == 0)
-		throw new Error("officer_ids is required.");
+		throw new Error("officerIds is required.");
 	if(officerIds.length > 1)
 		throw new Error("Reassign only accepts one officer id.");
 
@@ -563,7 +487,7 @@ export async function reassignAssignmentRequestService(context: AssignmentContex
 	await assertOfficerUsers(payload, user, [nextOfficerId]);
 
 	const assignment = await payload.findByID({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		id: assignmentId,
 		user,
 		overrideAccess: true,
@@ -571,7 +495,7 @@ export async function reassignAssignmentRequestService(context: AssignmentContex
 		select: {
 			id: true,
 			account: true,
-			currentUser: true,
+			user: true,
 			status: true
 		} as never
 	}) as any;
@@ -587,20 +511,19 @@ export async function reassignAssignmentRequestService(context: AssignmentContex
 	if(pendingForAccount.length > 0)
 		throw new Error("This account is currently pending another assignment approval.");
 
-	const oldOfficerId = getRelationshipId(assignment.currentUser);
 	await payload.update({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		id: assignmentId,
 		user,
 		overrideAccess: true,
 		data: {
-			lastUser: oldOfficerId,
-			currentUser: nextOfficerId,
+			user: nextOfficerId,
 			status: "pending_approval",
 			createdBy: user.id,
-			approvedBy: null,
-			approvedTime: null,
-			notificationMessage: null
+			reviewedBy: null,
+			reviewedAt: null,
+			reviewApproved: false,
+			reviewComment: null
 		} as never
 	});
 
@@ -610,11 +533,11 @@ export async function reassignAssignmentRequestService(context: AssignmentContex
 	};
 }
 
-export async function queryCheckerAssignmentsService(context: AssignmentContext, input: {
+export async function queryApproverAssignmentsService(context: AssignmentContext, input: {
 	search: string;
 	page: number;
 	limit: number;
-}): Promise<AccountAssignmentCheckerListOutput> {
+}): Promise<AccountAssignmentApproverListOutput> {
 	const { payload, user } = context;
 	const search = normalizeSearch(input.search);
 	const page = normalizePage(input.page);
@@ -633,7 +556,7 @@ export async function queryCheckerAssignmentsService(context: AssignmentContext,
 	}
 
 	const assignmentsResult = await payload.find({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		user,
 		overrideAccess: true,
 		depth: 1,
@@ -647,7 +570,7 @@ export async function queryCheckerAssignmentsService(context: AssignmentContext,
 			id: true,
 			account: true,
 			createdBy: true,
-			currentUser: true,
+			user: true,
 			status: true,
 			createdAt: true
 		} as never
@@ -655,33 +578,33 @@ export async function queryCheckerAssignmentsService(context: AssignmentContext,
 
 	const userIds = [...new Set((assignmentsResult.docs as any[]).flatMap(doc => [
 		getRelationshipId(doc.createdBy),
-		getRelationshipId(doc.currentUser)
+		getRelationshipId(doc.user)
 	].filter((value): value is string => value != null)))];
 	const userNameById = await mapUserNamesById(payload, user, userIds);
 
-	const grouped = new Map<string, AccountAssignmentCheckerGroup>();
+	const grouped = new Map<string, AccountAssignmentApproverGroup>();
 
 	for(const assignment of assignmentsResult.docs as any[]) {
 		const createdById = getRelationshipId(assignment.createdBy) ?? "unknown";
-		const currentUserId = getRelationshipId(assignment.currentUser);
+		const currentUserId = getRelationshipId(assignment.user);
 		const account = assignment.account != null && typeof assignment.account == "object" ? assignment.account : null;
 		if(account == null)
 			continue;
 
 		const addresses = Array.isArray(account.addresses) ? account.addresses : [];
 		const requestItem = {
-			assignment_id: String(assignment.id),
-			apply_id: String(account.id),
-			account_name: String(account.name ?? ""),
-			officer_name: currentUserId != null ? (userNameById.get(currentUserId) ?? null) : null,
+			assignmentId: String(assignment.id),
+			applyId: String(account.id),
+			accountName: String(account.name ?? ""),
+			officerName: currentUserId != null ? (userNameById.get(currentUserId) ?? null) : null,
 			address: addresses.length > 0 ? String(addresses[0]) : "",
-			product_code: String(account.assetId ?? ""),
-			requested_at: String(assignment.createdAt ?? "")
+			productCode: String(account.assetId ?? ""),
+			requestedAt: String(assignment.createdAt ?? "")
 		};
 
 		if(!grouped.has(createdById)) {
 			grouped.set(createdById, {
-				created_by: {
+				createdBy: {
 					id: createdById,
 					name: userNameById.get(createdById) ?? null
 				},
@@ -708,7 +631,7 @@ export async function approveAssignmentService(context: AssignmentContext, input
 		throw new Error("Assignment id is required.");
 
 	const assignment = await payload.findByID({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		id: assignmentId,
 		user,
 		overrideAccess: true,
@@ -723,15 +646,16 @@ export async function approveAssignmentService(context: AssignmentContext, input
 		throw new Error("Only pending approval assignments can be approved.");
 
 	await payload.update({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		id: assignmentId,
 		user,
 		overrideAccess: true,
 		data: {
 			status: "approved",
-			approvedBy: user.id,
-			approvedTime: new Date().toISOString(),
-			notificationMessage: "Data has changed"
+			reviewedBy: user.id,
+			reviewedAt: new Date().toISOString(),
+			reviewApproved: true,
+			reviewComment: null
 		} as never
 	});
 
@@ -749,7 +673,7 @@ export async function rejectAssignmentService(context: AssignmentContext, input:
 		throw new Error("Assignment id is required.");
 
 	const assignment = await payload.findByID({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		id: assignmentId,
 		user,
 		overrideAccess: true,
@@ -764,14 +688,16 @@ export async function rejectAssignmentService(context: AssignmentContext, input:
 		throw new Error("Only pending approval assignments can be rejected.");
 
 	await payload.update({
-		collection: "account-assignments" as never,
+		collection: "credit-application-assignments" as never,
 		id: assignmentId,
 		user,
 		overrideAccess: true,
 		data: {
 			status: "rejected",
-			approvedBy: user.id,
-			approvedTime: new Date().toISOString()
+			reviewedBy: user.id,
+			reviewedAt: new Date().toISOString(),
+			reviewApproved: false,
+			reviewComment: null
 		} as never
 	});
 
@@ -785,7 +711,6 @@ type AuthContext = {
 	payload: Payload;
 	user: any;
 	roleLevel: string | null;
-	roleMenus: AccountAssignmentRoleMenu[];
 };
 
 async function getAuthContext(): Promise<AuthContext> {
@@ -796,94 +721,230 @@ async function getAuthContext(): Promise<AuthContext> {
 		return unauthorized();
 
 	const roleLevel = await resolveRoleLevel(payload, user);
-	const roleMenus = await resolveRoleMenus(payload, user);
-	return { payload, user, roleLevel, roleMenus };
+	return { payload, user, roleLevel };
 }
 
-async function getModeAuthContext(mode: AccountAssignmentMode): Promise<AuthContext> {
-	const context = await getAuthContext();
-	if(!hasAccountAssignmentModeAccess(context.roleMenus, mode))
-		return unauthorized();
-
-	return context;
+async function getModeAuthContext(_mode: AccountAssignmentMode): Promise<AuthContext> {
+	return getAuthContext();
 }
 
 export async function resolveAccountAssignmentModeRedirectHrefAction(mode: AccountAssignmentMode): Promise<string | null> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return "/login";
-
-	const roleMenus = await resolveRoleMenus(payload, user);
-	return resolveAccountAssignmentModeRedirectHref(roleMenus, mode);
+	return resolveDashboardManagementModeRedirectHrefAction("credit-application-assignment", mode);
 }
 
 export async function resolveAccountAssignmentRootHrefAction(): Promise<string> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return "/login";
-
-	const roleMenus = await resolveRoleMenus(payload, user);
-	return resolveAccountAssignmentDefaultHref(roleMenus);
+	return resolveManagementRootHref("credit-application-assignment");
 }
 
 export async function queryViewerAssignmentsAction(input: {
 	search: string;
 	page: number;
 	limit: number;
-}): Promise<AccountAssignmentMakerListOutput> {
+}): Promise<AccountAssignmentEditorListOutput> {
 	const context = await getModeAuthContext("viewer");
-	return queryMakerAssignmentsService(context, input);
+	return queryEditorAssignmentsService(context, input);
 }
 
 export async function listAssignmentOfficerOptionsAction(): Promise<AccountAssignmentOfficerOption[]> {
-	const context = await getModeAuthContext("maker");
+	const context = await getModeAuthContext("editor");
 	return listAssignmentOfficerOptionsService(context);
 }
 
-export async function queryMakerAssignmentsAction(input: {
+export async function queryEditorAssignmentsAction(input: {
 	search: string;
 	page: number;
 	limit: number;
-}): Promise<AccountAssignmentMakerListOutput> {
-	const context = await getModeAuthContext("maker");
-	return queryMakerAssignmentsService(context, input);
+}): Promise<AccountAssignmentEditorListOutput> {
+	const context = await getModeAuthContext("editor");
+	return queryEditorAssignmentsService(context, input);
 }
 
 export async function createAssignmentRequestsAction(input: {
-	apply_ids: string[];
-	officer_ids: string[];
+	applyIds: string[];
+	officerIds: string[];
 }): Promise<{ message: string; ids: string[] }> {
-	const context = await getModeAuthContext("maker");
+	const context = await getModeAuthContext("editor");
 	return createAssignmentRequestsService(context, input);
 }
 
 export async function reassignAssignmentRequestAction(input: {
 	assignmentId: string;
-	officer_ids: string[];
+	officerIds: string[];
 }): Promise<{ message: string; id: string }> {
-	const context = await getModeAuthContext("maker");
+	const context = await getModeAuthContext("editor");
 	return reassignAssignmentRequestService(context, input);
 }
 
-export async function queryCheckerAssignmentsAction(input: {
+export async function queryApproverAssignmentsAction(input: {
 	search: string;
 	page: number;
 	limit: number;
-}): Promise<AccountAssignmentCheckerListOutput> {
-	const context = await getModeAuthContext("checker");
-	return queryCheckerAssignmentsService(context, input);
+}): Promise<AccountAssignmentApproverListOutput> {
+	const { payload, user } = await getModeAuthContext("approver");
+	const search = normalizeSearch(input.search);
+	const page = normalizePage(input.page);
+	const limit = normalizeLimit(input.limit);
+
+	const whereTerms: Where[] = [
+		{ status: { equals: "pending_approval" } }
+	];
+	if(search.length > 0) {
+		whereTerms.push({
+			or: [
+				{ "account.id": { like: search } },
+				{ "account.name": { like: search } }
+			]
+		});
+	}
+
+	const assignmentsResult = await payload.find({
+		collection: "credit-application-assignments" as never,
+		user,
+		overrideAccess: true,
+		depth: 1,
+		page,
+		limit,
+		sort: "-updatedAt",
+		where: {
+			and: whereTerms
+		},
+		select: {
+			id: true,
+			account: true,
+			createdBy: true,
+			user: true,
+			status: true,
+			createdAt: true
+		} as never
+	});
+
+	const userIds = [...new Set((assignmentsResult.docs as any[]).flatMap(doc => [
+		getRelationshipId(doc.createdBy),
+		getRelationshipId(doc.user)
+	].filter((value): value is string => value != null)))];
+	const userNameById = await mapUserNamesById(payload, user, userIds);
+
+	const grouped = new Map<string, AccountAssignmentApproverGroup>();
+
+	for(const assignment of assignmentsResult.docs as any[]) {
+		const createdById = getRelationshipId(assignment.createdBy) ?? "unknown";
+		const assignedUserId = getRelationshipId(assignment.user);
+		const account = assignment.account != null && typeof assignment.account == "object" ? assignment.account : null;
+		if(account == null)
+			continue;
+
+		const addresses = Array.isArray(account.addresses) ? account.addresses : [];
+		const requestItem = {
+			assignmentId: String(assignment.id),
+			applyId: String(account.id),
+			accountName: String(account.name ?? ""),
+			officerName: assignedUserId != null ? (userNameById.get(assignedUserId) ?? null) : null,
+			address: addresses.length > 0 ? String(addresses[0]) : "",
+			productCode: String(account.assetId ?? ""),
+			requestedAt: String(assignment.createdAt ?? "")
+		};
+
+		if(!grouped.has(createdById)) {
+			grouped.set(createdById, {
+				createdBy: {
+					id: createdById,
+					name: userNameById.get(createdById) ?? null
+				},
+				requests: []
+			});
+		}
+
+		grouped.get(createdById)?.requests.push(requestItem);
+	}
+
+	return {
+		docs: [...grouped.values()],
+		totalDocs: assignmentsResult.totalDocs,
+		page: assignmentsResult.page ?? page,
+		hasNextPage: assignmentsResult.hasNextPage,
+		hasPreviousPage: assignmentsResult.hasPrevPage
+	};
 }
 
 export async function approveAssignmentAction(input: { assignmentId: string; notes?: string }): Promise<{ message: string; id: string; notification: string }> {
-	const context = await getModeAuthContext("checker");
-	return approveAssignmentService(context, input);
+	const { payload, user } = await getModeAuthContext("approver");
+	const assignmentId = input.assignmentId.trim();
+	if(assignmentId.length == 0)
+		throw new Error("Assignment id is required.");
+
+	const assignment = await payload.findByID({
+		collection: "credit-application-assignments" as never,
+		id: assignmentId,
+		user,
+		overrideAccess: true,
+		depth: 0,
+		select: {
+			id: true,
+			status: true
+		} as never
+	}) as any;
+
+	if(assignment.status != "pending_approval")
+		throw new Error("Only pending approval assignments can be approved.");
+
+	await payload.update({
+		collection: "credit-application-assignments" as never,
+		id: assignmentId,
+		user,
+		overrideAccess: true,
+		data: {
+			status: "approved",
+			reviewedBy: user.id,
+			reviewedAt: new Date().toISOString(),
+			reviewApproved: true,
+			reviewComment: null
+		} as never
+	});
+
+	return {
+		message: "Assignment approved.",
+		id: assignmentId,
+		notification: "Data has changed"
+	};
 }
 
 export async function rejectAssignmentAction(input: { assignmentId: string; notes?: string }): Promise<{ message: string; id: string }> {
-	const context = await getModeAuthContext("checker");
-	return rejectAssignmentService(context, input);
+	const { payload, user } = await getModeAuthContext("approver");
+	const assignmentId = input.assignmentId.trim();
+	if(assignmentId.length == 0)
+		throw new Error("Assignment id is required.");
+
+	const assignment = await payload.findByID({
+		collection: "credit-application-assignments" as never,
+		id: assignmentId,
+		user,
+		overrideAccess: true,
+		depth: 0,
+		select: {
+			id: true,
+			status: true
+		} as never
+	}) as any;
+
+	if(assignment.status != "pending_approval")
+		throw new Error("Only pending approval assignments can be rejected.");
+
+	await payload.update({
+		collection: "credit-application-assignments" as never,
+		id: assignmentId,
+		user,
+		overrideAccess: true,
+		data: {
+			status: "rejected",
+			reviewedBy: user.id,
+			reviewedAt: new Date().toISOString(),
+			reviewApproved: false,
+			reviewComment: null
+		} as never
+	});
+
+	return {
+		message: "Assignment rejected.",
+		id: assignmentId
+	};
 }

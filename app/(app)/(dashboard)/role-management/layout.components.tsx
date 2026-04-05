@@ -133,9 +133,6 @@ export const roleLevelOptions: Array<{ value: RoleLevel, label: string }> = [
 ];
 
 export const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
-	{ value: "account-assignment-viewer", label: "Account Assignment - Viewer" },
-	{ value: "account-assignment-maker", label: "Account Assignment - Maker" },
-	{ value: "account-assignment-checker", label: "Account Assignment - Checker" },
 	{ value: "user-management-viewer", label: "User Management - Viewer" },
 	{ value: "user-management-auditor", label: "User Management - Auditor" },
 	{ value: "user-management-editor", label: "User Management - Editor" },
@@ -147,7 +144,11 @@ export const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
 	{ value: "team-management-viewer", label: "Team Management - Viewer" },
 	{ value: "team-management-auditor", label: "Team Management - Auditor" },
 	{ value: "team-management-editor", label: "Team Management - Editor" },
-	{ value: "team-management-approver", label: "Team Management - Approver" }
+	{ value: "team-management-approver", label: "Team Management - Approver" },
+	{ value: "credit-application-assignment-viewer", label: "Credit Application Assignment - Viewer" },
+	{ value: "credit-application-assignment-auditor", label: "Credit Application Assignment - Auditor" },
+	{ value: "credit-application-assignment-editor", label: "Credit Application Assignment - Editor" },
+	{ value: "credit-application-assignment-approver", label: "Credit Application Assignment - Approver" }
 ];
 
 export const reviewStatusOptions: Array<{ value: string, label: string }> = [

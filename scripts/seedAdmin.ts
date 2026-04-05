@@ -10,9 +10,6 @@ const DEFAULT_ADMIN_NAME = "Admin";
 const DEFAULT_ADMIN_EMPLOYEE_ID = "ADMIN-1";
 const DEFAULT_REVIEW_COMMENT = "Seeded admin role and admin user for local bootstrap.";
 const ALL_MENUS: Role["menus"] = [
-	"account-assignment-viewer",
-	"account-assignment-maker",
-	"account-assignment-checker",
 	"user-management-viewer",
 	"user-management-auditor",
 	"user-management-editor",
@@ -24,7 +21,11 @@ const ALL_MENUS: Role["menus"] = [
 	"team-management-viewer",
 	"team-management-auditor",
 	"team-management-editor",
-	"team-management-approver"
+	"team-management-approver",
+	"credit-application-assignment-viewer",
+	"credit-application-assignment-auditor",
+	"credit-application-assignment-editor",
+	"credit-application-assignment-approver"
 ];
 
 type ReviewCommentValue = NonNullable<Role["reviewComment"]>;

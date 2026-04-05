@@ -8,10 +8,10 @@ import { getPayload, type Payload } from "payload";
 import payloadConfig from "@payload-config";
 import type { Role, User } from "@/payload-types";
 
-const dashboardManagementKeys = ["user-management", "role-management", "team-management", "account-assignment"] as const;
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-assignment"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
-export type DashboardMode = "viewer" | "editor" | "approver" | "maker" | "checker";
+export type DashboardMode = "viewer" | "editor" | "approver";
 type DashboardRoleMenuMode = DashboardMode | "auditor";
 export type DashboardRoleMenu = `${DashboardManagementKey}-${DashboardRoleMenuMode}`;
 
@@ -60,23 +60,18 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"user-management": "User Management",
 	"role-management": "Role Management",
 	"team-management": "Team Management",
-	"account-assignment": "Account Assignment"
+	"credit-application-assignment": "Credit Application Assignment"
 };
 
 const modeLabelMap: Record<DashboardMode, string> = {
 	viewer: "Viewer",
 	editor: "Editor",
-	approver: "Approver",
-	maker: "Maker",
-	checker: "Checker"
+	approver: "Approver"
 };
 
 const auditorLabel = "Auditor";
 
 const dashboardRoleMenus = [
-	"account-assignment-viewer",
-	"account-assignment-maker",
-	"account-assignment-checker",
 	"user-management-viewer",
 	"user-management-auditor",
 	"user-management-editor",
@@ -88,7 +83,11 @@ const dashboardRoleMenus = [
 	"team-management-viewer",
 	"team-management-auditor",
 	"team-management-editor",
-	"team-management-approver"
+	"team-management-approver",
+	"credit-application-assignment-viewer",
+	"credit-application-assignment-auditor",
+	"credit-application-assignment-editor",
+	"credit-application-assignment-approver"
 ] as const satisfies DashboardRoleMenu[];
 
 const dashboardRoleMenuSet = new Set<DashboardRoleMenu>(dashboardRoleMenus);
@@ -116,26 +115,8 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 	hasAuditor: boolean;
 	hasEditor: boolean;
 	hasApprover: boolean;
-	hasMaker: boolean;
-	hasChecker: boolean;
 	canView: boolean;
 } {
-	if(key == "account-assignment") {
-		const hasViewer = menus.has("account-assignment-viewer" as DashboardRoleMenu);
-		const hasMaker = menus.has("account-assignment-maker" as DashboardRoleMenu);
-		const hasChecker = menus.has("account-assignment-checker" as DashboardRoleMenu);
-
-		return {
-			hasViewer,
-			hasAuditor: false,
-			hasEditor: false,
-			hasApprover: false,
-			hasMaker,
-			hasChecker,
-			canView: hasViewer || hasMaker
-		};
-	}
-
 	const hasViewer = menus.has(`${key}-viewer` as DashboardRoleMenu);
 	const hasAuditor = menus.has(`${key}-auditor` as DashboardRoleMenu);
 	const hasEditor = menus.has(`${key}-editor` as DashboardRoleMenu);
@@ -146,39 +127,12 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 		hasAuditor,
 		hasEditor,
 		hasApprover,
-		hasMaker: false,
-		hasChecker: false,
 		canView: hasViewer || hasAuditor || hasEditor
 	};
 }
 
 function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey): DashboardManagementNavigationItem | null {
-	const { hasViewer, hasAuditor, hasEditor, hasApprover, hasMaker, hasChecker, canView } = getModeFlags(menus, key);
-
-	if(key == "account-assignment") {
-		if(!hasViewer && !hasMaker && !hasChecker)
-			return null;
-
-		const baseHref = `/${key}`;
-		const links: DashboardNavLink[] = [];
-		if(hasViewer && !hasMaker)
-			links.push({ label: modeLabelMap.viewer, mode: "viewer", href: `${baseHref}/viewer` });
-		if(hasMaker)
-			links.push({ label: modeLabelMap.maker, mode: "maker", href: `${baseHref}/maker` });
-		if(hasChecker)
-			links.push({ label: modeLabelMap.checker, mode: "checker", href: `${baseHref}/checker` });
-
-		const defaultLink = links[0];
-		return {
-			key,
-			label: managementLabelMap[key],
-			baseHref,
-			hasSubmenu: links.length > 1,
-			links,
-			defaultHref: defaultLink.href,
-			defaultMode: defaultLink.mode
-		};
-	}
+	const { hasViewer, hasAuditor, hasEditor, hasApprover, canView } = getModeFlags(menus, key);
 
 	if(!canView && !hasApprover)
 		return null;
@@ -270,25 +224,7 @@ function resolveDefaultManagementHref(menus: DashboardRoleMenu[], key: Dashboard
 
 function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: DashboardManagementKey, mode: DashboardMode): string | null {
 	const menuSet = new Set(menus);
-	const { hasViewer, hasAuditor, hasEditor, hasApprover, hasMaker, hasChecker } = getModeFlags(menuSet, key);
-
-	if(key == "account-assignment") {
-		if(mode == "viewer") {
-			if(hasMaker)
-				return `/${key}/maker`;
-			if(hasViewer)
-				return null;
-			return "/";
-		}
-
-		if(mode == "maker")
-			return hasMaker ? null : "/";
-
-		if(mode == "checker")
-			return hasChecker ? null : "/";
-
-		return "/";
-	}
+	const { hasViewer, hasAuditor, hasEditor, hasApprover } = getModeFlags(menuSet, key);
 
 	if(mode == "viewer") {
 		if(hasEditor)
@@ -324,16 +260,7 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 		"user-management": resolveViewerEditorTarget(menus, "user-management"),
 		"role-management": resolveViewerEditorTarget(menus, "role-management"),
 		"team-management": resolveViewerEditorTarget(menus, "team-management"),
-		"account-assignment": {
-			key: "account-assignment",
-			viewerHref: menus.includes("account-assignment-viewer") ? "/account-assignment/viewer" : null,
-			editorHref: menus.includes("account-assignment-maker") ? "/account-assignment/maker" : null,
-			preferredHref: menus.includes("account-assignment-maker")
-				? "/account-assignment/maker"
-				: menus.includes("account-assignment-viewer")
-					? "/account-assignment/viewer"
-					: null
-		}
+		"credit-application-assignment": resolveViewerEditorTarget(menus, "credit-application-assignment")
 	};
 }
 
@@ -342,12 +269,14 @@ function resolveDashboardHomeHref(navigation: DashboardManagementNavigationItem[
 }
 
 function formatMenuLabel(menu: Role["menus"][number]): string {
-	if(menu == "account-assignment-viewer")
-		return "Account Assignment - Viewer";
-	if(menu == "account-assignment-maker")
-		return "Account Assignment - Maker";
-	if(menu == "account-assignment-checker")
-		return "Account Assignment - Checker";
+	if(menu == "credit-application-assignment-viewer")
+		return "Credit Application Assignment - Viewer";
+	if(menu == "credit-application-assignment-auditor")
+		return "Credit Application Assignment - Auditor";
+	if(menu == "credit-application-assignment-editor")
+		return "Credit Application Assignment - Editor";
+	if(menu == "credit-application-assignment-approver")
+		return "Credit Application Assignment - Approver";
 	if(menu == "user-management-viewer")
 		return "User Management - Viewer";
 	if(menu == "user-management-auditor")
@@ -474,7 +403,7 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 			"user-management": { key: "user-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"role-management": { key: "role-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"account-assignment": { key: "account-assignment", viewerHref: null, editorHref: null, preferredHref: null }
+			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null }
 		};
 	}
 
