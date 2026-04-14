@@ -8,7 +8,7 @@ import { getPayload, type Payload } from "payload";
 import payloadConfig from "@payload-config";
 import type { Role, User } from "@/payload-types";
 
-const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-assignment"] as const;
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
 export type DashboardMode = "viewer" | "editor" | "approver";
@@ -60,6 +60,7 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"user-management": "User Management",
 	"role-management": "Role Management",
 	"team-management": "Team Management",
+	"credit-application-management": "Credit Application Management",
 	"credit-application-assignment": "Credit Application Assignment"
 };
 
@@ -84,6 +85,10 @@ const dashboardRoleMenus = [
 	"team-management-auditor",
 	"team-management-editor",
 	"team-management-approver",
+	"credit-application-management-viewer",
+	"credit-application-management-auditor",
+	"credit-application-management-editor",
+	"credit-application-management-approver",
 	"credit-application-assignment-viewer",
 	"credit-application-assignment-auditor",
 	"credit-application-assignment-editor",
@@ -260,6 +265,7 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 		"user-management": resolveViewerEditorTarget(menus, "user-management"),
 		"role-management": resolveViewerEditorTarget(menus, "role-management"),
 		"team-management": resolveViewerEditorTarget(menus, "team-management"),
+		"credit-application-management": resolveViewerEditorTarget(menus, "credit-application-management"),
 		"credit-application-assignment": resolveViewerEditorTarget(menus, "credit-application-assignment")
 	};
 }
@@ -269,14 +275,6 @@ function resolveDashboardHomeHref(navigation: DashboardManagementNavigationItem[
 }
 
 function formatMenuLabel(menu: Role["menus"][number]): string {
-	if(menu == "credit-application-assignment-viewer")
-		return "Credit Application Assignment - Viewer";
-	if(menu == "credit-application-assignment-auditor")
-		return "Credit Application Assignment - Auditor";
-	if(menu == "credit-application-assignment-editor")
-		return "Credit Application Assignment - Editor";
-	if(menu == "credit-application-assignment-approver")
-		return "Credit Application Assignment - Approver";
 	if(menu == "user-management-viewer")
 		return "User Management - Viewer";
 	if(menu == "user-management-auditor")
@@ -301,6 +299,22 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Team Management - Editor";
 	if(menu == "team-management-approver")
 		return "Team Management - Approver";
+	if(menu == "credit-application-management-viewer")
+		return "Credit Application Management - Viewer";
+	if(menu == "credit-application-management-auditor")
+		return "Credit Application Management - Auditor";
+	if(menu == "credit-application-management-editor")
+		return "Credit Application Management - Editor";
+	if(menu == "credit-application-management-approver")
+		return "Credit Application Management - Approver";
+	if(menu == "credit-application-assignment-viewer")
+		return "Credit Application Assignment - Viewer";
+	if(menu == "credit-application-assignment-auditor")
+		return "Credit Application Assignment - Auditor";
+	if(menu == "credit-application-assignment-editor")
+		return "Credit Application Assignment - Editor";
+	if(menu == "credit-application-assignment-approver")
+		return "Credit Application Assignment - Approver";
 	return menu;
 }
 
@@ -403,6 +417,7 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 			"user-management": { key: "user-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"role-management": { key: "role-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null },
+			"credit-application-management": { key: "credit-application-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null }
 		};
 	}

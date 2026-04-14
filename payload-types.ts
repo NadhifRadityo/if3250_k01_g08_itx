@@ -213,6 +213,10 @@ export interface Role {
     | 'team-management-auditor'
     | 'team-management-editor'
     | 'team-management-approver'
+    | 'credit-application-management-viewer'
+    | 'credit-application-management-auditor'
+    | 'credit-application-management-editor'
+    | 'credit-application-management-approver'
     | 'credit-application-assignment-viewer'
     | 'credit-application-assignment-auditor'
     | 'credit-application-assignment-editor'
@@ -433,6 +437,25 @@ export interface CreditApplication {
     | number
     | boolean
     | null;
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -954,6 +977,11 @@ export interface CreditApplicationsSelect<T extends boolean = true> {
   otherDate1?: T;
   otherDate2?: T;
   others?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

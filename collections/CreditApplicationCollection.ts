@@ -144,6 +144,15 @@ export const CreditApplications = (): CollectionConfig => ({
 	},
 	trash: true,
 	timestamps: true,
+	versions: {
+		maxPerDoc: 0,
+		drafts: {
+			autosave: {
+				showSaveDraftButton: true
+			},
+			validate: true
+		}
+	},
 	admin: {
 		useAsTitle: "name",
 		listSearchableFields: ["name", "email", "addresses", "phoneNumbers", "whatsappNumber", "smsNumber", "collateralRegistryName", "collateralName", "collateralDescription", "assetName", "assetDescription", "remarks"],
@@ -375,6 +384,27 @@ export const CreditApplications = (): CollectionConfig => ({
 			name: "others",
 			label: "Others",
 			type: "json"
+		},
+		{
+			name: "reviewedAt",
+			label: "Reviewed At",
+			type: "date"
+		},
+		{
+			name: "reviewedBy",
+			label: "Reviewed By",
+			type: "relationship",
+			relationTo: "users"
+		},
+		{
+			name: "reviewApproved",
+			label: "Review Approved",
+			type: "checkbox"
+		},
+		{
+			name: "reviewComment",
+			label: "Review Comment",
+			type: "richText"
 		}
 	]
 });

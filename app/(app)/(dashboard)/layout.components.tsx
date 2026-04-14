@@ -20,7 +20,7 @@ import { Sidebar, SidebarMenu, SidebarRail, SidebarGroup, SidebarInset, SidebarF
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
 
-const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-assignment)(?:\/(viewer|editor|approver))?$/;
+const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment)(?:\/(viewer|editor|approver))?$/;
 
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
@@ -37,6 +37,8 @@ function getManagementIcon(key: DashboardManagementKey) {
 		return UserCogIcon;
 	if(key == "role-management")
 		return ShieldCheckIcon;
+	if(key == "credit-application-management")
+		return FileTextIcon;
 	if(key == "credit-application-assignment")
 		return FileTextIcon;
 	return UsersIcon;
@@ -285,14 +287,6 @@ export function DashboardShell({
 									</Collapsible>
 								);
 							})}
-							<SidebarMenuItem>
-								<SidebarMenuButton asChild isActive={pathname == "/credit-application-management"} tooltip="Credit Application Management">
-									<Link href="/credit-application-management">
-										<FileTextIcon />
-										<span>Credit Application Management</span>
-									</Link>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
 						</SidebarMenu>
 					</SidebarGroup>
 				</SidebarContent>
