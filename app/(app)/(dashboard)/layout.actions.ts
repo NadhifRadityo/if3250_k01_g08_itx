@@ -11,9 +11,10 @@ import type { Role, User } from "@/payload-types";
 const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
-export type DashboardMode = "viewer" | "editor" | "approver";
-type DashboardRoleMenuMode = DashboardMode | "auditor";
-export type DashboardRoleMenu = `${DashboardManagementKey}-${DashboardRoleMenuMode}`;
+export type DashboardMode = "viewer" | "editor" | "approver" | "import-viewer" | "import-editor" | "import-approver";
+type DashboardRoleMenuMode = "viewer" | "editor" | "approver" | "auditor";
+type DashboardCreditApplicationImportRoleMenu = `credit-application-management-import-${"viewer" | "editor" | "approver"}`;
+export type DashboardRoleMenu = `${DashboardManagementKey}-${DashboardRoleMenuMode}` | DashboardCreditApplicationImportRoleMenu;
 
 export type DashboardNavLink = {
 	label: string;
@@ -67,7 +68,10 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 const modeLabelMap: Record<DashboardMode, string> = {
 	viewer: "Viewer",
 	editor: "Editor",
-	approver: "Approver"
+	approver: "Approver",
+	"import-viewer": "Import Viewer",
+	"import-editor": "Import Editor",
+	"import-approver": "Import Approver"
 };
 
 const auditorLabel = "Auditor";
@@ -89,6 +93,9 @@ const dashboardRoleMenus = [
 	"credit-application-management-auditor",
 	"credit-application-management-editor",
 	"credit-application-management-approver",
+	"credit-application-management-import-viewer",
+	"credit-application-management-import-editor",
+	"credit-application-management-import-approver",
 	"credit-application-assignment-viewer",
 	"credit-application-assignment-auditor",
 	"credit-application-assignment-editor",
@@ -120,74 +127,81 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 	hasAuditor: boolean;
 	hasEditor: boolean;
 	hasApprover: boolean;
+	hasImportViewer: boolean;
+	hasImportEditor: boolean;
+	hasImportApprover: boolean;
 	canView: boolean;
 } {
 	const hasViewer = menus.has(`${key}-viewer` as DashboardRoleMenu);
 	const hasAuditor = menus.has(`${key}-auditor` as DashboardRoleMenu);
 	const hasEditor = menus.has(`${key}-editor` as DashboardRoleMenu);
 	const hasApprover = menus.has(`${key}-approver` as DashboardRoleMenu);
+	const hasImportViewer = key == "credit-application-management" && menus.has("credit-application-management-import-viewer");
+	const hasImportEditor = key == "credit-application-management" && menus.has("credit-application-management-import-editor");
+	const hasImportApprover = key == "credit-application-management" && menus.has("credit-application-management-import-approver");
 
 	return {
 		hasViewer,
 		hasAuditor,
 		hasEditor,
 		hasApprover,
+		hasImportViewer,
+		hasImportEditor,
+		hasImportApprover,
 		canView: hasViewer || hasAuditor || hasEditor
 	};
 }
 
 function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey): DashboardManagementNavigationItem | null {
-	const { hasViewer, hasAuditor, hasEditor, hasApprover, canView } = getModeFlags(menus, key);
+	const {
+		hasViewer,
+		hasAuditor,
+		hasEditor,
+		hasApprover,
+		hasImportViewer,
+		hasImportEditor,
+		hasImportApprover,
+		canView
+	} = getModeFlags(menus, key);
 
-	if(!canView && !hasApprover)
+	if(!canView && !hasApprover && !hasImportViewer && !hasImportEditor && !hasImportApprover)
 		return null;
 
 	const baseHref = `/${key}`;
 	const viewLinkLabel = hasViewer ? modeLabelMap.viewer : auditorLabel;
+	const links: DashboardNavLink[] = [];
 
-	if(hasEditor && hasApprover) {
-		const links: DashboardNavLink[] = [
-			{ label: modeLabelMap.editor, mode: "editor", href: `${baseHref}/editor` },
-			{ label: modeLabelMap.approver, mode: "approver", href: `${baseHref}/approver` }
-		];
-		return {
-			key,
-			label: managementLabelMap[key],
-			baseHref,
-			hasSubmenu: true,
-			links,
-			defaultHref: links[0].href,
-			defaultMode: links[0].mode
-		};
+	if(hasEditor)
+		links.push({ label: modeLabelMap.editor, mode: "editor", href: `${baseHref}/editor` });
+	else if(hasViewer || hasAuditor)
+		links.push({ label: viewLinkLabel, mode: "viewer", href: `${baseHref}/viewer` });
+
+	if(hasApprover)
+		links.push({ label: modeLabelMap.approver, mode: "approver", href: `${baseHref}/approver` });
+
+	if(key == "credit-application-management") {
+		if(hasImportEditor)
+			links.push({ label: modeLabelMap["import-editor"], mode: "import-editor", href: `${baseHref}/import-editor` });
+		else if(hasImportViewer)
+			links.push({ label: modeLabelMap["import-viewer"], mode: "import-viewer", href: `${baseHref}/import-viewer` });
+
+		if(hasImportApprover)
+			links.push({ label: modeLabelMap["import-approver"], mode: "import-approver", href: `${baseHref}/import-approver` });
 	}
 
-	if(!hasEditor && (hasViewer || hasAuditor) && hasApprover) {
-		const links: DashboardNavLink[] = [
-			{ label: viewLinkLabel, mode: "viewer", href: `${baseHref}/viewer` },
-			{ label: modeLabelMap.approver, mode: "approver", href: `${baseHref}/approver` }
-		];
-		return {
-			key,
-			label: managementLabelMap[key],
-			baseHref,
-			hasSubmenu: true,
-			links,
-			defaultHref: links[0].href,
-			defaultMode: links[0].mode
-		};
-	}
+	if(links.length == 0)
+		return null;
 
-	const defaultMode: DashboardMode = hasEditor ? "editor" : (hasViewer || hasAuditor) ? "viewer" : "approver";
-	const defaultHref = `${baseHref}/${defaultMode}`;
+	const defaultLink = links[0];
 
 	return {
 		key,
 		label: managementLabelMap[key],
 		baseHref,
-		hasSubmenu: false,
-		links: [{ label: defaultMode == "viewer" ? viewLinkLabel : modeLabelMap[defaultMode], mode: defaultMode, href: defaultHref }],
-		defaultHref,
-		defaultMode
+		hasSubmenu: links.length > 1,
+		links,
+		defaultHref: defaultLink.href,
+		defaultMode: defaultLink.mode
 	};
 }
 
@@ -229,7 +243,15 @@ function resolveDefaultManagementHref(menus: DashboardRoleMenu[], key: Dashboard
 
 function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: DashboardManagementKey, mode: DashboardMode): string | null {
 	const menuSet = new Set(menus);
-	const { hasViewer, hasAuditor, hasEditor, hasApprover } = getModeFlags(menuSet, key);
+	const {
+		hasViewer,
+		hasAuditor,
+		hasEditor,
+		hasApprover,
+		hasImportViewer,
+		hasImportEditor,
+		hasImportApprover
+	} = getModeFlags(menuSet, key);
 
 	if(mode == "viewer") {
 		if(hasEditor)
@@ -241,6 +263,26 @@ function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: Dash
 
 	if(mode == "editor")
 		return hasEditor ? null : "/";
+
+	if(mode == "import-viewer") {
+		if(key != "credit-application-management")
+			return "/";
+		if(hasImportEditor)
+			return `/${key}/import-editor`;
+		return hasImportViewer ? null : "/";
+	}
+
+	if(mode == "import-editor") {
+		if(key != "credit-application-management")
+			return "/";
+		return hasImportEditor ? null : "/";
+	}
+
+	if(mode == "import-approver") {
+		if(key != "credit-application-management")
+			return "/";
+		return hasImportApprover ? null : "/";
+	}
 
 	return hasApprover ? null : "/";
 }
@@ -307,6 +349,12 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Credit Application Management - Editor";
 	if(menu == "credit-application-management-approver")
 		return "Credit Application Management - Approver";
+	if(menu == "credit-application-management-import-viewer")
+		return "Credit Application Management - Import Viewer";
+	if(menu == "credit-application-management-import-editor")
+		return "Credit Application Management - Import Editor";
+	if(menu == "credit-application-management-import-approver")
+		return "Credit Application Management - Import Approver";
 	if(menu == "credit-application-assignment-viewer")
 		return "Credit Application Assignment - Viewer";
 	if(menu == "credit-application-assignment-auditor")

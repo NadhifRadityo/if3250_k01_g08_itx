@@ -217,6 +217,9 @@ export interface Role {
     | 'credit-application-management-auditor'
     | 'credit-application-management-editor'
     | 'credit-application-management-approver'
+    | 'credit-application-management-import-viewer'
+    | 'credit-application-management-import-editor'
+    | 'credit-application-management-import-approver'
     | 'credit-application-assignment-viewer'
     | 'credit-application-assignment-auditor'
     | 'credit-application-assignment-editor'
@@ -469,6 +472,21 @@ export interface CreditApplicationImport {
   updatedBy?: (string | null) | User;
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -925,6 +943,7 @@ export interface CreditApplicationImportsSelect<T extends boolean = true> {
   updatedBy?: T;
   deletedAt?: T;
   deletedBy?: T;
+  description?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;

@@ -13,8 +13,8 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "filename",
-		listSearchableFields: ["filename", "reviewComment"],
-		defaultColumns: ["filename", "filesize", "creditApplications", "updatedAt", "reviewedBy", "reviewComment"]
+		listSearchableFields: ["filename", "description"],
+		defaultColumns: ["filename", "filesize", "updatedAt"]
 	},
 	hooks: {
 		beforeChange: [
@@ -27,6 +27,31 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 				if(operation == "update")
 					data = { ...data, updatedBy: req.user.id };
 				return data;
+			},
+			({ req, operation, data, originalDoc }) => {
+				if(operation == "update" && originalDoc != null) {
+					const resolvedDeletedAt = "deletedAt" in data ? data.deletedAt : originalDoc.deletedAt;
+					const resolvedReviewedAt = "reviewedAt" in data ? data.reviewedAt : originalDoc.reviewedAt;
+					const resolvedReviewApproved = "reviewApproved" in data ? data.reviewApproved : originalDoc.reviewApproved;
+					if(resolvedDeletedAt != null && resolvedReviewedAt != null && resolvedReviewApproved == true)
+						throw new APIError("Approved imports cannot be deleted.", 400, undefined, true);
+					if(originalDoc.reviewedAt != null && "description" in data) {
+						const nextDescription = (data as Record<string, unknown>).description;
+						const previousDescription = (originalDoc as Record<string, unknown>).description;
+						if(JSON.stringify(nextDescription) != JSON.stringify(previousDescription))
+							throw new APIError("Cannot modify 'description' after import review.", 400, undefined, true);
+					}
+				}
+				if(operation == "update" && originalDoc != null && data.deletedAt == null) {
+					for(const field of ["filename", "filesize", "mimeType", "url"]) {
+						if(!(field in data))
+							continue;
+						const nextValue = (data as Record<string, unknown>)[field];
+						const previousValue = (originalDoc as Record<string, unknown>)[field];
+						if(JSON.stringify(nextValue) != JSON.stringify(previousValue))
+							throw new APIError(`Cannot modify '${field}' after import upload. Create a new import instead.`, 400, undefined, true);
+					}
+				}
 			}
 		],
 		beforeDelete: [
@@ -104,6 +129,11 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 				hidden: true,
 				disableBulkEdit: true
 			}
+		},
+		{
+			name: "description",
+			label: "Description",
+			type: "richText"
 		},
 		{
 			name: "reviewedAt",
