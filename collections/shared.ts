@@ -1,5 +1,5 @@
 import "payload";
-import { BoldFeature, LinkFeature, validateUrl, ItalicFeature, ChecklistFeature, ParagraphFeature, SubscriptFeature, UnderlineFeature, InlineCodeFeature, OrderedListFeature, SuperscriptFeature, InlineToolbarFeature, StrikethroughFeature, UnorderedListFeature } from "@payloadcms/richtext-lexical";
+import { BoldFeature, LinkFeature, validateUrl, ItalicFeature, lexicalEditor, UploadFeature, ChecklistFeature, ParagraphFeature, SubscriptFeature, UnderlineFeature, InlineCodeFeature, OrderedListFeature, SuperscriptFeature, InlineToolbarFeature, StrikethroughFeature, UnorderedListFeature } from "@payloadcms/richtext-lexical";
 import { Field, Option, Payload, CollectionSlug, PayloadRequest } from "payload";
 
 export { validate as isUuidValid } from "uuid";
@@ -139,4 +139,14 @@ export const defaultEmptyRichText = Object.freeze({
 			}
 		]
 	}
+});
+
+export const ReviewRichTextEditor = () => lexicalEditor({
+	features: [
+		...AllFormatsFeature(),
+		...MultiLineFeature(),
+		UploadFeature({
+			enabledCollections: ["generic-richtext-uploads"]
+		})
+	]
 });

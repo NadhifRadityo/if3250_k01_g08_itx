@@ -1,5 +1,7 @@
 import { APIError, CollectionConfig } from "payload";
 
+import { ReviewRichTextEditor } from "./shared";
+
 export const Roles = (): CollectionConfig => ({
 	slug: "roles",
 	labels: {
@@ -19,7 +21,7 @@ export const Roles = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "name",
-		listSearchableFields: ["name", "level", "menus"],
+		listSearchableFields: ["name", "level", "menus", "reviewComment"],
 		defaultColumns: ["name", "level", "menus", "updatedAt"]
 	},
 	hooks: {
@@ -182,7 +184,8 @@ export const Roles = (): CollectionConfig => ({
 		{
 			name: "reviewComment",
 			label: "Review Comment",
-			type: "richText"
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		}
 	]
 });

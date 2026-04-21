@@ -1,5 +1,7 @@
 import { APIError, CollectionConfig } from "payload";
 
+import { ReviewRichTextEditor } from "./shared";
+
 export const CreditApplicationAssignments = (): CollectionConfig => ({
 	slug: "credit-application-assignments",
 	labels: {
@@ -18,25 +20,21 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 		}
 	},
 	admin: {
-		useAsTitle: "account",
+		useAsTitle: "creditApplication",
 		listSearchableFields: ["reviewComment"],
-		defaultColumns: ["account", "user", "createdBy", "reviewedBy", "reviewedAt", "updatedAt"]
+		defaultColumns: ["creditApplication", "officer", "updatedAt", "reviewedBy", "reviewComment"]
 	},
 	hooks: {
 		beforeChange: [
 			({ req, operation, data }) => {
 				if(req.user == null)
 					return data;
-
 				if(data.deletedAt != null)
 					data = { deletedBy: req.user.id, ...data };
-
 				if(operation == "create")
 					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-
 				if(operation == "update")
 					data = { updatedBy: req.user.id, ...data };
-
 				return data;
 			}
 		],
@@ -117,8 +115,8 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "account",
-			label: "Account",
+			name: "creditApplication",
+			label: "Credit Application",
 			type: "relationship",
 			relationTo: "credit-applications",
 			required: true,
@@ -126,12 +124,13 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			index: true
 		},
 		{
-			name: "user",
-			label: "user",
+			name: "officer",
+			label: "Officer",
 			type: "relationship",
 			relationTo: "users",
 			required: true,
-			index: true
+			index: true,
+			filterOptions: { "role.level": { equals: "officer" } }
 		},
 		{
 			name: "reviewedAt",
@@ -152,7 +151,8 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 		{
 			name: "reviewComment",
 			label: "Review Comment",
-			type: "richText"
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		}
 	]
 });

@@ -67,6 +67,7 @@ export interface Config {
   };
   blocks: {};
   collections: {
+    'generic-richtext-uploads': GenericRichtextUpload;
     users: User;
     'staged-users': StagedUser;
     roles: Role;
@@ -75,6 +76,7 @@ export interface Config {
     'credit-application-imports': CreditApplicationImport;
     'credit-applications': CreditApplication;
     'credit-application-field-masks': CreditApplicationFieldMask;
+    surveys: Survey;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSync;
     search: Search;
     'payload-kv': PayloadKv;
@@ -89,6 +91,7 @@ export interface Config {
     };
   };
   collectionsSelect: {
+    'generic-richtext-uploads': GenericRichtextUploadsSelect<false> | GenericRichtextUploadsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
@@ -97,6 +100,7 @@ export interface Config {
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
+    surveys: SurveysSelect<false> | SurveysSelect<true>;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSyncsSelect<false> | DatabaseLockingPluginTransactionSyncsSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -150,6 +154,25 @@ export interface UserAuthOperations {
     email: string;
     password: string;
   };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "generic-richtext-uploads".
+ */
+export interface GenericRichtextUpload {
+  id: string;
+  updatedAt: string;
+  createdAt: string;
+  deletedAt?: string | null;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -330,8 +353,8 @@ export interface CreditApplicationAssignment {
   updatedBy?: (string | null) | User;
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
-  account: string | CreditApplication;
-  user: string | User;
+  creditApplication: string | CreditApplication;
+  officer: string | User;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -550,6 +573,171 @@ export interface CreditApplicationFieldMask {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "surveys".
+ */
+export interface Survey {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  title: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  blocks: (
+    | {
+        content: {
+          root: {
+            type: string;
+            children: {
+              type: any;
+              version: number;
+              [k: string]: unknown;
+            }[];
+            direction: ('ltr' | 'rtl') | null;
+            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+            indent: number;
+            version: number;
+          };
+          [k: string]: unknown;
+        };
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'survey-text-blocks';
+      }
+    | {
+        choices: {
+          content: {
+            root: {
+              type: string;
+              children: {
+                type: any;
+                version: number;
+                [k: string]: unknown;
+              }[];
+              direction: ('ltr' | 'rtl') | null;
+              format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+              indent: number;
+              version: number;
+            };
+            [k: string]: unknown;
+          };
+          id?: string | null;
+        }[];
+        minChoice: number;
+        maxChoice: number;
+        required: boolean;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'survey-input-choice-blocks';
+      }
+    | {
+        isTextArea: boolean;
+        regexPattern?: string | null;
+        regexMode?: ('contains' | 'notContains' | 'matches' | 'notMatches') | null;
+        required: boolean;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'survey-input-text-blocks';
+      }
+    | {
+        maxSize?: number | null;
+        acceptTypes?: string[] | null;
+        required: boolean;
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'survey-input-upload-blocks';
+      }
+    | {
+        min: number;
+        max: number;
+        inputs: (
+          | {
+              choices: {
+                content: {
+                  root: {
+                    type: string;
+                    children: {
+                      type: any;
+                      version: number;
+                      [k: string]: unknown;
+                    }[];
+                    direction: ('ltr' | 'rtl') | null;
+                    format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+                    indent: number;
+                    version: number;
+                  };
+                  [k: string]: unknown;
+                };
+                id?: string | null;
+              }[];
+              minChoice: number;
+              maxChoice: number;
+              required: boolean;
+              id?: string | null;
+              blockName?: string | null;
+              blockType: 'survey-input-choice-blocks';
+            }
+          | {
+              isTextArea: boolean;
+              regexPattern?: string | null;
+              regexMode?: ('contains' | 'notContains' | 'matches' | 'notMatches') | null;
+              required: boolean;
+              id?: string | null;
+              blockName?: string | null;
+              blockType: 'survey-input-text-blocks';
+            }
+          | {
+              maxSize?: number | null;
+              acceptTypes?: string[] | null;
+              required: boolean;
+              id?: string | null;
+              blockName?: string | null;
+              blockType: 'survey-input-upload-blocks';
+            }
+        )[];
+        id?: string | null;
+        blockName?: string | null;
+        blockType: 'survey-multi-input-blocks';
+      }
+  )[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "database-locking-plugin-transaction-syncs".
  */
 export interface DatabaseLockingPluginTransactionSync {
@@ -735,6 +923,10 @@ export interface PayloadLockedDocument {
   id: string;
   document?:
     | ({
+        relationTo: 'generic-richtext-uploads';
+        value: string | GenericRichtextUpload;
+      } | null)
+    | ({
         relationTo: 'users';
         value: string | User;
       } | null)
@@ -765,6 +957,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'credit-application-field-masks';
         value: string | CreditApplicationFieldMask;
+      } | null)
+    | ({
+        relationTo: 'surveys';
+        value: string | Survey;
       } | null)
     | ({
         relationTo: 'database-locking-plugin-transaction-syncs';
@@ -815,6 +1011,24 @@ export interface PayloadMigration {
   batch?: number | null;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "generic-richtext-uploads_select".
+ */
+export interface GenericRichtextUploadsSelect<T extends boolean = true> {
+  updatedAt?: T;
+  createdAt?: T;
+  deletedAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -924,8 +1138,8 @@ export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
   updatedBy?: T;
   deletedAt?: T;
   deletedBy?: T;
-  account?: T;
-  user?: T;
+  creditApplication?: T;
+  officer?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1027,6 +1241,116 @@ export interface CreditApplicationFieldMasksSelect<T extends boolean = true> {
   maskOtherNumber2?: T;
   maskOtherDate1?: T;
   maskOtherDate2?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "surveys_select".
+ */
+export interface SurveysSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  title?: T;
+  description?: T;
+  blocks?:
+    | T
+    | {
+        'survey-text-blocks'?:
+          | T
+          | {
+              content?: T;
+              id?: T;
+              blockName?: T;
+            };
+        'survey-input-choice-blocks'?:
+          | T
+          | {
+              choices?:
+                | T
+                | {
+                    content?: T;
+                    id?: T;
+                  };
+              minChoice?: T;
+              maxChoice?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
+        'survey-input-text-blocks'?:
+          | T
+          | {
+              isTextArea?: T;
+              regexPattern?: T;
+              regexMode?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
+        'survey-input-upload-blocks'?:
+          | T
+          | {
+              maxSize?: T;
+              acceptTypes?: T;
+              required?: T;
+              id?: T;
+              blockName?: T;
+            };
+        'survey-multi-input-blocks'?:
+          | T
+          | {
+              min?: T;
+              max?: T;
+              inputs?:
+                | T
+                | {
+                    'survey-input-choice-blocks'?:
+                      | T
+                      | {
+                          choices?:
+                            | T
+                            | {
+                                content?: T;
+                                id?: T;
+                              };
+                          minChoice?: T;
+                          maxChoice?: T;
+                          required?: T;
+                          id?: T;
+                          blockName?: T;
+                        };
+                    'survey-input-text-blocks'?:
+                      | T
+                      | {
+                          isTextArea?: T;
+                          regexPattern?: T;
+                          regexMode?: T;
+                          required?: T;
+                          id?: T;
+                          blockName?: T;
+                        };
+                    'survey-input-upload-blocks'?:
+                      | T
+                      | {
+                          maxSize?: T;
+                          acceptTypes?: T;
+                          required?: T;
+                          id?: T;
+                          blockName?: T;
+                        };
+                  };
+              id?: T;
+              blockName?: T;
+            };
+      };
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
   _status?: T;
 }
 /**

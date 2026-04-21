@@ -6,9 +6,11 @@ import sharp from "sharp";
 import { CreditApplicationAssignments } from "./collections/CreditApplicationAssignmentCollection";
 import { CreditApplications, CreditApplicationImports, CreditApplicationFieldMasks, CreditApplicationDefaultFieldMask } from "./collections/CreditApplicationCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
+import { GenericRichtextUploads } from "./collections/GenericCollection";
 import { Roles } from "./collections/RoleCollection";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
+import { Surveys } from "./collections/SurveyCollection";
 import { Teams } from "./collections/TeamCollection";
 import { Users, StagedUsers } from "./collections/UserCollection";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
@@ -26,6 +28,7 @@ export default buildConfig({
 		CreditApplicationDefaultFieldMask()
 	],
 	collections: [
+		GenericRichtextUploads(),
 		Users(),
 		StagedUsers(),
 		Roles(),
@@ -33,7 +36,8 @@ export default buildConfig({
 		CreditApplicationAssignments(),
 		CreditApplicationImports(),
 		CreditApplications(),
-		CreditApplicationFieldMasks()
+		CreditApplicationFieldMasks(),
+		Surveys()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),

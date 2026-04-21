@@ -1,6 +1,6 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { effectiveDoc } from "./shared";
+import { ReviewRichTextEditor } from "./shared";
 
 export const Users = (): CollectionConfig => ({
 	slug: "users",
@@ -411,7 +411,8 @@ export const StagedUsers = (): CollectionConfig => ({
 		{
 			name: "reviewComment",
 			label: "Review Comment",
-			type: "richText"
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		}
 	]
 });

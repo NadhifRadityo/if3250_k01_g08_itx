@@ -1,4 +1,17 @@
+import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
 import { APIError, GlobalConfig, CollectionConfig } from "payload";
+
+import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
+
+const CreditApplicationRichTextEditor = () => lexicalEditor({
+	features: [
+		...AllFormatsFeature(),
+		...MultiLineFeature(),
+		UploadFeature({
+			enabledCollections: ["generic-richtext-uploads"]
+		})
+	]
+});
 
 export const CreditApplicationImports = (): CollectionConfig => ({
 	slug: "credit-application-imports",
@@ -13,7 +26,7 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "filename",
-		listSearchableFields: ["filename", "description"],
+		listSearchableFields: ["filename", "description", "reviewComment"],
 		defaultColumns: ["filename", "filesize", "updatedAt"]
 	},
 	hooks: {
@@ -28,7 +41,7 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 					data = { ...data, updatedBy: req.user.id };
 				return data;
 			},
-			({ req, operation, data, originalDoc }) => {
+			({ operation, data, originalDoc }) => {
 				if(operation == "update" && originalDoc != null) {
 					const resolvedDeletedAt = "deletedAt" in data ? data.deletedAt : originalDoc.deletedAt;
 					const resolvedReviewedAt = "reviewedAt" in data ? data.reviewedAt : originalDoc.reviewedAt;
@@ -41,8 +54,6 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 						if(JSON.stringify(nextDescription) != JSON.stringify(previousDescription))
 							throw new APIError("Cannot modify 'description' after import review.", 400, undefined, true);
 					}
-				}
-				if(operation == "update" && originalDoc != null && data.deletedAt == null) {
 					for(const field of ["filename", "filesize", "mimeType", "url"]) {
 						if(!(field in data))
 							continue;
@@ -133,7 +144,8 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 		{
 			name: "description",
 			label: "Description",
-			type: "richText"
+			type: "richText",
+			editor: CreditApplicationRichTextEditor()
 		},
 		{
 			name: "reviewedAt",
@@ -154,7 +166,8 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 		{
 			name: "reviewComment",
 			label: "Review Comment",
-			type: "richText"
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		},
 		{
 			name: "creditApplications",
@@ -185,7 +198,7 @@ export const CreditApplications = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "name",
-		listSearchableFields: ["name", "email", "addresses", "phoneNumbers", "whatsappNumber", "smsNumber", "collateralRegistryName", "collateralName", "collateralDescription", "assetName", "assetDescription", "remarks"],
+		listSearchableFields: ["name", "email", "addresses", "phoneNumbers", "whatsappNumber", "smsNumber", "collateralRegistryName", "collateralName", "collateralDescription", "assetName", "assetDescription", "remarks", "reviewComment"],
 		defaultColumns: ["import", "name", "email", "addresses", "phoneNumbers", "whatsappNumber", "smsNumber", "collateralRegistryName", "collateralName", "collateralDescription", "assetName", "assetDescription", "period", "installment", "downPayment", "plafond", "vendor", "remarks"]
 	},
 	hooks: {
@@ -333,7 +346,8 @@ export const CreditApplications = (): CollectionConfig => ({
 		{
 			name: "collateralDescription",
 			label: "Collateral Description",
-			type: "richText"
+			type: "richText",
+			editor: CreditApplicationRichTextEditor()
 		},
 		{
 			name: "assetId",
@@ -348,7 +362,8 @@ export const CreditApplications = (): CollectionConfig => ({
 		{
 			name: "assetDescription",
 			label: "Asset Description",
-			type: "richText"
+			type: "richText",
+			editor: CreditApplicationRichTextEditor()
 		},
 		{
 			name: "period",
@@ -378,7 +393,8 @@ export const CreditApplications = (): CollectionConfig => ({
 		{
 			name: "remarks",
 			label: "Remarks",
-			type: "richText"
+			type: "richText",
+			editor: CreditApplicationRichTextEditor()
 		},
 		{
 			name: "otherText1",
@@ -434,7 +450,8 @@ export const CreditApplications = (): CollectionConfig => ({
 		{
 			name: "reviewComment",
 			label: "Review Comment",
-			type: "richText"
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		}
 	]
 });

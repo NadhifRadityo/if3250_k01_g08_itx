@@ -1,5 +1,7 @@
 import { APIError, CollectionConfig } from "payload";
 
+import { ReviewRichTextEditor } from "./shared";
+
 export const Teams = (): CollectionConfig => ({
 	slug: "teams",
 	labels: {
@@ -153,7 +155,8 @@ export const Teams = (): CollectionConfig => ({
 		{
 			name: "reviewComment",
 			label: "Review Comment",
-			type: "richText"
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		}
 	]
 });
