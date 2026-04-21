@@ -3,7 +3,7 @@ import { Block, CollectionConfig } from "payload";
 
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
-const SurveyRichTextEditor = () => lexicalEditor({
+const SatisfactionSurveyRichTextEditor = () => lexicalEditor({
 	features: [
 		...AllFormatsFeature(),
 		...MultiLineFeature(),
@@ -13,11 +13,11 @@ const SurveyRichTextEditor = () => lexicalEditor({
 	]
 });
 
-export const SurveyTextBlocks = (): Block => ({
-	slug: "survey-text-blocks",
+export const SatisfactionSurveyTextBlocks = (): Block => ({
+	slug: "satsifaction-survey-text-blocks",
 	labels: {
-		singular: "Survey Text Block",
-		plural: "Survey Text Blocks"
+		singular: "Satisfaction Survey Text Block",
+		plural: "Satisfaction Survey Text Blocks"
 	},
 	fields: [
 		{
@@ -25,15 +25,15 @@ export const SurveyTextBlocks = (): Block => ({
 			label: "Content",
 			type: "richText",
 			required: true,
-			editor: SurveyRichTextEditor()
+			editor: SatisfactionSurveyRichTextEditor()
 		}
 	]
 });
-export const SurveyInputChoiceBlocks = (): Block => ({
-	slug: "survey-input-choice-blocks",
+export const SatisfactionSurveyInputChoiceBlocks = (): Block => ({
+	slug: "satsifaction-survey-input-choice-blocks",
 	labels: {
-		singular: "Survey Input Choice Block",
-		plural: "Survey Input Choice Blocks"
+		singular: "Satisfaction Survey Input Choice Block",
+		plural: "Satisfaction Survey Input Choice Blocks"
 	},
 	fields: [
 		{
@@ -49,7 +49,7 @@ export const SurveyInputChoiceBlocks = (): Block => ({
 					label: "Content",
 					type: "richText",
 					required: true,
-					editor: SurveyRichTextEditor()
+					editor: SatisfactionSurveyRichTextEditor()
 				}
 			]
 		},
@@ -78,11 +78,11 @@ export const SurveyInputChoiceBlocks = (): Block => ({
 		}
 	]
 });
-export const SurveyInputTextBlocks = (): Block => ({
-	slug: "survey-input-text-blocks",
+export const SatisfactionSurveyInputTextBlocks = (): Block => ({
+	slug: "satsifaction-survey-input-text-blocks",
 	labels: {
-		singular: "Survey Input Text Block",
-		plural: "Survey Input Text Blocks"
+		singular: "Satisfaction Survey Input Text Block",
+		plural: "Satisfaction Survey Input Text Blocks"
 	},
 	fields: [
 		{
@@ -126,11 +126,11 @@ export const SurveyInputTextBlocks = (): Block => ({
 		}
 	]
 });
-export const SurveyInputUploadBlocks = (): Block => ({
-	slug: "survey-input-upload-blocks",
+export const SatisfactionSurveyInputUploadBlocks = (): Block => ({
+	slug: "satsifaction-survey-input-upload-blocks",
 	labels: {
-		singular: "Survey Input Upload Block",
-		plural: "Survey Input Upload Blocks"
+		singular: "Satisfaction Survey Input Upload Block",
+		plural: "Satisfaction Survey Input Upload Blocks"
 	},
 	fields: [
 		{
@@ -153,11 +153,11 @@ export const SurveyInputUploadBlocks = (): Block => ({
 		}
 	]
 });
-export const SurveyMultiInputBlocks = (): Block => ({
-	slug: "survey-multi-input-blocks",
+export const SatisfactionSurveyMultiInputBlocks = (): Block => ({
+	slug: "satsifaction-survey-multi-input-blocks",
 	labels: {
-		singular: "Survey Multi Input Block",
-		plural: "Survey Multi Input Blocks"
+		singular: "Satisfaction Survey Multi Input Block",
+		plural: "Satisfaction Survey Multi Input Blocks"
 	},
 	fields: [
 		{
@@ -184,18 +184,18 @@ export const SurveyMultiInputBlocks = (): Block => ({
 			minRows: 0,
 			defaultValue: [],
 			blocks: [
-				SurveyInputChoiceBlocks(),
-				SurveyInputTextBlocks(),
-				SurveyInputUploadBlocks()
+				SatisfactionSurveyInputChoiceBlocks(),
+				SatisfactionSurveyInputTextBlocks(),
+				SatisfactionSurveyInputUploadBlocks()
 			]
 		}
 	]
 });
-export const Surveys = (): CollectionConfig => ({
-	slug: "surveys",
+export const SatisfactionSurveys = (): CollectionConfig => ({
+	slug: "satsifaction-surveys",
 	labels: {
-		singular: "Survey",
-		plural: "Surveys"
+		singular: "Satisfaction Survey",
+		plural: "Satisfaction Surveys"
 	},
 	trash: true,
 	timestamps: true,
@@ -293,7 +293,7 @@ export const Surveys = (): CollectionConfig => ({
 			name: "description",
 			label: "Description",
 			type: "richText",
-			editor: SurveyRichTextEditor()
+			editor: SatisfactionSurveyRichTextEditor()
 		},
 		{
 			name: "blocks",
@@ -303,11 +303,11 @@ export const Surveys = (): CollectionConfig => ({
 			minRows: 0,
 			defaultValue: [],
 			blocks: [
-				SurveyTextBlocks(),
-				SurveyInputChoiceBlocks(),
-				SurveyInputTextBlocks(),
-				SurveyInputUploadBlocks(),
-				SurveyMultiInputBlocks()
+				SatisfactionSurveyTextBlocks(),
+				SatisfactionSurveyInputChoiceBlocks(),
+				SatisfactionSurveyInputTextBlocks(),
+				SatisfactionSurveyInputUploadBlocks(),
+				SatisfactionSurveyMultiInputBlocks()
 			]
 		},
 		{
