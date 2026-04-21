@@ -19,6 +19,7 @@ export const SurveyTextBlocks = (): Block => ({
 		singular: "Survey Text Block",
 		plural: "Survey Text Blocks"
 	},
+	dbName: "survey_text_blocks",
 	fields: [
 		{
 			name: "content",
@@ -35,6 +36,7 @@ export const SurveyInputChoiceBlocks = (): Block => ({
 		singular: "Survey Input Choice Block",
 		plural: "Survey Input Choice Blocks"
 	},
+	dbName: "survey_input_choice_blocks",
 	fields: [
 		{
 			name: "choices",
@@ -84,6 +86,7 @@ export const SurveyInputTextBlocks = (): Block => ({
 		singular: "Survey Input Text Block",
 		plural: "Survey Input Text Blocks"
 	},
+	dbName: "survey_input_text_blocks",
 	fields: [
 		{
 			name: "isTextArea",
@@ -132,6 +135,7 @@ export const SurveyInputUploadBlocks = (): Block => ({
 		singular: "Survey Input Upload Block",
 		plural: "Survey Input Upload Blocks"
 	},
+	dbName: "survey_input_upload_blocks",
 	fields: [
 		{
 			name: "maxSize",
@@ -159,6 +163,7 @@ export const SurveyMultiInputBlocks = (): Block => ({
 		singular: "Survey Multi Input Block",
 		plural: "Survey Multi Input Blocks"
 	},
+	dbName: "survey_multi_input_blocks",
 	fields: [
 		{
 			name: "min",

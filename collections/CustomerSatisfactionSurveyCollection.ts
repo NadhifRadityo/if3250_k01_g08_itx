@@ -19,6 +19,7 @@ export const SatisfactionSurveyTextBlocks = (): Block => ({
 		singular: "Satisfaction Survey Text Block",
 		plural: "Satisfaction Survey Text Blocks"
 	},
+	dbName: "satsifaction_survey_text_blocks",
 	fields: [
 		{
 			name: "content",
@@ -35,6 +36,7 @@ export const SatisfactionSurveyInputChoiceBlocks = (): Block => ({
 		singular: "Satisfaction Survey Input Choice Block",
 		plural: "Satisfaction Survey Input Choice Blocks"
 	},
+	dbName: "satsifaction_survey_input_choice_blocks",
 	fields: [
 		{
 			name: "choices",
@@ -84,6 +86,7 @@ export const SatisfactionSurveyInputTextBlocks = (): Block => ({
 		singular: "Satisfaction Survey Input Text Block",
 		plural: "Satisfaction Survey Input Text Blocks"
 	},
+	dbName: "satsifaction_survey_input_text_blocks",
 	fields: [
 		{
 			name: "isTextArea",
@@ -132,6 +135,7 @@ export const SatisfactionSurveyInputUploadBlocks = (): Block => ({
 		singular: "Satisfaction Survey Input Upload Block",
 		plural: "Satisfaction Survey Input Upload Blocks"
 	},
+	dbName: "satsifaction_survey_input_upload_blocks",
 	fields: [
 		{
 			name: "maxSize",
@@ -159,6 +163,7 @@ export const SatisfactionSurveyMultiInputBlocks = (): Block => ({
 		singular: "Satisfaction Survey Multi Input Block",
 		plural: "Satisfaction Survey Multi Input Blocks"
 	},
+	dbName: "satsifaction_survey_multi_input_blocks",
 	fields: [
 		{
 			name: "min",
