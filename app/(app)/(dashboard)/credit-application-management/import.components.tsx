@@ -14,20 +14,26 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
 	XIcon,
+	PlusIcon,
 	CheckIcon,
 	UploadIcon,
 	ArrowUpIcon,
+	CalendarIcon,
 	DownloadIcon,
 	ArrowDownIcon,
 	ArrowUpDownIcon,
 	CircleAlertIcon,
+	GripVerticalIcon,
 	FileSpreadsheetIcon
 } from "lucide-react";
 
 import cn from "@/utils/cn";
+import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
+import { Calendar } from "@/components/radix/Calendar";
+import { Checkbox } from "@/components/radix/Checkbox";
 import { Collapsible, CollapsibleContent } from "@/components/radix/Collapsible";
 import {
 	Drawer,
@@ -38,6 +44,9 @@ import {
 	DrawerDescription
 } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupButton } from "@/components/radix/InputGroup";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/radix/Popover";
+import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 import { Textarea } from "@/components/radix/Textarea";
@@ -109,6 +118,7 @@ export type CreditApplicationImportFormState = {
 };
 
 export type FilterValueType = "text" | "date" | "select" | "boolean";
+export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
 
 export type FilterColumnOption = {
 	value: FilterColumn;
@@ -117,6 +127,7 @@ export type FilterColumnOption = {
 	operators: FilterOperator[];
 	placeholder?: string;
 	selectOptions?: Array<{ value: string, label: string }>;
+	searchOptionsAction?: FilterSelectSearchAction;
 };
 
 export type FilterCondition = {
@@ -124,7 +135,10 @@ export type FilterCondition = {
 	operator: FilterOperator;
 	joinWithPrevious: FilterCombinator;
 	value: string;
+	values: string[];
 	existsValue: "true" | "false";
+	dateValue: Date | null;
+	dateText: string;
 };
 
 export type FilterSummaryItem = {
@@ -179,21 +193,116 @@ export const creditApplicationImportTableColumns: CreditApplicationImportTableCo
 ];
 
 export const creditApplicationImportFilterColumns: FilterColumnOption[] = [
-	{ value: "id", label: "ID", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Import ID" },
+	{ value: "id", label: "ID", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "filename", label: "Filename", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Filename" },
 	{ value: "mimeType", label: "MIME Type", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "MIME type" },
 	{ value: "filesize", label: "Size", valueType: "text", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"], placeholder: "File size in bytes" },
-	{ value: "createdBy", label: "Created By", valueType: "text", operators: ["equals", "not_equals", "in", "not_in", "exists"], placeholder: "User ID" },
-	{ value: "updatedBy", label: "Updated By", valueType: "text", operators: ["equals", "not_equals", "in", "not_in", "exists"], placeholder: "User ID" },
-	{ value: "deletedBy", label: "Deleted By", valueType: "text", operators: ["equals", "not_equals", "in", "not_in", "exists"], placeholder: "User ID" },
+	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "updatedBy", label: "Updated By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "deletedAt", label: "Deleted At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
-	{ value: "reviewedBy", label: "Reviewed By", valueType: "text", operators: ["equals", "not_equals", "in", "not_in", "exists"], placeholder: "User ID" },
+	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: booleanFilterOptions },
 	{ value: "status", label: "Status", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: reviewStatusOptions }
 ];
+
+export const defaultFilterCombinator: FilterCombinator = "and";
+
+export function dedupeSelectOptions(options: SearchableSelectOption[]): SearchableSelectOption[] {
+	const seen = new Set<string>();
+	const deduplicated: SearchableSelectOption[] = [];
+	for(const option of options) {
+		const normalizedValue = option.value.trim();
+		if(normalizedValue.length == 0)
+			continue;
+		const dedupeKey = normalizedValue.toLowerCase();
+		if(seen.has(dedupeKey))
+			continue;
+		seen.add(dedupeKey);
+		deduplicated.push({
+			...option,
+			value: normalizedValue
+		});
+	}
+	return deduplicated;
+}
+
+export function formatFilterDateValue(date: Date | null): string {
+	if(date == null)
+		return "Select date and time";
+	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+}
+
+export function parseFilterDateValue(value: string): Date | null {
+	const trimmed = value.trim();
+	if(trimmed.length == 0)
+		return null;
+	const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(trimmed) ? trimmed.replace(" ", "T") : trimmed;
+	const parsed = new Date(normalized);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function parseFilterDateOnlyValue(value: string): Date | null {
+	const trimmed = value.trim();
+	if(trimmed.length == 0)
+		return null;
+	const normalized = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00` : trimmed;
+	const parsed = new Date(normalized);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function formatFilterDateOnlyInput(date: Date | null): string {
+	if(date == null)
+		return "";
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
+export function formatFilterDateInput(date: Date | null): string {
+	if(date == null)
+		return "";
+	return `${formatFilterDateOnlyInput(date)} ${getFilterTimeInput(date)}`;
+}
+
+export function applyTimeToDate(date: Date, timeValue: string): Date {
+	const [rawHours, rawMinutes] = timeValue.split(":");
+	const hours = Number(rawHours);
+	const minutes = Number(rawMinutes);
+	const nextDate = new Date(date);
+	if(Number.isInteger(hours) && Number.isInteger(minutes))
+		nextDate.setHours(hours, minutes, 0, 0);
+	return nextDate;
+}
+
+export function getFilterTimeInput(date: Date | null): string {
+	if(date == null)
+		return "00:00";
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+	return `${hours}:${minutes}`;
+}
+
+export function splitFilterDateValue(value: string): { dateText: string, timeText: string } {
+	const parsed = parseFilterDateValue(value);
+	if(parsed == null)
+		return { dateText: "", timeText: "00:00" };
+	return {
+		dateText: formatFilterDateOnlyInput(parsed),
+		timeText: getFilterTimeInput(parsed)
+	};
+}
+
+export function buildFilterDateValue(dateText: string, timeText: string): string {
+	const parsedDate = parseFilterDateOnlyValue(dateText);
+	if(parsedDate == null)
+		return "";
+	return formatFilterDateInput(applyTimeToDate(parsedDate, timeText));
+}
 
 const CREDIT_APPLICATION_IMPORT_COLUMN_PREFERENCES_KEY = "credit-application-management-import-columns-v1";
 
@@ -267,14 +376,46 @@ export function getFilterColumnConfig(column: FilterColumn): FilterColumnOption 
 	return creditApplicationImportFilterColumns.find(option => option.value == column) ?? creditApplicationImportFilterColumns[0];
 }
 
+export function getResolvedCreditApplicationImportFilterColumnConfig(
+	column: FilterColumn,
+	idSelectOptions: Array<{ value: string, label: string }>,
+	auditUserSelectOptions: Array<{ value: string, label: string }>,
+	searchImportOptions?: FilterSelectSearchAction,
+	searchAuditUserOptions?: FilterSelectSearchAction
+): FilterColumnOption {
+	const config = getFilterColumnConfig(column);
+	switch(column) {
+		case "id":
+			return {
+				...config,
+				selectOptions: idSelectOptions,
+				searchOptionsAction: searchImportOptions
+			};
+		case "createdBy":
+		case "updatedBy":
+		case "deletedBy":
+		case "reviewedBy":
+			return {
+				...config,
+				selectOptions: auditUserSelectOptions,
+				searchOptionsAction: searchAuditUserOptions
+			};
+		default:
+			return config;
+	}
+}
+
 export function createFilterCondition(column: FilterColumn = creditApplicationImportFilterColumns[0].value): FilterCondition {
 	const columnConfig = getFilterColumnConfig(column);
 	return {
 		column,
 		operator: columnConfig.operators[0],
-		joinWithPrevious: "and",
+		joinWithPrevious: defaultFilterCombinator,
 		value: "",
-		existsValue: "true"
+		values: [],
+		existsValue: "true",
+		dateValue: null,
+		dateText: ""
 	};
 }
 
@@ -862,47 +1003,49 @@ export function CreditApplicationImportColumnConfigCard({
 	onColumnDragEnd
 }: CreditApplicationImportColumnConfigCardProps) {
 	return (
-		<Drawer open={isOpen} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-md">
-				<DrawerHeader>
-					<DrawerTitle>Import Table Columns</DrawerTitle>
-					<DrawerDescription>Reorder and toggle visible table columns.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
-					<p className="text-muted-foreground text-xs">{visibleColumnCount} visible column(s)</p>
-					{orderedColumns.map(column => {
-						const checked = !hiddenColumnIds.includes(column.id);
-						return (
-							<div
-								key={column.id}
-								className="flex items-center justify-between gap-3 rounded-md border px-3 py-2"
-								draggable
-								onDragStart={() => onColumnDragStart(column.id)}
-								onDragOver={event => onColumnDragOver(event, column.id)}
-								onDragEnd={onColumnDragEnd}
-							>
-								<div className="space-y-0.5">
-									<p className="text-sm font-medium">{column.label}</p>
-									<p className="text-muted-foreground text-xs">{column.id}</p>
-								</div>
-								<label className="inline-flex items-center gap-2 text-sm">
-									<input
-										type="checkbox"
-										checked={checked}
-										onChange={event => onToggleColumnVisibility(column.id, event.target.checked)}
+		<Collapsible open={isOpen} onOpenChange={onOpenChange}>
+			<CollapsibleContent>
+				<div className="space-y-3 rounded-xl border p-4">
+					<div className="flex items-center justify-between">
+						<div className="space-y-1">
+							<h3 className="text-sm font-semibold">Configure Columns</h3>
+							<p className="text-muted-foreground text-sm">Toggle visibility and drag cards to reorder columns.</p>
+						</div>
+						<div className="flex items-center gap-2">
+							<p className="text-muted-foreground text-sm">Visible {visibleColumnCount} of {creditApplicationImportTableColumns.length}</p>
+							<Button type="button" variant="outline" size="sm" onClick={onReset}>Reset</Button>
+						</div>
+					</div>
+					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+						{orderedColumns.map(column => {
+							const isVisible = !hiddenColumnIds.includes(column.id);
+							const isOnlyVisibleColumn = isVisible && hiddenColumnIds.length >= creditApplicationImportTableColumns.length - 1;
+							return (
+								<div
+									key={column.id}
+									draggable
+									onDragStart={() => onColumnDragStart(column.id)}
+									onDragOver={event => onColumnDragOver(event, column.id)}
+									onDragEnd={onColumnDragEnd}
+									onDrop={onColumnDragEnd}
+									className="hover:bg-muted/60 flex h-full min-h-14 items-center gap-3 rounded-lg border px-3 py-1.5 text-left"
+								>
+									<GripVerticalIcon className="text-muted-foreground size-4 shrink-0" />
+									<Checkbox
+										checked={isVisible}
+										disabled={isOnlyVisibleColumn}
+										onCheckedChange={checked => onToggleColumnVisibility(column.id, checked == true)}
 									/>
-									<span>Visible</span>
-								</label>
-							</div>
-						);
-					})}
+									<div className="min-w-0 flex-1">
+										<p className="text-sm font-medium">{column.label}</p>
+									</div>
+								</div>
+							);
+						})}
+					</div>
 				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-					<Button type="button" variant="outline" onClick={onReset}>Reset</Button>
-					<Button type="button" onClick={() => onOpenChange(false)}>Done</Button>
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
+			</CollapsibleContent>
+		</Collapsible>
 	);
 }
 
@@ -922,104 +1065,229 @@ export function CreditApplicationImportRequestFilterCard({
 	return (
 		<Collapsible open={filters.isFilterOpen} onOpenChange={filters.setIsFilterOpen}>
 			<CollapsibleContent>
-				<div className="space-y-3 rounded-xl border p-3">
-					{filters.filters.length == 0 ? (
-						<p className="text-muted-foreground text-sm">No filter conditions. Add one to narrow import requests.</p>
-					) : (
-						filters.filters.map((filterCondition, filterIndex) => {
-							const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
-							let valuePlaceholder = columnConfig.placeholder ?? "Value";
-							if(filterCondition.operator == "in" || filterCondition.operator == "not_in")
-								valuePlaceholder = "Comma separated values";
+				<div className="space-y-3 rounded-xl border p-4">
+					<div className="flex items-center justify-between gap-2">
+						<div className="space-y-1">
+							<h3 className="text-sm font-semibold">Configure Filters</h3>
+							<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
+						</div>
+						{filters.appliedFilters.length > 0 ? (
+							<Button type="button" variant="outline" size="sm" onClick={filters.clearFilter} disabled={isLoading || isMutating}>Clear Filter</Button>
+						) : null}
+					</div>
+					{filters.filters.map((filterCondition, index) => {
+						const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
 
-							return (
-								<div key={`${filterCondition.column}-${filterIndex}`} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-4">
-									{filterIndex > 0 ? (
-										<select
+						return (
+							<div key={index} className="space-y-3">
+								{index > 0 ? (
+									<div className="rounded-lg border border-dashed p-2">
+										<label className="text-sm font-medium">Combinator with previous filter</label>
+										<Select
 											value={filterCondition.joinWithPrevious}
-											onChange={event => filters.updateFilterJoinWithPrevious(filterIndex, event.target.value as FilterCombinator)}
-											disabled={isLoading || isMutating}
-											className="rounded-md border px-2 py-1.5 text-sm"
+											onValueChange={value => filters.updateFilterJoinWithPrevious(index, value as FilterCombinator)}
 										>
-											<option value="and">AND</option>
-											<option value="or">OR</option>
-										</select>
-									) : (
-										<div className="text-muted-foreground flex items-center text-xs">First condition</div>
-									)}
-
-									<select
-										value={filterCondition.column}
-										onChange={event => filters.handleFilterColumnChange(filterIndex, event.target.value as FilterColumn)}
-										disabled={isLoading || isMutating}
-										className="rounded-md border px-2 py-1.5 text-sm"
-									>
-										{creditApplicationImportFilterColumns.map(column => (
-											<option key={column.value} value={column.value}>{column.label}</option>
-										))}
-									</select>
-
-									<select
-										value={filterCondition.operator}
-										onChange={event => filters.handleFilterOperatorChange(filterIndex, event.target.value as FilterOperator)}
-										disabled={isLoading || isMutating}
-										className="rounded-md border px-2 py-1.5 text-sm"
-									>
-										{columnConfig.operators.map(operator => (
-											<option key={operator} value={operator}>{filterOperatorOptions.find(option => option.value == operator)?.label ?? operator}</option>
-										))}
-									</select>
-
-									<div className="flex items-center gap-2">
-										{filterCondition.operator == "exists" ? (
-											<select
-												value={filterCondition.existsValue}
-												onChange={event => filters.updateFilter(filterIndex, previous => ({ ...previous, existsValue: event.target.value as "true" | "false" }))}
-												disabled={isLoading || isMutating}
-												className="w-full rounded-md border px-2 py-1.5 text-sm"
-											>
-												<option value="true">True</option>
-												<option value="false">False</option>
-											</select>
-										) : (columnConfig.selectOptions != null && filterCondition.operator != "in" && filterCondition.operator != "not_in") ? (
-											<select
-												value={filterCondition.value}
-												onChange={event => filters.updateFilter(filterIndex, previous => ({ ...previous, value: event.target.value }))}
-												disabled={isLoading || isMutating}
-												className="w-full rounded-md border px-2 py-1.5 text-sm"
-											>
-												<option value="">Select value</option>
-												{columnConfig.selectOptions.map(option => (
-													<option key={option.value} value={option.value}>{option.label}</option>
-												))}
-											</select>
-										) : (
-											<Input
-												value={filterCondition.value}
-												onChange={event => filters.updateFilter(filterIndex, previous => ({ ...previous, value: event.target.value }))}
-												placeholder={valuePlaceholder}
-												disabled={isLoading || isMutating}
-											/>
-										)}
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											onClick={() => filters.removeFilter(filterIndex)}
-											disabled={isLoading || isMutating}
-										>
+											<SelectTrigger className="w-full"><SelectValue placeholder="Select combinator" /></SelectTrigger>
+											<SelectContent>
+												<SelectItem value="and">AND</SelectItem>
+												<SelectItem value="or">OR</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+								) : null}
+								<div className="space-y-3 rounded-lg border p-3">
+									<div className="flex items-center justify-between">
+										<p className="text-sm font-medium">Filter {index + 1}</p>
+										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(index)} disabled={isMutating}>
 											<XIcon />
+											Remove
 										</Button>
 									</div>
+									<div className="grid gap-3 sm:grid-cols-2">
+										<div className="space-y-2">
+											<label className="text-sm font-medium">Column</label>
+											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(index, value as FilterColumn)}>
+												<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
+												<SelectContent>
+													{creditApplicationImportFilterColumns.map(column => (
+														<SelectItem key={column.value} value={column.value}>{column.label}</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+										<div className="space-y-2">
+											<label className="text-sm font-medium">Operator</label>
+											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(index, value as FilterColumnOption["operators"][number])}>
+												<SelectTrigger className="w-full"><SelectValue placeholder="Select operator" /></SelectTrigger>
+												<SelectContent>
+													{filterOperatorOptions.filter(operator => columnConfig.operators.includes(operator.value)).map(operator => (
+														<SelectItem key={operator.value} value={operator.value}>{operator.label}</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									</div>
+									<div className="space-y-2">
+										<label className="text-sm font-medium">Filter Value</label>
+										{filterCondition.operator == "exists" ? (
+											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
+												<SelectTrigger className="w-full"><SelectValue placeholder="Select exists value" /></SelectTrigger>
+												<SelectContent>
+													<SelectItem value="true">True</SelectItem>
+													<SelectItem value="false">False</SelectItem>
+												</SelectContent>
+											</Select>
+										) : filterCondition.operator == "in" || filterCondition.operator == "not_in" ? (
+											<div className="space-y-2">
+												<div className="flex items-center justify-between">
+													<p className="text-muted-foreground text-xs">Define one or more values.</p>
+													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(index)} disabled={isMutating}><PlusIcon />Add Value</Button>
+												</div>
+												{filterCondition.values.length == 0 ? (
+													<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
+												) : (
+													<div className="space-y-2">
+														{filterCondition.values.map((value, valueIndex) => {
+															const listDate = columnConfig.valueType == "date" ? splitFilterDateValue(value) : null;
+															return (
+																<div key={`${index}-${valueIndex}`} className="flex items-start gap-2">
+																	{columnConfig.valueType == "boolean" ? (
+																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}>
+																			<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
+																			<SelectContent>
+																				<SelectItem value="true">True</SelectItem>
+																				<SelectItem value="false">False</SelectItem>
+																			</SelectContent>
+																		</Select>
+																	) : columnConfig.valueType == "select" ? (
+																		<SearchableSelect
+																			value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")}
+																			onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}
+																			options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
+																			onSearch={columnConfig.searchOptionsAction}
+																			placeholder="Select value"
+																			searchPlaceholder="Type to filter values"
+																			className="min-w-0 flex-1"
+																		/>
+																	) : columnConfig.valueType == "date" ? (
+																		<div className="grid flex-1 grid-cols-2 gap-2">
+																			<Popover>
+																				<InputGroup>
+																					<InputGroupInput
+																						value={listDate?.dateText ?? ""}
+																						onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
+																						placeholder="YYYY-MM-DD"
+																					/>
+																					<InputGroupAddon align="inline-end">
+																						<PopoverTrigger asChild>
+																							<InputGroupButton type="button" variant="ghost" size="icon-xs" className="shrink-0"><CalendarIcon className="size-4" /></InputGroupButton>
+																						</PopoverTrigger>
+																					</InputGroupAddon>
+																				</InputGroup>
+																				<PopoverContent className="w-auto">
+																					<Calendar
+																						mode="single"
+																						captionLayout="dropdown"
+																						selected={parseFilterDateOnlyValue(listDate?.dateText ?? "") ?? undefined}
+																						onSelect={date => filters.updateFilterListValue(index, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
+																					/>
+																				</PopoverContent>
+																			</Popover>
+																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
+																		</div>
+																	) : (
+																		<Input value={value} onChange={event => filters.updateFilterListValue(index, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
+																	)}
+																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(index, valueIndex)} className="shrink-0" disabled={isMutating}><XIcon />Remove</Button>
+																</div>
+															);
+														})}
+													</div>
+												)}
+											</div>
+										) : columnConfig.valueType == "select" ? (
+											<SearchableSelect
+												value={filterCondition.value.length > 0 ? filterCondition.value : ""}
+												onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}
+												options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
+												onSearch={columnConfig.searchOptionsAction}
+												placeholder="Select value"
+												searchPlaceholder="Type to filter values"
+											/>
+										) : columnConfig.valueType == "boolean" ? (
+											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}>
+												<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
+												<SelectContent>
+													<SelectItem value="true">True</SelectItem>
+													<SelectItem value="false">False</SelectItem>
+												</SelectContent>
+											</Select>
+										) : columnConfig.valueType == "date" ? (
+											<div className="grid grid-cols-2 gap-2">
+												<Popover>
+													<InputGroup>
+														<InputGroupInput
+															value={filterCondition.dateText}
+															onChange={event => filters.updateFilter(index, previous => {
+																const nextDateText = event.target.value;
+																const parsedDate = parseFilterDateOnlyValue(nextDateText);
+																const preservedTime = getFilterTimeInput(previous.dateValue);
+																return {
+																	...previous,
+																	dateText: nextDateText,
+																	dateValue: parsedDate == null ? null : applyTimeToDate(parsedDate, preservedTime)
+																};
+															})}
+															placeholder="YYYY-MM-DD"
+														/>
+														<InputGroupAddon align="inline-end">
+															<PopoverTrigger asChild>
+																<InputGroupButton type="button" variant="ghost" size="icon-xs" className="shrink-0">
+																	<CalendarIcon className="size-4" />
+																</InputGroupButton>
+															</PopoverTrigger>
+														</InputGroupAddon>
+													</InputGroup>
+													<PopoverContent className="w-auto">
+														<Calendar
+															mode="single"
+															captionLayout="dropdown"
+															selected={filterCondition.dateValue ?? parseFilterDateOnlyValue(filterCondition.dateText) ?? undefined}
+															onSelect={date => filters.updateFilter(index, previous => {
+																if(date == null)
+																	return { ...previous, dateValue: null, dateText: "" };
+																const nextDate = applyTimeToDate(date, getFilterTimeInput(previous.dateValue));
+																return { ...previous, dateValue: nextDate, dateText: formatFilterDateOnlyInput(nextDate) };
+															})}
+														/>
+													</PopoverContent>
+												</Popover>
+												<Input
+													type="time"
+													value={getFilterTimeInput(filterCondition.dateValue)}
+													onChange={event => filters.updateFilter(index, previous => {
+														if(previous.dateValue == null)
+															return previous;
+														return {
+															...previous,
+															dateValue: applyTimeToDate(previous.dateValue, event.target.value)
+														};
+													})}
+												/>
+											</div>
+										) : (
+											<Input value={filterCondition.value} onChange={event => filters.updateFilter(index, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
+										)}
+									</div>
 								</div>
-							);
-						})
-					)}
+							</div>
+						);
+					})}
 
-					<div className="flex flex-wrap gap-2">
-						<Button type="button" variant="outline" onClick={filters.addFilter} disabled={isLoading || isMutating}>Add Filter</Button>
-						<Button type="button" variant="outline" onClick={filters.clearFilter} disabled={isLoading || isMutating}>Clear Filter</Button>
-					</div>
+					<Button type="button" variant="outline" onClick={filters.addFilter} disabled={isMutating}>
+						<PlusIcon />
+						Add Filter
+					</Button>
 				</div>
 			</CollapsibleContent>
 		</Collapsible>
@@ -1035,12 +1303,22 @@ export function CreditApplicationImportActiveFiltersSummary({ items }: CreditApp
 		return null;
 
 	return (
-		<div className="flex flex-wrap gap-2">
-			{items.map((item, index) => (
-				<Badge key={`${item.columnLabel}-${index}`} variant="outline">
-					{item.combinator != null ? `${item.combinator} ` : ""}{item.columnLabel} {item.operatorLabel} {item.valueLabel}
-				</Badge>
-			))}
+		<div className="rounded-lg border border-dashed px-3 py-2 text-xs">
+			<p className="text-muted-foreground font-medium">Active filters</p>
+			<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+				{items.map((item, index) => (
+					<span key={index} className="inline-flex items-center gap-1.5">
+						{item.combinator != null ? (
+							<span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">{item.combinator}</span>
+						) : null}
+						<span className="bg-background rounded border px-2 py-0.5">
+							<span className="font-semibold">{item.columnLabel}</span>
+							<span className="text-muted-foreground mx-1 italic">{item.operatorLabel}</span>
+							<span className="font-mono text-[11px]">{item.valueLabel}</span>
+						</span>
+					</span>
+				))}
+			</div>
 		</div>
 	);
 }
@@ -1210,7 +1488,28 @@ export function useCreditApplicationImportColumnPreferences() {
 }
 
 export function useCreditApplicationImportFilterColumnConfig() {
-	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => getFilterColumnConfig(column), []);
+	const searchImportOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const imports = await importActions.searchCreditApplicationImportOptionsAction(keyword, selectedValues);
+		return dedupeSelectOptions(imports.map(item => ({
+			value: item.id,
+			label: `${item.filename} (${item.id})`,
+			renderLabel: <span>{item.filename} (<span className="font-mono">{item.id}</span>)</span>,
+			keywords: `${item.id} ${item.filename} ${item.mimeType}`
+		})));
+	}, []);
+
+	const searchAuditUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const users = await importActions.searchCreditApplicationImportAuditUserOptionsAction(keyword, selectedValues);
+		return dedupeSelectOptions(users.map(user => ({
+			value: user.id,
+			label: `${user.name} (${user.email})`,
+			keywords: `${user.name} ${user.email}`
+		})));
+	}, []);
+
+	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
+		getResolvedCreditApplicationImportFilterColumnConfig(column, [], [], searchImportOptions, searchAuditUserOptions)
+	), [searchAuditUserOptions, searchImportOptions]);
 
 	return {
 		getResolvedFilterColumnConfig
@@ -1306,7 +1605,7 @@ export function useCreditApplicationImportRelations({ docs, visibleColumns }: us
 
 	const relationValuesByRowId = useMemo(() => Object.fromEntries(
 		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	) as Record<string, importActions.CreditApplicationImportRelationValues>, [relationsQuery.data]);
+	), [relationsQuery.data]);
 	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
 
 	return {
@@ -1334,6 +1633,9 @@ export type useCreditApplicationImportRequestFiltersResult = {
 	handleFilterOperatorChange: (filterIndex: number, operator: FilterColumnOption["operators"][number]) => void;
 	addFilter: () => void;
 	removeFilter: (filterIndex: number) => void;
+	addFilterListValue: (filterIndex: number) => void;
+	updateFilterListValue: (filterIndex: number, valueIndex: number, nextValue: string) => void;
+	removeFilterListValue: (filterIndex: number, valueIndex: number) => void;
 };
 
 function mapAppliedImportFilterToCondition(
@@ -1342,16 +1644,26 @@ function mapAppliedImportFilterToCondition(
 ): FilterCondition {
 	const columnConfig = getResolvedFilterColumnConfig(filter.column);
 	const baseCondition = createFilterCondition(filter.column);
-
-	const scalarValue = Array.isArray(filter.value) || filter.value == null ? "" : String(filter.value);
-	const listValue = Array.isArray(filter.value) ? filter.value.map(value => String(value)).join(", ") : "";
+	const values = Array.isArray(filter.value) ? filter.value.map(value => {
+		if(columnConfig.valueType != "date")
+			return String(value);
+		const parsed = parseFilterDateValue(String(value));
+		return parsed == null ? String(value) : formatFilterDateInput(parsed);
+	}) : [];
+	const parsedDate = !Array.isArray(filter.value) && columnConfig.valueType == "date" && typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null;
+	const scalarValue = Array.isArray(filter.value) || filter.value == null ? "" : (
+		columnConfig.valueType == "date" && typeof filter.value == "string" && parsedDate != null ? formatFilterDateInput(parsedDate) : String(filter.value)
+	);
 
 	return {
 		...baseCondition,
 		operator: columnConfig.operators.includes(filter.operator) ? filter.operator : baseCondition.operator,
-		joinWithPrevious: filter.joinWithPrevious ?? "and",
-		value: listValue.length > 0 ? listValue : scalarValue,
-		existsValue: filter.value == false ? "false" : "true"
+		joinWithPrevious: filter.joinWithPrevious ?? defaultFilterCombinator,
+		value: scalarValue,
+		values,
+		existsValue: filter.value == false ? "false" : "true",
+		dateValue: parsedDate,
+		dateText: formatFilterDateOnlyInput(parsedDate)
 	};
 }
 
@@ -1426,55 +1738,81 @@ export function useCreditApplicationImportRequestFilters({ getResolvedFilterColu
 		setIsFilterStateHydrated(true);
 	}, [getResolvedFilterColumnConfig, searchParamsKey, setFilters]);
 
-	const appliedFilters = useMemo(() => {
-		const mapped = filters.flatMap((filterCondition, filterIndex): FilterInput[] => {
-			const config = getResolvedFilterColumnConfig(filterCondition.column);
-			if(filterCondition.operator == "exists") {
-				return [{
-					column: filterCondition.column,
-					operator: filterCondition.operator,
-					value: filterCondition.existsValue == "true",
-					joinWithPrevious: filterIndex == 0 ? undefined : filterCondition.joinWithPrevious
-				}];
-			}
+	const normalizeFilterItemValue = (columnConfig: FilterColumnOption, rawValue: string): string | boolean | null => {
+		if(columnConfig.valueType == "boolean")
+			return rawValue == "true" ? true : rawValue == "false" ? false : null;
+		if(columnConfig.valueType == "date") {
+			const dateValue = parseFilterDateValue(rawValue);
+			return dateValue == null ? null : dateValue.toISOString();
+		}
+		const trimmed = rawValue.trim();
+		return trimmed.length > 0 ? trimmed : null;
+	};
 
-			const trimmed = filterCondition.value.trim();
-			if(trimmed.length == 0)
-				return [];
+	const createFilterListValue = (columnConfig: FilterColumnOption): string => {
+		if(columnConfig.valueType == "boolean")
+			return "true";
+		if(columnConfig.valueType == "select")
+			return columnConfig.selectOptions?.[0]?.value ?? "";
+		return "";
+	};
 
-			if(filterCondition.operator == "in" || filterCondition.operator == "not_in") {
-				const values = trimmed
-					.split(",")
-					.map(item => item.trim())
-					.filter(item => item.length > 0);
-				if(values.length == 0)
-					return [];
-				return [{
-					column: filterCondition.column,
-					operator: filterCondition.operator,
-					value: values,
-					joinWithPrevious: filterIndex == 0 ? undefined : filterCondition.joinWithPrevious
-				}];
-			}
-
-			if(config.valueType == "boolean") {
-				return [{
-					column: filterCondition.column,
-					operator: filterCondition.operator,
-					value: trimmed == "true",
-					joinWithPrevious: filterIndex == 0 ? undefined : filterCondition.joinWithPrevious
-				}];
-			}
-
-			return [{
+	const buildFilterPayload = (filterCondition: FilterCondition): FilterInput | null => {
+		const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
+		if(filterCondition.operator == "exists") {
+			return {
 				column: filterCondition.column,
 				operator: filterCondition.operator,
-				value: trimmed,
-				joinWithPrevious: filterIndex == 0 ? undefined : filterCondition.joinWithPrevious
-			}];
-		});
+				value: filterCondition.existsValue == "true"
+			};
+		}
 
-		return mapped;
+		if(filterCondition.operator == "in" || filterCondition.operator == "not_in") {
+			const values = filterCondition.values
+				.map(value => normalizeFilterItemValue(columnConfig, value))
+				.filter((value): value is string | boolean => value != null);
+			if(values.length == 0)
+				return null;
+			return {
+				column: filterCondition.column,
+				operator: filterCondition.operator,
+				value: values
+			};
+		}
+
+		if(columnConfig.valueType == "date") {
+			if(filterCondition.dateValue == null)
+				return null;
+			return {
+				column: filterCondition.column,
+				operator: filterCondition.operator,
+				value: filterCondition.dateValue.toISOString()
+			};
+		}
+
+		const scalar = normalizeFilterItemValue(columnConfig, filterCondition.value);
+		if(scalar == null)
+			return null;
+
+		return {
+			column: filterCondition.column,
+			operator: filterCondition.operator,
+			value: scalar
+		};
+	};
+
+	const appliedFilters = useMemo(() => {
+		const nextFilters: FilterInput[] = [];
+		for(const filter of filters) {
+			const payload = buildFilterPayload(filter);
+			if(payload == null)
+				continue;
+			nextFilters.push({
+				...payload,
+				joinWithPrevious: nextFilters.length == 0 ? undefined : (filter.joinWithPrevious ?? defaultFilterCombinator)
+			});
+		}
+		return nextFilters;
 	}, [filters, getResolvedFilterColumnConfig]);
 
 	useEffect(() => {
@@ -1506,11 +1844,28 @@ export function useCreditApplicationImportRequestFilters({ getResolvedFilterColu
 			const config = getResolvedFilterColumnConfig(filter.column);
 			const operatorLabel = filterOperatorOptions.find(option => option.value == filter.operator)?.label ?? filter.operator;
 			const combinator = index == 0 ? null : (filter.joinWithPrevious == "or" ? "OR" : "AND");
-			let valueLabel = String(filter.value ?? "-");
-			if(Array.isArray(filter.value))
-				valueLabel = filter.value.join(", ");
-			else if(typeof filter.value == "boolean")
-				valueLabel = filter.value ? "True" : "False";
+			const valueLabel = (() => {
+				if(filter.operator == "exists")
+					return filter.value == true ? "True" : "False";
+				if(Array.isArray(filter.value)) {
+					return filter.value.map(value => {
+						if(config.valueType == "boolean")
+							return value == true ? "True" : "False";
+						if(config.valueType == "date")
+							return formatFilterDateValue(typeof value == "string" ? parseFilterDateValue(value) : null);
+						if(config.valueType == "select")
+							return config.selectOptions?.find(option => option.value == String(value))?.label ?? String(value);
+						return String(value);
+					}).join(", ");
+				}
+				if(config.valueType == "date")
+					return formatFilterDateValue(typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null);
+				if(config.valueType == "boolean")
+					return filter.value == true ? "True" : "False";
+				if(config.valueType == "select")
+					return config.selectOptions?.find(option => option.value == String(filter.value))?.label ?? String(filter.value ?? "");
+				return String(filter.value ?? "");
+			})();
 
 			return {
 				combinator,
@@ -1538,9 +1893,14 @@ export function useCreditApplicationImportRequestFilters({ getResolvedFilterColu
 				return filterCondition;
 			const nextConfig = getResolvedFilterColumnConfig(column);
 			return {
-				...createFilterCondition(column),
-				joinWithPrevious: filterCondition.joinWithPrevious,
-				operator: nextConfig.operators[0]
+				...filterCondition,
+				column,
+				operator: nextConfig.operators.includes(filterCondition.operator) ? filterCondition.operator : nextConfig.operators[0],
+				value: "",
+				values: [],
+				existsValue: "true",
+				dateValue: null,
+				dateText: ""
 			};
 		}));
 	};
@@ -1548,7 +1908,12 @@ export function useCreditApplicationImportRequestFilters({ getResolvedFilterColu
 	const handleFilterOperatorChange = (filterIndex: number, operator: FilterColumnOption["operators"][number]) => {
 		setFilters(previous => previous.map((filterCondition, index) => index != filterIndex ? filterCondition : ({
 			...filterCondition,
-			operator
+			operator,
+			value: "",
+			values: [],
+			existsValue: "true",
+			dateValue: null,
+			dateText: ""
 		})));
 	};
 
@@ -1558,6 +1923,35 @@ export function useCreditApplicationImportRequestFilters({ getResolvedFilterColu
 
 	const removeFilter = (filterIndex: number) => {
 		setFilters(previous => previous.filter((_, index) => index != filterIndex));
+	};
+
+	const addFilterListValue = (filterIndex: number) => {
+		setFilters(previous => previous.map((filterCondition, index) => {
+			if(index != filterIndex)
+				return filterCondition;
+			if(filterCondition.operator != "in" && filterCondition.operator != "not_in")
+				return filterCondition;
+
+			const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
+			return {
+				...filterCondition,
+				values: [...filterCondition.values, createFilterListValue(columnConfig)]
+			};
+		}));
+	};
+
+	const updateFilterListValue = (filterIndex: number, valueIndex: number, nextValue: string) => {
+		updateFilter(filterIndex, filterCondition => ({
+			...filterCondition,
+			values: filterCondition.values.map((value, index) => index == valueIndex ? nextValue : value)
+		}));
+	};
+
+	const removeFilterListValue = (filterIndex: number, valueIndex: number) => {
+		updateFilter(filterIndex, filterCondition => ({
+			...filterCondition,
+			values: filterCondition.values.filter((_, index) => index != valueIndex)
+		}));
 	};
 
 	const clearFilter = () => {
@@ -1582,7 +1976,10 @@ export function useCreditApplicationImportRequestFilters({ getResolvedFilterColu
 		handleFilterColumnChange,
 		handleFilterOperatorChange,
 		addFilter,
-		removeFilter
+		removeFilter,
+		addFilterListValue,
+		updateFilterListValue,
+		removeFilterListValue
 	};
 }
 

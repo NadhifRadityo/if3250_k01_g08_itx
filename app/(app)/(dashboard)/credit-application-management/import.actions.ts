@@ -207,6 +207,12 @@ export type CreditApplicationImportFilterUserOption = {
 	email: string;
 };
 
+export type CreditApplicationImportFilterIdOption = {
+	id: string;
+	filename: string;
+	mimeType: string;
+};
+
 export type QueryCreditApplicationImportsOutput = {
 	docs: CreditApplicationImportTableRow[];
 	totalDocs: number;
@@ -502,13 +508,13 @@ function resolveCellText(value: ExcelJS.CellValue): string {
 	if(value instanceof Date)
 		return value.toISOString();
 	if(Array.isArray(value))
-		return value.map(item => resolveCellText(item as ExcelJS.CellValue)).join("");
+		return value.map(item => resolveCellText(item)).join("");
 
 	if(typeof value == "object") {
 		if("text" in value && typeof value.text == "string")
 			return value.text;
 		if("result" in value && value.result != null)
-			return resolveCellText(value.result as ExcelJS.CellValue);
+			return resolveCellText(value.result);
 	}
 
 	return "";
@@ -615,8 +621,8 @@ async function parseExcelCreditApplicationImportRows(fileBuffer: Buffer): Promis
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string")
 		return value;
-	if(value != null && typeof value == "object" && "id" in value && typeof (value as { id: unknown }).id == "string")
-		return (value as { id: string }).id;
+	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
+		return value.id;
 	return null;
 }
 
@@ -1177,6 +1183,46 @@ export async function searchCreditApplicationImportAuditUserOptionsAction(keywor
 	}
 
 	return [...dedupeMap.values()];
+}
+
+export async function searchCreditApplicationImportOptionsAction(keyword: string, selectedIds: string[] = []): Promise<CreditApplicationImportFilterIdOption[]> {
+	const context = await getAuthContext();
+	const normalizedKeyword = keyword.trim();
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = [
+		{ id: { like: normalizedKeyword } },
+		{ filename: { like: normalizedKeyword } },
+		{ mimeType: { like: normalizedKeyword } }
+	];
+	const whereTerms: Where[] = [];
+	if(normalizedKeyword.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where = whereTerms.length == 0 ? undefined : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
+
+	const result = await context.payload.find({
+		collection: "credit-application-imports",
+		user: context.user,
+		overrideAccess: true,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
+		sort: "-updatedAt",
+		select: {
+			filename: true,
+			mimeType: true
+		},
+		...(where != null ? { where } : {})
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		filename: doc.filename,
+		mimeType: doc.mimeType
+	}));
 }
 
 export async function createCreditApplicationImportAction(formData: FormData): Promise<CreateCreditApplicationImportOutput> {
