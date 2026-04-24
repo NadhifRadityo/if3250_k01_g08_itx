@@ -16,9 +16,11 @@ import { DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuContent,
 import { Input } from "@/components/radix/Input";
 import { Separator } from "@/components/radix/Separator";
 import { Sidebar, SidebarMenu, SidebarRail, SidebarGroup, SidebarInset, SidebarFooter, SidebarHeader, SidebarContent, SidebarMenuSub, SidebarTrigger, SidebarMenuItem, SidebarProvider, SidebarGroupLabel, SidebarMenuButton, SidebarMenuSubItem, SidebarMenuSubButton } from "@/components/radix/Sidebar";
+import { Image } from "@/components/Image";
 
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
+import logoEcentrix from "../../_static/favicons/logo.png";
 
 const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
 
@@ -74,7 +76,7 @@ function getBreadcrumbModel(pathname: string, managementNavigation: DashboardMan
 
 export function DashboardManagementPageFrame({ title, description, children }: { title: string, description: string, children: ReactNode }) {
 	return (
-		<main className="bg-muted/30 p-4 md:p-6">
+		<main className="bg-muted p-4 md:p-6">
 			<div className="mb-4 space-y-1">
 				<h1 className="text-2xl font-semibold font-serif">{title}</h1>
 				<p className="text-muted-foreground text-sm">{description}</p>
@@ -226,8 +228,20 @@ export function DashboardShell({
 					<SidebarMenu>
 						<SidebarMenuItem>
 							<SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
-								<Link href="/">
-									<span className="text-base font-semibold">PT. Intelix Global Crossing</span>
+								<Link href="/" className="flex h-18">
+										<span>
+											<Image src={logoEcentrix} alt="eCentrix symbol" className="mt-[1px] h-12 w-12 shrink-0 object-contain group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
+										</span>
+										<div>
+											<span className="text-[15px] text-white leading-none font-semibold uppercase whitespace-normal!">
+												PT. Intelix Global Crossing
+											</span>
+											<br></br>
+											<span className="text-[10px] leading-none font-semibold uppercase whitespace-normal!">
+												Mobile Survey Management
+											</span>
+
+										</div>
 								</Link>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
@@ -331,7 +345,7 @@ export function DashboardShell({
 				<SidebarRail />
 			</Sidebar>
 			<SidebarInset>
-				<header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+				<header className="flex bg-muted h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
 					<div className="flex items-center gap-2 px-4">
 						<SidebarTrigger className="-ml-1" />
 						<Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
