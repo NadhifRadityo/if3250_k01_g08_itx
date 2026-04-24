@@ -1,207 +1,453 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type DragEvent, type MouseEvent, type ReactNode } from "react";
+import { useMemo, useState, useEffect, useCallback, type DragEvent, type ReactNode, type MouseEvent } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDownIcon, ArrowUpIcon, ArrowUpDownIcon, CheckIcon, GripVerticalIcon, HistoryIcon, PlusIcon, XIcon } from "lucide-react";
+import { XIcon, PlusIcon, ArrowUpIcon, HistoryIcon, CalendarIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import { Link } from "@/components/Link";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
-import { Alert, AlertDescription, AlertTitle } from "@/components/radix/Alert";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/radix/AlertDialog";
+import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
 import { Calendar } from "@/components/radix/Calendar";
 import { Checkbox } from "@/components/radix/Checkbox";
 import { Collapsible, CollapsibleContent } from "@/components/radix/Collapsible";
-import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/radix/Drawer";
+import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupButton } from "@/components/radix/InputGroup";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/radix/Popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/radix/Select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/radix/Table";
+import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
+import { Skeleton } from "@/components/radix/Skeleton";
+import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 import { Textarea } from "@/components/radix/Textarea";
 
-import * as accountAssignmentActions from "./layout.actions";
+import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
+import * as creditApplicationAssignmentActions from "./layout.actions";
 
-export type CreditApplicationAssignmentRow = {
-	assignmentId: string | null;
-	assignmentStatus: accountAssignmentActions.AssignmentStatus;
-	applyId: string;
-	accountName: string;
-	officerName: string | null;
-	address: string;
-	productCode: string;
-	userId: string | null;
-	createdById: string | null;
-	updatedById: string | null;
-	deletedById: string | null;
-	reviewedById: string | null;
-	requestedAt: string | null;
+export const PAGE_SIZE = 20;
+
+export type SortDirection = "asc" | "desc";
+export type SortField = creditApplicationAssignmentActions.CreditApplicationAssignmentSortField;
+export type FilterColumn = creditApplicationAssignmentActions.CreditApplicationAssignmentFilterColumn;
+export type FilterOperator = creditApplicationAssignmentActions.CreditApplicationAssignmentFilterOperator;
+export type FilterCombinator = creditApplicationAssignmentActions.CreditApplicationAssignmentFilterCombinator;
+export type FilterInput = creditApplicationAssignmentActions.CreditApplicationAssignmentFilterInput;
+export type QueryCreditApplicationAssignmentsOutput = Awaited<ReturnType<typeof creditApplicationAssignmentActions.queryCreditApplicationAssignmentsAction>>;
+export type CreditApplicationAssignmentTableRow = QueryCreditApplicationAssignmentsOutput["docs"][number];
+export type CreditApplicationAssignmentRelationColumn = creditApplicationAssignmentActions.CreditApplicationAssignmentRelationColumn;
+export type CreditApplicationAssignmentRequestReviewDiff = Awaited<ReturnType<typeof creditApplicationAssignmentActions.getCreditApplicationAssignmentRequestReviewDiffAction>>;
+export type CreditApplicationAssignmentRequestHistory = Awaited<ReturnType<typeof creditApplicationAssignmentActions.getCreditApplicationAssignmentRequestHistoryAction>>;
+export type FilterValueType = "text" | "date" | "select" | "boolean";
+export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
+export type ActionError = {
+	title: string;
+	message: string;
 };
 
-export type CreditApplicationAssignmentSortField =
-	| "applyId"
-	| "accountName"
-	| "officerName"
-	| "address"
-	| "productCode"
-	| "assignmentStatus";
+export const resolveActionError = (error: unknown, fallbackMessage: string): ActionError => {
+	if(error instanceof Error) {
+		return {
+			title: error.name.length > 0 ? error.name : "Error",
+			message: error.message.length > 0 ? error.message : fallbackMessage
+		};
+	}
+	return {
+		title: "Error",
+		message: fallbackMessage
+	};
+};
 
-export type CreditApplicationAssignmentColumnId =
-	| "applyId"
-	| "accountName"
-	| "officerName"
-	| "address"
-	| "productCode"
-	| "assignmentStatus";
-
-export type CreditApplicationAssignmentColumnConfig = {
-	id: CreditApplicationAssignmentColumnId;
+export type FilterColumnOption = {
+	value: FilterColumn;
 	label: string;
-	sortField?: CreditApplicationAssignmentSortField;
+	valueType: FilterValueType;
+	operators: FilterOperator[];
+	placeholder?: string;
+	selectOptions?: Array<{ value: string, label: string }>;
+	searchOptionsAction?: FilterSelectSearchAction;
+};
+
+export type FilterCondition = {
+	column: FilterColumn;
+	operator: FilterOperator;
+	joinWithPrevious: FilterCombinator;
+	value: string;
+	values: string[];
+	existsValue: "true" | "false";
+	dateValue: Date | null;
+	listDateValue: Date | null;
+	dateText: string;
+	listDateText: string;
+};
+
+export type CreditApplicationAssignmentTableColumnId = "id" |
+	"creditApplication" |
+	"officer" |
+	"createdBy" |
+	"updatedBy" |
+	"deletedBy" |
+	"createdAt" |
+	"updatedAt" |
+	"deletedAt" |
+	"requestType" |
+	"status" |
+	"reviewedAt" |
+	"reviewedBy" |
+	"reviewApproved" |
+	"reviewCommentText";
+
+export type CreditApplicationAssignmentTableColumnConfig = {
+	id: CreditApplicationAssignmentTableColumnId;
+	label: string;
+	sortField?: SortField;
 	headClassName?: string;
 	cellClassName?: string;
 };
 
-export type CreditApplicationAssignmentFilterColumn = CreditApplicationAssignmentColumnId;
-export type CreditApplicationAssignmentFilterOperator = "equals" | "not_equals" | "contains" | "not_contains" | "in" | "not_in" | "exists";
-export type CreditApplicationAssignmentFilterCombinator = "and" | "or";
-
-export type CreditApplicationAssignmentFilterCondition = {
-	column: CreditApplicationAssignmentFilterColumn;
-	operator: CreditApplicationAssignmentFilterOperator;
-	joinWithPrevious: CreditApplicationAssignmentFilterCombinator;
-	value: string;
-	values: string[];
-	existsValue: "true" | "false";
+export type FormState = {
+	assignmentId?: string;
+	creditApplicationId: string;
+	officerId: string;
 };
 
-export type CreditApplicationAssignmentFilterColumnOption = {
-	value: CreditApplicationAssignmentFilterColumn;
-	label: string;
-	operators: CreditApplicationAssignmentFilterOperator[];
-	placeholder?: string;
-	selectOptions?: Array<{ value: string; label: string }>;
-	searchOptionsAction?: (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
-};
-
-export type CreditApplicationAssignmentFilterSummaryItem = {
+export type FilterSummaryItem = {
 	combinator: string | null;
 	columnLabel: string;
 	operatorLabel: string;
 	valueLabel: string;
 };
 
-export type CreditApplicationAssignmentFormState = {
-	assignmentId?: string;
-	applyId: string;
-	officerIds: string[];
-	notes: string;
+export const reviewStatusOptions: Array<{ value: string, label: string }> = [
+	{ value: "pending", label: "Pending" },
+	{ value: "approved", label: "Approved" },
+	{ value: "rejected", label: "Rejected" }
+];
+
+export const emptyQueryResult: QueryCreditApplicationAssignmentsOutput = {
+	docs: [],
+	totalDocs: 0,
+	page: 1,
+	hasNextPage: false,
+	hasPreviousPage: false
 };
 
-export type CreditApplicationAssignmentReviewState = {
-	assignmentId: string;
-	reviewReason: string;
+export const defaultFormState: FormState = {
+	creditApplicationId: "",
+	officerId: ""
 };
 
-export type CreditApplicationRelationNavigation = {
-	getHrefBase: (managementKey: "user-management" | "role-management" | "team-management" | "credit-application-assignment") => string | null;
-	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
-		targetManagementKey: "user-management" | "role-management" | "team-management" | "credit-application-assignment";
-		hrefBase: string;
-		relationFilters: unknown;
-		relationContext?: string;
-	}) => void;
-	onOpenSummary: (request: {
-		type: "user" | "role" | "team";
-		id: string;
-		fallbackTitle: string;
-		fallbackDescription?: string;
-		fallbackMeta?: Array<{ label: string; value: string }>;
-	}) => void;
-};
-
-export type CreditApplicationCellRenderContext = {
-	hasEditorAccess: boolean;
-	hasAuditorAccess: boolean;
-	relationNavigation?: CreditApplicationRelationNavigation;
-};
-
-export type CreditApplicationAssignmentQueryInput = {
-	mode: "viewer" | "editor" | "approver";
-	debouncedKeyword: string;
-	sortTokens: string[];
-	appliedFilters: accountAssignmentActions.AccountAssignmentFilterInput[];
-	isFilterStateReady: boolean;
-	page: number;
-	limit: number;
-	enabled?: boolean;
-};
-
-type CreditApplicationAssignmentQueryMode = CreditApplicationAssignmentQueryInput["mode"];
-type CreditApplicationAssignmentQueryResult = accountAssignmentActions.AccountAssignmentEditorListOutput;
-
-export const CREDIT_APPLICATION_ASSIGNMENT_PAGE_SIZE = 20;
 export const CREDIT_APPLICATION_ASSIGNMENT_COLUMN_PREFERENCES_KEY = "credit-application-assignment-columns-v1";
+export const RELATION_FILTER_QUERY_PARAM = "relationFilters";
 
-export const creditApplicationAssignmentColumns: CreditApplicationAssignmentColumnConfig[] = [
-	{ id: "applyId", label: "Apply ID", sortField: "applyId", cellClassName: "font-mono text-xs" },
-	{ id: "accountName", label: "Account Name", sortField: "accountName", cellClassName: "font-medium" },
-	{ id: "officerName", label: "Officer Name", sortField: "officerName" },
-	{ id: "address", label: "Address", sortField: "address", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
-	{ id: "productCode", label: "Product Code", sortField: "productCode" },
-	{ id: "assignmentStatus", label: "Status", sortField: "assignmentStatus" }
+export const creditApplicationAssignmentTableColumns: CreditApplicationAssignmentTableColumnConfig[] = [
+	{ id: "id", label: "ID", sortField: "id", cellClassName: "font-mono text-xs" },
+	{ id: "creditApplication", label: "Credit Application", sortField: "creditApplication", cellClassName: "font-medium" },
+	{ id: "officer", label: "Officer", sortField: "officer" },
+	{ id: "createdBy", label: "Created By" },
+	{ id: "updatedBy", label: "Updated By" },
+	{ id: "deletedBy", label: "Deleted By" },
+	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
+	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
+	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
+	{ id: "requestType", label: "Request", sortField: "requestType" },
+	{ id: "status", label: "Status", sortField: "status" },
+	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
+	{ id: "reviewedBy", label: "Reviewed By", sortField: "reviewedBy" },
+	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
+	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
-export const defaultCreditApplicationAssignmentColumnOrder = creditApplicationAssignmentColumns.map(column => column.id);
-export const defaultCreditApplicationAssignmentVisibleColumns: CreditApplicationAssignmentColumnId[] = ["applyId", "accountName", "officerName", "productCode", "assignmentStatus"];
-export const defaultCreditApplicationAssignmentHiddenColumns = defaultCreditApplicationAssignmentColumnOrder.filter(
-	columnId => !defaultCreditApplicationAssignmentVisibleColumns.includes(columnId)
-);
-
-export const creditApplicationAssignmentFilterColumns: CreditApplicationAssignmentFilterColumnOption[] = [
-	{ value: "applyId", label: "Apply ID", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter apply ID" },
-	{ value: "accountName", label: "Account Name", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter account name" },
-	{ value: "officerName", label: "Officer Name", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter officer name" },
-	{ value: "address", label: "Address", operators: ["contains", "not_contains", "exists"], placeholder: "Enter address" },
-	{ value: "productCode", label: "Product Code", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter product code" },
-	{
-		value: "assignmentStatus",
-		label: "Status",
-		operators: ["equals", "not_equals", "in", "not_in", "exists"],
-		selectOptions: [
-			{ value: "pending_approval", label: "Pending Approval" },
-			{ value: "approved", label: "Approved" },
-			{ value: "rejected", label: "Rejected" }
-		]
-	}
-];
-
-export function parseErrorMessage(error: unknown, fallbackMessage: string): string {
-	if(error instanceof Error && error.message.trim().length > 0)
-		return error.message;
-	return fallbackMessage;
+function getCreditApplicationAssignmentDrawerValueClassName(columnId: string): string {
+	if(columnId == "id")
+		return "text-xs font-mono";
+	if(columnId == "creditApplication" || columnId == "officer")
+		return "text-sm font-medium";
+	if(columnId == "reviewCommentText")
+		return "text-sm leading-relaxed";
+	return "text-sm";
 }
 
-export function createCreditApplicationAssignmentFilterCondition(
-	column: CreditApplicationAssignmentFilterColumn = creditApplicationAssignmentFilterColumns[0].value
-): CreditApplicationAssignmentFilterCondition {
-	const columnConfig = creditApplicationAssignmentFilterColumns.find(option => option.value == column) ?? creditApplicationAssignmentFilterColumns[0];
+export const defaultCreditApplicationAssignmentColumnOrder: CreditApplicationAssignmentTableColumnId[] = creditApplicationAssignmentTableColumns.map(column => column.id);
+export const defaultCreditApplicationAssignmentVisibleColumns: CreditApplicationAssignmentTableColumnId[] = [
+	"creditApplication",
+	"officer",
+	"requestType",
+	"status",
+	"updatedAt",
+	"reviewCommentText"
+];
+export const defaultCreditApplicationAssignmentHiddenColumns: CreditApplicationAssignmentTableColumnId[] =
+	defaultCreditApplicationAssignmentColumnOrder.filter(columnId => !defaultCreditApplicationAssignmentVisibleColumns.includes(columnId));
+
+export const creditApplicationAssignmentRelationColumnSet = new Set<CreditApplicationAssignmentRelationColumn>([
+	"creditApplication",
+	"officer",
+	"reviewedBy",
+	"createdBy",
+	"updatedBy",
+	"deletedBy"
+]);
+
+const creditApplicationAssignmentNonEligibleColumnSet = new Set<string>([
+	"actions",
+	"status",
+	"requestType",
+	"creditApplication",
+	"officer",
+	"reviewedBy",
+	"createdBy",
+	"updatedBy",
+	"deletedBy"
+]);
+
+export function getEligibleDetailTriggerCreditApplicationAssignmentColumnId(
+	visibleColumns: CreditApplicationAssignmentTableColumnConfig[]
+): CreditApplicationAssignmentTableColumnId | null {
+	const triggerColumn = visibleColumns.find(column => !creditApplicationAssignmentNonEligibleColumnSet.has(column.id));
+	return triggerColumn?.id ?? null;
+}
+
+export const filterOperatorOptions: Array<{ value: FilterOperator, label: string }> = [
+	{ value: "equals", label: "Equals" },
+	{ value: "not_equals", label: "Not Equals" },
+	{ value: "contains", label: "Contains" },
+	{ value: "not_contains", label: "Does Not Contain" },
+	{ value: "in", label: "Is In" },
+	{ value: "not_in", label: "Is Not In" },
+	{ value: "exists", label: "Exists" },
+	{ value: "greater_than", label: "Is Greater Than" },
+	{ value: "less_than", label: "Is Less Than" },
+	{ value: "greater_than_equal", label: "Is Greater Than Or Equal To" },
+	{ value: "less_than_equal", label: "Is Less Than Or Equal To" }
+];
+
+export const creditApplicationAssignmentFilterColumns: FilterColumnOption[] = [
+	{ value: "id", label: "ID", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter assignment ID" },
+	{ value: "creditApplication", label: "Credit Application", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "officer", label: "Officer", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "updatedBy", label: "Updated By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "deletedAt", label: "Deleted At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
+	{ value: "status", label: "Status", valueType: "select", operators: ["equals", "not_equals", "in", "not_in"], selectOptions: reviewStatusOptions },
+	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "exists"] }
+];
+
+export const defaultFilterCombinator: FilterCombinator = "and";
+
+export function dedupeSelectOptions(options: SearchableSelectOption[]): SearchableSelectOption[] {
+	const seen = new Set<string>();
+	const deduplicated: SearchableSelectOption[] = [];
+	for(const option of options) {
+		const normalizedValue = option.value.trim();
+		if(normalizedValue.length == 0)
+			continue;
+		const dedupeKey = normalizedValue.toLowerCase();
+		if(seen.has(dedupeKey))
+			continue;
+		seen.add(dedupeKey);
+		deduplicated.push({
+			...option,
+			value: normalizedValue
+		});
+	}
+	return deduplicated;
+}
+
+export function getFilterColumnConfig(column: FilterColumn): FilterColumnOption {
+	return creditApplicationAssignmentFilterColumns.find(option => option.value == column) ?? creditApplicationAssignmentFilterColumns[0];
+}
+
+export function getResolvedCreditApplicationAssignmentFilterColumnConfig(
+	column: FilterColumn,
+	creditApplicationSelectOptions: Array<{ value: string, label: string }>,
+	officerSelectOptions: Array<{ value: string, label: string }>,
+	auditUserSelectOptions: Array<{ value: string, label: string }>,
+	searchCreditApplicationOptions?: FilterSelectSearchAction,
+	searchOfficerOptions?: FilterSelectSearchAction,
+	searchAuditUserOptions?: FilterSelectSearchAction
+): FilterColumnOption {
+	const config = getFilterColumnConfig(column);
+	switch(column) {
+		case "creditApplication":
+			return {
+				...config,
+				selectOptions: creditApplicationSelectOptions,
+				searchOptionsAction: searchCreditApplicationOptions
+			};
+		case "officer":
+			return {
+				...config,
+				selectOptions: officerSelectOptions,
+				searchOptionsAction: searchOfficerOptions
+			};
+		case "createdBy":
+		case "updatedBy":
+		case "deletedBy":
+		case "reviewedBy":
+			return {
+				...config,
+				selectOptions: auditUserSelectOptions,
+				searchOptionsAction: searchAuditUserOptions
+			};
+		default:
+			return config;
+	}
+}
+
+export function createFilterCondition(column: FilterColumn = creditApplicationAssignmentFilterColumns[0].value): FilterCondition {
+	const columnConfig = getFilterColumnConfig(column);
 	return {
 		column,
 		operator: columnConfig.operators[0],
-		joinWithPrevious: "and",
+		joinWithPrevious: defaultFilterCombinator,
 		value: "",
 		values: [],
-		existsValue: "true"
+		existsValue: "true",
+		dateValue: null,
+		listDateValue: null,
+		dateText: "",
+		listDateText: ""
 	};
 }
 
-export function reorderCreditApplicationAssignmentColumns(
-	order: CreditApplicationAssignmentColumnId[],
-	sourceId: CreditApplicationAssignmentColumnId,
-	targetId: CreditApplicationAssignmentColumnId
-): CreditApplicationAssignmentColumnId[] {
+export function formatFilterDateValue(date: Date | null): string {
+	if(date == null)
+		return "Select date and time";
+	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+}
+
+export function parseFilterDateValue(value: string): Date | null {
+	const trimmed = value.trim();
+	if(trimmed.length == 0)
+		return null;
+	const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(trimmed) ? trimmed.replace(" ", "T") : trimmed;
+	const parsed = new Date(normalized);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function parseFilterDateOnlyValue(value: string): Date | null {
+	const trimmed = value.trim();
+	if(trimmed.length == 0)
+		return null;
+	const normalized = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00` : trimmed;
+	const parsed = new Date(normalized);
+	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function formatFilterDateOnlyInput(date: Date | null): string {
+	if(date == null)
+		return "";
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
+}
+
+export function formatFilterDateInput(date: Date | null): string {
+	if(date == null)
+		return "";
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+	return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
+export function applyTimeToDate(date: Date, timeValue: string): Date {
+	const [rawHours, rawMinutes] = timeValue.split(":");
+	const hours = Number(rawHours);
+	const minutes = Number(rawMinutes);
+	const nextDate = new Date(date);
+	if(Number.isInteger(hours) && Number.isInteger(minutes))
+		nextDate.setHours(hours, minutes, 0, 0);
+	return nextDate;
+}
+
+export function getFilterTimeInput(date: Date | null): string {
+	if(date == null)
+		return "00:00";
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+	return `${hours}:${minutes}`;
+}
+
+export function splitFilterDateValue(value: string): { dateText: string, timeText: string } {
+	const parsed = parseFilterDateValue(value);
+	if(parsed == null)
+		return { dateText: "", timeText: "00:00" };
+	return {
+		dateText: formatFilterDateOnlyInput(parsed),
+		timeText: getFilterTimeInput(parsed)
+	};
+}
+
+export function buildFilterDateValue(dateText: string, timeText: string): string {
+	const parsedDate = parseFilterDateOnlyValue(dateText);
+	if(parsedDate == null)
+		return "";
+	return formatFilterDateInput(applyTimeToDate(parsedDate, timeText));
+}
+
+export function formatDateTime(dateValue: string | null) {
+	if(dateValue == null)
+		return "-";
+	const date = new Date(dateValue);
+	if(Number.isNaN(date.getTime()))
+		return "-";
+	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+}
+
+function formatTextValue(value: string | null | undefined): string {
+	const normalized = (value ?? "").trim();
+	return normalized.length > 0 ? normalized : "-";
+}
+
+export function getReviewStatus(row: CreditApplicationAssignmentTableRow): { label: string, variant: "default" | "secondary" | "destructive" } {
+	if(row.reviewedAt == null)
+		return { label: "Pending", variant: "secondary" };
+	if(row.reviewApproved == true)
+		return { label: "Approved", variant: "default" };
+	return { label: "Rejected", variant: "destructive" };
+}
+
+function renderRequestTypeTrigger({
+	row,
+	onOpenRequestChanges,
+	className
+}: {
+	row: CreditApplicationAssignmentTableRow;
+	onOpenRequestChanges?: (row: CreditApplicationAssignmentTableRow) => void;
+	className?: string;
+}): ReactNode {
+	if(onOpenRequestChanges == null)
+		return row.requestType;
+
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => onOpenRequestChanges(row)}
+			className={cn("text-primary h-auto p-0", className)}
+		>
+			{row.requestType}
+		</Button>
+	);
+}
+
+export function reorderColumns(
+	order: CreditApplicationAssignmentTableColumnId[],
+	sourceId: CreditApplicationAssignmentTableColumnId,
+	targetId: CreditApplicationAssignmentTableColumnId
+): CreditApplicationAssignmentTableColumnId[] {
 	if(sourceId == targetId)
 		return order;
 	const sourceIndex = order.indexOf(sourceId);
@@ -214,81 +460,1258 @@ export function reorderCreditApplicationAssignmentColumns(
 	return nextOrder;
 }
 
-export function getCreditApplicationAssignmentRowKey(row: Pick<CreditApplicationAssignmentRow, "assignmentId" | "applyId">): string {
-	return row.assignmentId ?? row.applyId;
+type CreditApplicationAssignmentActiveFiltersSummaryProps = {
+	items: FilterSummaryItem[];
+};
+
+export function CreditApplicationAssignmentActiveFiltersSummary({ items }: CreditApplicationAssignmentActiveFiltersSummaryProps) {
+	if(items.length == 0)
+		return null;
+
+	return (
+		<div className="rounded-lg border border-dashed px-3 py-2 text-xs">
+			<p className="text-muted-foreground font-medium">Active filters</p>
+			<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+				{items.map((item, index) => (
+					<span key={index} className="inline-flex items-center gap-1.5">
+						{item.combinator != null ? (
+							<span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">{item.combinator}</span>
+						) : null}
+						<span className="bg-background rounded border px-2 py-0.5">
+							<span className="font-semibold">{item.columnLabel}</span>
+							<span className="text-muted-foreground mx-1 italic">{item.operatorLabel}</span>
+							<span className="font-mono text-[11px]">{item.valueLabel}</span>
+						</span>
+					</span>
+				))}
+			</div>
+		</div>
+	);
 }
 
-export function mapCreditApplicationAssignmentFiltersToAppliedFilters(filters: CreditApplicationAssignmentFilterCondition[]): accountAssignmentActions.AccountAssignmentFilterInput[] {
-	const applied: accountAssignmentActions.AccountAssignmentFilterInput[] = [];
+type CreditApplicationAssignmentColumnConfigCardProps = {
+	isOpen: boolean;
+	onOpenChange: (open: boolean) => void;
+	orderedColumns: CreditApplicationAssignmentTableColumnConfig[];
+	hiddenColumnIds: CreditApplicationAssignmentTableColumnId[];
+	visibleColumnCount: number;
+	onToggleColumnVisibility: (columnId: CreditApplicationAssignmentTableColumnId, checked: boolean) => void;
+	onReset: () => void;
+	onColumnDragStart: (columnId: CreditApplicationAssignmentTableColumnId) => void;
+	onColumnDragOver: (event: DragEvent<HTMLDivElement>, targetColumnId: CreditApplicationAssignmentTableColumnId) => void;
+	onColumnDragEnd: () => void;
+};
 
-	for(let index = 0; index < filters.length; index++) {
-		const filter = filters[index];
-		const joinWithPrevious = index == 0 ? undefined : filter.joinWithPrevious;
+export function CreditApplicationAssignmentColumnConfigCard({
+	isOpen,
+	onOpenChange,
+	orderedColumns,
+	hiddenColumnIds,
+	visibleColumnCount,
+	onToggleColumnVisibility,
+	onReset,
+	onColumnDragStart,
+	onColumnDragOver,
+	onColumnDragEnd
+}: CreditApplicationAssignmentColumnConfigCardProps) {
+	return (
+		<Collapsible open={isOpen} onOpenChange={onOpenChange}>
+			<CollapsibleContent>
+				<div className="space-y-3 rounded-xl border p-4">
+					<div className="flex items-center justify-between">
+						<div className="space-y-1">
+							<h3 className="text-sm font-semibold">Configure Columns</h3>
+							<p className="text-muted-foreground text-sm">Toggle visibility and drag cards to reorder columns.</p>
+						</div>
+						<div className="flex items-center gap-2">
+							<p className="text-muted-foreground text-sm">Visible {visibleColumnCount} of {creditApplicationAssignmentTableColumns.length}</p>
+							<Button type="button" variant="outline" size="sm" onClick={onReset}>Reset</Button>
+						</div>
+					</div>
+					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+						{orderedColumns.map(column => {
+							const isVisible = !hiddenColumnIds.includes(column.id);
+							const isOnlyVisibleColumn = isVisible && hiddenColumnIds.length >= creditApplicationAssignmentTableColumns.length - 1;
+							return (
+								<div
+									key={column.id}
+									draggable
+									onDragStart={() => onColumnDragStart(column.id)}
+									onDragOver={event => onColumnDragOver(event, column.id)}
+									onDragEnd={onColumnDragEnd}
+									onDrop={onColumnDragEnd}
+									className="hover:bg-muted/60 flex h-full min-h-14 items-center gap-3 rounded-lg border px-3 py-1.5 text-left"
+								>
+									<GripVerticalIcon className="text-muted-foreground size-4 shrink-0" />
+									<Checkbox
+										checked={isVisible}
+										disabled={isOnlyVisibleColumn}
+										onCheckedChange={checked => onToggleColumnVisibility(column.id, checked == true)}
+									/>
+									<div className="min-w-0 flex-1">
+										<p className="text-sm font-medium">{column.label}</p>
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				</div>
+			</CollapsibleContent>
+		</Collapsible>
+	);
+}
 
-		if(filter.operator == "exists") {
-			applied.push({
-				column: filter.column,
-				operator: filter.operator,
-				value: filter.existsValue == "true",
-				joinWithPrevious
-			});
-			continue;
+type CreditApplicationAssignmentRequestDeleteDialogProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onConfirm: () => void;
+	isMutating: boolean;
+};
+
+export function CreditApplicationAssignmentRequestDeleteDialog({
+	open,
+	onOpenChange,
+	onConfirm,
+	isMutating
+}: CreditApplicationAssignmentRequestDeleteDialogProps) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Delete</AlertDialogTitle>
+					<AlertDialogDescription>
+						Delete does not hard-delete data. It creates a pending delete request by setting deletedAt, and requires approver review.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Delete</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+type CreditApplicationAssignmentRequestCancelDialogProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	onConfirm: () => void;
+	isMutating: boolean;
+};
+
+export function CreditApplicationAssignmentRequestCancelDialog({
+	open,
+	onOpenChange,
+	onConfirm,
+	isMutating
+}: CreditApplicationAssignmentRequestCancelDialogProps) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Cancel</AlertDialogTitle>
+					<AlertDialogDescription>
+						This will cancel the pending request and keep the last approved version unchanged.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Cancel</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+type CreditApplicationAssignmentRequestFilterCardProps = {
+	isLoading: boolean;
+	isMutating: boolean;
+	filters: UseCreditApplicationAssignmentRequestFiltersResult;
+	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption;
+};
+
+export function CreditApplicationAssignmentRequestFilterCard({
+	isLoading,
+	isMutating,
+	filters,
+	getResolvedFilterColumnConfig
+}: CreditApplicationAssignmentRequestFilterCardProps) {
+	return (
+		<Collapsible open={filters.isFilterOpen} onOpenChange={filters.setIsFilterOpen}>
+			<CollapsibleContent>
+				<div className="space-y-3 rounded-xl border p-4">
+					<div className="flex items-center justify-between gap-2">
+						<div className="space-y-1">
+							<h3 className="text-sm font-semibold">Configure Filters</h3>
+							<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
+						</div>
+						{filters.appliedFilters.length > 0 ? (
+							<Button type="button" variant="outline" size="sm" onClick={filters.clearFilter} disabled={isLoading || isMutating}>Clear Filter</Button>
+						) : null}
+					</div>
+					{filters.filters.map((filterCondition, index) => {
+						const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
+						const isListOperator = filterCondition.operator == "in" || filterCondition.operator == "not_in";
+
+						return (
+							<div key={index} className="space-y-3">
+								{index > 0 ? (
+									<div className="rounded-lg border border-dashed p-2">
+										<label className="text-sm font-medium">Combinator with previous filter</label>
+										<Select
+											value={filterCondition.joinWithPrevious}
+											onValueChange={value => filters.updateFilterJoinWithPrevious(index, value as FilterCombinator)}
+										>
+											<SelectTrigger className="w-full"><SelectValue placeholder="Select combinator" /></SelectTrigger>
+											<SelectContent>
+												<SelectItem value="and">AND</SelectItem>
+												<SelectItem value="or">OR</SelectItem>
+											</SelectContent>
+										</Select>
+									</div>
+								) : null}
+								<div className="space-y-3 rounded-lg border p-3">
+									<div className="flex items-center justify-between">
+										<p className="text-sm font-medium">Filter {index + 1}</p>
+										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(index)} disabled={isMutating}>
+											<XIcon />
+											Remove
+										</Button>
+									</div>
+									<div className="grid gap-3 sm:grid-cols-2">
+										<div className="space-y-2">
+											<label className="text-sm font-medium">Column</label>
+											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(index, value as FilterColumn)}>
+												<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
+												<SelectContent>
+													{creditApplicationAssignmentFilterColumns.map(column => (
+														<SelectItem key={column.value} value={column.value}>{column.label}</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+										<div className="space-y-2">
+											<label className="text-sm font-medium">Operator</label>
+											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(index, value as FilterColumnOption["operators"][number])}>
+												<SelectTrigger className="w-full"><SelectValue placeholder="Select operator" /></SelectTrigger>
+												<SelectContent>
+													{filterOperatorOptions.filter(operator => columnConfig.operators.includes(operator.value)).map(operator => (
+														<SelectItem key={operator.value} value={operator.value}>{operator.label}</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									</div>
+									<div className="space-y-2">
+										<label className="text-sm font-medium">Filter Value</label>
+										{filterCondition.operator == "exists" ? (
+											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
+												<SelectTrigger className="w-full"><SelectValue placeholder="Select exists value" /></SelectTrigger>
+												<SelectContent>
+													<SelectItem value="true">True</SelectItem>
+													<SelectItem value="false">False</SelectItem>
+												</SelectContent>
+											</Select>
+										) : isListOperator ? (
+											<div className="space-y-2">
+												<div className="flex items-center justify-between">
+													<p className="text-muted-foreground text-xs">Define one or more values.</p>
+													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(index)}><PlusIcon />Add Value</Button>
+												</div>
+												{filterCondition.values.length == 0 ? (
+													<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
+												) : (
+													<div className="space-y-2">
+														{filterCondition.values.map((value, valueIndex) => {
+															const listDate = columnConfig.valueType == "date" ? splitFilterDateValue(value) : null;
+															return (
+																<div key={`${index}-${valueIndex}`} className="flex items-start gap-2">
+																	{columnConfig.valueType == "boolean" ? (
+																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}>
+																			<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
+																			<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
+																		</Select>
+																	) : columnConfig.valueType == "select" ? (
+																		<SearchableSelect
+																			value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")}
+																			onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}
+																			options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
+																			onSearch={columnConfig.searchOptionsAction}
+																			placeholder="Select value"
+																			searchPlaceholder="Type to filter values"
+																			className="min-w-0 flex-1"
+																		/>
+																	) : columnConfig.valueType == "date" ? (
+																		<div className="grid flex-1 grid-cols-2 gap-2">
+																			<Popover>
+																				<InputGroup>
+																					<InputGroupInput
+																						value={listDate?.dateText ?? ""}
+																						onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
+																						placeholder="YYYY-MM-DD"
+																					/>
+																					<InputGroupAddon align="inline-end">
+																						<PopoverTrigger asChild>
+																							<InputGroupButton type="button" variant="ghost" size="icon-xs" className="shrink-0"><CalendarIcon className="size-4" /></InputGroupButton>
+																						</PopoverTrigger>
+																					</InputGroupAddon>
+																				</InputGroup>
+																				<PopoverContent className="w-auto">
+																					<Calendar
+																						mode="single"
+																						captionLayout="dropdown"
+																						selected={parseFilterDateOnlyValue(listDate?.dateText ?? "") ?? undefined}
+																						onSelect={date => filters.updateFilterListValue(index, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
+																					/>
+																				</PopoverContent>
+																			</Popover>
+																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
+																		</div>
+																	) : (
+																		<Input value={value} onChange={event => filters.updateFilterListValue(index, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
+																	)}
+																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(index, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
+																</div>
+															);
+														})}
+													</div>
+												)}
+											</div>
+										) : columnConfig.valueType == "select" ? (
+											<SearchableSelect
+												value={filterCondition.value.length > 0 ? filterCondition.value : ""}
+												onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}
+												options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
+												onSearch={columnConfig.searchOptionsAction}
+												placeholder="Select value"
+												searchPlaceholder="Type to filter values"
+											/>
+										) : columnConfig.valueType == "boolean" ? (
+											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}>
+												<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
+												<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
+											</Select>
+										) : columnConfig.valueType == "date" ? (
+											<div className="grid grid-cols-2 gap-2">
+												<Popover>
+													<InputGroup>
+														<InputGroupInput
+															value={filterCondition.dateText}
+															onChange={event => filters.updateFilter(index, previous => {
+																const nextDateText = event.target.value;
+																const parsedDate = parseFilterDateOnlyValue(nextDateText);
+																const preservedTime = getFilterTimeInput(previous.dateValue);
+																return {
+																	...previous,
+																	dateText: nextDateText,
+																	dateValue: parsedDate == null ? null : applyTimeToDate(parsedDate, preservedTime)
+																};
+															})}
+															placeholder="YYYY-MM-DD"
+														/>
+														<InputGroupAddon align="inline-end">
+															<PopoverTrigger asChild>
+																<InputGroupButton type="button" variant="ghost" size="icon-xs" className="shrink-0"><CalendarIcon className="size-4" /></InputGroupButton>
+															</PopoverTrigger>
+														</InputGroupAddon>
+													</InputGroup>
+													<PopoverContent className="w-auto">
+														<Calendar
+															mode="single"
+															captionLayout="dropdown"
+															selected={filterCondition.dateValue ?? parseFilterDateOnlyValue(filterCondition.dateText) ?? undefined}
+															onSelect={date => filters.updateFilter(index, previous => {
+																if(date == null)
+																	return { ...previous, dateValue: null, dateText: "" };
+																const nextDate = applyTimeToDate(date, getFilterTimeInput(previous.dateValue));
+																return { ...previous, dateValue: nextDate, dateText: `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}` };
+															})}
+														/>
+													</PopoverContent>
+												</Popover>
+												<Input
+													type="time"
+													value={getFilterTimeInput(filterCondition.dateValue)}
+													onChange={event => filters.updateFilter(index, previous => {
+														const baseDate = previous.dateValue ?? parseFilterDateOnlyValue(previous.dateText);
+														if(baseDate == null)
+															return previous;
+														const nextDate = applyTimeToDate(baseDate, event.target.value);
+														return { ...previous, dateValue: nextDate, dateText: `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}-${String(nextDate.getDate()).padStart(2, "0")}` };
+													})}
+												/>
+											</div>
+										) : (
+											<Input value={filterCondition.value} onChange={event => filters.updateFilter(index, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
+										)}
+									</div>
+								</div>
+							</div>
+						);
+					})}
+
+					<Button type="button" variant="outline" onClick={filters.addFilter} disabled={isMutating}>
+						<PlusIcon />
+						Add Filter
+					</Button>
+				</div>
+			</CollapsibleContent>
+		</Collapsible>
+	);
+}
+
+type CreditApplicationAssignmentRequestFormDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	formState: FormState;
+	formError: ActionError | null;
+	onSearchCreditApplications: FilterSelectSearchAction;
+	onSearchOfficers: FilterSelectSearchAction;
+	isMutating: boolean;
+	onCreditApplicationChange: (value: string) => void;
+	onOfficerChange: (value: string) => void;
+	onSubmit: () => void;
+};
+
+export function CreditApplicationAssignmentRequestFormDrawer({
+	open,
+	onOpenChange,
+	formState,
+	formError,
+	onSearchCreditApplications,
+	onSearchOfficers,
+	isMutating,
+	onCreditApplicationChange,
+	onOfficerChange,
+	onSubmit
+}: CreditApplicationAssignmentRequestFormDrawerProps) {
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-xl">
+				<DrawerHeader>
+					<DrawerTitle>{formState.assignmentId == null ? "Add Credit Application Assignment" : "Edit Credit Application Assignment"}</DrawerTitle>
+					<DrawerDescription>Changes in editor mode create pending assignment requests that require approver review before publication.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 overflow-y-auto px-4">
+					<div className="grid gap-3 pb-4">
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Credit Application</label>
+							<SearchableSelect
+								value={formState.creditApplicationId}
+								onValueChange={onCreditApplicationChange}
+								options={[]}
+								onSearch={onSearchCreditApplications}
+								placeholder="Select credit application"
+								searchPlaceholder="Search credit applications"
+							/>
+						</div>
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Officer</label>
+							<SearchableSelect
+								value={formState.officerId}
+								onValueChange={onOfficerChange}
+								options={[]}
+								onSearch={onSearchOfficers}
+								placeholder="Select officer"
+								searchPlaceholder="Search officers"
+							/>
+						</div>
+						{formError != null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>{formError.title}</AlertTitle>
+								<AlertDescription>{formError.message}</AlertDescription>
+							</Alert>
+						) : null}
+					</div>
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
+					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
+type CreditApplicationAssignmentRequestReviewDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	reviewDrawerState: { row: CreditApplicationAssignmentTableRow, diff: CreditApplicationAssignmentRequestReviewDiff | null } | null;
+	reviewError: ActionError | null;
+	isReviewDiffLoading: boolean;
+	reviewReason: string;
+	onReviewReasonChange: (value: string) => void;
+	onApprove: () => void;
+	onReject: () => void;
+	isMutating: boolean;
+	onOpenRequestChanges?: (row: CreditApplicationAssignmentTableRow) => void;
+};
+
+export function CreditApplicationAssignmentRequestReviewDrawer({
+	open,
+	onOpenChange,
+	reviewDrawerState,
+	reviewError,
+	isReviewDiffLoading,
+	reviewReason,
+	onReviewReasonChange,
+	onApprove,
+	onReject,
+	isMutating,
+	onOpenRequestChanges
+}: CreditApplicationAssignmentRequestReviewDrawerProps) {
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>Review</DrawerTitle>
+					<DrawerDescription>Review the differences between the last approved version and the current pending request before making a decision.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+						<p>
+							<span className="font-medium">Request Type:</span>{" "}
+							{reviewDrawerState?.row != null ? renderRequestTypeTrigger({
+								row: {
+									...reviewDrawerState.row,
+									requestType: reviewDrawerState.diff?.requestType ?? reviewDrawerState.row.requestType
+								},
+								onOpenRequestChanges,
+								className: "align-baseline"
+							}) : "-"}
+						</p>
+						<p className="text-muted-foreground">
+							{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
+						</p>
+					</div>
+
+					{isReviewDiffLoading ? (
+						<div className="space-y-2">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					) : reviewDrawerState?.diff == null ? (
+						<p className="text-muted-foreground text-sm">No diff is available for this request.</p>
+					) : (
+						<div className="space-y-2">
+							{reviewDrawerState.diff.items.map(item => (
+								<div key={item.field} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-medium">{item.label}</p>
+										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+									</div>
+									<div className="grid gap-2 sm:grid-cols-2">
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getCreditApplicationAssignmentDrawerValueClassName(item.field))}>{item.previousValue}</div>
+										</div>
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Requested</p>
+											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getCreditApplicationAssignmentDrawerValueClassName(item.field))}>{item.requestedValue}</div>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+
+					{reviewError != null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>{reviewError.title}</AlertTitle>
+							<AlertDescription>{reviewError.message}</AlertDescription>
+						</Alert>
+					) : null}
+
+					<div className="space-y-2">
+						<label className="text-sm font-medium">Review Reason (optional)</label>
+						<Textarea value={reviewReason} onChange={event => onReviewReasonChange(event.target.value)} placeholder="Provide a review reason" />
+					</div>
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
+					<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || reviewDrawerState?.diff == null}>Approve</Button>
+					<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || reviewDrawerState?.diff == null}>Reject</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
+type CreditApplicationAssignmentRequestChangePreviewDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	row: CreditApplicationAssignmentTableRow | null;
+};
+
+export function CreditApplicationAssignmentRequestChangePreviewDrawer({
+	open,
+	onOpenChange,
+	row
+}: CreditApplicationAssignmentRequestChangePreviewDrawerProps) {
+	const diffQuery = useQuery({
+		queryKey: ["credit-application-assignment", "request-change-preview", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: () => creditApplicationAssignmentActions.getCreditApplicationAssignmentRequestReviewDiffAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>Request Changes</DrawerTitle>
+					<DrawerDescription>Review the differences between the last approved version and the selected request.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+						<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
+						<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+					</div>
+
+					{row == null ? (
+						<p className="text-muted-foreground text-sm">No request selected.</p>
+					) : diffQuery.isPending ? (
+						<div className="space-y-2">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					) : diffQuery.isError || diffQuery.data == null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>Error</AlertTitle>
+							<AlertDescription>Unable to load request changes.</AlertDescription>
+						</Alert>
+					) : (
+						<div className="space-y-2">
+							{diffQuery.data.items.map(item => (
+								<div key={item.field} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-medium">{item.label}</p>
+										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+									</div>
+									<div className="grid gap-2 sm:grid-cols-2">
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getCreditApplicationAssignmentDrawerValueClassName(item.field))}>{item.previousValue}</div>
+										</div>
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Requested</p>
+											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getCreditApplicationAssignmentDrawerValueClassName(item.field))}>{item.requestedValue}</div>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
+type CreditApplicationAssignmentRequestsTableProps = {
+	queryResult: QueryCreditApplicationAssignmentsOutput;
+	visibleColumns: CreditApplicationAssignmentTableColumnConfig[];
+	visibleColumnCount: number;
+	includeActions?: boolean;
+	detailTriggerColumnId: CreditApplicationAssignmentTableColumnId | null;
+	isLoading: boolean;
+	isMutating: boolean;
+	getSortDirection: (field: SortField) => SortDirection | null;
+	onToggleSortField: (field: SortField) => void;
+	onOpenDetails: (row: CreditApplicationAssignmentTableRow) => void;
+	renderCreditApplicationAssignmentCell: (columnId: CreditApplicationAssignmentTableColumnConfig["id"], row: CreditApplicationAssignmentTableRow) => ReactNode;
+	renderActions: (row: CreditApplicationAssignmentTableRow) => ReactNode;
+};
+
+export function CreditApplicationAssignmentRequestsTable({
+	queryResult,
+	visibleColumns,
+	visibleColumnCount,
+	includeActions = true,
+	detailTriggerColumnId,
+	isLoading,
+	isMutating,
+	getSortDirection,
+	onToggleSortField,
+	onOpenDetails,
+	renderCreditApplicationAssignmentCell,
+	renderActions
+}: CreditApplicationAssignmentRequestsTableProps) {
+	const renderSortIcon = (field: SortField) => {
+		const direction = getSortDirection(field);
+		if(direction == "asc")
+			return <ArrowUpIcon className="size-3.5" />;
+		if(direction == "desc")
+			return <ArrowDownIcon className="size-3.5" />;
+		return <ArrowUpDownIcon className="text-muted-foreground size-3.5" />;
+	};
+
+	return (
+		<div className="rounded-xl border">
+			<Table>
+				<TableHeader>
+					<TableRow>
+						{visibleColumns.map(column => (
+							column.sortField != null ? (
+								<TableHead key={column.id} className={column.headClassName}>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onClick={() => onToggleSortField(column.sortField!)}
+										disabled={isLoading || isMutating}
+										className="-ml-2 h-7 gap-1 px-2"
+									>
+										{column.label}
+										{renderSortIcon(column.sortField)}
+									</Button>
+								</TableHead>
+							) : (
+								<TableHead key={column.id} className={column.headClassName}>{column.label}</TableHead>
+							)
+						))}
+						{includeActions ? <TableHead className="w-65">Actions</TableHead> : null}
+					</TableRow>
+				</TableHeader>
+				<TableBody>
+					{isLoading ? (
+						<TableRow>
+							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading credit application assignments...</TableCell>
+						</TableRow>
+					) : null}
+					{!isLoading && queryResult.docs.length == 0 ? (
+						<TableRow>
+							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No credit application assignments found.</TableCell>
+						</TableRow>
+					) : null}
+					{queryResult.docs.map(row => (
+						<TableRow key={row.id}>
+							{visibleColumns.map(column => {
+								const cellValue = renderCreditApplicationAssignmentCell(column.id, row);
+								const isDetailTriggerColumn = detailTriggerColumnId != null && column.id == detailTriggerColumnId;
+								return (
+									<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
+										{isDetailTriggerColumn ? (
+											<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal">
+												{cellValue}
+											</Button>
+										) : cellValue}
+									</TableCell>
+								);
+							})}
+							{includeActions ? (
+								<TableCell>
+									<div className="flex flex-wrap gap-2">
+										{renderActions(row)}
+									</div>
+								</TableCell>
+							) : null}
+						</TableRow>
+					))}
+				</TableBody>
+			</Table>
+		</div>
+	);
+}
+
+type CreditApplicationAssignmentRequestDetailsDrawerProps = {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	row: CreditApplicationAssignmentTableRow | null;
+	renderActions: (row: CreditApplicationAssignmentTableRow) => ReactNode;
+	relationNavigation?: CreditApplicationAssignmentRelationNavigation;
+	onOpenRequestChanges?: (row: CreditApplicationAssignmentTableRow) => void;
+};
+
+type CreditApplicationAssignmentRelationNavigation = {
+	getHrefBase: (managementKey: "user-management" | "credit-application-management" | "team-management") => string | null;
+	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
+		targetManagementKey: "user-management" | "credit-application-management" | "team-management";
+		hrefBase: string;
+		relationFilters: unknown;
+		relationContext?: string;
+	}) => void;
+	onOpenSummary: (request: {
+		type: "user";
+		id: string;
+		fallbackTitle: string;
+		fallbackDescription?: string;
+		fallbackMeta?: Array<{ label: string, value: string }>;
+	}) => void;
+};
+
+function getCreditApplicationAssignmentRelationSummaryLabel(column: Exclude<CreditApplicationAssignmentRelationColumn, "creditApplication">): string {
+	if(column == "officer")
+		return "Officer";
+	if(column == "reviewedBy")
+		return "Reviewed By";
+	if(column == "createdBy")
+		return "Created By";
+	if(column == "updatedBy")
+		return "Updated By";
+	return "Deleted By";
+}
+
+function renderCreditApplicationRelationValue({
+	value,
+	relationId,
+	relationNavigation
+}: {
+	value: string;
+	relationId: string | null;
+	relationNavigation?: CreditApplicationAssignmentRelationNavigation;
+}): ReactNode {
+	const normalizedValue = value.trim();
+	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
+		return value;
+
+	const hrefBase = relationNavigation?.getHrefBase("credit-application-management");
+	if(hrefBase == null || relationNavigation == null)
+		return value;
+
+	const relationFilters = [{ column: "id", operator: "equals", value: relationId }];
+	const searchParams = new URLSearchParams();
+	searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
+	searchParams.set("relationContext", "credit-application-assignment:creditApplication");
+	const href = `${hrefBase}?${searchParams.toString()}`;
+
+	return (
+		<Link
+			href={href}
+			onClick={event => relationNavigation.onRelationLinkClick(event, {
+				targetManagementKey: "credit-application-management",
+				hrefBase,
+				relationFilters,
+				relationContext: "credit-application-assignment:creditApplication"
+			})}
+			className="text-primary underline underline-offset-2 hover:opacity-80"
+		>
+			{value}
+		</Link>
+	);
+}
+
+function renderCreditApplicationAssignmentUserRelationValue({
+	column,
+	value,
+	relationId,
+	relationNavigation,
+	stagedUserIdByUserId
+}: {
+	column: Exclude<CreditApplicationAssignmentRelationColumn, "creditApplication">;
+	value: string;
+	relationId: string | null;
+	relationNavigation?: CreditApplicationAssignmentRelationNavigation;
+	stagedUserIdByUserId?: Record<string, string>;
+}): ReactNode {
+	const normalizedValue = value.trim();
+	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
+		return value;
+
+	const summaryLabel = getCreditApplicationAssignmentRelationSummaryLabel(column);
+	const hrefBase = relationNavigation?.getHrefBase("user-management");
+	if(hrefBase != null && relationNavigation != null) {
+		const stagedUserId = stagedUserIdByUserId?.[relationId] ?? null;
+		if(stagedUserId != null && stagedUserId.trim().length > 0) {
+			const relationFilters = [{ column: "id", operator: "equals", value: stagedUserId }];
+			const searchParams = new URLSearchParams();
+			searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
+			searchParams.set("relationContext", `credit-application-assignment:${column}`);
+			const href = `${hrefBase}?${searchParams.toString()}`;
+			return (
+				<Link
+					href={href}
+					onClick={event => {
+						if(event.altKey) {
+							event.preventDefault();
+							relationNavigation.onOpenSummary({
+								type: "user",
+								id: relationId,
+								fallbackTitle: value,
+								fallbackDescription: `${summaryLabel} user`
+							});
+							return;
+						}
+						relationNavigation.onRelationLinkClick(event, {
+							targetManagementKey: "user-management",
+							hrefBase,
+							relationFilters,
+							relationContext: `credit-application-assignment:${column}`
+						});
+					}}
+					className="text-primary underline underline-offset-2 hover:opacity-80"
+				>
+					{value}
+				</Link>
+			);
 		}
-
-		if(filter.operator == "in" || filter.operator == "not_in") {
-			const values = filter.value
-				.split(",")
-				.map(value => value.trim())
-				.filter(value => value.length > 0);
-			if(values.length == 0)
-				continue;
-			applied.push({
-				column: filter.column,
-				operator: filter.operator,
-				value: values,
-				joinWithPrevious
-			});
-			continue;
-		}
-
-		const value = filter.value.trim();
-		if(value.length == 0)
-			continue;
-
-		applied.push({
-			column: filter.column,
-			operator: filter.operator,
-			value,
-			joinWithPrevious
-		});
 	}
 
-	return applied;
+	if(relationNavigation == null)
+		return value;
+
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => relationNavigation.onOpenSummary({
+				type: "user",
+				id: relationId,
+				fallbackTitle: value,
+				fallbackDescription: `${summaryLabel} user`
+			})}
+			className="h-auto p-0 text-primary"
+		>
+			{value}
+		</Button>
+	);
 }
 
-export function getCreditApplicationAssignmentFilterColumnConfig(column: CreditApplicationAssignmentFilterColumn): CreditApplicationAssignmentFilterColumnOption {
-	return creditApplicationAssignmentFilterColumns.find(option => option.value == column) ?? creditApplicationAssignmentFilterColumns[0];
-}
+export function CreditApplicationAssignmentRequestDetailsDrawer({
+	open,
+	onOpenChange,
+	row,
+	renderActions,
+	relationNavigation,
+	onOpenRequestChanges
+}: CreditApplicationAssignmentRequestDetailsDrawerProps) {
+	const [historyOpen, setHistoryOpen] = useState(false);
 
-export function useCreditApplicationAssignmentFilterColumnConfig() {
-	const getResolvedFilterColumnConfig = useCallback((column: CreditApplicationAssignmentFilterColumn) => (
-		getCreditApplicationAssignmentFilterColumnConfig(column)
-	), []);
+	useEffect(() => {
+		if(!open)
+			setHistoryOpen(false);
+	}, [open]);
 
-	return {
-		getResolvedFilterColumnConfig
+	const detailsQuery = useQuery({
+		queryKey: ["credit-application-assignment", "details", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: () => creditApplicationAssignmentActions.getCreditApplicationAssignmentRequestDetailsAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const historyAccessQuery = useQuery({
+		queryKey: ["credit-application-assignment", "history-access"],
+		queryFn: () => creditApplicationAssignmentActions.canAccessCreditApplicationAssignmentRequestHistoryAction(),
+		staleTime: 60_000,
+		refetchOnWindowFocus: true
+	});
+
+	const canAccessHistory = historyAccessQuery.data == true;
+
+	const historyQuery = useQuery({
+		queryKey: ["credit-application-assignment", "history", row?.id ?? null],
+		enabled: historyOpen && row != null && canAccessHistory,
+		queryFn: () => creditApplicationAssignmentActions.getCreditApplicationAssignmentRequestHistoryAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+
+	const details = detailsQuery.data;
+	const actionRow = details?.row ?? row;
+
+	const renderDetailColumnValue = (columnId: CreditApplicationAssignmentTableColumnId, value: ReactNode) => {
+		return <div className={cn(getCreditApplicationAssignmentDrawerValueClassName(columnId), "wrap-break-word")}>{value}</div>;
 	};
+
+	const renderDetailValue = (
+		columnId: CreditApplicationAssignmentTableColumnId,
+		data: creditApplicationAssignmentActions.CreditApplicationAssignmentRequestDetailsOutput
+	) => {
+		switch(columnId) {
+			case "id":
+				return renderDetailColumnValue(columnId, data.row.id);
+			case "creditApplication":
+				return renderDetailColumnValue(columnId, renderCreditApplicationRelationValue({
+					value: data.relationValues.creditApplication ?? "-",
+					relationId: data.row.creditApplicationId,
+					relationNavigation
+				}));
+			case "officer":
+				return renderDetailColumnValue(columnId, renderCreditApplicationAssignmentUserRelationValue({
+					column: "officer",
+					value: data.relationValues.officer ?? "-",
+					relationId: data.row.officerId,
+					relationNavigation,
+					stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId
+				}));
+			case "createdBy":
+				return renderDetailColumnValue(columnId, renderCreditApplicationAssignmentUserRelationValue({
+					column: "createdBy",
+					value: data.relationValues.createdBy ?? "-",
+					relationId: data.row.createdById,
+					relationNavigation,
+					stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId
+				}));
+			case "updatedBy":
+				return renderDetailColumnValue(columnId, renderCreditApplicationAssignmentUserRelationValue({
+					column: "updatedBy",
+					value: data.relationValues.updatedBy ?? "-",
+					relationId: data.row.updatedById,
+					relationNavigation,
+					stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId
+				}));
+			case "deletedBy":
+				return renderDetailColumnValue(columnId, renderCreditApplicationAssignmentUserRelationValue({
+					column: "deletedBy",
+					value: data.relationValues.deletedBy ?? "-",
+					relationId: data.row.deletedById,
+					relationNavigation,
+					stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId
+				}));
+			case "createdAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
+			case "updatedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.updatedAt));
+			case "deletedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
+			case "requestType":
+				return renderDetailColumnValue(columnId, renderRequestTypeTrigger({ row: data.row, onOpenRequestChanges, className: "text-left whitespace-normal" }));
+			case "status": {
+				const status = getReviewStatus(data.row);
+				return <Badge variant={status.variant}>{status.label}</Badge>;
+			}
+			case "reviewedAt":
+				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
+			case "reviewedBy":
+				return renderDetailColumnValue(columnId, renderCreditApplicationAssignmentUserRelationValue({
+					column: "reviewedBy",
+					value: data.relationValues.reviewedBy ?? "-",
+					relationId: data.row.reviewedById,
+					relationNavigation,
+					stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId
+				}));
+			case "reviewApproved":
+				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
+			case "reviewCommentText":
+				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			default:
+				return renderDetailColumnValue(columnId, "-");
+		}
+	};
+
+	return (
+		<>
+			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+					<DrawerHeader>
+						<DrawerTitle>Credit Application Assignment Request Details</DrawerTitle>
+						<DrawerDescription>Review all available columns for this credit application assignment request entry.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No credit application assignment selected.</p>
+						) : detailsQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+								<Skeleton className="h-20 w-full" />
+							</div>
+						) : detailsQuery.isError || details == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load credit application assignment details.</AlertDescription>
+							</Alert>
+						) : (
+							creditApplicationAssignmentTableColumns.map(column => (
+								<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
+									<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
+									{renderDetailValue(column.id, details)}
+								</div>
+							))
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+						{!historyAccessQuery.isPending && canAccessHistory ? (
+							<Button type="button" variant="secondary" onClick={() => setHistoryOpen(true)} disabled={row == null}><HistoryIcon />History</Button>
+						) : null}
+						{actionRow != null ? renderActions(actionRow) : null}
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+
+			<Drawer open={historyOpen} onOpenChange={setHistoryOpen} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+					<DrawerHeader>
+						<DrawerTitle>Credit Application Assignment Request History</DrawerTitle>
+						<DrawerDescription>Changes are shown from the most recent version to the earliest version.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No credit application assignment selected.</p>
+						) : historyAccessQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-28 w-full" />
+								<Skeleton className="h-28 w-full" />
+							</div>
+						) : !canAccessHistory ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Unauthorized</AlertTitle>
+								<AlertDescription>You need Credit Application Assignment auditor access to view history.</AlertDescription>
+							</Alert>
+						) : historyQuery.isPending ? (
+							<div className="space-y-2">
+								<Skeleton className="h-28 w-full" />
+								<Skeleton className="h-28 w-full" />
+							</div>
+						) : historyQuery.isError || historyQuery.data == null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>Error</AlertTitle>
+								<AlertDescription>Unable to load assignment request history.</AlertDescription>
+							</Alert>
+						) : historyQuery.data.entries.length == 0 ? (
+							<p className="text-muted-foreground text-sm">No history entries found for this assignment request.</p>
+						) : (
+							historyQuery.data.entries.map(entry => (
+								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
+										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+									</div>
+									<div className="space-y-1">
+										{entry.changes.map(change => (
+											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed ? "border-primary/30 bg-primary/5" : "opacity-70")}>
+												<p className="font-medium">{change.label}</p>
+												<p className="text-muted-foreground">From: {change.previousValue}</p>
+												<p>To: {change.nextValue}</p>
+											</div>
+										))}
+									</div>
+								</div>
+							))
+						)}
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => setHistoryOpen(false)}>Close</Button>
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+		</>
+	);
+}
+
+type UseCreditApplicationAssignmentCellRendererOptions = {
+	relationValuesByRowId: Record<string, creditApplicationAssignmentActions.CreditApplicationAssignmentRelationValues>;
+	isRelationLoading: boolean;
+	relationNavigation?: CreditApplicationAssignmentRelationNavigation;
+	onOpenRequestChanges?: (row: CreditApplicationAssignmentTableRow) => void;
+};
+
+export function useCreditApplicationAssignmentCellRenderer({
+	relationValuesByRowId,
+	isRelationLoading,
+	relationNavigation,
+	onOpenRequestChanges
+}: UseCreditApplicationAssignmentCellRendererOptions) {
+	return useCallback((columnId: CreditApplicationAssignmentTableColumnId, row: CreditApplicationAssignmentTableRow) => {
+		const resolvedValues = relationValuesByRowId[row.id] ?? {};
+		switch(columnId) {
+			case "id":
+				return row.id;
+			case "creditApplication":
+				if(isRelationLoading && resolvedValues.creditApplication == null)
+					return <Skeleton className="h-4 w-32" />;
+				return renderCreditApplicationRelationValue({
+					value: resolvedValues.creditApplication ?? "-",
+					relationId: row.creditApplicationId,
+					relationNavigation
+				});
+			case "officer":
+				if(isRelationLoading && resolvedValues.officer == null)
+					return <Skeleton className="h-4 w-28" />;
+				return renderCreditApplicationAssignmentUserRelationValue({
+					column: "officer",
+					value: resolvedValues.officer ?? "-",
+					relationId: row.officerId,
+					relationNavigation,
+					stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId
+				});
+			case "createdBy":
+				if(isRelationLoading && resolvedValues.createdBy == null)
+					return <Skeleton className="h-4 w-28" />;
+				return renderCreditApplicationAssignmentUserRelationValue({
+					column: "createdBy",
+					value: resolvedValues.createdBy ?? "-",
+					relationId: row.createdById,
+					relationNavigation,
+					stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId
+				});
+			case "updatedBy":
+				if(isRelationLoading && resolvedValues.updatedBy == null)
+					return <Skeleton className="h-4 w-28" />;
+				return renderCreditApplicationAssignmentUserRelationValue({
+					column: "updatedBy",
+					value: resolvedValues.updatedBy ?? "-",
+					relationId: row.updatedById,
+					relationNavigation,
+					stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId
+				});
+			case "deletedBy":
+				if(isRelationLoading && resolvedValues.deletedBy == null)
+					return <Skeleton className="h-4 w-28" />;
+				return renderCreditApplicationAssignmentUserRelationValue({
+					column: "deletedBy",
+					value: resolvedValues.deletedBy ?? "-",
+					relationId: row.deletedById,
+					relationNavigation,
+					stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId
+				});
+			case "createdAt":
+				return formatDateTime(row.createdAt);
+			case "updatedAt":
+				return formatDateTime(row.updatedAt);
+			case "deletedAt":
+				return formatDateTime(row.deletedAt);
+			case "requestType":
+				return renderRequestTypeTrigger({ row, onOpenRequestChanges, className: "text-left whitespace-normal" });
+			case "status": {
+				const status = getReviewStatus(row);
+				return <Badge variant={status.variant}>{status.label}</Badge>;
+			}
+			case "reviewedAt":
+				return formatDateTime(row.reviewedAt);
+			case "reviewedBy":
+				if(isRelationLoading && resolvedValues.reviewedBy == null)
+					return <Skeleton className="h-4 w-28" />;
+				return renderCreditApplicationAssignmentUserRelationValue({
+					column: "reviewedBy",
+					value: resolvedValues.reviewedBy ?? "-",
+					relationId: row.reviewedById,
+					relationNavigation,
+					stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId
+				});
+			case "reviewApproved":
+				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
+			case "reviewCommentText":
+				return row.reviewCommentText.length > 0 ? row.reviewCommentText : "-";
+			default:
+				return "-";
+		}
+	}, [isRelationLoading, onOpenRequestChanges, relationValuesByRowId, relationNavigation]);
 }
 
 export function useCreditApplicationAssignmentColumnPreferences() {
 	const [isColumnOpen, setIsColumnOpen] = useState(false);
-	const [columnOrder, setColumnOrder] = useState<CreditApplicationAssignmentColumnId[]>(defaultCreditApplicationAssignmentColumnOrder);
-	const [hiddenColumnIds, setHiddenColumnIds] = useState<CreditApplicationAssignmentColumnId[]>(defaultCreditApplicationAssignmentHiddenColumns);
-	const [draggedColumnId, setDraggedColumnId] = useState<CreditApplicationAssignmentColumnId | null>(null);
+	const [columnOrder, setColumnOrder] = useState<CreditApplicationAssignmentTableColumnId[]>(defaultCreditApplicationAssignmentColumnOrder);
+	const [hiddenColumnIds, setHiddenColumnIds] = useState<CreditApplicationAssignmentTableColumnId[]>(defaultCreditApplicationAssignmentHiddenColumns);
+	const [draggedColumnId, setDraggedColumnId] = useState<CreditApplicationAssignmentTableColumnId | null>(null);
 
 	const columnById = useMemo(() => Object.fromEntries(
-		creditApplicationAssignmentColumns.map(column => [column.id, column])
-	) as Record<CreditApplicationAssignmentColumnId, CreditApplicationAssignmentColumnConfig>, []);
+		creditApplicationAssignmentTableColumns.map(column => [column.id, column])
+	) as Record<CreditApplicationAssignmentTableColumnId, CreditApplicationAssignmentTableColumnConfig>, []);
 
 	const orderedColumns = useMemo(() => {
 		const normalizedOrder = [
@@ -305,25 +1728,24 @@ export function useCreditApplicationAssignmentColumnPreferences() {
 	useEffect(() => {
 		if(typeof window == "undefined")
 			return;
-
 		const rawPreferences = window.localStorage.getItem(CREDIT_APPLICATION_ASSIGNMENT_COLUMN_PREFERENCES_KEY);
 		if(rawPreferences == null)
 			return;
 
 		try {
 			const parsed = JSON.parse(rawPreferences) as { order?: unknown, hidden?: unknown };
-			const parsedOrder = Array.isArray(parsed.order) ? parsed.order.filter((value): value is CreditApplicationAssignmentColumnId => (
-				typeof value == "string" && defaultCreditApplicationAssignmentColumnOrder.includes(value as CreditApplicationAssignmentColumnId)
-			)) : [];
+			const parsedOrder = Array.isArray(parsed.order) ? parsed.order.filter((value): value is CreditApplicationAssignmentTableColumnId =>
+				typeof value == "string" && defaultCreditApplicationAssignmentColumnOrder.includes(value as CreditApplicationAssignmentTableColumnId)
+			) : [];
 			const deduplicatedOrder = parsedOrder.filter((columnId, index) => parsedOrder.indexOf(columnId) == index);
 			setColumnOrder([
 				...deduplicatedOrder,
 				...defaultCreditApplicationAssignmentColumnOrder.filter(columnId => !deduplicatedOrder.includes(columnId))
 			]);
 
-			const parsedHidden = Array.isArray(parsed.hidden) ? parsed.hidden.filter((value): value is CreditApplicationAssignmentColumnId => (
-				typeof value == "string" && defaultCreditApplicationAssignmentColumnOrder.includes(value as CreditApplicationAssignmentColumnId)
-			)) : [];
+			const parsedHidden = Array.isArray(parsed.hidden) ? parsed.hidden.filter((value): value is CreditApplicationAssignmentTableColumnId =>
+				typeof value == "string" && defaultCreditApplicationAssignmentColumnOrder.includes(value as CreditApplicationAssignmentTableColumnId)
+			) : [];
 			const deduplicatedHidden = parsedHidden.filter((columnId, index) => parsedHidden.indexOf(columnId) == index);
 			setHiddenColumnIds(deduplicatedHidden.slice(0, Math.max(defaultCreditApplicationAssignmentColumnOrder.length - 1, 0)));
 		} catch{
@@ -335,21 +1757,20 @@ export function useCreditApplicationAssignmentColumnPreferences() {
 	useEffect(() => {
 		if(typeof window == "undefined")
 			return;
-
 		window.localStorage.setItem(CREDIT_APPLICATION_ASSIGNMENT_COLUMN_PREFERENCES_KEY, JSON.stringify({
 			order: columnOrder,
 			hidden: hiddenColumnIds
 		}));
 	}, [columnOrder, hiddenColumnIds]);
 
-	const toggleColumnVisibility = (columnId: CreditApplicationAssignmentColumnId, checked: boolean) => {
+	const toggleColumnVisibility = (columnId: CreditApplicationAssignmentTableColumnId, checked: boolean) => {
 		setHiddenColumnIds(previous => {
 			const isHidden = previous.includes(columnId);
 			if(checked)
 				return isHidden ? previous.filter(value => value != columnId) : previous;
 			if(isHidden)
 				return previous;
-			const visibleCount = creditApplicationAssignmentColumns.length - previous.length;
+			const visibleCount = creditApplicationAssignmentTableColumns.length - previous.length;
 			if(visibleCount <= 1)
 				return previous;
 			return [...previous, columnId];
@@ -361,15 +1782,15 @@ export function useCreditApplicationAssignmentColumnPreferences() {
 		setHiddenColumnIds(defaultCreditApplicationAssignmentHiddenColumns);
 	};
 
-	const handleColumnDragStart = (columnId: CreditApplicationAssignmentColumnId) => {
+	const handleColumnDragStart = (columnId: CreditApplicationAssignmentTableColumnId) => {
 		setDraggedColumnId(columnId);
 	};
 
-	const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, targetColumnId: CreditApplicationAssignmentColumnId) => {
+	const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, targetColumnId: CreditApplicationAssignmentTableColumnId) => {
 		event.preventDefault();
 		if(draggedColumnId == null || draggedColumnId == targetColumnId)
 			return;
-		setColumnOrder(previous => reorderCreditApplicationAssignmentColumns(previous, draggedColumnId, targetColumnId));
+		setColumnOrder(previous => reorderColumns(previous, draggedColumnId, targetColumnId));
 	};
 
 	const handleColumnDragEnd = () => {
@@ -390,149 +1811,62 @@ export function useCreditApplicationAssignmentColumnPreferences() {
 	};
 }
 
-type UseCreditApplicationAssignmentFiltersOptions = {
-	getResolvedFilterColumnConfig: (column: CreditApplicationAssignmentFilterColumn) => CreditApplicationAssignmentFilterColumnOption;
-};
+export function useCreditApplicationAssignmentFilterColumnConfig() {
+	const searchCreditApplicationOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const creditApplications = await creditApplicationAssignmentActions.searchCreditApplicationOptionsAction(keyword, selectedValues);
+		return dedupeSelectOptions(creditApplications.map(creditApplication => ({
+			value: creditApplication.id,
+			label: `${creditApplication.name} (${creditApplication.id})`,
+			renderLabel: <span>{creditApplication.name} (<span className="font-mono">{creditApplication.id}</span>)</span>,
+			keywords: `${creditApplication.id} ${creditApplication.name} ${creditApplication.email}`
+		})));
+	}, []);
 
-export type UseCreditApplicationAssignmentFiltersResult = {
-	isFilterOpen: boolean;
-	isFilterStateReady: boolean;
-	setIsFilterOpen: (open: boolean) => void;
-	toggleFilterPanel: () => void;
-	clearFilter: () => void;
-	appliedFilters: accountAssignmentActions.AccountAssignmentFilterInput[];
-	filterSummaryItems: CreditApplicationAssignmentFilterSummaryItem[];
-	filters: CreditApplicationAssignmentFilterCondition[];
-	updateFilter: (index: number, update: Partial<CreditApplicationAssignmentFilterCondition>) => void;
-	addFilter: () => void;
-	removeFilter: (index: number) => void;
-};
+	const searchOfficerOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const officers = await creditApplicationAssignmentActions.searchCreditApplicationAssignmentOfficerOptionsAction(keyword, selectedValues);
+		return dedupeSelectOptions(officers.map(officer => ({
+			value: officer.id,
+			label: `${officer.name} (${officer.email})`,
+			keywords: `${officer.name} ${officer.email}`
+		})));
+	}, []);
 
-function resolveCreditApplicationAssignmentFilterValueLabel(
-	filter: CreditApplicationAssignmentFilterCondition,
-	columnConfig: CreditApplicationAssignmentFilterColumnOption
-): string {
-	if(filter.operator == "exists")
-		return filter.existsValue;
+	const searchAuditUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const users = await creditApplicationAssignmentActions.searchCreditApplicationAssignmentAuditUserOptionsAction(keyword, selectedValues);
+		return dedupeSelectOptions(users.map(user => ({
+			value: user.id,
+			label: `${user.name} (${user.email})`,
+			keywords: `${user.name} ${user.email}`
+		})));
+	}, []);
 
-	if(filter.operator == "in" || filter.operator == "not_in") {
-		const values = filter.value
-			.split(",")
-			.map(value => value.trim())
-			.filter(value => value.length > 0);
-		if(values.length == 0)
-			return "(empty)";
-		if(columnConfig.selectOptions == null)
-			return values.join(", ");
-		return values.map(value => columnConfig.selectOptions?.find(option => option.value == value)?.label ?? value).join(", ");
-	}
-
-	if(filter.value.trim().length == 0)
-		return "(empty)";
-
-	if(columnConfig.selectOptions == null)
-		return filter.value;
-
-	return columnConfig.selectOptions.find(option => option.value == filter.value)?.label ?? filter.value;
-}
-
-export function useCreditApplicationAssignmentFilters({
-	getResolvedFilterColumnConfig
-}: UseCreditApplicationAssignmentFiltersOptions): UseCreditApplicationAssignmentFiltersResult {
-	const [isFilterOpen, setIsFilterOpen] = useState(false);
-	const [filters, setFilters] = useState<CreditApplicationAssignmentFilterCondition[]>([]);
-
-	const appliedFilters = useMemo(() => mapCreditApplicationAssignmentFiltersToAppliedFilters(filters), [filters]);
-
-	const filterSummaryItems = useMemo(() => (
-		filters.map((filter, index) => {
-			const columnConfig = getResolvedFilterColumnConfig(filter.column);
-			return {
-				combinator: index == 0 ? null : filter.joinWithPrevious.toUpperCase(),
-				columnLabel: columnConfig.label,
-				operatorLabel: filter.operator,
-				valueLabel: resolveCreditApplicationAssignmentFilterValueLabel(filter, columnConfig)
-			};
-		})
-	), [filters, getResolvedFilterColumnConfig]);
-
-	const updateFilter = (index: number, update: Partial<CreditApplicationAssignmentFilterCondition>) => {
-		setFilters(previous => previous.map((filter, filterIndex) => {
-			if(filterIndex != index)
-				return filter;
-
-			let nextFilter: CreditApplicationAssignmentFilterCondition = {
-				...filter,
-				...update
-			};
-
-			if(update.column != null) {
-				const columnConfig = getResolvedFilterColumnConfig(update.column);
-				nextFilter.operator = columnConfig.operators.includes(nextFilter.operator) ? nextFilter.operator : columnConfig.operators[0];
-				if(update.column != filter.column) {
-					nextFilter.value = "";
-					nextFilter.values = [];
-					nextFilter.existsValue = "true";
-				}
-			}
-
-			if(update.operator != null && update.operator != filter.operator) {
-				nextFilter.value = "";
-				nextFilter.values = [];
-				nextFilter.existsValue = "true";
-			}
-
-			return nextFilter;
-		}));
-	};
-
-	const addFilter = () => {
-		setFilters(previous => [...previous, createCreditApplicationAssignmentFilterCondition()]);
-	};
-
-	const removeFilter = (index: number) => {
-		setFilters(previous => previous.filter((_, filterIndex) => filterIndex != index));
-	};
-
-	const clearFilter = () => {
-		setFilters([]);
-	};
-
-	const toggleFilterPanel = () => {
-		setIsFilterOpen(previous => !previous);
-	};
+	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
+		getResolvedCreditApplicationAssignmentFilterColumnConfig(column, [], [], [], searchCreditApplicationOptions, searchOfficerOptions, searchAuditUserOptions)
+	), [searchAuditUserOptions, searchCreditApplicationOptions, searchOfficerOptions]);
 
 	return {
-		isFilterOpen,
-		isFilterStateReady: true,
-		setIsFilterOpen,
-		toggleFilterPanel,
-		clearFilter,
-		appliedFilters,
-		filterSummaryItems,
-		filters,
-		updateFilter,
-		addFilter,
-		removeFilter
+		searchCreditApplicationOptions,
+		searchOfficerOptions,
+		getResolvedFilterColumnConfig
 	};
 }
 
-type UseCreditApplicationAssignmentQueryStateOptions = {
+type UseCreditApplicationAssignmentManagementQueryStateOptions = {
 	debounceMs?: number;
-	defaultSortField?: CreditApplicationAssignmentSortField | null;
-	defaultSortDirection?: "asc" | "desc";
+	defaultSortField?: SortField;
+	defaultSortDirection?: SortDirection;
 };
 
-export function useCreditApplicationAssignmentQueryState({
+export function useCreditApplicationAssignmentManagementQueryState({
 	debounceMs = 250,
-	defaultSortField = null,
+	defaultSortField = "updatedAt",
 	defaultSortDirection = "desc"
-}: UseCreditApplicationAssignmentQueryStateOptions = {}) {
+}: UseCreditApplicationAssignmentManagementQueryStateOptions = {}) {
 	const [keyword, setKeyword] = useState("");
 	const [debouncedKeyword, setDebouncedKeyword] = useState("");
-	const [sortState, setSortState] = useState<Array<{ field: CreditApplicationAssignmentSortField, direction: "asc" | "desc" }>>(
-		defaultSortField == null ? [] : [{ field: defaultSortField, direction: defaultSortDirection }]
-	);
+	const [sortState, setSortState] = useState<Array<{ field: SortField, direction: SortDirection }>>([
+		{ field: defaultSortField, direction: defaultSortDirection }
+	]);
 
 	const sortTokens = useMemo(() => (
 		sortState.map(sortItem => `${sortItem.direction == "desc" ? "-" : "+"}${sortItem.field}`)
@@ -547,12 +1881,12 @@ export function useCreditApplicationAssignmentQueryState({
 		};
 	}, [debounceMs, keyword]);
 
-	const getSortDirection = (field: CreditApplicationAssignmentSortField): "asc" | "desc" | null => {
+	const getSortDirection = (field: SortField): SortDirection | null => {
 		const activeSort = sortState.find(sortItem => sortItem.field == field);
 		return activeSort?.direction ?? null;
 	};
 
-	const toggleSortField = (field: CreditApplicationAssignmentSortField) => {
+	const toggleSortField = (field: SortField) => {
 		setSortState(previous => {
 			const current = previous.find(sortItem => sortItem.field == field);
 			if(current == null)
@@ -573,94 +1907,35 @@ export function useCreditApplicationAssignmentQueryState({
 	};
 }
 
-export function useCreditApplicationAssignmentsQuery(input: Omit<CreditApplicationAssignmentQueryInput, "mode"> & { mode: CreditApplicationAssignmentQueryMode }) {
-	const { mode, debouncedKeyword, sortTokens, appliedFilters, isFilterStateReady, page, limit, enabled = true } = input;
-	return useQuery<CreditApplicationAssignmentQueryResult, Error>({
-		queryKey: ["credit-application-assignment", "query", {
-			mode,
-			debouncedKeyword,
-			sortTokens,
-			appliedFilters,
-			page,
-			limit
-		}],
-		enabled: enabled && isFilterStateReady,
-		queryFn: async () => {
-			if(mode == "approver")
-				return await accountAssignmentActions.queryApproverAssignmentsAction({
-					keyword: debouncedKeyword,
-					sort: sortTokens,
-					filters: appliedFilters,
-					page,
-					limit
-				});
-			if(mode == "viewer")
-				return await accountAssignmentActions.queryViewerAssignmentsAction({
-					keyword: debouncedKeyword,
-					sort: sortTokens,
-					filters: appliedFilters,
-					page,
-					limit
-				});
-			return await accountAssignmentActions.queryEditorAssignmentsAction({
-				keyword: debouncedKeyword,
-				sort: sortTokens,
-				filters: appliedFilters,
-				page,
-				limit
-			});
-		},
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-}
-
 type UseCreditApplicationAssignmentRelationsOptions = {
-	docs: CreditApplicationAssignmentRow[];
-	visibleColumns: CreditApplicationAssignmentColumnConfig[];
+	docs: CreditApplicationAssignmentTableRow[];
+	visibleColumns: CreditApplicationAssignmentTableColumnConfig[];
 };
 
-const assignmentRelationColumnByTableColumn: Partial<Record<CreditApplicationAssignmentColumnId, accountAssignmentActions.AccountAssignmentRelationColumn>> = {
-	applyId: "account",
-	accountName: "account",
-	officerName: "user"
-};
-
-export function useCreditApplicationAssignmentRelations({ docs, visibleColumns }: UseCreditApplicationAssignmentRelationsOptions) {
-	const visibleRelationColumns = useMemo(() => {
-		const columns = new Set<accountAssignmentActions.AccountAssignmentRelationColumn>([
-			"createdBy",
-			"updatedBy",
-			"deletedBy",
-			"reviewedBy"
-		]);
-
-		for(const column of visibleColumns) {
-			const relationColumn = assignmentRelationColumnByTableColumn[column.id];
-			if(relationColumn != null)
-				columns.add(relationColumn);
-		}
-
-		return [...columns];
-	}, [visibleColumns]);
+export function useCreditApplicationAssignmentRelations({
+	docs,
+	visibleColumns
+}: UseCreditApplicationAssignmentRelationsOptions) {
+	const visibleRelationColumns = useMemo(() => (
+		visibleColumns
+			.map(column => column.id)
+			.filter((columnId): columnId is CreditApplicationAssignmentRelationColumn => creditApplicationAssignmentRelationColumnSet.has(columnId as CreditApplicationAssignmentRelationColumn))
+	), [visibleColumns]);
 
 	const relationRows = useMemo(() => docs.map(row => ({
-		assignmentId: row.assignmentId,
-		applyId: row.applyId,
-		userId: row.userId,
+		id: row.id,
+		creditApplicationId: row.creditApplicationId,
+		officerId: row.officerId,
+		reviewedById: row.reviewedById,
 		createdById: row.createdById,
 		updatedById: row.updatedById,
-		deletedById: row.deletedById,
-		reviewedById: row.reviewedById
+		deletedById: row.deletedById
 	})), [docs]);
 
 	const relationsQuery = useQuery({
-		queryKey: ["credit-application-assignment", "relations", {
-			rows: relationRows,
-			columns: visibleRelationColumns
-		}],
+		queryKey: ["credit-application-assignment", "relations", { rows: relationRows, columns: visibleRelationColumns }],
 		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => accountAssignmentActions.resolveAccountAssignmentRelationColumnsAction({
+		queryFn: () => creditApplicationAssignmentActions.resolveCreditApplicationAssignmentRelationColumnsAction({
 			rows: relationRows,
 			columns: visibleRelationColumns
 		}),
@@ -670,648 +1945,452 @@ export function useCreditApplicationAssignmentRelations({ docs, visibleColumns }
 
 	const relationValuesByRowId = useMemo(() => Object.fromEntries(
 		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	) as Record<string, accountAssignmentActions.AccountAssignmentRelationValues>, [relationsQuery.data]);
+	) as Record<string, creditApplicationAssignmentActions.CreditApplicationAssignmentRelationValues>, [relationsQuery.data]);
+	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
 
 	return {
 		relationValuesByRowId,
-		isRelationLoading: relationsQuery.isPending || relationsQuery.isFetching
+		isRelationLoading
 	};
 }
 
-type UseCreditApplicationAssignmentCellRendererOptions = CreditApplicationCellRenderContext & {
-	relationValuesByRowId: Record<string, accountAssignmentActions.AccountAssignmentRelationValues>;
-	isRelationLoading: boolean;
+type UseCreditApplicationAssignmentRequestFiltersOptions = {
+	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption;
 };
 
-export function useCreditApplicationAssignmentCellRenderer({
-	hasEditorAccess,
-	hasAuditorAccess,
-	relationNavigation,
-	relationValuesByRowId,
-	isRelationLoading
-}: UseCreditApplicationAssignmentCellRendererOptions) {
-	const renderRelationCell = ({
-		label,
-		value,
-		type,
-		id,
-		targetManagementKey,
-		relationFilters,
-		relationContext
-	}: {
-		label: string;
-		value: string;
-		type?: "user" | "role" | "team";
-		id: string | null;
-		targetManagementKey: "user-management" | "role-management" | "team-management" | "credit-application-assignment";
-		relationFilters?: unknown;
-		relationContext?: string;
-	}) => {
-		if(id == null || value.trim().length == 0)
-			return value;
+export type UseCreditApplicationAssignmentRequestFiltersResult = {
+	isFilterOpen: boolean;
+	isFilterStateReady: boolean;
+	setIsFilterOpen: (open: boolean) => void;
+	toggleFilterPanel: () => void;
+	clearFilter: () => void;
+	appliedFilters: FilterInput[];
+	filterSummaryItems: FilterSummaryItem[];
+	filters: FilterCondition[];
+	updateFilterJoinWithPrevious: (filterIndex: number, combinator: FilterCombinator) => void;
+	updateFilter: (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
+	handleFilterColumnChange: (filterIndex: number, column: FilterColumn) => void;
+	handleFilterOperatorChange: (filterIndex: number, operator: FilterColumnOption["operators"][number]) => void;
+	addFilter: () => void;
+	removeFilter: (filterIndex: number) => void;
+	addFilterListValue: (filterIndex: number) => void;
+	updateFilterListValue: (filterIndex: number, valueIndex: number, nextValue: string) => void;
+	removeFilterListValue: (filterIndex: number, valueIndex: number) => void;
+};
 
-		if(relationNavigation == null)
-			return value;
-
-		if(!hasEditorAccess && !hasAuditorAccess)
-			return value;
-
-		const hrefBase = relationNavigation.getHrefBase(targetManagementKey);
-		if(hasEditorAccess && hrefBase != null && relationFilters != null) {
-			const href = hrefBase;
-			return (
-				<Link
-					href={href}
-					onClick={event => {
-						if(type != null && event.altKey) {
-							event.preventDefault();
-							relationNavigation.onOpenSummary({
-								type,
-								id,
-								fallbackTitle: value,
-								fallbackDescription: `${label} relation`
-							});
-							return;
-						}
-						relationNavigation.onRelationLinkClick(event, {
-							targetManagementKey,
-							hrefBase,
-							relationFilters,
-							relationContext
-						});
-					}}
-					className="text-primary underline underline-offset-2 hover:opacity-80"
-				>
-					{value}
-				</Link>
-			);
-		}
-
-		if(type == null)
-			return value;
-
-		return (
-			<Button
-				type="button"
-				variant="link"
-				onClick={() => relationNavigation.onOpenSummary({ type, id, fallbackTitle: value, fallbackDescription: `${label} relation` })}
-				className="h-auto p-0 text-primary"
-			>
-				{value}
-			</Button>
-		);
-	};
-
-	const renderCell = (columnId: CreditApplicationAssignmentColumnId, row: CreditApplicationAssignmentRow): ReactNode => {
-		const rowKey = getCreditApplicationAssignmentRowKey(row);
-		const relationValues = relationValuesByRowId[rowKey] ?? {};
-
-		if(columnId == "applyId")
-			return <span className="font-mono text-xs">{row.applyId}</span>;
-		if(columnId == "accountName") {
-			const accountLabel = relationValues.account ?? row.accountName;
-			return renderRelationCell({
-				label: "Credit Application",
-				value: accountLabel,
-				targetManagementKey: "credit-application-assignment",
-				id: row.applyId.length > 0 ? row.applyId : null,
-				relationFilters: row.applyId.length == 0 ? undefined : [{ column: "applyId", operator: "equals", value: row.applyId }],
-				relationContext: "credit-application-assignment:account"
-			});
-		}
-		if(columnId == "officerName") {
-			if(isRelationLoading && relationValues.user == null && row.officerName == null)
-				return "-";
-
-			const label = relationValues.user ?? row.officerName ?? "-";
-			return renderRelationCell({
-				label: "Officer",
-				value: label,
-				type: "user",
-				id: row.userId,
-				targetManagementKey: "user-management",
-				relationFilters: row.userId == null ? undefined : [{ column: "id", operator: "equals", value: row.userId }],
-				relationContext: "credit-application-assignment:user"
-			});
-		}
-		if(columnId == "address")
-			return row.address;
-		if(columnId == "productCode")
-			return row.productCode;
-		const status = row.assignmentStatus;
-		if(status == "approved")
-			return <Badge variant="default">Approved</Badge>;
-		if(status == "rejected")
-			return <Badge variant="destructive">Rejected</Badge>;
-		if(status == "pending_approval")
-			return <Badge variant="secondary">Pending Approval</Badge>;
-		return <Badge variant="outline">-</Badge>;
-	};
+function mapAppliedFilterToCondition(
+	filter: FilterInput,
+	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption
+): FilterCondition {
+	const columnConfig = getResolvedFilterColumnConfig(filter.column);
+	const values = Array.isArray(filter.value) ? filter.value.map(value => {
+		if(columnConfig.valueType != "date")
+			return String(value);
+		const parsed = parseFilterDateValue(String(value));
+		return parsed == null ? String(value) : formatFilterDateInput(parsed);
+	}) : [];
+	const parsedDate = !Array.isArray(filter.value) && columnConfig.valueType == "date" && typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null;
 
 	return {
-		renderCell,
-		renderRelationCell
+		column: filter.column,
+		operator: filter.operator,
+		joinWithPrevious: filter.joinWithPrevious ?? defaultFilterCombinator,
+		value: Array.isArray(filter.value) || filter.value == null ? "" : String(filter.value),
+		values,
+		existsValue: filter.value == false ? "false" : "true",
+		dateValue: parsedDate,
+		listDateValue: null,
+		dateText: formatFilterDateOnlyInput(parsedDate),
+		listDateText: ""
 	};
 }
 
-export function CreditApplicationActiveFiltersSummary({
-	items
-}: {
-	items: Array<{ combinator: string | null; columnLabel: string; operatorLabel: string; valueLabel: string }>;
-}) {
-	if(items.length == 0)
-		return null;
+function createFilterConditionsFromAppliedFilters(
+	appliedFilters: FilterInput[],
+	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption
+): FilterCondition[] {
+	if(appliedFilters.length == 0)
+		return [];
 
-	return (
-		<div className="rounded-lg border border-dashed px-3 py-2 text-xs">
-			<p className="text-muted-foreground font-medium">Active filters</p>
-			<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-				{items.map((item, index) => (
-					<span key={index} className="inline-flex items-center gap-1.5">
-						{item.combinator != null ? <span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">{item.combinator}</span> : null}
-						<span className="bg-background rounded border px-2 py-0.5">
-							<span className="font-semibold">{item.columnLabel}</span>
-							<span className="text-muted-foreground mx-1 italic">{item.operatorLabel}</span>
-							<span className="font-mono text-[11px]">{item.valueLabel}</span>
-						</span>
-					</span>
-				))}
-			</div>
-		</div>
-	);
+	return appliedFilters.map(filter => mapAppliedFilterToCondition(filter, getResolvedFilterColumnConfig));
 }
 
-export function CreditApplicationColumnConfigCard({
-	isOpen,
-	onOpenChange,
-	orderedColumns,
-	hiddenColumnIds,
-	onToggleColumnVisibility,
-	onReset,
-	onColumnDragStart,
-	onColumnDragOver,
-	onColumnDragEnd
-}: {
-	isOpen: boolean;
-	onOpenChange: (open: boolean) => void;
-	orderedColumns: CreditApplicationAssignmentColumnConfig[];
-	hiddenColumnIds: CreditApplicationAssignmentColumnId[];
-	onToggleColumnVisibility: (columnId: CreditApplicationAssignmentColumnId, checked: boolean) => void;
-	onReset: () => void;
-	onColumnDragStart: (columnId: CreditApplicationAssignmentColumnId) => void;
-	onColumnDragOver: (event: DragEvent<HTMLDivElement>, targetColumnId: CreditApplicationAssignmentColumnId) => void;
-	onColumnDragEnd: () => void;
-}) {
-	return (
-		<Collapsible open={isOpen} onOpenChange={onOpenChange}>
-			<CollapsibleContent>
-				<div className="space-y-3 rounded-xl border p-4">
-					<div className="flex items-center justify-between">
-						<div className="space-y-1">
-							<h3 className="text-sm font-semibold">Configure Columns</h3>
-							<p className="text-muted-foreground text-sm">Toggle visibility and drag cards to reorder columns.</p>
-						</div>
-						<Button type="button" variant="outline" size="sm" onClick={onReset}>Reset</Button>
-					</div>
-					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-						{orderedColumns.map(column => {
-							const isVisible = !hiddenColumnIds.includes(column.id);
-							const isOnlyVisibleColumn = isVisible && hiddenColumnIds.length >= orderedColumns.length - 1;
-							return (
-								<div
-									key={column.id}
-									draggable
-									onDragStart={() => onColumnDragStart(column.id)}
-									onDragOver={event => onColumnDragOver(event, column.id)}
-									onDragEnd={onColumnDragEnd}
-									onDrop={onColumnDragEnd}
-									className="hover:bg-muted/60 flex h-full min-h-14 items-center gap-3 rounded-lg border px-3 py-1.5 text-left"
-								>
-									<GripVerticalIcon className="text-muted-foreground size-4 shrink-0" />
-									<Checkbox checked={isVisible} disabled={isOnlyVisibleColumn} onCheckedChange={checked => onToggleColumnVisibility(column.id, checked == true)} />
-									<div className="min-w-0 flex-1"><p className="text-sm font-medium">{column.label}</p></div>
-								</div>
-							);
-						})}
-					</div>
-				</div>
-			</CollapsibleContent>
-		</Collapsible>
-	);
+declare global {
+	interface Window {
+		__creditApplicationAssignmentDashboardFilters?: string;
+	}
 }
 
-export function CreditApplicationAssignmentFilterCard({
-	isOpen,
-	onOpenChange,
-	filters,
-	getResolvedFilterColumnConfig,
-	onUpdateFilter,
-	onAddFilter,
-	onRemoveFilter,
-	onClearFilters,
-	isLoading,
-	isMutating
-}: {
-	isOpen: boolean;
-	onOpenChange: (open: boolean) => void;
-	filters: CreditApplicationAssignmentFilterCondition[];
-	getResolvedFilterColumnConfig: (column: CreditApplicationAssignmentFilterColumn) => CreditApplicationAssignmentFilterColumnOption;
-	onUpdateFilter: (index: number, update: Partial<CreditApplicationAssignmentFilterCondition>) => void;
-	onAddFilter: () => void;
-	onRemoveFilter: (index: number) => void;
-	onClearFilters: () => void;
-	isLoading: boolean;
-	isMutating: boolean;
-}) {
-	return (
-		<Collapsible open={isOpen} onOpenChange={onOpenChange}>
-			<CollapsibleContent>
-				<div className="space-y-3 rounded-xl border p-4">
-					<div className="flex items-center justify-between gap-2">
-						<div className="space-y-1">
-							<h3 className="text-sm font-semibold">Configure Filters</h3>
-							<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
-						</div>
-						{filters.length > 0 ? <Button type="button" variant="outline" size="sm" onClick={onClearFilters} disabled={isLoading || isMutating}>Clear Filter</Button> : null}
-					</div>
-					{filters.map((filter, index) => {
-						const columnConfig = getResolvedFilterColumnConfig(filter.column);
-						return (
-							<div key={index} className="space-y-3 rounded-lg border p-3">
-								<div className="flex items-center justify-between">
-									<p className="text-sm font-medium">Filter {index + 1}</p>
-									<Button type="button" variant="ghost" size="sm" onClick={() => onRemoveFilter(index)} disabled={isMutating}><XIcon />Remove</Button>
-								</div>
-								<div className="grid gap-3 sm:grid-cols-2">
-									<Select value={filter.column} onValueChange={value => onUpdateFilter(index, { column: value as CreditApplicationAssignmentFilterColumn })}>
-										<SelectTrigger><SelectValue placeholder="Select column" /></SelectTrigger>
-										<SelectContent>
-											{creditApplicationAssignmentFilterColumns.map(column => <SelectItem key={column.value} value={column.value}>{column.label}</SelectItem>)}
-										</SelectContent>
-									</Select>
-									<Select value={filter.operator} onValueChange={value => onUpdateFilter(index, { operator: value as CreditApplicationAssignmentFilterOperator })}>
-										<SelectTrigger><SelectValue placeholder="Select operator" /></SelectTrigger>
-										<SelectContent>
-											{columnConfig.operators.map(operator => <SelectItem key={operator} value={operator}>{operator}</SelectItem>)}
-										</SelectContent>
-									</Select>
-								</div>
-								{filter.operator == "exists" ? (
-									<Select value={filter.existsValue} onValueChange={value => onUpdateFilter(index, { existsValue: value as "true" | "false" })}>
-										<SelectTrigger><SelectValue placeholder="Select value" /></SelectTrigger>
-										<SelectContent>
-											<SelectItem value="true">True</SelectItem>
-											<SelectItem value="false">False</SelectItem>
-										</SelectContent>
-									</Select>
-								) : columnConfig.selectOptions != null ? (
-									<SearchableSelect
-										value={filter.value}
-										onValueChange={value => onUpdateFilter(index, { value })}
-										options={columnConfig.selectOptions.map(option => ({ value: option.value, label: option.label }))}
-										onSearch={columnConfig.searchOptionsAction}
-										placeholder="Select value"
-									/>
-								) : (
-									<Input value={filter.value} onChange={event => onUpdateFilter(index, { value: event.target.value })} placeholder={columnConfig.placeholder ?? "Enter value"} />
-								)}
-							</div>
-						);
-					})}
-					<Button type="button" variant="outline" onClick={onAddFilter} disabled={isMutating}><PlusIcon />Add Filter</Button>
-				</div>
-			</CollapsibleContent>
-		</Collapsible>
-	);
-}
+export function useCreditApplicationAssignmentRequestFilters({
+	getResolvedFilterColumnConfig
+}: UseCreditApplicationAssignmentRequestFiltersOptions): UseCreditApplicationAssignmentRequestFiltersResult {
+	const pathname = usePathname();
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const searchParamsKey = searchParams.toString();
+	const [isFilterOpen, setIsFilterOpen] = useState(false);
+	const [filters, setFilters0] = useState<FilterCondition[]>([]);
+	const setFilters = useCallback((v: FilterCondition[] | ((o: FilterCondition[]) => FilterCondition[])) => {
+		if(typeof v != "function") {
+			window.__creditApplicationAssignmentDashboardFilters = JSON.stringify(v);
+			setFilters0(v);
+			return;
+		}
+		setFilters0(o => {
+			const n = v(o);
+			window.__creditApplicationAssignmentDashboardFilters = JSON.stringify(n);
+			return n;
+		});
+	}, [setFilters0]);
+	const [isFilterStateHydrated, setIsFilterStateHydrated] = useState(false);
 
-export function CreditApplicationAssignmentTable({
-	rows,
-	visibleColumns,
-	isLoading,
-	isMutating,
-	includeActions = true,
-	getSortDirection,
-	onToggleSortField,
-	onOpenDetails,
-	renderCell,
-	renderActions
-}: {
-	rows: CreditApplicationAssignmentRow[];
-	visibleColumns: CreditApplicationAssignmentColumnConfig[];
-	isLoading: boolean;
-	isMutating: boolean;
-	includeActions?: boolean;
-	getSortDirection: (field: CreditApplicationAssignmentSortField) => "asc" | "desc" | null;
-	onToggleSortField: (field: CreditApplicationAssignmentSortField) => void;
-	onOpenDetails: (row: CreditApplicationAssignmentRow) => void;
-	renderCell: (columnId: CreditApplicationAssignmentColumnId, row: CreditApplicationAssignmentRow) => ReactNode;
-	renderActions: (row: CreditApplicationAssignmentRow) => ReactNode;
-}) {
-	const renderSortIcon = (field: CreditApplicationAssignmentSortField) => {
-		const direction = getSortDirection(field);
-		if(direction == "asc")
-			return <ArrowUpIcon className="size-3.5" />;
-		if(direction == "desc")
-			return <ArrowDownIcon className="size-3.5" />;
-		return <ArrowUpDownIcon className="text-muted-foreground size-3.5" />;
+	useEffect(() => {
+		const nextSearchParams = new URLSearchParams(searchParamsKey);
+		const pendingNavigation = consumePendingRelationFilterNavigation("credit-application-assignment");
+		const relationFilters = pendingNavigation?.relationFiltersJson ?? nextSearchParams.get(RELATION_FILTER_QUERY_PARAM) ?? window.__creditApplicationAssignmentDashboardFilters ?? null;
+		if(relationFilters != null) {
+			try {
+				const parsed = JSON.parse(relationFilters) as unknown;
+				const parsedFilters = Array.isArray(parsed) ? parsed.filter((filter): filter is FilterInput => (
+					filter != null &&
+					typeof filter == "object" &&
+					typeof (filter as { column?: unknown }).column == "string" &&
+					typeof (filter as { operator?: unknown }).operator == "string"
+				)) : [];
+				const restoredFilters = createFilterConditionsFromAppliedFilters(parsedFilters, getResolvedFilterColumnConfig);
+				setFilters(restoredFilters);
+				if(restoredFilters.length > 0)
+					setIsFilterOpen(true);
+				setIsFilterStateHydrated(true);
+				return;
+			} catch{
+				setFilters([]);
+				setIsFilterOpen(false);
+				setIsFilterStateHydrated(true);
+				return;
+			}
+		}
+
+		setFilters([]);
+		setIsFilterOpen(false);
+		setIsFilterStateHydrated(true);
+	}, [getResolvedFilterColumnConfig, searchParamsKey]);
+
+	const normalizeFilterItemValue = (columnConfig: FilterColumnOption, rawValue: string): string | boolean | null => {
+		if(columnConfig.valueType == "boolean")
+			return rawValue == "true" ? true : rawValue == "false" ? false : null;
+		if(columnConfig.valueType == "date") {
+			const dateValue = parseFilterDateValue(rawValue);
+			return dateValue == null ? null : dateValue.toISOString();
+		}
+		const trimmed = rawValue.trim();
+		return trimmed.length > 0 ? trimmed : null;
 	};
 
-	return (
-		<div className="rounded-xl border">
-			<Table>
-				<TableHeader>
-					<TableRow>
-						{visibleColumns.map(column => column.sortField != null ? (
-							<TableHead key={column.id} className={column.headClassName}>
-								<Button type="button" variant="ghost" size="sm" onClick={() => onToggleSortField(column.sortField!)} disabled={isLoading || isMutating} className="-ml-2 h-7 gap-1 px-2">
-									{column.label}
-									{renderSortIcon(column.sortField)}
-								</Button>
-							</TableHead>
-						) : (
-							<TableHead key={column.id} className={column.headClassName}>{column.label}</TableHead>
-						))}
-						{includeActions ? <TableHead className="w-65">Actions</TableHead> : null}
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{isLoading ? (
-						<TableRow><TableCell colSpan={visibleColumns.length + (includeActions ? 1 : 0)} className="text-muted-foreground py-8 text-center">Loading assignments...</TableCell></TableRow>
-					) : null}
-					{!isLoading && rows.length == 0 ? (
-						<TableRow><TableCell colSpan={visibleColumns.length + (includeActions ? 1 : 0)} className="text-muted-foreground py-8 text-center">No assignment rows found.</TableCell></TableRow>
-					) : null}
-					{rows.map(row => (
-						<TableRow key={`${row.assignmentId ?? "new"}-${row.applyId}`}>
-							{visibleColumns.map(column => (
-								<TableCell key={`${row.applyId}-${column.id}`} className={column.cellClassName}>
-									<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className={cn("text-primary h-auto p-0 text-left whitespace-normal", column.id != "applyId" && "no-underline text-foreground")}>{renderCell(column.id, row)}</Button>
-								</TableCell>
-							))}
-							{includeActions ? <TableCell><div className="flex flex-wrap gap-2">{renderActions(row)}</div></TableCell> : null}
-						</TableRow>
-					))}
-				</TableBody>
-			</Table>
-		</div>
-	);
+	const createFilterListValue = (columnConfig: FilterColumnOption): string => {
+		if(columnConfig.valueType == "boolean")
+			return "true";
+		if(columnConfig.valueType == "select")
+			return columnConfig.selectOptions?.[0]?.value ?? "";
+		if(columnConfig.valueType == "date")
+			return "";
+		return "";
+	};
+
+	const buildFilterPayload = (filterCondition: FilterCondition): FilterInput | null => {
+		const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
+		if(filterCondition.operator == "exists") {
+			return {
+				column: filterCondition.column,
+				operator: filterCondition.operator,
+				value: filterCondition.existsValue == "true"
+			};
+		}
+
+		if(filterCondition.operator == "in" || filterCondition.operator == "not_in") {
+			const values = filterCondition.values
+				.map(value => normalizeFilterItemValue(columnConfig, value))
+				.filter((value): value is string | boolean => value != null);
+			if(values.length == 0)
+				return null;
+			return {
+				column: filterCondition.column,
+				operator: filterCondition.operator,
+				value: values
+			};
+		}
+
+		if(columnConfig.valueType == "date") {
+			if(filterCondition.dateValue == null)
+				return null;
+			return {
+				column: filterCondition.column,
+				operator: filterCondition.operator,
+				value: filterCondition.dateValue.toISOString()
+			};
+		}
+
+		const scalar = normalizeFilterItemValue(columnConfig, filterCondition.value);
+		if(scalar == null)
+			return null;
+
+		return {
+			column: filterCondition.column,
+			operator: filterCondition.operator,
+			value: scalar
+		};
+	};
+
+	const appliedFilters = useMemo(() => {
+		const nextFilters: FilterInput[] = [];
+		for(const filter of filters) {
+			const payload = buildFilterPayload(filter);
+			if(payload == null)
+				continue;
+
+			nextFilters.push({
+				...payload,
+				joinWithPrevious: nextFilters.length == 0 ? undefined : (filter.joinWithPrevious ?? defaultFilterCombinator)
+			});
+		}
+
+		return nextFilters;
+	}, [filters]);
+
+	useEffect(() => {
+		if(!isFilterStateHydrated)
+			return;
+		const currentSearchKey = searchParamsKey;
+		const nextSearchParams = new URLSearchParams(currentSearchKey);
+
+		if(appliedFilters.length > 0)
+			nextSearchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(appliedFilters));
+		else
+			nextSearchParams.delete(RELATION_FILTER_QUERY_PARAM);
+
+		const nextSearch = nextSearchParams.toString();
+		if(nextSearch == currentSearchKey)
+			return;
+		const nextUrl = `${pathname}${nextSearch.length > 0 ? `?${nextSearch}` : ""}`;
+		const handle = window.setTimeout(() => {
+			router.replace(nextUrl);
+		});
+		return () => {
+			window.clearTimeout(handle);
+		};
+	}, [appliedFilters, isFilterStateHydrated, pathname, router, searchParamsKey]);
+
+	const filterSummaryItems = useMemo(() => (
+		appliedFilters.map((filter, index) => {
+			const columnConfig = getResolvedFilterColumnConfig(filter.column);
+			const operatorLabel = filterOperatorOptions.find(operator => operator.value == filter.operator)?.label ?? filter.operator;
+			const valueLabel = (() => {
+				if(filter.operator == "exists")
+					return filter.value == true ? "true" : "false";
+				if(Array.isArray(filter.value)) {
+					return filter.value.map(value => {
+						if(columnConfig.valueType == "boolean")
+							return value == true ? "True" : "False";
+						if(columnConfig.valueType == "date")
+							return formatFilterDateValue(typeof value == "string" ? parseFilterDateValue(value) : null);
+						if(columnConfig.valueType == "select")
+							return columnConfig.selectOptions?.find(option => option.value == String(value))?.label ?? String(value);
+						return String(value);
+					}).join(", ");
+				}
+				if(columnConfig.valueType == "date")
+					return formatFilterDateValue(typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null);
+				if(columnConfig.valueType == "boolean")
+					return filter.value == true ? "True" : "False";
+				if(columnConfig.valueType == "select")
+					return columnConfig.selectOptions?.find(option => option.value == String(filter.value))?.label ?? String(filter.value ?? "");
+				return String(filter.value ?? "");
+			})();
+
+			return {
+				combinator: index == 0 ? null : (filter.joinWithPrevious ?? defaultFilterCombinator).toUpperCase(),
+				columnLabel: columnConfig.label,
+				operatorLabel,
+				valueLabel
+			};
+		})
+	), [appliedFilters, getResolvedFilterColumnConfig]);
+
+	const toggleFilterPanel = () => {
+		if(isFilterOpen) {
+			setIsFilterOpen(false);
+			return;
+		}
+		setIsFilterOpen(true);
+	};
+
+	const clearFilter = () => {
+		setFilters([]);
+	};
+
+	const updateFilterJoinWithPrevious = (filterIndex: number, combinator: FilterCombinator) => {
+		setFilters(previous => previous.map((filter, index) => index == filterIndex ? { ...filter, joinWithPrevious: combinator } : filter));
+	};
+
+	const updateFilter = (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => {
+		setFilters(previous => previous.map((filterCondition, index) => index == filterIndex ? updater(filterCondition) : filterCondition));
+	};
+
+	const handleFilterColumnChange = (filterIndex: number, column: FilterColumn) => {
+		const nextColumnConfig = getResolvedFilterColumnConfig(column);
+		updateFilter(filterIndex, filterCondition => ({
+			...filterCondition,
+			column,
+			operator: nextColumnConfig.operators.includes(filterCondition.operator) ? filterCondition.operator : nextColumnConfig.operators[0],
+			value: "",
+			values: [],
+			dateValue: null,
+			listDateValue: null,
+			existsValue: "true",
+			dateText: "",
+			listDateText: ""
+		}));
+	};
+
+	const handleFilterOperatorChange = (filterIndex: number, operator: FilterColumnOption["operators"][number]) => {
+		updateFilter(filterIndex, filterCondition => ({
+			...filterCondition,
+			operator,
+			value: "",
+			values: [],
+			dateValue: null,
+			listDateValue: null,
+			existsValue: "true",
+			dateText: "",
+			listDateText: ""
+		}));
+	};
+
+	const addFilter = () => {
+		setFilters(previous => [...previous, createFilterCondition(creditApplicationAssignmentFilterColumns[0].value)]);
+	};
+
+	const removeFilter = (filterIndex: number) => {
+		setFilters(previous => previous.filter((_, index) => index != filterIndex));
+	};
+
+	const addFilterListValue = (filterIndex: number) => {
+		setFilters(previous => previous.map((filterCondition, index) => {
+			if(index != filterIndex)
+				return filterCondition;
+			if(filterCondition.operator != "in" && filterCondition.operator != "not_in")
+				return filterCondition;
+
+			const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
+			return {
+				...filterCondition,
+				values: [...filterCondition.values, createFilterListValue(columnConfig)]
+			};
+		}));
+	};
+
+	const updateFilterListValue = (filterIndex: number, valueIndex: number, nextValue: string) => {
+		updateFilter(filterIndex, filterCondition => ({
+			...filterCondition,
+			values: filterCondition.values.map((value, index) => index == valueIndex ? nextValue : value)
+		}));
+	};
+
+	const removeFilterListValue = (filterIndex: number, valueIndex: number) => {
+		updateFilter(filterIndex, filterCondition => ({
+			...filterCondition,
+			values: filterCondition.values.filter((_, index) => index != valueIndex)
+		}));
+	};
+
+	const isFilterStateReady = isFilterStateHydrated;
+
+	return {
+		isFilterOpen,
+		isFilterStateReady,
+		setIsFilterOpen,
+		toggleFilterPanel,
+		clearFilter,
+		appliedFilters,
+		filterSummaryItems,
+		filters,
+		updateFilterJoinWithPrevious,
+		updateFilter,
+		handleFilterColumnChange,
+		handleFilterOperatorChange,
+		addFilter,
+		removeFilter,
+		addFilterListValue,
+		updateFilterListValue,
+		removeFilterListValue
+	};
 }
 
-export function CreditApplicationAssignmentDetailsDrawer({
-	open,
-	onOpenChange,
-	row,
-	relationValues,
-	renderActions,
-	hasAuditorAccess,
-	onOpenHistory
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	row: CreditApplicationAssignmentRow | null;
-	relationValues?: accountAssignmentActions.AccountAssignmentRelationValues | null;
-	renderActions: (row: CreditApplicationAssignmentRow) => ReactNode;
-	hasAuditorAccess: boolean;
-	onOpenHistory?: (row: CreditApplicationAssignmentRow) => void;
-}) {
-	return (
-		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-				<DrawerHeader>
-					<DrawerTitle>Assignment Details</DrawerTitle>
-					<DrawerDescription>Review assignment data and perform available actions.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
-					{row == null ? <p className="text-muted-foreground text-sm">No assignment selected.</p> : (
-						<>
-							<div className="grid gap-2 sm:grid-cols-2">
-								<div className="rounded-md border p-2"><p className="text-muted-foreground text-xs">Apply ID</p><p className="font-mono text-xs">{row.applyId}</p></div>
-								<div className="rounded-md border p-2"><p className="text-muted-foreground text-xs">Account Name</p><p className="text-sm font-medium">{relationValues?.account ?? row.accountName}</p></div>
-								<div className="rounded-md border p-2"><p className="text-muted-foreground text-xs">Officer</p><p className="text-sm">{relationValues?.user ?? row.officerName ?? "-"}</p></div>
-								<div className="rounded-md border p-2"><p className="text-muted-foreground text-xs">Status</p><p className="text-sm">{row.assignmentStatus}</p></div>
-								<div className="rounded-md border p-2"><p className="text-muted-foreground text-xs">Created By</p><p className="text-sm">{relationValues?.createdBy ?? "-"}</p></div>
-								<div className="rounded-md border p-2"><p className="text-muted-foreground text-xs">Updated By</p><p className="text-sm">{relationValues?.updatedBy ?? "-"}</p></div>
-								<div className="rounded-md border p-2"><p className="text-muted-foreground text-xs">Deleted By</p><p className="text-sm">{relationValues?.deletedBy ?? "-"}</p></div>
-								<div className="rounded-md border p-2"><p className="text-muted-foreground text-xs">Reviewed By</p><p className="text-sm">{relationValues?.reviewedBy ?? "-"}</p></div>
-							</div>
-							<div className="flex flex-wrap gap-2">{renderActions(row)}</div>
-							{hasAuditorAccess && onOpenHistory != null ? <Button type="button" variant="outline" onClick={() => onOpenHistory(row)}><HistoryIcon className="mr-2 size-4" />History</Button> : null}
-						</>
-					)}
-				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
-	);
-}
+type CreditApplicationAssignmentQueryActionInput = Parameters<typeof import("./layout.actions").queryCreditApplicationAssignmentsEditorAction>[0];
 
-export function CreditApplicationAssignmentReviewDrawer({
-	open,
-	onOpenChange,
-	state,
-	error,
-	isMutating,
-	onReviewReasonChange,
-	onApprove,
-	onReject
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	state: CreditApplicationAssignmentReviewState | null;
-	error: string | null;
-	isMutating: boolean;
-	onReviewReasonChange: (value: string) => void;
-	onApprove: () => void;
-	onReject: () => void;
-}) {
-	return (
-		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-				<DrawerHeader>
-					<DrawerTitle>Review Assignment</DrawerTitle>
-					<DrawerDescription>Approve or reject pending assignment request.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
-					<p className="text-sm">Assignment ID: <span className="font-mono text-xs">{state?.assignmentId ?? "-"}</span></p>
-					<div className="space-y-2">
-						<label className="text-sm font-medium">Review Reason (optional)</label>
-						<Textarea value={state?.reviewReason ?? ""} onChange={event => onReviewReasonChange(event.target.value)} placeholder="Provide review reason" />
-					</div>
-					{error != null ? <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{error}</AlertDescription></Alert> : null}
-				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" variant="default" onClick={onApprove} disabled={isMutating}>Approve</Button>
-					<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating}>Reject</Button>
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
-	);
-}
+type UseCreditApplicationAssignmentRequestsQueryOptions = {
+	queryScope: string;
+	queryAction: (input: CreditApplicationAssignmentQueryActionInput) => Promise<QueryCreditApplicationAssignmentsOutput>;
+	debouncedKeyword: string;
+	sortTokens: string[];
+	appliedFilters: FilterInput[];
+	isFilterStateReady: boolean;
+	includeSoftDeleted: boolean;
+};
 
-export function CreditApplicationAssignmentPreviewDrawer({
-	open,
-	onOpenChange,
-	row
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	row: CreditApplicationAssignmentRow | null;
-}) {
-	return (
-		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-xl">
-				<DrawerHeader>
-					<DrawerTitle>Preview Assignment Request</DrawerTitle>
-					<DrawerDescription>Quick preview before submit or review.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
-					{row == null ? <p className="text-muted-foreground text-sm">No data selected.</p> : (
-						<>
-							<p className="text-sm"><span className="font-medium">Apply ID:</span> {row.applyId}</p>
-							<p className="text-sm"><span className="font-medium">Account:</span> {row.accountName}</p>
-							<p className="text-sm"><span className="font-medium">Officer:</span> {row.officerName ?? "-"}</p>
-							<p className="text-sm"><span className="font-medium">Status:</span> {row.assignmentStatus ?? "-"}</p>
-						</>
-					)}
-				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
-	);
-}
+export function useCreditApplicationAssignmentRequestsQuery({
+	queryScope,
+	queryAction,
+	debouncedKeyword,
+	sortTokens,
+	appliedFilters,
+	isFilterStateReady,
+	includeSoftDeleted
+}: UseCreditApplicationAssignmentRequestsQueryOptions) {
+	const [pageIndex, setPageIndex] = useState(1);
 
-export function CreditApplicationAssignmentFormDrawer({
-	open,
-	onOpenChange,
-	formState,
-	officerOptions,
-	isMutating,
-	formError,
-	onApplyIdChange,
-	onOfficerIdsChange,
-	onNotesChange,
-	onSubmit
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	formState: CreditApplicationAssignmentFormState;
-	officerOptions: Array<{ id: string; name: string }>;
-	isMutating: boolean;
-	formError: string | null;
-	onApplyIdChange: (value: string) => void;
-	onOfficerIdsChange: (value: string[]) => void;
-	onNotesChange: (value: string) => void;
-	onSubmit: () => void;
-}) {
-	return (
-		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-				<DrawerHeader>
-					<DrawerTitle>Assignment Form</DrawerTitle>
-					<DrawerDescription>Create or update credit application assignment request.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 overflow-y-auto px-4 pb-4">
-					<div className="space-y-3">
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Apply ID</label>
-							<Input value={formState.applyId} onChange={event => onApplyIdChange(event.target.value)} placeholder="Enter apply ID" />
-						</div>
-						<div className="space-y-2">
-							<div className="flex items-center justify-between"><label className="text-sm font-medium">Officer</label><Badge variant="outline">{formState.officerIds.length} selected</Badge></div>
-							<div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border p-2">
-								{officerOptions.map(officer => {
-									const selected = formState.officerIds.includes(officer.id);
-									return (
-										<Button
-											key={officer.id}
-											type="button"
-											variant={selected ? "secondary" : "outline"}
-											onClick={() => onOfficerIdsChange(selected ? formState.officerIds.filter(id => id != officer.id) : [...formState.officerIds, officer.id])}
-											className="h-auto w-full justify-between py-2"
-										>
-											<span className="text-left text-sm">{officer.name}</span>
-											{selected ? <CheckIcon className="size-4" /> : null}
-										</Button>
-									);
-								})}
-							</div>
-						</div>
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Notes</label>
-							<Textarea value={formState.notes} onChange={event => onNotesChange(event.target.value)} placeholder="Optional notes" />
-						</div>
-						{formError != null ? <Alert variant="destructive"><AlertTitle>Error</AlertTitle><AlertDescription>{formError}</AlertDescription></Alert> : null}
-					</div>
-				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
-	);
-}
+	const assignmentsQuery = useQuery({
+		enabled: isFilterStateReady,
+		queryKey: ["credit-application-assignment", "requests", {
+			queryScope,
+			debouncedKeyword,
+			sortTokens,
+			appliedFilters,
+			pageIndex,
+			includeSoftDeleted
+		}],
+		queryFn: () => queryAction({
+			keyword: debouncedKeyword,
+			sort: sortTokens,
+			filters: appliedFilters,
+			page: pageIndex,
+			limit: PAGE_SIZE,
+			includeSoftDeleted
+		}),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
 
-export function CreditApplicationAssignmentDeleteDialog({
-	open,
-	onOpenChange,
-	onConfirm,
-	isMutating
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onConfirm: () => void;
-	isMutating: boolean;
-}) {
-	return (
-		<AlertDialog open={open} onOpenChange={onOpenChange}>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>Delete</AlertDialogTitle>
-					<AlertDialogDescription>
-						Delete does not hard-delete data. It creates a pending request and requires approver review.
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<AlertDialogFooter>
-					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
-					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Delete</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
-	);
-}
+	useEffect(() => {
+		setPageIndex(1);
+	}, [appliedFilters, debouncedKeyword, includeSoftDeleted, sortTokens]);
 
-export function CreditApplicationAssignmentCancelDialog({
-	open,
-	onOpenChange,
-	onConfirm,
-	isMutating
-}: {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onConfirm: () => void;
-	isMutating: boolean;
-}) {
-	return (
-		<AlertDialog open={open} onOpenChange={onOpenChange}>
-			<AlertDialogContent>
-				<AlertDialogHeader>
-					<AlertDialogTitle>Cancel</AlertDialogTitle>
-					<AlertDialogDescription>
-						This will cancel the pending request and keep the last approved data unchanged.
-					</AlertDialogDescription>
-				</AlertDialogHeader>
-				<AlertDialogFooter>
-					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
-					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Cancel Request</AlertDialogAction>
-				</AlertDialogFooter>
-			</AlertDialogContent>
-		</AlertDialog>
-	);
+	useEffect(() => {
+		if(assignmentsQuery.data == null || assignmentsQuery.isFetching)
+			return;
+		if(assignmentsQuery.data.page != pageIndex)
+			setPageIndex(assignmentsQuery.data.page);
+	}, [pageIndex, assignmentsQuery.data, assignmentsQuery.isFetching]);
+
+	const queryResult = assignmentsQuery.data ?? emptyQueryResult;
+	const isLoading = !isFilterStateReady || assignmentsQuery.isPending;
+	const queryErrorMessage = assignmentsQuery.error instanceof Error ? assignmentsQuery.error.message : assignmentsQuery.error != null ? "Failed to load credit application assignments." : null;
+
+	return {
+		pageIndex,
+		setPageIndex,
+		queryResult,
+		isLoading,
+		queryErrorMessage
+	};
 }

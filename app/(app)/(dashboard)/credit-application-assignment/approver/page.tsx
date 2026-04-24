@@ -1,102 +1,90 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/radix/Alert";
+import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 
-import { DashboardManagementPageFrame, DashboardManagementPagination, DashboardManagementToolbar } from "../../layout.components";
+import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
 import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
-import * as assignmentActions from "../layout.actions";
+import * as creditApplicationAssignmentActions from "../layout.actions";
+import { CreditApplicationAssignmentActiveFiltersSummary } from "../layout.components";
+import { CreditApplicationAssignmentColumnConfigCard } from "../layout.components";
+import { CreditApplicationAssignmentRequestChangePreviewDrawer } from "../layout.components";
+import { CreditApplicationAssignmentRequestDetailsDrawer } from "../layout.components";
+import { CreditApplicationAssignmentRequestFilterCard } from "../layout.components";
+import { CreditApplicationAssignmentRequestReviewDrawer } from "../layout.components";
+import { CreditApplicationAssignmentRequestsTable } from "../layout.components";
+import { getEligibleDetailTriggerCreditApplicationAssignmentColumnId } from "../layout.components";
+import { resolveActionError } from "../layout.components";
+import { useCreditApplicationAssignmentCellRenderer } from "../layout.components";
+import { useCreditApplicationAssignmentColumnPreferences } from "../layout.components";
+import { useCreditApplicationAssignmentFilterColumnConfig } from "../layout.components";
+import { useCreditApplicationAssignmentManagementQueryState } from "../layout.components";
+import { useCreditApplicationAssignmentRelations } from "../layout.components";
+import { useCreditApplicationAssignmentRequestFilters } from "../layout.components";
+import { useCreditApplicationAssignmentRequestsQuery } from "../layout.components";
 import {
-	CREDIT_APPLICATION_ASSIGNMENT_PAGE_SIZE,
-	CreditApplicationActiveFiltersSummary,
-	CreditApplicationAssignmentDetailsDrawer,
-	CreditApplicationAssignmentFilterCard,
-	CreditApplicationAssignmentReviewDrawer,
-	CreditApplicationAssignmentTable,
-	CreditApplicationColumnConfigCard,
-	getCreditApplicationAssignmentRowKey,
-	parseErrorMessage,
-	useCreditApplicationAssignmentCellRenderer,
-	useCreditApplicationAssignmentColumnPreferences,
-	useCreditApplicationAssignmentFilterColumnConfig,
-	useCreditApplicationAssignmentFilters,
-	useCreditApplicationAssignmentQueryState,
-	useCreditApplicationAssignmentRelations,
-	useCreditApplicationAssignmentsQuery,
-	type CreditApplicationAssignmentReviewState,
-	type CreditApplicationAssignmentRow
+	type ActionError,
+	type CreditApplicationAssignmentTableRow,
+	type CreditApplicationAssignmentRequestReviewDiff
 } from "../layout.components";
 
-const emptyQueryResult: assignmentActions.AccountAssignmentApproverListOutput = {
-	docs: [],
-	totalDocs: 0,
-	page: 1,
-	hasNextPage: false,
-	hasPreviousPage: false
-};
-
 export default function CreditApplicationAssignmentApproverPage() {
+	const [reviewError, setReviewError] = useState<ActionError | null>(null);
 	const queryClient = useQueryClient();
-	const relationNavigation = useDashboardRelationNavigation();
-	const queryState = useCreditApplicationAssignmentQueryState();
-	const columnPreferences = useCreditApplicationAssignmentColumnPreferences();
-	const filterColumnConfig = useCreditApplicationAssignmentFilterColumnConfig();
-	const filters = useCreditApplicationAssignmentFilters({
-		getResolvedFilterColumnConfig: filterColumnConfig.getResolvedFilterColumnConfig
-	});
-	const [isMutating, startMutationTransition] = useTransition();
 
-	const [pageIndex, setPageIndex] = useState(1);
-
-	const [detailRow, setDetailRow] = useState<CreditApplicationAssignmentRow | null>(null);
-	const [reviewRow, setReviewRow] = useState<CreditApplicationAssignmentRow | null>(null);
+	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: CreditApplicationAssignmentTableRow, diff: CreditApplicationAssignmentRequestReviewDiff | null } | null>(null);
+	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
 	const [reviewReason, setReviewReason] = useState("");
-	const [reviewError, setReviewError] = useState<string | null>(null);
+	const [detailRow, setDetailRow] = useState<CreditApplicationAssignmentTableRow | null>(null);
+	const [requestChangeRow, setRequestChangeRow] = useState<CreditApplicationAssignmentTableRow | null>(null);
+	const [isMutating, startMutationTransition] = useTransition();
+	const relationNavigation = useDashboardRelationNavigation();
+	const columnPreferences = useCreditApplicationAssignmentColumnPreferences();
+	const queryState = useCreditApplicationAssignmentManagementQueryState();
+	const { getResolvedFilterColumnConfig } = useCreditApplicationAssignmentFilterColumnConfig();
+	const filters = useCreditApplicationAssignmentRequestFilters({ getResolvedFilterColumnConfig });
 
-	useEffect(() => {
-		setPageIndex(1);
-	}, [filters.appliedFilters, queryState.debouncedKeyword, queryState.sortTokens]);
-
-	const queryResult = useCreditApplicationAssignmentsQuery({
-		mode: "approver",
+	const {
+		pageIndex,
+		setPageIndex,
+		queryResult,
+		isLoading,
+		queryErrorMessage
+	} = useCreditApplicationAssignmentRequestsQuery({
+		queryScope: "approver",
+		queryAction: creditApplicationAssignmentActions.queryCreditApplicationAssignmentsApproverAction,
 		debouncedKeyword: queryState.debouncedKeyword,
 		sortTokens: queryState.sortTokens,
 		appliedFilters: filters.appliedFilters,
 		isFilterStateReady: filters.isFilterStateReady,
-		page: pageIndex,
-		limit: CREDIT_APPLICATION_ASSIGNMENT_PAGE_SIZE
+		includeSoftDeleted: false
 	});
-
-	useEffect(() => {
-		if(queryResult.data == null || queryResult.isFetching)
-			return;
-		if(queryResult.data.page != pageIndex)
-			setPageIndex(queryResult.data.page);
-	}, [pageIndex, queryResult.data, queryResult.isFetching]);
-
-	const queryData = queryResult.data ?? emptyQueryResult;
-	const tableRows = queryData.docs;
-
-	const relationQuery = useCreditApplicationAssignmentRelations({
-		docs: tableRows,
+	const {
+		relationValuesByRowId,
+		isRelationLoading
+	} = useCreditApplicationAssignmentRelations({
+		docs: queryResult.docs,
 		visibleColumns: columnPreferences.visibleColumns
 	});
-
-	const cellRenderer = useCreditApplicationAssignmentCellRenderer({
-		hasEditorAccess: false,
-		hasAuditorAccess: false,
-		relationValuesByRowId: relationQuery.relationValuesByRowId,
-		isRelationLoading: relationQuery.isRelationLoading,
+	const renderAssignmentCell = useCreditApplicationAssignmentCellRenderer({
+		relationValuesByRowId,
+		isRelationLoading,
+		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
 			onOpenSummary: relationNavigation.openSummary
 		}
 	});
+	const displayError = queryErrorMessage != null ? {
+		title: "Error",
+		message: queryErrorMessage
+	} : null;
+	const detailTriggerColumnId = getEligibleDetailTriggerCreditApplicationAssignmentColumnId(columnPreferences.visibleColumns);
 
 	const runMutation = (action: () => Promise<void>) => {
 		startMutationTransition(() => {
@@ -104,69 +92,72 @@ export default function CreditApplicationAssignmentApproverPage() {
 				setReviewError(null);
 				try {
 					await action();
-					await queryClient.invalidateQueries({ queryKey: ["credit-application-assignment", "query"] });
+					await queryClient.invalidateQueries({ queryKey: ["credit-application-assignment"] });
 				} catch(error) {
-					setReviewError(parseErrorMessage(error, "Failed to submit assignment review."));
+					setReviewError(resolveActionError(error, "Failed to submit review."));
 				}
 			})();
 		});
 	};
 
-	const queryErrorMessage = queryResult.error != null ? parseErrorMessage(queryResult.error, "Failed to load pending approval rows.") : null;
-	const displayErrorMessage = reviewError ?? queryErrorMessage;
-	const isLoading = queryResult.isLoading;
-
-	const openReviewDrawer = (row: CreditApplicationAssignmentRow) => {
-		if(row.assignmentId == null)
-			return;
-		setReviewError(null);
+	const openReviewDrawer = (row: CreditApplicationAssignmentTableRow) => {
 		setReviewReason("");
-		setReviewRow(row);
-	};
-
-	const reviewDrawerState: CreditApplicationAssignmentReviewState | null = reviewRow == null ? null : {
-		assignmentId: reviewRow.assignmentId ?? "",
-		reviewReason
+		setReviewError(null);
+		setReviewDrawerState({ row, diff: null });
+		setIsReviewDiffLoading(true);
+		void (async () => {
+			try {
+				const diff = await creditApplicationAssignmentActions.getCreditApplicationAssignmentRequestReviewDiffAction(row.id);
+				setReviewDrawerState(previous => previous != null && previous.row.id == row.id ? { ...previous, diff } : previous);
+			} catch(error) {
+				setReviewDrawerState(null);
+				setReviewError(resolveActionError(error, "Failed to load request diff."));
+			} finally {
+				setIsReviewDiffLoading(false);
+			}
+		})();
 	};
 
 	const submitReview = (decision: "approve" | "reject") => {
-		if(reviewRow == null || reviewRow.assignmentId == null)
+		if(reviewDrawerState == null)
 			return;
-		const assignmentId = reviewRow.assignmentId;
-
 		runMutation(async () => {
-			await assignmentActions.reviewAssignmentAction({
-				assignmentId,
+			await creditApplicationAssignmentActions.reviewCreditApplicationAssignmentRequestAction({
+				assignmentId: reviewDrawerState.row.id,
 				decision,
-				notes: reviewReason
+				reason: reviewReason
 			});
-			setReviewRow(null);
+			setReviewDrawerState(null);
 			setReviewReason("");
 		});
 	};
 
-	const renderApproverActions = (row: CreditApplicationAssignmentRow) => (
-		<Button
-			type="button"
-			size="sm"
-			onClick={() => openReviewDrawer(row)}
-			disabled={isMutating || row.assignmentId == null || row.assignmentStatus != "pending_approval"}
-		>
-			<CheckIcon />
-			Review
-		</Button>
-	);
+	const renderAssignmentActions = (row: CreditApplicationAssignmentTableRow) => {
+		const isPending = row.reviewedAt == null;
+		return (
+			<Button
+				type="button"
+				size="sm"
+				variant="default"
+				onClick={() => openReviewDrawer(row)}
+				disabled={!isPending || isMutating || isReviewDiffLoading}
+			>
+				<CheckIcon />
+				Review
+			</Button>
+		);
+	};
 
 	return (
 		<>
 			<DashboardManagementPageFrame
 				title="Credit Application Assignment"
-				description="Review pending assignment requests one-by-one before publication."
+				description="Review pending credit application assignment requests before publication."
 			>
 				<DashboardManagementToolbar
 					keyword={queryState.keyword}
 					onKeywordChange={queryState.setKeyword}
-					searchPlaceholder="Search pending assignment requests"
+					searchPlaceholder="Search assignments by application or officer"
 					filterCount={filters.appliedFilters.length}
 					onToggleFilter={filters.toggleFilterPanel}
 					onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
@@ -174,24 +165,19 @@ export default function CreditApplicationAssignmentApproverPage() {
 					isMutating={isMutating}
 				/>
 
-				<CreditApplicationAssignmentFilterCard
-					isOpen={filters.isFilterOpen}
-					onOpenChange={filters.setIsFilterOpen}
-					filters={filters.filters}
-					getResolvedFilterColumnConfig={filterColumnConfig.getResolvedFilterColumnConfig}
-					onUpdateFilter={filters.updateFilter}
-					onAddFilter={filters.addFilter}
-					onRemoveFilter={filters.removeFilter}
-					onClearFilters={filters.clearFilter}
+				<CreditApplicationAssignmentRequestFilterCard
 					isLoading={isLoading}
 					isMutating={isMutating}
+					filters={filters}
+					getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
 				/>
 
-				<CreditApplicationColumnConfigCard
+				<CreditApplicationAssignmentColumnConfigCard
 					isOpen={columnPreferences.isColumnOpen}
 					onOpenChange={columnPreferences.setIsColumnOpen}
 					orderedColumns={columnPreferences.orderedColumns}
 					hiddenColumnIds={columnPreferences.hiddenColumnIds}
+					visibleColumnCount={columnPreferences.visibleColumns.length}
 					onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
 					onReset={columnPreferences.resetColumnPreferences}
 					onColumnDragStart={columnPreferences.handleColumnDragStart}
@@ -199,33 +185,35 @@ export default function CreditApplicationAssignmentApproverPage() {
 					onColumnDragEnd={columnPreferences.handleColumnDragEnd}
 				/>
 
-				<CreditApplicationActiveFiltersSummary items={filters.filterSummaryItems} />
+				<CreditApplicationAssignmentActiveFiltersSummary items={filters.filterSummaryItems} />
 
-				{displayErrorMessage != null ? (
+				{displayError != null ? (
 					<Alert variant="destructive">
 						<CircleAlertIcon />
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{displayErrorMessage}</AlertDescription>
+						<AlertTitle>{displayError.title}</AlertTitle>
+						<AlertDescription>{displayError.message}</AlertDescription>
 					</Alert>
 				) : null}
 
-				<CreditApplicationAssignmentTable
-					rows={tableRows}
+				<CreditApplicationAssignmentRequestsTable
+					queryResult={queryResult}
 					visibleColumns={columnPreferences.visibleColumns}
+					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
+					detailTriggerColumnId={detailTriggerColumnId}
 					isLoading={isLoading}
 					isMutating={isMutating}
 					getSortDirection={queryState.getSortDirection}
 					onToggleSortField={queryState.toggleSortField}
 					onOpenDetails={setDetailRow}
-					renderCell={cellRenderer.renderCell}
-					renderActions={renderApproverActions}
+					renderCreditApplicationAssignmentCell={renderAssignmentCell}
+					renderActions={renderAssignmentActions}
 				/>
 
 				<DashboardManagementPagination
 					pageIndex={pageIndex}
-					totalRequests={queryData.totalDocs}
-					hasPreviousPage={queryData.hasPreviousPage}
-					hasNextPage={queryData.hasNextPage}
+					totalRequests={queryResult.totalDocs}
+					hasPreviousPage={queryResult.hasPreviousPage}
+					hasNextPage={queryResult.hasNextPage}
 					isLoading={isLoading}
 					isMutating={isMutating}
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
@@ -233,33 +221,48 @@ export default function CreditApplicationAssignmentApproverPage() {
 				/>
 			</DashboardManagementPageFrame>
 
-			<CreditApplicationAssignmentDetailsDrawer
+			<CreditApplicationAssignmentRequestDetailsDrawer
 				open={detailRow != null}
 				onOpenChange={open => {
 					if(!open)
 						setDetailRow(null);
 				}}
 				row={detailRow}
-				relationValues={detailRow == null ? null : relationQuery.relationValuesByRowId[getCreditApplicationAssignmentRowKey(detailRow)] ?? null}
-				renderActions={renderApproverActions}
-				hasAuditorAccess={false}
+				renderActions={renderAssignmentActions}
+				onOpenRequestChanges={setRequestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
-			<CreditApplicationAssignmentReviewDrawer
+			<CreditApplicationAssignmentRequestReviewDrawer
 				open={reviewDrawerState != null}
 				onOpenChange={open => {
 					if(!open) {
-						setReviewRow(null);
-						setReviewReason("");
+						setReviewDrawerState(null);
 						setReviewError(null);
 					}
 				}}
-				state={reviewDrawerState}
-				error={reviewError}
-				isMutating={isMutating}
+				reviewDrawerState={reviewDrawerState}
+				reviewError={reviewError}
+				isReviewDiffLoading={isReviewDiffLoading}
+				reviewReason={reviewReason}
 				onReviewReasonChange={setReviewReason}
 				onApprove={() => submitReview("approve")}
 				onReject={() => submitReview("reject")}
+				isMutating={isMutating}
+				onOpenRequestChanges={setRequestChangeRow}
+			/>
+
+			<CreditApplicationAssignmentRequestChangePreviewDrawer
+				open={requestChangeRow != null}
+				onOpenChange={open => {
+					if(!open)
+						setRequestChangeRow(null);
+				}}
+				row={requestChangeRow}
 			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
