@@ -220,7 +220,7 @@ export function DashboardShell({
 	}, [managementNavigation, pathname]);
 
 	return (
-		<SidebarProvider>
+		<SidebarProvider className="[--sidebar-width:20rem]!">
 			<Sidebar collapsible="icon" variant="inset">
 				<SidebarHeader>
 					<SidebarMenu>

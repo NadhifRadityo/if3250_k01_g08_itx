@@ -225,7 +225,7 @@ export const filterOperatorOptions: Array<{ value: FilterOperator, label: string
 ];
 
 export const creditApplicationAssignmentFilterColumns: FilterColumnOption[] = [
-	{ value: "id", label: "ID", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter assignment ID" },
+	{ value: "id", label: "ID", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "creditApplication", label: "Credit Application", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "officer", label: "Officer", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
@@ -267,15 +267,23 @@ export function getFilterColumnConfig(column: FilterColumn): FilterColumnOption 
 
 export function getResolvedCreditApplicationAssignmentFilterColumnConfig(
 	column: FilterColumn,
+	idSelectOptions: Array<{ value: string, label: string }>,
 	creditApplicationSelectOptions: Array<{ value: string, label: string }>,
 	officerSelectOptions: Array<{ value: string, label: string }>,
 	auditUserSelectOptions: Array<{ value: string, label: string }>,
+	searchAssignmentOptions?: FilterSelectSearchAction,
 	searchCreditApplicationOptions?: FilterSelectSearchAction,
 	searchOfficerOptions?: FilterSelectSearchAction,
 	searchAuditUserOptions?: FilterSelectSearchAction
 ): FilterColumnOption {
 	const config = getFilterColumnConfig(column);
 	switch(column) {
+		case "id":
+			return {
+				...config,
+				selectOptions: idSelectOptions,
+				searchOptionsAction: searchAssignmentOptions
+			};
 		case "creditApplication":
 			return {
 				...config,
@@ -404,11 +412,6 @@ export function formatDateTime(dateValue: string | null) {
 	if(Number.isNaN(date.getTime()))
 		return "-";
 	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
-}
-
-function formatTextValue(value: string | null | undefined): string {
-	const normalized = (value ?? "").trim();
-	return normalized.length > 0 ? normalized : "-";
 }
 
 export function getReviewStatus(row: CreditApplicationAssignmentTableRow): { label: string, variant: "default" | "secondary" | "destructive" } {
@@ -1812,6 +1815,16 @@ export function useCreditApplicationAssignmentColumnPreferences() {
 }
 
 export function useCreditApplicationAssignmentFilterColumnConfig() {
+	const searchAssignmentOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const assignments = await creditApplicationAssignmentActions.searchCreditApplicationAssignmentOptionsAction(keyword, selectedValues);
+		return dedupeSelectOptions(assignments.map(assignment => ({
+			value: assignment.id,
+			label: assignment.id,
+			renderLabel: <span className="font-mono">{assignment.id}</span>,
+			keywords: assignment.id
+		})));
+	}, []);
+
 	const searchCreditApplicationOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
 		const creditApplications = await creditApplicationAssignmentActions.searchCreditApplicationOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(creditApplications.map(creditApplication => ({
@@ -1841,10 +1854,11 @@ export function useCreditApplicationAssignmentFilterColumnConfig() {
 	}, []);
 
 	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
-		getResolvedCreditApplicationAssignmentFilterColumnConfig(column, [], [], [], searchCreditApplicationOptions, searchOfficerOptions, searchAuditUserOptions)
-	), [searchAuditUserOptions, searchCreditApplicationOptions, searchOfficerOptions]);
+		getResolvedCreditApplicationAssignmentFilterColumnConfig(column, [], [], [], [], searchAssignmentOptions, searchCreditApplicationOptions, searchOfficerOptions, searchAuditUserOptions)
+	), [searchAssignmentOptions, searchAuditUserOptions, searchCreditApplicationOptions, searchOfficerOptions]);
 
 	return {
+		searchAssignmentOptions,
 		searchCreditApplicationOptions,
 		searchOfficerOptions,
 		getResolvedFilterColumnConfig
@@ -1945,7 +1959,7 @@ export function useCreditApplicationAssignmentRelations({
 
 	const relationValuesByRowId = useMemo(() => Object.fromEntries(
 		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	) as Record<string, creditApplicationAssignmentActions.CreditApplicationAssignmentRelationValues>, [relationsQuery.data]);
+	), [relationsQuery.data]);
 	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
 
 	return {

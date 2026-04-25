@@ -2,10 +2,10 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { getPayload, type Payload, type Where } from "payload";
+import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { CreditApplicationAssignment, CreditApplication, User } from "@/payload-types";
+import type { User, CreditApplicationAssignment } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
 const RELATION_SEARCH_LIMIT = 20;
@@ -216,6 +216,10 @@ export type CreditApplicationAssignmentAuditUserOption = {
 	id: string;
 	name: string;
 	email: string;
+};
+
+export type CreditApplicationAssignmentFilterIdOption = {
+	id: string;
 };
 
 export type UpsertCreditApplicationAssignmentRequestInput = {
@@ -741,6 +745,44 @@ export async function searchCreditApplicationOptionsAction(
 	}));
 }
 
+export async function searchCreditApplicationAssignmentOptionsAction(
+	keyword: string,
+	selectedIds: string[] = []
+): Promise<CreditApplicationAssignmentFilterIdOption[]> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null)
+		return unauthorized();
+
+	const normalizedKeyword = keyword.trim();
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const whereTerms: Where[] = [];
+	if(normalizedKeyword.length > 0)
+		whereTerms.push({ id: { like: normalizedKeyword } });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
+
+	const result = await payload.find({
+		collection: "credit-application-assignments",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
+		sort: "-updatedAt",
+		select: {},
+		...(where != null ? { where } : {})
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id)
+	}));
+}
+
 export async function searchCreditApplicationAssignmentOfficerOptionsAction(
 	keyword: string,
 	selectedIds: string[] = []
@@ -947,7 +989,7 @@ function toPayloadFilterWhere(filters: CreditApplicationAssignmentFilterInput[])
 					[filter.column]: {
 						[operatorMap[filter.operator]]: filter.value
 					}
-				} as Where,
+				},
 				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
 			};
 		})
@@ -973,7 +1015,7 @@ function toPayloadFilterWhere(filters: CreditApplicationAssignmentFilterInput[])
 		return andTerms[0].length == 1 ? andTerms[0][0] : { and: andTerms[0] };
 
 	return {
-		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm } as Where))
+		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm }))
 	};
 }
 

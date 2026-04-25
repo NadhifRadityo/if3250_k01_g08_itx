@@ -307,7 +307,7 @@ export const filterOperatorOptions: Array<{ value: FilterOperator, label: string
 
 export const creditApplicationFilterColumns: FilterColumnOption[] = [
 	{ value: "id", label: "ID", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "name", label: "Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter CreditApplication name" },
+	{ value: "name", label: "Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter Credit Application name" },
 	{ value: "email", label: "Email", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter email" },
 	{ value: "addresses", label: "Addresses", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter address" },
 	{ value: "phoneNumbers", label: "Phone Numbers", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter phone number" },
@@ -1450,12 +1450,12 @@ export function CreditApplicationRequestsTable({
 				<TableBody>
 					{isLoading ? (
 						<TableRow>
-							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading CreditApplication requests...</TableCell>
+							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading Credit Application requests...</TableCell>
 						</TableRow>
 					) : null}
 					{!isLoading && queryResult.docs.length == 0 ? (
 						<TableRow>
-							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No CreditApplication requests found.</TableCell>
+							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No Credit Application requests found.</TableCell>
 						</TableRow>
 					) : null}
 					{queryResult.docs.map(row => {
@@ -1740,12 +1740,12 @@ export function CreditApplicationRequestDetailsDrawer({
 			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 					<DrawerHeader>
-						<DrawerTitle>CreditApplication Request Details</DrawerTitle>
-						<DrawerDescription>Review all available columns for this CreditApplication request entry.</DrawerDescription>
+						<DrawerTitle>Credit Application Request Details</DrawerTitle>
+						<DrawerDescription>Review all available columns for this Credit Application request entry.</DrawerDescription>
 					</DrawerHeader>
 					<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
 						{row == null ? (
-							<p className="text-muted-foreground text-sm">No CreditApplication request selected.</p>
+							<p className="text-muted-foreground text-sm">No Credit Application request selected.</p>
 						) : detailsQuery.isPending ? (
 							<div className="space-y-2">
 								<Skeleton className="h-20 w-full" />
@@ -1756,7 +1756,7 @@ export function CreditApplicationRequestDetailsDrawer({
 							<Alert variant="destructive">
 								<CircleAlertIcon />
 								<AlertTitle>Error</AlertTitle>
-								<AlertDescription>Unable to load CreditApplication request details.</AlertDescription>
+								<AlertDescription>Unable to load Credit Application request details.</AlertDescription>
 							</Alert>
 						) : (
 							creditApplicationTableColumns.map(column => (
@@ -1782,12 +1782,12 @@ export function CreditApplicationRequestDetailsDrawer({
 			<Drawer open={historyOpen} onOpenChange={setHistoryOpen} direction="right">
 				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
 					<DrawerHeader>
-						<DrawerTitle>CreditApplication Request History</DrawerTitle>
+						<DrawerTitle>Credit Application Request History</DrawerTitle>
 						<DrawerDescription>Changes are shown from the most recent version to the earliest version.</DrawerDescription>
 					</DrawerHeader>
 					<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
 						{row == null ? (
-							<p className="text-muted-foreground text-sm">No CreditApplication request selected.</p>
+							<p className="text-muted-foreground text-sm">No Credit Application request selected.</p>
 						) : historyAccessQuery.isPending ? (
 							<div className="space-y-2">
 								<Skeleton className="h-28 w-full" />
@@ -1808,10 +1808,10 @@ export function CreditApplicationRequestDetailsDrawer({
 							<Alert variant="destructive">
 								<CircleAlertIcon />
 								<AlertTitle>Error</AlertTitle>
-								<AlertDescription>Unable to load CreditApplication request history.</AlertDescription>
+								<AlertDescription>Unable to load Credit Application request history.</AlertDescription>
 							</Alert>
 						) : historyQuery.data.entries.length == 0 ? (
-							<p className="text-muted-foreground text-sm">No history entries found for this CreditApplication request.</p>
+							<p className="text-muted-foreground text-sm">No history entries found for this Credit Application request.</p>
 						) : (
 							historyQuery.data.entries.map(entry => (
 								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
@@ -2055,11 +2055,11 @@ export function useCreditApplicationColumnPreferences() {
 export function useCreditApplicationFilterColumnConfig() {
 	const searchCreditApplicationOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
 		const creditApplications = await creditApplicationActions.searchCreditApplicationOptionsAction(keyword, selectedValues);
-		return dedupeSelectOptions(creditApplications.map(CreditApplication => ({
-			value: CreditApplication.id,
-			label: `${CreditApplication.name} (${CreditApplication.id})`,
-			renderLabel: <span>{CreditApplication.name} (<span className="font-mono">{CreditApplication.id}</span>)</span>,
-			keywords: `${CreditApplication.id} ${CreditApplication.name} ${CreditApplication.email}`
+		return dedupeSelectOptions(creditApplications.map(creditApplication => ({
+			value: creditApplication.id,
+			label: `${creditApplication.name} (${creditApplication.id})`,
+			renderLabel: <span>{creditApplication.name} (<span className="font-mono">{creditApplication.id}</span>)</span>,
+			keywords: `${creditApplication.id} ${creditApplication.name} ${creditApplication.email}`
 		})));
 	}, []);
 
@@ -2607,7 +2607,7 @@ export function useCreditApplicationRequestsQuery({
 
 	const queryResult = creditApplicationsQuery.data ?? emptyQueryResult;
 	const isLoading = !isFilterStateReady || creditApplicationsQuery.isPending;
-	const queryErrorMessage = creditApplicationsQuery.error instanceof Error ? creditApplicationsQuery.error.message : creditApplicationsQuery.error != null ? "Failed to load CreditApplication requests." : null;
+	const queryErrorMessage = creditApplicationsQuery.error instanceof Error ? creditApplicationsQuery.error.message : creditApplicationsQuery.error != null ? "Failed to load Credit Application requests." : null;
 
 	return {
 		pageIndex,

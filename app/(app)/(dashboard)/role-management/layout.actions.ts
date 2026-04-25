@@ -748,12 +748,10 @@ export async function searchRoleOptionsAction(keyword: string, selectedIds: stri
 	if(user == null) return unauthorized();
 
 	const normalizedKeyword = keyword.trim();
-	const normalizedKeywordLower = normalizedKeyword.toLowerCase();
 	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
 	const keywordFilters: Where[] = [
 		{ id: { like: normalizedKeyword } },
-		{ name: { like: normalizedKeyword } },
-		{ level: { equals: normalizedKeywordLower } }
+		{ name: { like: normalizedKeyword } }
 	];
 	const whereTerms: Where[] = [];
 	if(keywordFilters.length > 0)

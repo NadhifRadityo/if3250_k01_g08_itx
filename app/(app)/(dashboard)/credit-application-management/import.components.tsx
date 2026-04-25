@@ -197,16 +197,16 @@ export const creditApplicationImportFilterColumns: FilterColumnOption[] = [
 	{ value: "filename", label: "Filename", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Filename" },
 	{ value: "mimeType", label: "MIME Type", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "MIME type" },
 	{ value: "filesize", label: "Size", valueType: "text", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"], placeholder: "File size in bytes" },
-	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "updatedBy", label: "Updated By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "updatedBy", label: "Updated By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "deletedAt", label: "Deleted At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: booleanFilterOptions },
-	{ value: "status", label: "Status", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: reviewStatusOptions }
+	{ value: "status", label: "Status", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: reviewStatusOptions },
+	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: booleanFilterOptions }
 ];
 
 export const defaultFilterCombinator: FilterCombinator = "and";
@@ -647,7 +647,7 @@ export function CreditApplicationImportRequestDetailsDrawer({
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>CreditApplication Import Request Details</DrawerTitle>
+					<DrawerTitle>Credit Application Import Request Details</DrawerTitle>
 					<DrawerDescription>Review all available columns for this import request entry.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
@@ -677,7 +677,7 @@ export function CreditApplicationImportRequestDetailsDrawer({
 						</>
 					)}
 				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+				<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
 					{actionRow != null ? renderActions(actionRow) : null}
 				</DrawerFooter>
@@ -727,7 +727,7 @@ export function CreditApplicationImportRequestFormDrawer({
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-lg">
 				<DrawerHeader>
-					<DrawerTitle>{isEditMode ? "Edit Import Description" : "Add CreditApplication Import"}</DrawerTitle>
+					<DrawerTitle>{isEditMode ? "Edit Import Description" : "Add Credit Application Import"}</DrawerTitle>
 					<DrawerDescription>
 						{isEditMode ? "Description can be edited only while this import has not been reviewed." : "Upload one Excel file that follows the credit application import template."}
 					</DrawerDescription>
@@ -902,75 +902,70 @@ export function CreditApplicationImportRequestsTable({
 		return <ArrowUpDownIcon className="text-muted-foreground size-3.5" />;
 	};
 
-	const emptyRowColSpan = visibleColumnCount + (includeActions ? 1 : 0);
-
 	return (
 		<div className="rounded-xl border">
 			<Table>
 				<TableHeader>
 					<TableRow>
 						{visibleColumns.map(column => (
-							<TableHead key={column.id} className={column.headClassName}>
-								{column.sortField != null ? (
+							column.sortField != null ? (
+								<TableHead key={column.id} className={column.headClassName}>
 									<Button
 										type="button"
 										variant="ghost"
 										size="sm"
-										className="-ml-2 h-8 gap-1 px-2"
 										onClick={() => onToggleSortField(column.sortField!)}
 										disabled={isLoading || isMutating}
+										className="-ml-2 h-7 gap-1 px-2"
 									>
 										{column.label}
 										{renderSortIcon(column.sortField)}
 									</Button>
-								) : column.label}
-							</TableHead>
+								</TableHead>
+							) : (
+								<TableHead key={column.id} className={column.headClassName}>{column.label}</TableHead>
+							)
 						))}
-						{includeActions ? (
-							<TableHead className="w-[1%] whitespace-nowrap">Actions</TableHead>
-						) : null}
+						{includeActions ? <TableHead className="w-65">Actions</TableHead> : null}
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{isLoading ? (
 						<TableRow>
-							<TableCell colSpan={emptyRowColSpan} className="text-muted-foreground text-center text-sm">Loading import requests...</TableCell>
+							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading import requests...</TableCell>
 						</TableRow>
 					) : null}
 					{!isLoading && queryResult.docs.length == 0 ? (
 						<TableRow>
-							<TableCell colSpan={emptyRowColSpan} className="text-muted-foreground text-center text-sm">No import requests found.</TableCell>
+							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No import requests found.</TableCell>
 						</TableRow>
 					) : null}
-					{queryResult.docs.map(row => (
-						<TableRow key={row.id}>
-							{visibleColumns.map(column => {
-								const renderedCell = renderCreditApplicationImportCell(column.id, row);
-								if(detailTriggerColumnId == column.id) {
+					{queryResult.docs.map(row => {
+						return (
+							<TableRow key={row.id}>
+								{visibleColumns.map(column => {
+									const cellValue = renderCreditApplicationImportCell(column.id, row);
+									const isDetailTriggerColumn = detailTriggerColumnId != null && column.id == detailTriggerColumnId;
 									return (
 										<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
-											<Button
-												type="button"
-												variant="link"
-												onClick={() => onOpenDetails(row)}
-												className="h-auto p-0 text-left"
-												disabled={isMutating}
-											>
-												{renderedCell}
-											</Button>
+											{isDetailTriggerColumn ? (
+												<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal">
+													{cellValue}
+												</Button>
+											) : cellValue}
 										</TableCell>
 									);
-								}
-
-								return (
-									<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
-										{renderedCell}
+								})}
+								{includeActions ? (
+									<TableCell>
+										<div className="flex flex-wrap gap-2">
+											{renderActions(row)}
+										</div>
 									</TableCell>
-								);
-							})}
-							{includeActions ? <TableCell className="space-x-2 whitespace-nowrap">{renderActions(row)}</TableCell> : null}
-						</TableRow>
-					))}
+								) : null}
+							</TableRow>
+						);
+					})}
 				</TableBody>
 			</Table>
 		</div>
