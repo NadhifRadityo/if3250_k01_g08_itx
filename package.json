@@ -9,8 +9,9 @@
 		"dev": "next dev",
 		"db:reset": "payload run ./scripts/resetDatabase.ts",
 		"seed:admin": "payload run ./scripts/seedAdmin.ts",
-		"seed:example": "payload run ./scripts/seedExample.ts",
-		"seed:credit-application": "payload run ./scripts/seedCreditApplicationManagement.ts"
+		"seed:user-role-team": "payload run ./scripts/seedUserRoleTeam.ts",
+		"seed:credit-application-management": "payload run ./scripts/seedCreditApplicationManagement.ts",
+		"seed:credit-application-import": "payload run ./scripts/seedCreditApplicationImport.ts"
 	},
 	"packageManager": "pnpm@10.33.0",
 	"dependencies": {
@@ -24,7 +25,6 @@
 		"clsx": "^2.1.1",
 		"cmdk": "^1.1.1",
 		"dedent-js": "^1.0.1",
-		"exceljs": "^4.4.0",
 		"graphql": "^16.13.2",
 		"lucide-react": "^1.8.0",
 		"next": "^16.2.4",

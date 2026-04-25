@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { EyeIcon, PlusIcon, PencilIcon, Trash2Icon, RotateCcwIcon, CircleAlertIcon } from "lucide-react";
+import { PlusIcon, PencilIcon, Trash2Icon, CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
+import { Switch } from "@/components/radix/Switch";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
 import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
@@ -32,6 +33,7 @@ import {
 } from "../import.components";
 
 export default function CreditApplicationImportEditorPage() {
+	const [showSoftDeleted, setShowSoftDeleted] = useState(false);
 	const [formError, setFormError] = useState<ActionError | null>(null);
 	const [pageError, setPageError] = useState<ActionError | null>(null);
 	const [formOpen, setFormOpen] = useState(false);
@@ -45,6 +47,7 @@ export default function CreditApplicationImportEditorPage() {
 	const queryState = useCreditApplicationImportManagementQueryState();
 	const { getResolvedFilterColumnConfig } = useCreditApplicationImportFilterColumnConfig();
 	const filters = useCreditApplicationImportRequestFilters({ getResolvedFilterColumnConfig });
+	const includeSoftDeleted = showSoftDeleted;
 
 	const {
 		pageIndex,
@@ -58,7 +61,8 @@ export default function CreditApplicationImportEditorPage() {
 		debouncedKeyword: queryState.debouncedKeyword,
 		sortTokens: queryState.sortTokens,
 		appliedFilters: filters.appliedFilters,
-		isFilterStateReady: filters.isFilterStateReady
+		isFilterStateReady: filters.isFilterStateReady,
+		includeSoftDeleted
 	});
 
 	const {
@@ -170,14 +174,10 @@ export default function CreditApplicationImportEditorPage() {
 	const renderCreditApplicationImportActions = (row: CreditApplicationImportTableRow) => {
 		return (
 			<>
-				<Button type="button" variant="outline" size="sm" onClick={() => setDetailRow(row)} disabled={isMutating}>
-					<EyeIcon />
-					View
-				</Button>
 				{row.reviewedAt == null ? (
-					<Button type="button" variant="outline" size="sm" onClick={() => openEditDescriptionDialog(row)} disabled={isMutating}>
+					<Button type="button" variant="outline" size="sm" onClick={() => openEditDescriptionDialog(row)} disabled={isMutating || row.deletedAt != null}>
 						<PencilIcon />
-						Description
+						Edit
 					</Button>
 				) : null}
 				{row.deletedAt == null && row.status != "approved" ? (
@@ -186,12 +186,12 @@ export default function CreditApplicationImportEditorPage() {
 						variant="destructive"
 						size="sm"
 						onClick={() => runMutation(async () => {
-							await importActions.cancelCreditApplicationImportAction(row.id);
+							await importActions.deleteCreditApplicationImportAction(row.id);
 						})}
 						disabled={isMutating}
 					>
 						<Trash2Icon />
-						Cancel
+						Delete
 					</Button>
 				) : null}
 				{row.deletedAt != null ? (
@@ -204,7 +204,7 @@ export default function CreditApplicationImportEditorPage() {
 						})}
 						disabled={isMutating}
 					>
-						<RotateCcwIcon />
+						<PlusIcon />
 						Restore
 					</Button>
 				) : null}
@@ -228,10 +228,21 @@ export default function CreditApplicationImportEditorPage() {
 					isLoading={isLoading}
 					isMutating={isMutating}
 					rightSlot={(
-						<Button type="button" onClick={openCreateDialog} disabled={isLoading || isMutating}>
-							<PlusIcon />
-							Add Import
-						</Button>
+						<>
+							<div className="flex items-center gap-2">
+								<label htmlFor="credit-application-import-show-deleted" className="text-sm">Show Deleted</label>
+								<Switch
+									id="credit-application-import-show-deleted"
+									checked={showSoftDeleted}
+									onCheckedChange={checked => setShowSoftDeleted(checked)}
+									disabled={isLoading || isMutating}
+								/>
+							</div>
+							<Button type="button" onClick={openCreateDialog} disabled={isLoading || isMutating}>
+								<PlusIcon />
+								Add
+							</Button>
+						</>
 					)}
 				/>
 

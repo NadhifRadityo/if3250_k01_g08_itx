@@ -9,7 +9,6 @@ import {
 	type ReactNode,
 	type MouseEvent
 } from "react";
-import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -28,6 +27,7 @@ import {
 } from "lucide-react";
 
 import cn from "@/utils/cn";
+import { Link } from "@/components/Link";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Badge } from "@/components/radix/Badge";
@@ -50,6 +50,7 @@ import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 import { Textarea } from "@/components/radix/Textarea";
+import importTemplateLogo from "@/app/_static/favicons/logo.png";
 
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as importActions from "./import.actions";
@@ -65,6 +66,7 @@ export type FilterCombinator = importActions.CreditApplicationImportFilterCombin
 export type FilterInput = importActions.CreditApplicationImportFilterInput;
 export type queryCreditApplicationImportsOutput = Awaited<ReturnType<typeof importActions.queryCreditApplicationImportViewerAction>>;
 export type CreditApplicationImportTableRow = queryCreditApplicationImportsOutput["docs"][number];
+export type CreditApplicationImportPreviewOutput = Awaited<ReturnType<typeof importActions.parseCreditApplicationImportPreviewAction>>;
 export type CreditApplicationImportRelationColumn = importActions.CreditApplicationImportRelationColumn;
 export type ActionError = {
 	title: string;
@@ -146,6 +148,19 @@ export type FilterSummaryItem = {
 	columnLabel: string;
 	operatorLabel: string;
 	valueLabel: string;
+};
+
+type CreditApplicationImportTemplateColumn = {
+	key: string;
+	label: string;
+	width: number;
+	required?: boolean;
+	multiline?: boolean;
+	type: "text" | "email" | "number" | "date" | "json";
+	example: string;
+	promptTitle: string;
+	prompt: string;
+	error?: string;
 };
 
 export const reviewStatusOptions: Array<{ value: string, label: string }> = [
@@ -337,19 +352,161 @@ export function getStatusBadgeVariant(status: importActions.CreditApplicationImp
 	return "secondary";
 }
 
+export function getReviewStatus(row: Pick<CreditApplicationImportTableRow, "status" | "reviewedAt" | "reviewApproved">): {
+	label: string;
+	variant: "default" | "secondary" | "destructive";
+} {
+	if(row.reviewedAt == null || row.status == "pending")
+		return { label: "Pending", variant: "secondary" };
+	if(row.reviewApproved == true || row.status == "approved")
+		return { label: "Approved", variant: "default" };
+	return { label: "Rejected", variant: "destructive" };
+}
+
 function getCreditApplicationImportDrawerValueClassName(columnId: string): string {
 	if(columnId == "id")
 		return "text-xs font-mono";
 	if(columnId == "filename")
 		return "text-sm font-medium";
 	if(columnId == "descriptionText" || columnId == "reviewCommentText")
-		return "text-sm whitespace-pre-wrap";
+		return "text-sm leading-relaxed whitespace-pre-wrap";
 	return "text-sm";
 }
 
 export const defaultCreditApplicationImportColumnOrder: CreditApplicationImportTableColumnId[] = creditApplicationImportTableColumns.map(column => column.id);
 export const defaultCreditApplicationImportVisibleColumns: CreditApplicationImportTableColumnId[] = ["filename", "filesize", "status", "updatedAt", "reviewCommentText"];
 export const defaultCreditApplicationImportHiddenColumns: CreditApplicationImportTableColumnId[] = defaultCreditApplicationImportColumnOrder.filter(columnId => !defaultCreditApplicationImportVisibleColumns.includes(columnId));
+
+export const creditApplicationImportTemplateColumns: CreditApplicationImportTemplateColumn[] = [
+	{ key: "name", label: "Name", width: 28, required: true, type: "text", example: "Example Applicant", promptTitle: "Name", prompt: "Enter a non-empty applicant name.", error: "Name is required." },
+	{ key: "email", label: "Email", width: 30, type: "email", example: "example@applicant.test", promptTitle: "Email", prompt: "Optional. When filled, enter a valid email address.", error: "Enter a valid email address or leave it blank." },
+	{ key: "addresses", label: "Addresses", width: 34, required: true, multiline: true, type: "text", example: "Jl. Sudirman No. 1\nJakarta", promptTitle: "Addresses", prompt: "Enter at least one address. Use a new line for each additional address.", error: "Addresses must contain at least one non-empty line." },
+	{ key: "phoneNumbers", label: "Phone Numbers", width: 24, required: true, multiline: true, type: "text", example: "081234567890\n0215551234", promptTitle: "Phone Numbers", prompt: "Enter at least one phone number. Use a new line for each additional phone number.", error: "Phone numbers must contain at least one non-empty line." },
+	{ key: "whatsappNumber", label: "WhatsApp Number", width: 20, required: true, type: "text", example: "081234567890", promptTitle: "WhatsApp Number", prompt: "Enter the main WhatsApp number.", error: "WhatsApp number is required." },
+	{ key: "smsNumber", label: "SMS Number", width: 20, type: "text", example: "081234567890", promptTitle: "SMS Number", prompt: "Optional. Enter the SMS number when available." },
+	{ key: "collateralRegistryName", label: "Collateral Registry Name", width: 24, type: "text", example: "BPKB", promptTitle: "Collateral Registry Name", prompt: "Optional. Enter the collateral registry name." },
+	{ key: "collateralName", label: "Collateral Name", width: 24, type: "text", example: "Toyota Avanza 2022", promptTitle: "Collateral Name", prompt: "Optional. Enter the collateral name." },
+	{ key: "collateralDescription", label: "Collateral Description", width: 30, multiline: true, type: "text", example: "Black car\nPolice number B 1234 CD", promptTitle: "Collateral Description", prompt: "Optional. Use line breaks for multi-line descriptions." },
+	{ key: "assetId", label: "Asset ID", width: 20, type: "text", example: "AST-001", promptTitle: "Asset ID", prompt: "Optional. Enter the asset identifier." },
+	{ key: "assetName", label: "Asset Name", width: 24, type: "text", example: "Operational Vehicle", promptTitle: "Asset Name", prompt: "Optional. Enter the asset name." },
+	{ key: "assetDescription", label: "Asset Description", width: 30, multiline: true, type: "text", example: "Company-owned vehicle\nUsed for field surveys", promptTitle: "Asset Description", prompt: "Optional. Use line breaks for multi-line descriptions." },
+	{ key: "period", label: "Period", width: 14, type: "number", example: "24", promptTitle: "Period", prompt: "Optional. Enter a numeric period value.", error: "Period must be numeric or blank." },
+	{ key: "installment", label: "Installment", width: 16, type: "number", example: "1500000", promptTitle: "Installment", prompt: "Optional. Enter a numeric installment value.", error: "Installment must be numeric or blank." },
+	{ key: "downPayment", label: "Down Payment", width: 18, type: "number", example: "5000000", promptTitle: "Down Payment", prompt: "Optional. Enter a numeric down payment value.", error: "Down payment must be numeric or blank." },
+	{ key: "plafond", label: "Plafond", width: 18, type: "number", example: "120000000", promptTitle: "Plafond", prompt: "Optional. Enter a numeric plafond value.", error: "Plafond must be numeric or blank." },
+	{ key: "vendor", label: "Vendor", width: 24, type: "text", example: "PT Vendor Nusantara", promptTitle: "Vendor", prompt: "Optional. Enter the vendor name." },
+	{ key: "remarks", label: "Remarks", width: 32, multiline: true, type: "text", example: "Priority customer\nRequested fast processing", promptTitle: "Remarks", prompt: "Optional. Use line breaks for multi-line remarks." },
+	{ key: "otherText1", label: "Other Text 1", width: 18, type: "text", example: "Referral A", promptTitle: "Other Text 1", prompt: "Optional. Enter an additional text value." },
+	{ key: "otherText2", label: "Other Text 2", width: 18, type: "text", example: "Referral B", promptTitle: "Other Text 2", prompt: "Optional. Enter an additional text value." },
+	{ key: "otherNumber1", label: "Other Number 1", width: 16, type: "number", example: "12", promptTitle: "Other Number 1", prompt: "Optional. Enter a numeric value.", error: "Other Number 1 must be numeric or blank." },
+	{ key: "otherNumber2", label: "Other Number 2", width: 16, type: "number", example: "34", promptTitle: "Other Number 2", prompt: "Optional. Enter a numeric value.", error: "Other Number 2 must be numeric or blank." },
+	{ key: "otherDate1", label: "Other Date 1", width: 16, type: "date", example: "2026-04-25", promptTitle: "Other Date 1", prompt: "Optional. Enter a valid date in YYYY-MM-DD format or use Excel's date picker.", error: "Other Date 1 must be a valid date or blank." },
+	{ key: "otherDate2", label: "Other Date 2", width: 16, type: "date", example: "2026-05-01", promptTitle: "Other Date 2", prompt: "Optional. Enter a valid date in YYYY-MM-DD format or use Excel's date picker.", error: "Other Date 2 must be a valid date or blank." },
+	{ key: "others", label: "Others", width: 32, multiline: true, type: "json", example: "{\"source\":\"expo\",\"priority\":true}", promptTitle: "Others", prompt: "Optional. Enter plain text or valid JSON." }
+];
+export const creditApplicationImportPreviewColumns = creditApplicationImportTemplateColumns.map(column => ({
+	id: column.key,
+	label: column.label
+}));
+
+const creditApplicationImportTemplateTableName = "CreditApplicationImports";
+const creditApplicationImportTemplateHeaderRow = 4;
+const creditApplicationImportTemplateDataStartRow = creditApplicationImportTemplateHeaderRow + 1;
+const creditApplicationImportTemplateDataEndRow = 256;
+
+function getTemplateColumnLetter(columnIndex: number): string {
+	let current = columnIndex;
+	let output = "";
+	while(current > 0) {
+		const remainder = (current - 1) % 26;
+		output = String.fromCharCode(65 + remainder) + output;
+		current = Math.floor((current - 1) / 26);
+	}
+	return output;
+}
+
+function formatTemplateTimestamp(date: Date): string {
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+	const seconds = String(date.getSeconds()).padStart(2, "0");
+	return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+function cssColorToArgb(value: string): string {
+	if(typeof window == "undefined" || typeof document == "undefined")
+		return "FF000000";
+
+	const probe = document.createElement("div");
+	probe.style.color = value;
+	probe.style.position = "absolute";
+	probe.style.pointerEvents = "none";
+	probe.style.opacity = "0";
+	document.body.appendChild(probe);
+	const canvasContext = document.createElement("canvas").getContext("2d")!;
+
+	try {
+		const computedColor = window.getComputedStyle(probe).color.trim();
+		canvasContext.fillStyle = computedColor;
+		canvasContext.fillRect(0, 0, 1, 1);
+		const data = canvasContext.getImageData(0, 0, 1, 1, { colorSpace: "srgb", pixelFormat: "rgba-unorm8" }).data;
+		return [data[3], data[0], data[1], data[2]]
+			.map(channel => Math.round(channel).toString(16).padStart(2, "0").toUpperCase())
+			.join("");
+	} finally {
+		document.body.removeChild(probe);
+	}
+}
+
+function resolveCssVarArgb(variableName: string): string {
+	return cssColorToArgb(`var(${variableName})`);
+}
+
+function createTemplateValidationFormula(column: CreditApplicationImportTemplateColumn, cellRef: string): string | null {
+	if(column.required == true && column.multiline == true)
+		return `LEN(TRIM(SUBSTITUTE(${cellRef}&"",CHAR(10)," ")))>0`;
+	if(column.required == true)
+		return `LEN(TRIM(${cellRef}&""))>0`;
+	if(column.type == "email")
+		return `OR(LEN(TRIM(${cellRef}&""))=0,AND(ISNUMBER(SEARCH("@",${cellRef}&"")),ISNUMBER(SEARCH(".",${cellRef}&"",SEARCH("@",${cellRef}&"")+2))))`;
+	if(column.type == "number")
+		return `OR(LEN(TRIM(${cellRef}&""))=0,ISNUMBER(${cellRef}),NOT(ISERROR(VALUE(${cellRef}&""))))`;
+	if(column.type == "date")
+		return `OR(LEN(TRIM(${cellRef}&""))=0,ISNUMBER(${cellRef}),NOT(ISERROR(DATEVALUE(${cellRef}&""))))`;
+	return null;
+}
+
+function triggerCreditApplicationImportFileDownload(href: string, fileName: string) {
+	const anchor = document.createElement("a");
+	anchor.href = href;
+	anchor.download = fileName;
+	anchor.target = "_blank";
+	anchor.rel = "noreferrer";
+	anchor.style.display = "none";
+	document.body.appendChild(anchor);
+	anchor.click();
+	document.body.removeChild(anchor);
+}
+
+function formatCreditApplicationImportPreviewCellValue(
+	row: importActions.ParsedCreditApplicationImportRow,
+	columnId: typeof creditApplicationImportPreviewColumns[number]["id"]
+): string {
+	const value = row[columnId];
+	if(Array.isArray(value))
+		return value.length > 0 ? value.join("\n") : "-";
+	if(value == null)
+		return "-";
+	if(typeof value == "number")
+		return String(value);
+	if(typeof value == "string")
+		return value.trim().length > 0 ? value : "-";
+	if(typeof value == "boolean")
+		return value ? "True" : "False";
+	return JSON.stringify(value, null, 2);
+}
 
 export const creditApplicationImportRelationColumnSet = new Set<CreditApplicationImportRelationColumn>([
 	"reviewedBy",
@@ -540,37 +697,156 @@ function renderCreditApplicationImportUserRelationValue({
 function CreditApplicationImportFileBox({
 	fileName,
 	fileSize,
-	href
+	href,
+	importId,
+	file
 }: {
 	fileName: string;
 	fileSize: number;
 	href: string | null;
+	importId?: string;
+	file?: File | null;
 }) {
-	if(href == null || href.length == 0) {
-		return (
-			<div className="rounded-lg border p-3">
-				<div className="flex items-center gap-2 text-sm">
-					<FileSpreadsheetIcon className="size-4" />
-					<span className="font-medium">{fileName}</span>
-				</div>
-				<p className="text-muted-foreground mt-1 text-xs">{formatFileSize(fileSize)}</p>
-			</div>
-		);
-	}
+	const [previewOpen, setPreviewOpen] = useState(false);
+	const normalizedImportId = importId?.trim() ?? "";
+	const canParse = normalizedImportId.length > 0 || file != null;
+	const downloadHref = href != null && href.length > 0 ? href : null;
+	const canDownload = downloadHref != null;
+	const parsePreviewQuery = useQuery({
+		queryKey: ["credit-application-management", "imports", "file-preview", normalizedImportId, file?.name ?? null, file?.size ?? null, file?.lastModified ?? null],
+		enabled: canParse,
+		queryFn: async () => {
+			const formData = new FormData();
+			if(file != null)
+				formData.set("file", file);
+			else
+				formData.set("importId", normalizedImportId);
+			return importActions.parseCreditApplicationImportPreviewAction(formData);
+		},
+		refetchOnWindowFocus: true
+	});
+
+	const handleBoxClick = (event: MouseEvent<HTMLButtonElement>) => {
+		if(event.altKey && canDownload) {
+			triggerCreditApplicationImportFileDownload(downloadHref, fileName);
+			return;
+		}
+		if(canParse)
+			setPreviewOpen(true);
+	};
+
+	const previewStatusText = (() => {
+		if(parsePreviewQuery.isPending)
+			return "Parsing import file...";
+		if(parsePreviewQuery.isError)
+			return parsePreviewQuery.error instanceof Error ? parsePreviewQuery.error.message : "Unable to parse import file.";
+		if(parsePreviewQuery.data != null)
+			return `${parsePreviewQuery.data.rowCount} imported row(s)`;
+		if(canDownload)
+			return "Alt+Click to download";
+		return "Preview unavailable";
+	})();
+	const isError = parsePreviewQuery.isError;
+	const isInteractive = canParse || canDownload;
 
 	return (
-		<Button asChild variant="outline" className="h-auto w-full justify-start p-3">
-			<a href={href} download={fileName} target="_blank" rel="noreferrer">
-				<div className="flex w-full items-center gap-3">
-					<FileSpreadsheetIcon className="size-4 shrink-0" />
-					<div className="min-w-0 flex-1 text-left">
-						<p className="truncate text-sm font-medium">{fileName}</p>
-						<p className="text-muted-foreground text-xs">{formatFileSize(fileSize)}</p>
+		<>
+			{isInteractive ? (
+				<Button asChild type="button" variant="outline" className="h-auto w-full justify-start p-3" onClick={handleBoxClick}>
+					<div className="flex w-full items-center gap-3">
+						<FileSpreadsheetIcon className="size-4 shrink-0" />
+						<div className="min-w-0 flex-1 text-left">
+							<p className="truncate text-sm font-medium">{fileName}</p>
+							<p className="text-muted-foreground text-xs">{formatFileSize(fileSize)}</p>
+							<p className={cn("mt-1 text-xs", isError ? "text-destructive" : "text-muted-foreground")}>{previewStatusText}</p>
+						</div>
+						{canDownload ? <Button variant="ghost" onClick={e => { e.stopPropagation(); triggerCreditApplicationImportFileDownload(downloadHref, fileName); }}><DownloadIcon className="size-4 shrink-0" /></Button> : null}
 					</div>
-					<DownloadIcon className="size-4 shrink-0" />
+				</Button>
+			) : (
+				<div className="rounded-lg border p-3">
+					<div className="flex items-center gap-2 text-sm">
+						<FileSpreadsheetIcon className="size-4" />
+						<span className="font-medium">{fileName}</span>
+					</div>
+					<p className="text-muted-foreground mt-1 text-xs">{formatFileSize(fileSize)}</p>
 				</div>
-			</a>
-		</Button>
+			)}
+
+			<Drawer open={previewOpen} onOpenChange={setPreviewOpen} direction="right">
+				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+					<DrawerHeader>
+						<DrawerTitle>Import File Preview</DrawerTitle>
+						<DrawerDescription>Preview the rows parsed by the server from this import file before using it in the workflow.</DrawerDescription>
+					</DrawerHeader>
+					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+							<p><span className="font-medium">File:</span> {fileName}</p>
+							<p><span className="font-medium">Size:</span> {formatFileSize(fileSize)}</p>
+							<p>
+								<span className="font-medium">Parsed Rows:</span>{" "}
+								{parsePreviewQuery.data != null ? parsePreviewQuery.data.rowCount : parsePreviewQuery.isPending ? "Parsing..." : "-"}
+							</p>
+						</div>
+
+						<div className="rounded-xl border">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										{creditApplicationImportPreviewColumns.map(column => (
+											<TableHead key={column.id}>{column.label}</TableHead>
+										))}
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{parsePreviewQuery.isPending ? (
+										<TableRow>
+											<TableCell colSpan={creditApplicationImportPreviewColumns.length} className="text-muted-foreground py-8 text-center">Parsing import file...</TableCell>
+										</TableRow>
+									) : null}
+									{parsePreviewQuery.isError ? (
+										<TableRow>
+											<TableCell colSpan={creditApplicationImportPreviewColumns.length} className="py-4">
+												<Alert variant="destructive">
+													<CircleAlertIcon />
+													<AlertTitle>Parse Error</AlertTitle>
+													<AlertDescription>
+														{parsePreviewQuery.error instanceof Error ? parsePreviewQuery.error.message : "Unable to parse import file."}
+													</AlertDescription>
+												</Alert>
+											</TableCell>
+										</TableRow>
+									) : null}
+									{!parsePreviewQuery.isPending && !parsePreviewQuery.isError && parsePreviewQuery.data?.rows.length == 0 ? (
+										<TableRow>
+											<TableCell colSpan={creditApplicationImportPreviewColumns.length} className="text-muted-foreground py-8 text-center">No parsed rows found.</TableCell>
+										</TableRow>
+									) : null}
+									{parsePreviewQuery.data?.rows.map((row, index) => (
+										<TableRow key={`${fileName}-${index}`}>
+											{creditApplicationImportPreviewColumns.map(column => (
+												<TableCell key={`${fileName}-${index}-${column.id}`} className="max-w-[260px] whitespace-pre-wrap wrap-break-word">
+													{formatCreditApplicationImportPreviewCellValue(row, column.id)}
+												</TableCell>
+											))}
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					</div>
+					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						<Button type="button" variant="outline" onClick={() => setPreviewOpen(false)}>Close</Button>
+						{canDownload ? (
+							<Button type="button" variant="secondary" onClick={() => triggerCreditApplicationImportFileDownload(downloadHref, fileName)}>
+								<DownloadIcon />
+								Download
+							</Button>
+						) : null}
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
+		</>
 	);
 }
 
@@ -630,8 +906,10 @@ export function CreditApplicationImportRequestDetailsDrawer({
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.updatedAt));
 			case "deletedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
-			case "status":
-				return <Badge variant={getStatusBadgeVariant(data.row.status)}>{data.row.status}</Badge>;
+			case "status": {
+				const status = getReviewStatus(data.row);
+				return <Badge variant={status.variant}>{status.label}</Badge>;
+			}
 			case "reviewedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
 			case "reviewedBy":
@@ -667,7 +945,7 @@ export function CreditApplicationImportRequestDetailsDrawer({
 						</Alert>
 					) : (
 						<>
-							<CreditApplicationImportFileBox fileName={details.row.filename} fileSize={details.row.filesize} href={details.row.fileUrl} />
+							<CreditApplicationImportFileBox fileName={details.row.filename} fileSize={details.row.filesize} href={details.row.fileUrl} importId={details.row.id} />
 							{creditApplicationImportTableColumns.map(column => (
 								<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
 									<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
@@ -706,6 +984,7 @@ export function CreditApplicationImportRequestFormDrawer({
 	onSubmit
 }: CreditApplicationImportRequestFormDrawerProps) {
 	const [localObjectUrl, setLocalObjectUrl] = useState<string | null>(null);
+	const [isTemplateDownloading, setIsTemplateDownloading] = useState(false);
 
 	useEffect(() => {
 		if(formState.file == null) {
@@ -722,65 +1001,259 @@ export function CreditApplicationImportRequestFormDrawer({
 	const resolvedFileName = formState.file?.name ?? formState.filename;
 	const resolvedFileSize = formState.file?.size ?? formState.filesize;
 	const resolvedFileHref = formState.file != null ? localObjectUrl : formState.fileUrl;
+	const handleDownloadTemplate = useCallback(() => {
+		if(isTemplateDownloading)
+			return;
+
+		void (async () => {
+			setIsTemplateDownloading(true);
+			const ExcelJS = (await import("@/utils/exceljs")).default;
+			const workbook = new ExcelJS.Workbook();
+			const worksheet = workbook.addWorksheet("Credit Applications", {
+				pageSetup: {
+					fitToWidth: 1,
+					fitToHeight: 0,
+					orientation: "landscape",
+					paperSize: 9,
+					margins: {
+						top: 0.4,
+						right: 0.4,
+						bottom: 0.4,
+						left: 0.4,
+						header: 0.2,
+						footer: 0.2
+					}
+				}
+			});
+			const backgroundArgb = resolveCssVarArgb("--background");
+			const foregroundArgb = resolveCssVarArgb("--foreground");
+			const accentArgb = resolveCssVarArgb("--accent");
+			const accentForegroundArgb = resolveCssVarArgb("--accent-foreground");
+			const lastColumnLetter = getTemplateColumnLetter(creditApplicationImportTemplateColumns.length);
+			const documentTitle = document.title.trim().length > 0 ? document.title : "Mobile Survey Intelix";
+			const titleRange = `B1:${lastColumnLetter}1`;
+			const promptRange = `B2:${lastColumnLetter}2`;
+			const rowCountLabelCell = "A3";
+			const rowCountValueCell = "B3";
+
+			workbook.title = "Credit Application Import Template";
+			workbook.creator = documentTitle;
+			workbook.lastModifiedBy = documentTitle;
+			workbook.created = new Date();
+			workbook.modified = new Date();
+
+			worksheet.properties.defaultRowHeight = 22;
+			worksheet.columns = creditApplicationImportTemplateColumns.map(column => ({
+				key: column.key,
+				width: column.width,
+				style: {
+					fill: { type: "pattern", pattern: "solid", fgColor: { argb: backgroundArgb } },
+					font: { name: "Inter", size: 10, color: { argb: foregroundArgb } },
+					alignment: {
+						vertical: "top",
+						wrapText: column.multiline == true
+					}
+				}
+			}));
+
+			worksheet.getRow(1).height = 104;
+			worksheet.getRow(2).height = 44;
+
+			for(let rowNumber = 1; rowNumber <= creditApplicationImportTemplateDataStartRow; rowNumber++) {
+				for(let columnNumber = 1; columnNumber <= creditApplicationImportTemplateColumns.length; columnNumber++) {
+					const cell = worksheet.getCell(`${getTemplateColumnLetter(columnNumber)}${rowNumber}`);
+					cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: backgroundArgb } };
+					cell.font = { name: "Inter", size: 10, color: { argb: foregroundArgb } };
+				}
+			}
+
+			worksheet.mergeCells(titleRange);
+			worksheet.mergeCells(promptRange);
+
+			for(let rowNumber = 1; rowNumber <= 2; rowNumber++) {
+				for(let columnNumber = 1; columnNumber <= creditApplicationImportTemplateColumns.length; columnNumber++) {
+					const cell = worksheet.getCell(`${getTemplateColumnLetter(columnNumber)}${rowNumber}`);
+					cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: accentArgb } };
+					cell.font = { name: "Inter", size: 10, color: { argb: accentForegroundArgb } };
+				}
+			}
+
+			worksheet.getCell("B1").value = "Credit Application Import Template";
+			worksheet.getCell("B1").font = { name: "Inter", size: 20, bold: true, color: { argb: accentForegroundArgb } };
+			worksheet.getCell("B1").alignment = { horizontal: "left", vertical: "middle" };
+			worksheet.getCell("B2").value = "Fill the table below and upload the workbook as-is. Use line breaks inside addresses and phone numbers cells for multiple entries, then replace or remove the sample row before importing.";
+			worksheet.getCell("B2").font = { name: "Inter", size: 11, color: { argb: accentForegroundArgb } };
+			worksheet.getCell("B2").alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+
+			const logoResponse = await fetch(importTemplateLogo.src);
+			const logoImage = workbook.addImage({
+				base64: btoa(String.fromCharCode(...new Uint8Array(await logoResponse.arrayBuffer()))),
+				extension: "png"
+			});
+			worksheet.addImage(logoImage, {
+				tl: { col: 0.25, row: 0.1 },
+				ext: { width: 180, height: 180 },
+				hyperlinks: {
+					hyperlink: location.href,
+					tooltip: document.title
+				}
+			});
+
+			worksheet.getCell(rowCountLabelCell).value = "Total Rows";
+			worksheet.getCell(rowCountValueCell).value = { formula: `MAX(COUNTA(A${creditApplicationImportTemplateDataStartRow}:A${creditApplicationImportTemplateDataEndRow}),0)` };
+			worksheet.getCell(rowCountLabelCell).font = { name: "Inter", size: 10, bold: true, color: { argb: foregroundArgb } };
+			worksheet.getCell(rowCountValueCell).font = { name: "Inter", size: 10, bold: true, color: { argb: foregroundArgb } };
+
+			worksheet.addTable({
+				name: creditApplicationImportTemplateTableName,
+				displayName: creditApplicationImportTemplateTableName,
+				ref: `A${creditApplicationImportTemplateHeaderRow}`,
+				headerRow: true,
+				style: {
+					theme: null,
+					showRowStripes: false
+				},
+				columns: creditApplicationImportTemplateColumns.map(column => ({
+					name: column.label,
+					filterButton: true
+				})),
+				rows: [
+					creditApplicationImportTemplateColumns.map(column => column.example)
+				]
+			});
+
+			const headerRow = worksheet.getRow(creditApplicationImportTemplateHeaderRow);
+			headerRow.height = 24;
+			for(let index = 0; index < creditApplicationImportTemplateColumns.length; index++) {
+				const column = creditApplicationImportTemplateColumns[index];
+				const columnIndex = index + 1;
+				const columnLetter = getTemplateColumnLetter(columnIndex);
+				const headerCell = worksheet.getCell(`${columnLetter}${creditApplicationImportTemplateHeaderRow}`);
+				const sampleCell = worksheet.getCell(`${columnLetter}${creditApplicationImportTemplateDataStartRow}`);
+				const validationFormula = createTemplateValidationFormula(column, `${columnLetter}${creditApplicationImportTemplateDataStartRow}`);
+
+				headerCell.font = { name: "Inter", size: 10, bold: true, color: { argb: accentForegroundArgb } };
+				headerCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: accentArgb } };
+				headerCell.alignment = { vertical: "middle", wrapText: true };
+
+				sampleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: backgroundArgb } };
+				sampleCell.font = { name: "Inter", size: 10, color: { argb: foregroundArgb } };
+				sampleCell.alignment = { vertical: "top", wrapText: column.multiline == true };
+				if(column.type == "date")
+					worksheet.getColumn(columnIndex).numFmt = "yyyy-mm-dd";
+
+				worksheet.dataValidations.add(`${columnLetter}${creditApplicationImportTemplateDataStartRow}:${columnLetter}${creditApplicationImportTemplateDataEndRow}`, {
+					type: "custom",
+					allowBlank: column.required != true,
+					formulae: [validationFormula ?? "TRUE"],
+					showInputMessage: true,
+					promptTitle: column.promptTitle,
+					prompt: column.prompt,
+					showErrorMessage: validationFormula != null,
+					errorTitle: "Invalid value",
+					error: column.error ?? `${column.label} contains an invalid value.`
+				});
+			}
+
+			for(let i = creditApplicationImportTemplateColumns.length; i <= 16384; i++)
+				worksheet.getColumn(i).hidden = true;
+
+			const buffer = await workbook.xlsx.writeBuffer();
+			const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+			const blobUrl = URL.createObjectURL(blob);
+			const anchor = document.createElement("a");
+			anchor.href = blobUrl;
+			anchor.download = `credit-application-import-template-${formatTemplateTimestamp(new Date())}.xlsx`;
+			anchor.style.display = "none";
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+			URL.revokeObjectURL(blobUrl);
+
+			setIsTemplateDownloading(false);
+		})();
+	}, [isTemplateDownloading]);
 
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-lg">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
 					<DrawerTitle>{isEditMode ? "Edit Import Description" : "Add Credit Application Import"}</DrawerTitle>
 					<DrawerDescription>
 						{isEditMode ? "Description can be edited only while this import has not been reviewed." : "Upload one Excel file that follows the credit application import template."}
 					</DrawerDescription>
 				</DrawerHeader>
-				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-					<div className="space-y-2">
-						<label className="text-sm font-medium">Excel File</label>
-						<Input
-							type="file"
-							accept=".xlsx,.xls"
-							onChange={event => {
-								const selectedFile = event.target.files?.[0] ?? null;
-								onFormStateChange(previous => ({ ...previous, file: selectedFile }));
-							}}
-							disabled={isEditMode || isMutating}
-						/>
-						{isEditMode ? (
-							<p className="text-muted-foreground text-xs">File is immutable after upload. Create a new import to change the file.</p>
+				<div className="flex-1 overflow-y-auto px-4">
+					<div className="grid gap-3 pb-4">
+						{!isEditMode ? (
+							<div className="bg-muted/40 space-y-2 rounded-lg border p-3">
+								<p className="text-sm font-medium">Need a starter workbook?</p>
+								<p className="text-muted-foreground text-xs">Download the XLSX template with every supported column, built-in validation rules, and the same layout used by the importer.</p>
+								<Button
+									type="button"
+									variant="link"
+									className="h-auto px-0"
+									onClick={handleDownloadTemplate}
+									disabled={isMutating || isTemplateDownloading}
+								>
+									<DownloadIcon />
+									{isTemplateDownloading ? "Generating template..." : "Download import template"}
+								</Button>
+							</div>
+						) : null}
+
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Excel File</label>
+							<Input
+								type="file"
+								accept=".xlsx,.xls"
+								onChange={event => {
+									const selectedFile = event.target.files?.[0] ?? null;
+									onFormStateChange(previous => ({ ...previous, file: selectedFile }));
+								}}
+								disabled={isEditMode || isMutating}
+							/>
+							{isEditMode ? (
+								<p className="text-muted-foreground text-xs">File is immutable after upload. Create a new import to change the file.</p>
+							) : null}
+							{resolvedFileName.trim().length == 0 ? (
+								<p className="text-muted-foreground text-xs">No file selected.</p>
+							) : null}
+						</div>
+
+						{resolvedFileName.trim().length > 0 ? (
+							<CreditApplicationImportFileBox
+								fileName={resolvedFileName}
+								fileSize={resolvedFileSize}
+								href={resolvedFileHref}
+								importId={formState.importId}
+								file={formState.file}
+							/>
+						) : null}
+
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Description</label>
+							<Textarea
+								value={formState.description}
+								onChange={event => onFormStateChange(previous => ({ ...previous, description: event.target.value }))}
+								rows={8}
+								placeholder="Optional import description"
+								disabled={isMutating}
+							/>
+						</div>
+
+						{formError != null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>{formError.title}</AlertTitle>
+								<AlertDescription>{formError.message}</AlertDescription>
+							</Alert>
 						) : null}
 					</div>
-
-					{resolvedFileName.trim().length > 0 ? (
-						<CreditApplicationImportFileBox
-							fileName={resolvedFileName}
-							fileSize={resolvedFileSize}
-							href={resolvedFileHref}
-						/>
-					) : (
-						<p className="text-muted-foreground text-xs">No file selected.</p>
-					)}
-
-					<div className="space-y-2">
-						<label className="text-sm font-medium">Description</label>
-						<Textarea
-							value={formState.description}
-							onChange={event => onFormStateChange(previous => ({ ...previous, description: event.target.value }))}
-							rows={8}
-							placeholder="Optional import description"
-							disabled={isMutating}
-						/>
-					</div>
-
-					{formError != null ? (
-						<Alert variant="destructive">
-							<CircleAlertIcon />
-							<AlertTitle>{formError.title}</AlertTitle>
-							<AlertDescription>{formError.message}</AlertDescription>
-						</Alert>
-					) : null}
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" onClick={onSubmit} disabled={isMutating || (!isEditMode && formState.file == null)}>
+					<Button type="button" onClick={onSubmit} disabled={isMutating || isTemplateDownloading || (!isEditMode && formState.file == null)}>
 						{isEditMode ? <CheckIcon /> : <UploadIcon />}
 						{isEditMode ? "Save Description" : "Upload"}
 					</Button>
@@ -814,45 +1287,49 @@ export function CreditApplicationImportRequestReviewDrawer({
 	isMutating
 }: CreditApplicationImportRequestReviewDrawerProps) {
 	const row = reviewDrawerState?.row ?? null;
+	const reviewStatus = row == null ? null : getReviewStatus(row);
 
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-lg">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>Review Import Request</DrawerTitle>
-					<DrawerDescription>Approving will parse the uploaded file again and create credit applications from its rows.</DrawerDescription>
+					<DrawerTitle>Review</DrawerTitle>
+					<DrawerDescription>Review the selected import request before making a decision. Approval parses the uploaded file again and creates credit applications from its rows.</DrawerDescription>
 				</DrawerHeader>
-				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-					{row == null ? (
-						<p className="text-muted-foreground text-sm">No import request selected.</p>
-					) : (
-						<>
-							<CreditApplicationImportFileBox fileName={row.filename} fileSize={row.filesize} href={row.fileUrl} />
-							<div className="bg-muted/30 rounded-lg border p-3 text-sm">
-								<p>
-									<span className="font-medium">Current Status:</span> <Badge variant={getStatusBadgeVariant(row.status)}>{row.status}</Badge>
-								</p>
-								<p className="text-muted-foreground mt-1">Description can no longer be modified after this review action.</p>
-							</div>
-							<div className="space-y-1 rounded-md border p-3">
-								<p className="text-muted-foreground text-xs font-medium">Description</p>
-								<p className="text-sm whitespace-pre-wrap">{formatTextValue(row.descriptionText)}</p>
-							</div>
-						</>
-					)}
+				<div className="flex-1 overflow-y-auto px-4">
+					<div className="grid gap-3 pb-4">
+						{row == null ? (
+							<p className="text-muted-foreground text-sm">No import request selected.</p>
+						) : (
+							<>
+								<CreditApplicationImportFileBox fileName={row.filename} fileSize={row.filesize} href={row.fileUrl} importId={row.id} />
+								<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+									<p>
+										<span className="font-medium">Current Status:</span>{" "}
+										{reviewStatus != null ? <Badge variant={reviewStatus.variant}>{reviewStatus.label}</Badge> : "-"}
+									</p>
+									<p className="text-muted-foreground mt-1">Description can no longer be modified after this review action.</p>
+								</div>
+								<div className="space-y-1 rounded-lg border p-3">
+									<p className="text-muted-foreground text-xs font-medium">Description</p>
+									<p className={cn("wrap-break-word", getCreditApplicationImportDrawerValueClassName("descriptionText"))}>{formatTextValue(row.descriptionText)}</p>
+								</div>
+							</>
+						)}
 
-					<div className="space-y-2">
-						<label className="text-sm font-medium">Review Reason (optional)</label>
-						<Textarea value={reviewReason} onChange={event => onReviewReasonChange(event.target.value)} placeholder="Provide a review reason" />
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Review Reason (optional)</label>
+							<Textarea value={reviewReason} onChange={event => onReviewReasonChange(event.target.value)} placeholder="Provide a review reason" />
+						</div>
+
+						{reviewError != null ? (
+							<Alert variant="destructive">
+								<CircleAlertIcon />
+								<AlertTitle>{reviewError.title}</AlertTitle>
+								<AlertDescription>{reviewError.message}</AlertDescription>
+							</Alert>
+						) : null}
 					</div>
-
-					{reviewError != null ? (
-						<Alert variant="destructive">
-							<CircleAlertIcon />
-							<AlertTitle>{reviewError.title}</AlertTitle>
-							<AlertDescription>{reviewError.message}</AlertDescription>
-						</Alert>
-					) : null}
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
@@ -1358,8 +1835,10 @@ export function useCreditApplicationImportCellRenderer({ relationValuesByRowId, 
 				return formatDateTime(row.updatedAt);
 			case "deletedAt":
 				return formatDateTime(row.deletedAt);
-			case "status":
-				return <Badge variant={getStatusBadgeVariant(row.status)}>{row.status}</Badge>;
+			case "status": {
+				const status = getReviewStatus(row);
+				return <Badge variant={status.variant}>{status.label}</Badge>;
+			}
 			case "reviewedAt":
 				return formatDateTime(row.reviewedAt);
 			case "reviewedBy":
@@ -1987,6 +2466,7 @@ type useCreditApplicationImportRequestsQueryOptions = {
 	sortTokens: string[];
 	appliedFilters: FilterInput[];
 	isFilterStateReady: boolean;
+	includeSoftDeleted: boolean;
 };
 
 export function useCreditApplicationImportRequestsQuery({
@@ -1995,16 +2475,17 @@ export function useCreditApplicationImportRequestsQuery({
 	debouncedKeyword,
 	sortTokens,
 	appliedFilters,
-	isFilterStateReady
+	isFilterStateReady,
+	includeSoftDeleted
 }: useCreditApplicationImportRequestsQueryOptions) {
 	const [pageIndex, setPageIndex] = useState(1);
 
 	useEffect(() => {
 		setPageIndex(1);
-	}, [appliedFilters, debouncedKeyword, sortTokens]);
+	}, [appliedFilters, debouncedKeyword, includeSoftDeleted, sortTokens]);
 
 	const queryResult = useQuery({
-		queryKey: ["credit-application-management", "imports", queryScope, debouncedKeyword, sortTokens, appliedFilters, pageIndex],
+		queryKey: ["credit-application-management", "imports", queryScope, debouncedKeyword, sortTokens, appliedFilters, pageIndex, includeSoftDeleted],
 		enabled: isFilterStateReady,
 		queryFn: () => queryAction({
 			keyword: debouncedKeyword,
@@ -2012,7 +2493,8 @@ export function useCreditApplicationImportRequestsQuery({
 			filters: appliedFilters,
 			filterCombinator: "and",
 			page: pageIndex,
-			limit: PAGE_SIZE
+			limit: PAGE_SIZE,
+			includeSoftDeleted
 		}),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true

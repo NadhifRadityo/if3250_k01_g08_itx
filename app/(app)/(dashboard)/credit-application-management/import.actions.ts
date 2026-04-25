@@ -3,21 +3,16 @@
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
 import { getPayload, type Where, type Payload } from "payload";
-import ExcelJS from "exceljs";
 
 import payloadConfig from "@payload-config";
+import ExcelJS from "@/utils/exceljs";
 
 import {
 	resolveManagementRootHref,
 	resolveManagementModeRedirectHrefAction as resolveDashboardManagementModeRedirectHrefAction
 } from "../layout.actions";
 
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 100;
-const RELATION_SEARCH_LIMIT = 20;
-
-const expectedImportColumns = [
+const creditApplicationImportTemplateColumns = [
 	"name",
 	"email",
 	"addresses",
@@ -43,10 +38,13 @@ const expectedImportColumns = [
 	"otherDate1",
 	"otherDate2",
 	"others"
-] as const;
+];
 
-type ExpectedImportColumn = typeof expectedImportColumns[number];
-type ExcelWorkbookLoadInput = Parameters<ExcelJS.Workbook["xlsx"]["load"]>[0];
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+const RELATION_SEARCH_LIMIT = 20;
+
 type CreditApplicationImportReviewCommentValue = {
 	root: {
 		type: string;
@@ -73,7 +71,7 @@ type CreditApplicationImportReviewCommentValue = {
 	};
 };
 
-type ParsedCreditApplicationImportRow = {
+export type ParsedCreditApplicationImportRow = {
 	name: string;
 	email: string;
 	addresses: string[];
@@ -160,6 +158,7 @@ export type QueryCreditApplicationImportsInput = {
 	filterCombinator?: CreditApplicationImportFilterCombinator;
 	page?: number;
 	limit?: number;
+	includeSoftDeleted?: boolean;
 };
 
 export type CreditApplicationImportTableRow = {
@@ -224,6 +223,11 @@ export type QueryCreditApplicationImportsOutput = {
 export type CreateCreditApplicationImportOutput = {
 	importId: string;
 	parsedRowCount: number;
+};
+
+export type CreditApplicationImportPreviewOutput = {
+	rowCount: number;
+	rows: ParsedCreditApplicationImportRow[];
 };
 
 export type ReviewCreditApplicationImportInput = {
@@ -491,10 +495,6 @@ function normalizeOthersValue(value: string): ParsedCreditApplicationImportRow["
 	}
 }
 
-function normalizeHeaderValue(value: string): string {
-	return value.trim().toLowerCase();
-}
-
 function resolveCellText(value: ExcelJS.CellValue): string {
 	if(value == null)
 		return "";
@@ -520,7 +520,7 @@ function resolveCellText(value: ExcelJS.CellValue): string {
 	return "";
 }
 
-function mapRowToCreditApplicationImport(rowData: Record<ExpectedImportColumn, string>, rowNumber: number): ParsedCreditApplicationImportRow {
+function mapRowToCreditApplicationImport(rowData: Record<string, string>, rowNumber: number): ParsedCreditApplicationImportRow {
 	const name = normalizeOptionalText(rowData.name);
 	const addresses = splitMultivalueText(rowData.addresses);
 	const phoneNumbers = splitMultivalueText(rowData.phoneNumbers);
@@ -564,50 +564,31 @@ function mapRowToCreditApplicationImport(rowData: Record<ExpectedImportColumn, s
 	};
 }
 
-async function parseExcelCreditApplicationImportRows(fileBuffer: Buffer): Promise<ParsedCreditApplicationImportRow[]> {
+async function parseExcelCreditApplicationImportRows(fileBuffer: ArrayBuffer): Promise<ParsedCreditApplicationImportRow[]> {
 	const workbook = new ExcelJS.Workbook();
-	const workbookSource = fileBuffer as unknown as ExcelWorkbookLoadInput;
-	await workbook.xlsx.load(workbookSource);
+	await workbook.xlsx.load(fileBuffer);
 
 	const worksheet = workbook.worksheets[0];
 	if(worksheet == null)
 		throw new Error("The uploaded workbook does not contain any worksheet.");
 
-	const headerRow = worksheet.getRow(1);
-	const headerIndexByColumn = new Map<ExpectedImportColumn, number>();
-
-	for(let columnNumber = 1; columnNumber <= headerRow.cellCount; columnNumber++) {
-		const headerText = normalizeHeaderValue(resolveCellText(headerRow.getCell(columnNumber).value));
-		if(headerText.length == 0)
-			continue;
-
-		const matchingColumn = expectedImportColumns.find(column => normalizeHeaderValue(column) == headerText);
-		if(matchingColumn == null || headerIndexByColumn.has(matchingColumn))
-			continue;
-		headerIndexByColumn.set(matchingColumn, columnNumber);
-	}
-
-	const missingColumns = expectedImportColumns.filter(column => !headerIndexByColumn.has(column));
-	if(missingColumns.length > 0)
-		throw new Error(`Missing template column(s): ${missingColumns.join(", ")}.`);
+	const TEMPLATE_DATA_START_ROW = 5;
 
 	const parsedRows: ParsedCreditApplicationImportRow[] = [];
 
-	for(let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+	for(let rowNumber = TEMPLATE_DATA_START_ROW; rowNumber <= worksheet.rowCount; rowNumber++) {
 		const worksheetRow = worksheet.getRow(rowNumber);
 		if(worksheetRow == null)
 			continue;
 
-		const rowData = {} as Record<ExpectedImportColumn, string>;
-		for(const column of expectedImportColumns) {
-			const columnIndex = headerIndexByColumn.get(column)!;
-			const rawValue = resolveCellText(worksheetRow.getCell(columnIndex).value).trim();
-			rowData[column] = rawValue;
-		}
+		const rowData = {} as Record<string, string>;
 
-		const hasValue = expectedImportColumns.some(column => rowData[column].length > 0);
-		if(!hasValue)
-			continue;
+		for(let columnIndex = 0; columnIndex < creditApplicationImportTemplateColumns.length; columnIndex++) {
+			const templateColumn = creditApplicationImportTemplateColumns[columnIndex];
+			const columnNumber = columnIndex + 1;
+			const rawValue = resolveCellText(worksheetRow.getCell(columnNumber).value).trim();
+			rowData[templateColumn] = rawValue;
+		}
 
 		parsedRows.push(mapRowToCreditApplicationImport(rowData, rowNumber));
 	}
@@ -785,6 +766,7 @@ function buildImportFilterWhere(filter: CreditApplicationImportFilterInput): Whe
 function toPayloadImportWhere(
 	keyword: string,
 	pendingOnly: boolean,
+	includeSoftDeleted: boolean,
 	filters: CreditApplicationImportFilterInput[] = [],
 	filterCombinator: CreditApplicationImportFilterCombinator = "and"
 ): Where | undefined {
@@ -798,10 +780,10 @@ function toPayloadImportWhere(
 			]
 		});
 	}
-	if(pendingOnly) {
+	if(pendingOnly)
 		whereTerms.push({ reviewedAt: { exists: false } });
+	if(pendingOnly || !includeSoftDeleted)
 		whereTerms.push({ deletedAt: { exists: false } });
-	}
 
 	const filterTerms = filters
 		.map(buildImportFilterWhere)
@@ -875,7 +857,7 @@ async function parseExcelRowsFromImportFile(
 	if(!response.ok)
 		throw new Error(`Unable to fetch uploaded import file. HTTP ${response.status}.`);
 
-	const fileBuffer = Buffer.from(await response.arrayBuffer());
+	const fileBuffer = await response.arrayBuffer();
 	if(fileBuffer.byteLength == 0)
 		throw new Error("Unable to fetch uploaded import file. File is empty.");
 
@@ -901,6 +883,7 @@ async function queryCreditApplicationImportsService(
 	const keyword = normalizeKeyword(input.keyword);
 	const normalizedSort = normalizeSortTokens(input.sort);
 	const normalizedFilterCombinator = normalizeImportFilterCombinator(input.filterCombinator);
+	const includeSoftDeleted = input.includeSoftDeleted == true;
 
 	const result = await context.payload.find({
 		collection: "credit-application-imports",
@@ -912,7 +895,7 @@ async function queryCreditApplicationImportsService(
 		page,
 		limit,
 		sort: normalizedSort,
-		where: toPayloadImportWhere(keyword, options.pendingOnly, input.filters, normalizedFilterCombinator),
+		where: toPayloadImportWhere(keyword, options.pendingOnly, includeSoftDeleted, input.filters, normalizedFilterCombinator),
 		select: {
 			id: true,
 			filename: true,
@@ -1236,7 +1219,7 @@ export async function createCreditApplicationImportAction(formData: FormData): P
 	if(fileName.length == 0)
 		throw new Error("Import file name is required.");
 
-	const fileBuffer = Buffer.from(await fileValue.arrayBuffer());
+	const fileBuffer = await fileValue.arrayBuffer();
 	if(fileBuffer.byteLength == 0)
 		throw new Error("Import file is empty.");
 	const descriptionText = normalizeDescriptionText(typeof formData.get("description") == "string" ? String(formData.get("description")) : undefined);
@@ -1250,7 +1233,7 @@ export async function createCreditApplicationImportAction(formData: FormData): P
 		overrideAccess: true,
 		file: {
 			name: fileName,
-			data: fileBuffer,
+			data: Buffer.from(fileBuffer),
 			size: fileBuffer.byteLength,
 			mimetype: mimeType
 		},
@@ -1266,6 +1249,50 @@ export async function createCreditApplicationImportAction(formData: FormData): P
 	return {
 		importId: String(createdImport.id),
 		parsedRowCount: parsedRows.length
+	};
+}
+
+export async function parseCreditApplicationImportPreviewAction(formData: FormData): Promise<CreditApplicationImportPreviewOutput> {
+	const context = await getAuthContext();
+	const importIdInput = typeof formData.get("importId") == "string" ? String(formData.get("importId")) : "";
+	const importId = importIdInput.trim();
+	const fileValue = formData.get("file");
+
+	let parsedRows: ParsedCreditApplicationImportRow[];
+	if(fileValue instanceof File) {
+		const fileBuffer = await fileValue.arrayBuffer();
+		if(fileBuffer.byteLength == 0)
+			throw new Error("Import file is empty.");
+		parsedRows = await parseExcelCreditApplicationImportRows(fileBuffer);
+	} else {
+		if(importId.length == 0)
+			throw new Error("Import id is required.");
+
+		const importDoc = await context.payload.findByID({
+			collection: "credit-application-imports",
+			id: importId,
+			user: context.user,
+			overrideAccess: true,
+			depth: 0,
+			trash: true,
+			showHiddenFields: true,
+			select: {
+				filename: true
+			}
+		});
+		if(typeof importDoc.filename != "string" || importDoc.filename.trim().length == 0)
+			throw new Error("The selected import does not have a valid uploaded file.");
+
+		const importFileUrl = resolveImportDownloadHref(importDoc.filename);
+		if(importFileUrl == null)
+			throw new Error("The selected import does not expose a valid file URL.");
+
+		parsedRows = await parseExcelRowsFromImportFile(importFileUrl, context.requestHeaders);
+	}
+
+	return {
+		rowCount: parsedRows.length,
+		rows: parsedRows
 	};
 }
 
@@ -1309,7 +1336,7 @@ export async function updateCreditApplicationImportDescriptionAction(input: Upda
 	};
 }
 
-export async function cancelCreditApplicationImportAction(importIdInput: string): Promise<{ importId: string }> {
+export async function deleteCreditApplicationImportAction(importIdInput: string): Promise<{ importId: string }> {
 	const context = await getAuthContext();
 	const importId = importIdInput.trim();
 	if(importId.length == 0)
