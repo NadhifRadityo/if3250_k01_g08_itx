@@ -171,6 +171,7 @@ export type StagedUserTableRow = {
 	reviewedById: string | null;
 	reviewApproved: boolean | null;
 	reviewCommentText: string;
+	requestType: "Create" | "Update" | "Delete";
 };
 
 export type UserRelationColumn = "supervisor" |
@@ -1166,6 +1167,7 @@ export async function queryStagedUsersAction({ keyword, sort, filters, filterCom
 		const updatedById = getRelationshipId(doc.updatedBy);
 		const deletedById = getRelationshipId(doc.deletedBy);
 		const reviewCommentText = richTextToPlainText(doc.reviewComment);
+		const requestType = getUserRequestType(doc.deletedAt ?? null, doc.createdAt, doc.updatedAt);
 		return {
 			id: String(doc.id),
 			linkedUserId: linkedUserIdByStagedId.get(String(doc.id)) ?? null,
@@ -1186,7 +1188,8 @@ export async function queryStagedUsersAction({ keyword, sort, filters, filterCom
 			reviewedAt: doc.reviewedAt ?? null,
 			reviewedById,
 			reviewApproved: doc.reviewApproved ?? null,
-			reviewCommentText
+			reviewCommentText,
+			requestType
 		};
 	});
 
@@ -1336,6 +1339,7 @@ export async function getStagedUserRequestDetailsAction(stagedUserId: string): P
 	const updatedById = getRelationshipId(stagedUser.updatedBy);
 	const deletedById = getRelationshipId(stagedUser.deletedBy);
 	const reviewCommentText = richTextToPlainText(stagedUser.reviewComment);
+	const requestType = getUserRequestType(stagedUser.deletedAt ?? null, stagedUser.createdAt, stagedUser.updatedAt);
 
 	const row: StagedUserTableRow = {
 		id: String(stagedUser.id),
@@ -1357,7 +1361,8 @@ export async function getStagedUserRequestDetailsAction(stagedUserId: string): P
 		reviewedAt: stagedUser.reviewedAt ?? null,
 		reviewedById,
 		reviewApproved: stagedUser.reviewApproved ?? null,
-		reviewCommentText
+		reviewCommentText,
+		requestType
 	};
 
 	const relationUserIds = new Set<string>();

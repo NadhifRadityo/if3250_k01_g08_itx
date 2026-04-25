@@ -421,14 +421,6 @@ export function formatDateTime(dateValue: string | null) {
 	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
-export function getRequestType(row: StagedUserTableRow) {
-	if(row.linkedUserId == null)
-		return "Create";
-	if(row.deletedAt != null)
-		return "Delete";
-	return "Update";
-}
-
 export function getReviewStatus(row: StagedUserTableRow): { label: string, variant: "default" | "secondary" | "destructive" } {
 	if(row.reviewedAt == null)
 		return { label: "Pending", variant: "secondary" };
@@ -440,17 +432,14 @@ export function getReviewStatus(row: StagedUserTableRow): { label: string, varia
 function renderRequestTypeTrigger({
 	row,
 	onOpenRequestChanges,
-	className,
-	requestTypeLabel
+	className
 }: {
 	row: StagedUserTableRow;
 	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
 	className?: string;
-	requestTypeLabel?: string;
 }): ReactNode {
-	const label = requestTypeLabel ?? getRequestType(row);
 	if(onOpenRequestChanges == null)
-		return label;
+		return row.requestType;
 
 	return (
 		<Button
@@ -459,7 +448,7 @@ function renderRequestTypeTrigger({
 			onClick={() => onOpenRequestChanges(row)}
 			className={cn("text-primary h-auto p-0", className)}
 		>
-			{label}
+			{row.requestType}
 		</Button>
 	);
 }
@@ -1058,10 +1047,12 @@ export function UserRequestReviewDrawer({
 							<p>
 								<span className="font-medium">Request Type:</span>{" "}
 								{reviewDrawerState?.row != null ? renderRequestTypeTrigger({
-									row: reviewDrawerState.row,
+									row: {
+										...reviewDrawerState.row,
+										requestType: reviewDrawerState.diff?.requestType ?? reviewDrawerState.row.requestType
+									},
 									onOpenRequestChanges,
-									className: "align-baseline",
-									requestTypeLabel: reviewDrawerState.diff?.requestType ?? getRequestType(reviewDrawerState.row)
+									className: "align-baseline"
 								}) : "-"}
 							</p>
 							<p className="text-muted-foreground">
@@ -1196,7 +1187,7 @@ export function UserRequestChangePreviewDrawer({
 					</DrawerHeader>
 					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
-							<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? (row != null ? getRequestType(row) : "-")}</p>
+							<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
 							<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
 						</div>
 
