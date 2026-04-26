@@ -449,7 +449,7 @@ function renderRequestTypeTrigger({
 			type="button"
 			variant="link"
 			onClick={() => onOpenRequestChanges(row)}
-			className={cn("text-primary h-auto p-0", className)}
+			className={cn("text-primary h-auto p-0 select-auto", className)}
 		>
 			{label}
 		</Button>
@@ -957,7 +957,7 @@ export function TeamRequestReviewDrawer({
 								fallbackTitle: reference.label,
 								fallbackDescription: sectionLabel
 							})}
-							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word"
+							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word select-auto"
 						>
 							{reference.label}
 						</Button>
@@ -1098,7 +1098,7 @@ export function TeamRequestChangePreviewDrawer({
 								fallbackTitle: reference.label,
 								fallbackDescription: sectionLabel
 							})}
-							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word"
+							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word select-auto"
 						>
 							{reference.label}
 						</Button>
@@ -1261,7 +1261,7 @@ export function TeamRequestsTable({
 									return (
 										<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
 											{isDetailTriggerColumn ? (
-												<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal">
+												<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal select-auto">
 													{cellValue}
 												</Button>
 											) : cellValue}
@@ -1414,7 +1414,7 @@ function renderTeamRelationValue({
 				type="button"
 				variant="link"
 				onClick={() => onOpenRelationSummary(cellKey, normalizedValue, fallbackLabel, normalizedRelationIds)}
-				className="h-auto p-0 text-primary"
+				className="h-auto p-0 text-primary select-auto"
 			>
 				{value}
 			</Button>
@@ -1436,7 +1436,7 @@ function renderTeamRelationValue({
 				fallbackDescription: `${fallbackLabel} user`,
 				fallbackMeta: [{ label: "User ID", value: relationId }]
 			})}
-			className="h-auto p-0 text-primary"
+			className="h-auto p-0 text-primary select-auto"
 		>
 			{value}
 		</Button>

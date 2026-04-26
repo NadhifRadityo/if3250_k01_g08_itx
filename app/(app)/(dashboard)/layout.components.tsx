@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileTextIcon, ShieldCheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react";
 
 import useIsMobile from "@/utils/useIsMobile";
+import { Image } from "@/components/Image";
 import { Link } from "@/components/Link";
 import { Avatar, AvatarFallback } from "@/components/radix/Avatar";
 import { Badge } from "@/components/radix/Badge";
@@ -16,11 +17,10 @@ import { DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuContent,
 import { Input } from "@/components/radix/Input";
 import { Separator } from "@/components/radix/Separator";
 import { Sidebar, SidebarMenu, SidebarRail, SidebarGroup, SidebarInset, SidebarFooter, SidebarHeader, SidebarContent, SidebarMenuSub, SidebarTrigger, SidebarMenuItem, SidebarProvider, SidebarGroupLabel, SidebarMenuButton, SidebarMenuSubItem, SidebarMenuSubButton } from "@/components/radix/Sidebar";
-import { Image } from "@/components/Image";
 
+import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
-import logoEcentrix from "../../_static/favicons/logo.png";
 
 const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
 
@@ -223,25 +223,21 @@ export function DashboardShell({
 
 	return (
 		<SidebarProvider className="[--sidebar-width:20rem]!">
-			<Sidebar collapsible="icon" variant="inset">
+			<Sidebar collapsible="icon" variant="inset" className="bg-sidebar [anchor-name:--sidebar-anchor]">
 				<SidebarHeader>
 					<SidebarMenu>
 						<SidebarMenuItem>
 							<SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
 								<Link href="/" className="flex h-18">
-										<span>
-											<Image src={logoEcentrix} alt="eCentrix symbol" className="mt-[1px] h-12 w-12 shrink-0 object-contain group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
+									<Image src={logoEcentrix} alt="eCentrix symbol" className="mt-[1px] h-12 w-12 shrink-0 object-contain group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
+									<div className="flex flex-col gap-2">
+										<span className="text-[15px] text-sidebar-accent-foreground leading-none font-semibold uppercase whitespace-nowrap line-clamp-2 text-clip">
+											PT. Intelix Global<br />Crossing
 										</span>
-										<div>
-											<span className="text-[15px] text-white leading-none font-semibold uppercase whitespace-normal!">
-												PT. Intelix Global Crossing
-											</span>
-											<br></br>
-											<span className="text-[10px] leading-none font-semibold uppercase whitespace-normal!">
-												Mobile Survey Management
-											</span>
-
-										</div>
+										<span className="text-[10px] leading-none font-semibold uppercase whitespace-nowrap line-clamp-1 text-clip">
+											Mobile Survey Management
+										</span>
+									</div>
 								</Link>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
@@ -250,7 +246,7 @@ export function DashboardShell({
 				<SidebarContent>
 					<SidebarGroup>
 						<SidebarGroupLabel>Operations</SidebarGroupLabel>
-						<SidebarMenu>
+						<SidebarMenu className="gap-2">
 							{managementNavigation.map(item => {
 								const Icon = getManagementIcon(item.key);
 								const isActive = isManagementItemActive(pathname, item);
@@ -261,7 +257,7 @@ export function DashboardShell({
 											<SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
 												<Link href={item.defaultHref}>
 													<Icon />
-													<span>{item.label}</span>
+													<span className="whitespace-nowrap line-clamp-1">{item.label}</span>
 												</Link>
 											</SidebarMenuButton>
 										</SidebarMenuItem>
@@ -280,17 +276,17 @@ export function DashboardShell({
 											<CollapsibleTrigger asChild>
 												<SidebarMenuButton tooltip={item.label} isActive={isActive}>
 													<Icon />
-													<span>{item.label}</span>
+													<span className="whitespace-nowrap line-clamp-1 text-clip">{item.label}</span>
 													<ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
 												</SidebarMenuButton>
 											</CollapsibleTrigger>
 											<CollapsibleContent>
-												<SidebarMenuSub>
+												<SidebarMenuSub className="py-2">
 													{item.links.map(link => (
 														<SidebarMenuSubItem key={link.href}>
 															<SidebarMenuSubButton asChild isActive={pathname == link.href}>
 																<Link href={link.href}>
-																	<span>{link.label}</span>
+																	<span className="whitespace-nowrap line-clamp-1 text-clip">{link.label}</span>
 																</Link>
 															</SidebarMenuSubButton>
 														</SidebarMenuSubItem>
@@ -310,8 +306,8 @@ export function DashboardShell({
 							<DropdownMenu>
 								<DropdownMenuTrigger asChild>
 									<SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-										<Avatar className="h-8 w-8 rounded-lg">
-											<AvatarFallback className="rounded-lg">{user.name.split(/\s+/g).slice(0, 2).map(w => w.charAt(0)).join("")}</AvatarFallback>
+										<Avatar className="h-8 w-8">
+											<AvatarFallback>{user.name.split(/\s+/g).slice(0, 2).map(w => w.charAt(0)).join("")}</AvatarFallback>
 										</Avatar>
 										<div className="grid flex-1 text-left text-sm leading-tight">
 											<span className="truncate font-medium">{user.name}</span>
@@ -323,8 +319,8 @@ export function DashboardShell({
 								<DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg" side={isMobile ? "bottom" : "right"} align="end" sideOffset={4}>
 									<DropdownMenuLabel className="p-0 font-normal">
 										<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-											<Avatar className="h-8 w-8 rounded-lg">
-												<AvatarFallback className="rounded-lg">{user.name.split(/\s+/g).slice(0, 2).map(w => w.charAt(0)).join("")}</AvatarFallback>
+											<Avatar className="h-8 w-8">
+												<AvatarFallback>{user.name.split(/\s+/g).slice(0, 2).map(w => w.charAt(0)).join("")}</AvatarFallback>
 											</Avatar>
 											<div className="grid flex-1 text-left text-sm leading-tight">
 												<span className="truncate font-medium">{user.name}</span>
@@ -344,11 +340,18 @@ export function DashboardShell({
 				</SidebarFooter>
 				<SidebarRail />
 			</Sidebar>
-			<SidebarInset>
-				<header className="flex bg-muted h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+			<div className="fixed [position-anchor:--sidebar-anchor] top-[anchor(top)] bottom-0 left-[anchor(right)] right-0 z-1 pointer-events-none select-none bg-sidebar mask-[url(#sidebar-cutout)] [anchor-name:--sidebar-cutout]" />
+			<svg className="fixed [position-anchor:--sidebar-cutout] top-[anchor(top)] h-[anchor-size(height)] left-[anchor(left)] w-[anchor-size(width))] opacity-0 pointer-events-none select-none">
+				<mask id="sidebar-cutout">
+					<rect className="w-full h-full fill-white" />
+					<rect className="[y:--spacing(2)] w-[calc(100%---spacing(2))] h-[calc(100%---spacing(4))] [rx:calc(var(--radius)*1.4)] fill-black" />
+				</mask>
+			</svg>
+			<SidebarInset className="md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-1 m-0!">
+				<header className="flex bg-muted rounded-tl-xl rounded-tr-xl h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
 					<div className="flex items-center gap-2 px-4">
 						<SidebarTrigger className="-ml-1" />
-						<Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+						<Separator orientation="vertical" className="mr-1 my-auto data-[orientation=vertical]:h-4" />
 						<Breadcrumb>
 							{breadcrumbModel.managementLabel != null || breadcrumbModel.isCreditApplication ? (
 								<BreadcrumbList>

@@ -1,1 +1,5 @@
 @import "../../root.css";
+
+body {
+	@apply bg-sidebar;
+}

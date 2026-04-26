@@ -440,7 +440,7 @@ function renderRequestTypeTrigger({
 			type="button"
 			variant="link"
 			onClick={() => onOpenRequestChanges(row)}
-			className={cn("text-primary h-auto p-0", className)}
+			className={cn("text-primary h-auto p-0 select-auto", className)}
 		>
 			{row.requestType}
 		</Button>
@@ -1156,7 +1156,7 @@ export function CreditApplicationAssignmentRequestsTable({
 								return (
 									<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
 										{isDetailTriggerColumn ? (
-											<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal">
+											<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal select-auto">
 												{cellValue}
 											</Button>
 										) : cellValue}
@@ -1324,7 +1324,7 @@ function renderCreditApplicationAssignmentUserRelationValue({
 				fallbackTitle: value,
 				fallbackDescription: `${summaryLabel} user`
 			})}
-			className="h-auto p-0 text-primary"
+			className="h-auto p-0 text-primary select-auto"
 		>
 			{value}
 		</Button>
