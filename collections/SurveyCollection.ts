@@ -32,8 +32,8 @@ export const Surveys = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "title",
-		listSearchableFields: ["title", "description", "reviewComment"],
-		defaultColumns: ["title"]
+		listSearchableFields: ["title", "product", "reviewComment"],
+		defaultColumns: ["title", "product", "isActive"]
 	},
 	fields: [
 		// timestamps: createdAt
@@ -107,9 +107,26 @@ export const Surveys = (): CollectionConfig => ({
 		},
 		{
 			name: "title",
-			label: "Title",
+			label: "Parent Description",
 			type: "text",
 			required: true
+		},
+		{
+			name: "product",
+			label: "Product",
+			type: "text",
+			required: true
+		},
+		{
+			name: "isActive",
+			label: "Is Active",
+			type: "select",
+			options: [
+				{ value: "yes", label: "Yes" },
+				{ value: "no", label: "No" }
+			],
+			required: true,
+			defaultValue: "yes"
 		},
 		{
 			name: "description",

@@ -22,7 +22,7 @@ import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
 
-const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
+const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|survey-question-header|survey-question-detail)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver|maker|checker))?$/;
 
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
@@ -42,6 +42,10 @@ function getManagementIcon(key: DashboardManagementKey) {
 	if(key == "credit-application-management")
 		return FileTextIcon;
 	if(key == "credit-application-assignment")
+		return FileTextIcon;
+	if(key == "survey-question-header")
+		return FileTextIcon;
+	if(key == "survey-question-detail")
 		return FileTextIcon;
 	return UsersIcon;
 }

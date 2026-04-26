@@ -8,13 +8,15 @@ import { getPayload, type Payload } from "payload";
 import payloadConfig from "@payload-config";
 import type { Role, User } from "@/payload-types";
 
-const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment"] as const;
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-question-header", "survey-question-detail"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
-export type DashboardMode = "viewer" | "editor" | "approver" | "import-viewer" | "import-editor" | "import-approver";
-type DashboardRoleMenuMode = "viewer" | "editor" | "approver" | "auditor";
+export type DashboardMode = "viewer" | "editor" | "approver" | "import-viewer" | "import-editor" | "import-approver" | "maker" | "checker";
+type DashboardRoleMenuMode = "viewer" | "editor" | "approver" | "auditor" | "maker" | "checker";
 type DashboardCreditApplicationImportRoleMenu = `credit-application-management-import-${"viewer" | "editor" | "approver"}`;
-export type DashboardRoleMenu = `${DashboardManagementKey}-${DashboardRoleMenuMode}` | DashboardCreditApplicationImportRoleMenu;
+type DashboardSurveyQuestionHeaderRoleMenu = `survey-question-header-${"maker" | "checker"}`;
+type DashboardSurveyQuestionDetailRoleMenu = `survey-question-detail-${"maker" | "checker"}`;
+export type DashboardRoleMenu = `${"user-management" | "role-management" | "team-management" | "credit-application-assignment"}-${"viewer" | "editor" | "approver" | "auditor"}` | `credit-application-management-${"viewer" | "editor" | "approver" | "auditor"}` | DashboardCreditApplicationImportRoleMenu | DashboardSurveyQuestionHeaderRoleMenu | DashboardSurveyQuestionDetailRoleMenu;
 
 export type DashboardNavLink = {
 	label: string;
@@ -62,7 +64,9 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"role-management": "Role Management",
 	"team-management": "Team Management",
 	"credit-application-management": "Credit Application Management",
-	"credit-application-assignment": "Credit Application Assignment"
+	"credit-application-assignment": "Credit Application Assignment",
+	"survey-question-header": "Survey Question Header",
+	"survey-question-detail": "Survey Question Detail"
 };
 
 const modeLabelMap: Record<DashboardMode, string> = {
@@ -71,7 +75,9 @@ const modeLabelMap: Record<DashboardMode, string> = {
 	approver: "Approver",
 	"import-viewer": "Import Viewer",
 	"import-editor": "Import Editor",
-	"import-approver": "Import Approver"
+	"import-approver": "Import Approver",
+	maker: "Maker",
+	checker: "Checker"
 };
 
 const auditorLabel = "Auditor";
@@ -99,7 +105,11 @@ const dashboardRoleMenus = [
 	"credit-application-assignment-viewer",
 	"credit-application-assignment-auditor",
 	"credit-application-assignment-editor",
-	"credit-application-assignment-approver"
+	"credit-application-assignment-approver",
+	"survey-question-header-maker",
+	"survey-question-header-checker",
+	"survey-question-detail-maker",
+	"survey-question-detail-checker"
 ] as const satisfies DashboardRoleMenu[];
 
 const dashboardRoleMenuSet = new Set<DashboardRoleMenu>(dashboardRoleMenus);
@@ -130,6 +140,8 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 	hasImportViewer: boolean;
 	hasImportEditor: boolean;
 	hasImportApprover: boolean;
+	hasMaker: boolean;
+	hasChecker: boolean;
 	canView: boolean;
 } {
 	const hasViewer = menus.has(`${key}-viewer` as DashboardRoleMenu);
@@ -139,6 +151,8 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 	const hasImportViewer = key == "credit-application-management" && menus.has("credit-application-management-import-viewer");
 	const hasImportEditor = key == "credit-application-management" && menus.has("credit-application-management-import-editor");
 	const hasImportApprover = key == "credit-application-management" && menus.has("credit-application-management-import-approver");
+	const hasMaker = (key == "survey-question-header" && menus.has("survey-question-header-maker")) || (key == "survey-question-detail" && menus.has("survey-question-detail-maker"));
+	const hasChecker = (key == "survey-question-header" && menus.has("survey-question-header-checker")) || (key == "survey-question-detail" && menus.has("survey-question-detail-checker"));
 
 	return {
 		hasViewer,
@@ -148,7 +162,9 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 		hasImportViewer,
 		hasImportEditor,
 		hasImportApprover,
-		canView: hasViewer || hasAuditor || hasEditor
+		hasMaker,
+		hasChecker,
+		canView: hasViewer || hasAuditor || hasEditor || hasMaker
 	};
 }
 
@@ -161,22 +177,28 @@ function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: Dashb
 		hasImportViewer,
 		hasImportEditor,
 		hasImportApprover,
+		hasMaker,
+		hasChecker,
 		canView
 	} = getModeFlags(menus, key);
 
-	if(!canView && !hasApprover && !hasImportViewer && !hasImportEditor && !hasImportApprover)
+	if(!canView && !hasApprover && !hasImportViewer && !hasImportEditor && !hasImportApprover && !hasChecker)
 		return null;
 
 	const baseHref = `/${key}`;
 	const viewLinkLabel = hasViewer ? modeLabelMap.viewer : auditorLabel;
 	const links: DashboardNavLink[] = [];
 
-	if(hasEditor)
+	if(hasMaker)
+		links.push({ label: modeLabelMap.maker, mode: "maker", href: `${baseHref}/maker` });
+	else if(hasEditor)
 		links.push({ label: modeLabelMap.editor, mode: "editor", href: `${baseHref}/editor` });
 	else if(hasViewer || hasAuditor)
 		links.push({ label: viewLinkLabel, mode: "viewer", href: `${baseHref}/viewer` });
 
-	if(hasApprover)
+	if(hasChecker)
+		links.push({ label: modeLabelMap.checker, mode: "checker", href: `${baseHref}/checker` });
+	else if(hasApprover)
 		links.push({ label: modeLabelMap.approver, mode: "approver", href: `${baseHref}/approver` });
 
 	if(key == "credit-application-management") {
@@ -308,7 +330,9 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 		"role-management": resolveViewerEditorTarget(menus, "role-management"),
 		"team-management": resolveViewerEditorTarget(menus, "team-management"),
 		"credit-application-management": resolveViewerEditorTarget(menus, "credit-application-management"),
-		"credit-application-assignment": resolveViewerEditorTarget(menus, "credit-application-assignment")
+		"credit-application-assignment": resolveViewerEditorTarget(menus, "credit-application-assignment"),
+		"survey-question-header": resolveViewerEditorTarget(menus, "survey-question-header"),
+		"survey-question-detail": resolveViewerEditorTarget(menus, "survey-question-detail")
 	};
 }
 
@@ -363,6 +387,14 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Credit Application Assignment - Editor";
 	if(menu == "credit-application-assignment-approver")
 		return "Credit Application Assignment - Approver";
+	if(menu == "survey-question-header-maker")
+		return "Survey Question Header - Maker";
+	if(menu == "survey-question-header-checker")
+		return "Survey Question Header - Checker";
+	if(menu == "survey-question-detail-maker")
+		return "Survey Question Detail - Maker";
+	if(menu == "survey-question-detail-checker")
+		return "Survey Question Detail - Checker";
 	return menu;
 }
 
@@ -466,7 +498,9 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 			"role-management": { key: "role-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"credit-application-management": { key: "credit-application-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null }
+			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null },
+			"survey-question-header": { key: "survey-question-header", viewerHref: null, editorHref: null, preferredHref: null },
+			"survey-question-detail": { key: "survey-question-detail", viewerHref: null, editorHref: null, preferredHref: null }
 		};
 	}
 
