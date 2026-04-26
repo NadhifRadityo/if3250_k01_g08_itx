@@ -1,5 +1,5 @@
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
-import { Block, CollectionConfig } from "payload";
+import { CollectionConfig } from "payload";
 
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
@@ -13,189 +13,6 @@ const SurveyRichTextEditor = () => lexicalEditor({
 	]
 });
 
-export const SurveyTextBlocks = (): Block => ({
-	slug: "survey-text-blocks",
-	labels: {
-		singular: "Survey Text Block",
-		plural: "Survey Text Blocks"
-	},
-	dbName: "survey_text_blocks",
-	fields: [
-		{
-			name: "content",
-			label: "Content",
-			type: "richText",
-			required: true,
-			editor: SurveyRichTextEditor()
-		}
-	]
-});
-export const SurveyInputChoiceBlocks = (): Block => ({
-	slug: "survey-input-choice-blocks",
-	labels: {
-		singular: "Survey Input Choice Block",
-		plural: "Survey Input Choice Blocks"
-	},
-	dbName: "survey_input_choice_blocks",
-	fields: [
-		{
-			name: "choices",
-			label: "Choices",
-			type: "array",
-			required: true,
-			minRows: 0,
-			defaultValue: [],
-			fields: [
-				{
-					name: "content",
-					label: "Content",
-					type: "richText",
-					required: true,
-					editor: SurveyRichTextEditor()
-				}
-			]
-		},
-		{
-			name: "minChoice",
-			label: "Min Choice",
-			type: "number",
-			required: true,
-			min: 0,
-			defaultValue: 1
-		},
-		{
-			name: "maxChoice",
-			label: "Max Choice",
-			type: "number",
-			required: true,
-			min: 0,
-			defaultValue: Infinity
-		},
-		{
-			name: "required",
-			label: "Required",
-			type: "checkbox",
-			required: true,
-			defaultValue: true
-		}
-	]
-});
-export const SurveyInputTextBlocks = (): Block => ({
-	slug: "survey-input-text-blocks",
-	labels: {
-		singular: "Survey Input Text Block",
-		plural: "Survey Input Text Blocks"
-	},
-	dbName: "survey_input_text_blocks",
-	fields: [
-		{
-			name: "isTextArea",
-			label: "Is Text Area",
-			type: "checkbox",
-			required: true,
-			defaultValue: false
-		},
-		{
-			name: "regexPattern",
-			label: "Regex Pattern",
-			type: "text",
-			validate: v => {
-				try {
-					const [, pattern, flags] = v.match(/^\/(.+)\/([a-z]*)$/i) ?? [];
-					new RegExp(pattern, flags);
-					return true;
-				} catch(e) {
-					return e.message;
-				}
-			}
-		},
-		{
-			name: "regexMode",
-			label: "Regex Mode",
-			type: "select",
-			options: [
-				{ value: "contains", label: "Contains" },
-				{ value: "notContains", label: "Doesn't Contain" },
-				{ value: "matches", label: "Matches" },
-				{ value: "notMatches", label: "Doesn't Match" }
-			]
-		},
-		{
-			name: "required",
-			label: "Required",
-			type: "checkbox",
-			required: true,
-			defaultValue: true
-		}
-	]
-});
-export const SurveyInputUploadBlocks = (): Block => ({
-	slug: "survey-input-upload-blocks",
-	labels: {
-		singular: "Survey Input Upload Block",
-		plural: "Survey Input Upload Blocks"
-	},
-	dbName: "survey_input_upload_blocks",
-	fields: [
-		{
-			name: "maxSize",
-			label: "Max Size",
-			type: "number"
-		},
-		{
-			name: "acceptTypes",
-			label: "Accept Types",
-			type: "text",
-			hasMany: true
-		},
-		{
-			name: "required",
-			label: "Required",
-			type: "checkbox",
-			required: true,
-			defaultValue: true
-		}
-	]
-});
-export const SurveyMultiInputBlocks = (): Block => ({
-	slug: "survey-multi-input-blocks",
-	labels: {
-		singular: "Survey Multi Input Block",
-		plural: "Survey Multi Input Blocks"
-	},
-	dbName: "survey_multi_input_blocks",
-	fields: [
-		{
-			name: "min",
-			label: "Min",
-			type: "number",
-			required: true,
-			min: 0,
-			defaultValue: 1
-		},
-		{
-			name: "max",
-			label: "Max",
-			type: "number",
-			required: true,
-			min: 0,
-			defaultValue: Infinity
-		},
-		{
-			name: "inputs",
-			label: "Inputs",
-			type: "blocks",
-			required: true,
-			minRows: 0,
-			defaultValue: [],
-			blocks: [
-				SurveyInputChoiceBlocks(),
-				SurveyInputTextBlocks(),
-				SurveyInputUploadBlocks()
-			]
-		}
-	]
-});
 export const Surveys = (): CollectionConfig => ({
 	slug: "surveys",
 	labels: {
@@ -301,19 +118,10 @@ export const Surveys = (): CollectionConfig => ({
 			editor: SurveyRichTextEditor()
 		},
 		{
-			name: "blocks",
-			label: "Blocks",
-			type: "blocks",
-			required: true,
-			minRows: 0,
-			defaultValue: [],
-			blocks: [
-				SurveyTextBlocks(),
-				SurveyInputChoiceBlocks(),
-				SurveyInputTextBlocks(),
-				SurveyInputUploadBlocks(),
-				SurveyMultiInputBlocks()
-			]
+			name: "content",
+			label: "Content",
+			type: "json",
+			required: true
 		},
 		{
 			name: "reviewedAt",

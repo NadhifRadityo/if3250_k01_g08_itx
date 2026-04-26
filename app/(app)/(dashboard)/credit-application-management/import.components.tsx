@@ -17,7 +17,6 @@ import {
 	CheckIcon,
 	UploadIcon,
 	ArrowUpIcon,
-	CalendarIcon,
 	DownloadIcon,
 	ArrowDownIcon,
 	ArrowUpDownIcon,
@@ -27,12 +26,12 @@ import {
 } from "lucide-react";
 
 import cn from "@/utils/cn";
+import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
-import { Calendar } from "@/components/radix/Calendar";
 import { Checkbox } from "@/components/radix/Checkbox";
 import { Collapsible, CollapsibleContent } from "@/components/radix/Collapsible";
 import {
@@ -44,8 +43,6 @@ import {
 	DrawerDescription
 } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupButton } from "@/components/radix/InputGroup";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/radix/Popover";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
@@ -248,14 +245,14 @@ export function dedupeSelectOptions(options: SearchableSelectOption[]): Searchab
 export function formatFilterDateValue(date: Date | null): string {
 	if(date == null)
 		return "Select date and time";
-	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+	return `${date.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}`;
 }
 
 export function parseFilterDateValue(value: string): Date | null {
 	const trimmed = value.trim();
 	if(trimmed.length == 0)
 		return null;
-	const normalized = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(trimmed) ? trimmed.replace(" ", "T") : trimmed;
+	const normalized = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(trimmed) ? trimmed.replace(" ", "T") : trimmed;
 	const parsed = new Date(normalized);
 	return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
@@ -281,31 +278,39 @@ export function formatFilterDateOnlyInput(date: Date | null): string {
 export function formatFilterDateInput(date: Date | null): string {
 	if(date == null)
 		return "";
-	return `${formatFilterDateOnlyInput(date)} ${getFilterTimeInput(date)}`;
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	const hours = String(date.getHours()).padStart(2, "0");
+	const minutes = String(date.getMinutes()).padStart(2, "0");
+	const seconds = String(date.getSeconds()).padStart(2, "0");
+	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 export function applyTimeToDate(date: Date, timeValue: string): Date {
-	const [rawHours, rawMinutes] = timeValue.split(":");
+	const [rawHours, rawMinutes, rawSeconds = "0"] = timeValue.split(":");
 	const hours = Number(rawHours);
 	const minutes = Number(rawMinutes);
+	const seconds = Number(rawSeconds);
 	const nextDate = new Date(date);
-	if(Number.isInteger(hours) && Number.isInteger(minutes))
-		nextDate.setHours(hours, minutes, 0, 0);
+	if(Number.isInteger(hours) && Number.isInteger(minutes) && Number.isInteger(seconds))
+		nextDate.setHours(hours, minutes, seconds, 0);
 	return nextDate;
 }
 
 export function getFilterTimeInput(date: Date | null): string {
 	if(date == null)
-		return "00:00";
+		return "00:00:00";
 	const hours = String(date.getHours()).padStart(2, "0");
 	const minutes = String(date.getMinutes()).padStart(2, "0");
-	return `${hours}:${minutes}`;
+	const seconds = String(date.getSeconds()).padStart(2, "0");
+	return `${hours}:${minutes}:${seconds}`;
 }
 
 export function splitFilterDateValue(value: string): { dateText: string, timeText: string } {
 	const parsed = parseFilterDateValue(value);
 	if(parsed == null)
-		return { dateText: "", timeText: "00:00" };
+		return { dateText: "", timeText: "00:00:00" };
 	return {
 		dateText: formatFilterDateOnlyInput(parsed),
 		timeText: getFilterTimeInput(parsed)
@@ -319,20 +324,20 @@ export function buildFilterDateValue(dateText: string, timeText: string): string
 	return formatFilterDateInput(applyTimeToDate(parsedDate, timeText));
 }
 
+export function formatDateTime(dateValue: string | null) {
+	if(dateValue == null)
+		return "-";
+	const date = new Date(dateValue);
+	if(Number.isNaN(date.getTime()))
+		return "-";
+	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
+}
+
 const CREDIT_APPLICATION_IMPORT_COLUMN_PREFERENCES_KEY = "credit-application-management-import-columns-v1";
 
 function formatTextValue(value: string | null | undefined): string {
 	const normalized = (value ?? "").trim();
 	return normalized.length > 0 ? normalized : "-";
-}
-
-export function formatDateTime(value: string | null): string {
-	if(value == null)
-		return "-";
-	const date = new Date(value);
-	if(Number.isNaN(date.getTime()))
-		return value;
-	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
 export function formatFileSize(bytes: number): string {
@@ -1110,7 +1115,7 @@ export function CreditApplicationImportRequestFormDrawer({
 				ref: `A${creditApplicationImportTemplateHeaderRow}`,
 				headerRow: true,
 				style: {
-					theme: null,
+					theme: null as any,
 					showRowStripes: false
 				},
 				columns: creditApplicationImportTemplateColumns.map(column => ({
@@ -1142,7 +1147,7 @@ export function CreditApplicationImportRequestFormDrawer({
 				if(column.type == "date")
 					worksheet.getColumn(columnIndex).numFmt = "yyyy-mm-dd";
 
-				worksheet.dataValidations.add(`${columnLetter}${creditApplicationImportTemplateDataStartRow}:${columnLetter}${creditApplicationImportTemplateDataEndRow}`, {
+				(worksheet as any).dataValidations.add(`${columnLetter}${creditApplicationImportTemplateDataStartRow}:${columnLetter}${creditApplicationImportTemplateDataEndRow}`, {
 					type: "custom",
 					allowBlank: column.required != true,
 					formulae: [validationFormula ?? "TRUE"],
@@ -1642,31 +1647,17 @@ export function CreditApplicationImportRequestFilterCard({
 																			className="min-w-0 flex-1"
 																		/>
 																	) : columnConfig.valueType == "date" ? (
-																		<div className="grid flex-1 grid-cols-2 gap-2">
-																			<Popover>
-																				<InputGroup>
-																					<InputGroupInput
-																						value={listDate?.dateText ?? ""}
-																						onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(event.target.value, listDate?.timeText ?? "00:00"))}
-																						placeholder="YYYY-MM-DD"
-																					/>
-																					<InputGroupAddon align="inline-end">
-																						<PopoverTrigger asChild>
-																							<InputGroupButton type="button" variant="ghost" size="icon-xs" className="shrink-0"><CalendarIcon className="size-4" /></InputGroupButton>
-																						</PopoverTrigger>
-																					</InputGroupAddon>
-																				</InputGroup>
-																				<PopoverContent className="w-auto">
-																					<Calendar
-																						mode="single"
-																						captionLayout="dropdown"
-																						selected={parseFilterDateOnlyValue(listDate?.dateText ?? "") ?? undefined}
-																						onSelect={date => filters.updateFilterListValue(index, valueIndex, date == null ? "" : buildFilterDateValue(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`, listDate?.timeText ?? "00:00"))}
-																					/>
-																				</PopoverContent>
-																			</Popover>
-																			<Input type="time" value={listDate?.timeText ?? "00:00"} onChange={event => filters.updateFilterListValue(index, valueIndex, buildFilterDateValue(listDate?.dateText ?? "", event.target.value))} />
-																		</div>
+																		<DatetimeInput
+																			className="flex-1"
+																			mode="datetime"
+																			onChange={nextValue => {
+																				const parsedDate = parseFilterDateValue(nextValue);
+																				filters.updateFilterListValue(index, valueIndex, parsedDate == null ? "" : formatFilterDateInput(parsedDate));
+																			}}
+																			placeholder="Select date and time"
+																			precision="second"
+																			value={listDate == null || listDate.dateText.length == 0 ? "" : `${listDate.dateText}T${listDate.timeText}`}
+																		/>
 																	) : (
 																		<Input value={value} onChange={event => filters.updateFilterListValue(index, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
 																	)}
@@ -1695,58 +1686,20 @@ export function CreditApplicationImportRequestFilterCard({
 												</SelectContent>
 											</Select>
 										) : columnConfig.valueType == "date" ? (
-											<div className="grid grid-cols-2 gap-2">
-												<Popover>
-													<InputGroup>
-														<InputGroupInput
-															value={filterCondition.dateText}
-															onChange={event => filters.updateFilter(index, previous => {
-																const nextDateText = event.target.value;
-																const parsedDate = parseFilterDateOnlyValue(nextDateText);
-																const preservedTime = getFilterTimeInput(previous.dateValue);
-																return {
-																	...previous,
-																	dateText: nextDateText,
-																	dateValue: parsedDate == null ? null : applyTimeToDate(parsedDate, preservedTime)
-																};
-															})}
-															placeholder="YYYY-MM-DD"
-														/>
-														<InputGroupAddon align="inline-end">
-															<PopoverTrigger asChild>
-																<InputGroupButton type="button" variant="ghost" size="icon-xs" className="shrink-0">
-																	<CalendarIcon className="size-4" />
-																</InputGroupButton>
-															</PopoverTrigger>
-														</InputGroupAddon>
-													</InputGroup>
-													<PopoverContent className="w-auto">
-														<Calendar
-															mode="single"
-															captionLayout="dropdown"
-															selected={filterCondition.dateValue ?? parseFilterDateOnlyValue(filterCondition.dateText) ?? undefined}
-															onSelect={date => filters.updateFilter(index, previous => {
-																if(date == null)
-																	return { ...previous, dateValue: null, dateText: "" };
-																const nextDate = applyTimeToDate(date, getFilterTimeInput(previous.dateValue));
-																return { ...previous, dateValue: nextDate, dateText: formatFilterDateOnlyInput(nextDate) };
-															})}
-														/>
-													</PopoverContent>
-												</Popover>
-												<Input
-													type="time"
-													value={getFilterTimeInput(filterCondition.dateValue)}
-													onChange={event => filters.updateFilter(index, previous => {
-														if(previous.dateValue == null)
-															return previous;
-														return {
-															...previous,
-															dateValue: applyTimeToDate(previous.dateValue, event.target.value)
-														};
-													})}
-												/>
-											</div>
+											<DatetimeInput
+												mode="datetime"
+												onChange={nextValue => filters.updateFilter(index, previous => {
+													const parsedDate = parseFilterDateValue(nextValue);
+													return {
+														...previous,
+														dateText: formatFilterDateOnlyInput(parsedDate),
+														dateValue: parsedDate
+													};
+												})}
+												placeholder="Select date and time"
+												precision="second"
+												value={filterCondition.dateValue == null ? "" : formatFilterDateInput(filterCondition.dateValue).replace(" ", "T")}
+											/>
 										) : (
 											<Input value={filterCondition.value} onChange={event => filters.updateFilter(index, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
 										)}

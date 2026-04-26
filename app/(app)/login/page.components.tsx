@@ -86,8 +86,8 @@ export function LoginForm() {
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
 							{/* <div className="flex items-center justify-between gap-4"> */}
-								<FieldLabel className="font-semibold text-[#334155]">Password</FieldLabel>
-								{/* <button
+							<FieldLabel className="font-semibold text-[#334155]">Password</FieldLabel>
+							{/* <button
 									type="button"
 									className="font-semibold text-[#4796BD]"
 								>
@@ -108,9 +108,9 @@ export function LoginForm() {
 										disabled={field.disabled}
 									>
 										{!showPassword ? (
-											<EyeIcon/>
+											<EyeIcon />
 										) : (
-											<EyeOffIcon/>
+											<EyeOffIcon />
 										)}
 										<VisuallyHidden>
 											{showPassword ? "Hide password" : "Show password"}

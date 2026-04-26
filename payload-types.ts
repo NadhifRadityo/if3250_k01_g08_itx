@@ -601,123 +601,15 @@ export interface Survey {
     };
     [k: string]: unknown;
   } | null;
-  blocks: (
+  content:
     | {
-        content: {
-          root: {
-            type: string;
-            children: {
-              type: any;
-              version: number;
-              [k: string]: unknown;
-            }[];
-            direction: ('ltr' | 'rtl') | null;
-            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-            indent: number;
-            version: number;
-          };
-          [k: string]: unknown;
-        };
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'survey-text-blocks';
+        [k: string]: unknown;
       }
-    | {
-        choices: {
-          content: {
-            root: {
-              type: string;
-              children: {
-                type: any;
-                version: number;
-                [k: string]: unknown;
-              }[];
-              direction: ('ltr' | 'rtl') | null;
-              format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-              indent: number;
-              version: number;
-            };
-            [k: string]: unknown;
-          };
-          id?: string | null;
-        }[];
-        minChoice: number;
-        maxChoice: number;
-        required: boolean;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'survey-input-choice-blocks';
-      }
-    | {
-        isTextArea: boolean;
-        regexPattern?: string | null;
-        regexMode?: ('contains' | 'notContains' | 'matches' | 'notMatches') | null;
-        required: boolean;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'survey-input-text-blocks';
-      }
-    | {
-        maxSize?: number | null;
-        acceptTypes?: string[] | null;
-        required: boolean;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'survey-input-upload-blocks';
-      }
-    | {
-        min: number;
-        max: number;
-        inputs: (
-          | {
-              choices: {
-                content: {
-                  root: {
-                    type: string;
-                    children: {
-                      type: any;
-                      version: number;
-                      [k: string]: unknown;
-                    }[];
-                    direction: ('ltr' | 'rtl') | null;
-                    format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-                    indent: number;
-                    version: number;
-                  };
-                  [k: string]: unknown;
-                };
-                id?: string | null;
-              }[];
-              minChoice: number;
-              maxChoice: number;
-              required: boolean;
-              id?: string | null;
-              blockName?: string | null;
-              blockType: 'survey-input-choice-blocks';
-            }
-          | {
-              isTextArea: boolean;
-              regexPattern?: string | null;
-              regexMode?: ('contains' | 'notContains' | 'matches' | 'notMatches') | null;
-              required: boolean;
-              id?: string | null;
-              blockName?: string | null;
-              blockType: 'survey-input-text-blocks';
-            }
-          | {
-              maxSize?: number | null;
-              acceptTypes?: string[] | null;
-              required: boolean;
-              id?: string | null;
-              blockName?: string | null;
-              blockType: 'survey-input-upload-blocks';
-            }
-        )[];
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'survey-multi-input-blocks';
-      }
-  )[];
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -766,123 +658,15 @@ export interface SatsifactionSurvey {
     };
     [k: string]: unknown;
   } | null;
-  blocks: (
+  content:
     | {
-        content: {
-          root: {
-            type: string;
-            children: {
-              type: any;
-              version: number;
-              [k: string]: unknown;
-            }[];
-            direction: ('ltr' | 'rtl') | null;
-            format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-            indent: number;
-            version: number;
-          };
-          [k: string]: unknown;
-        };
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'satsifaction-survey-text-blocks';
+        [k: string]: unknown;
       }
-    | {
-        choices: {
-          content: {
-            root: {
-              type: string;
-              children: {
-                type: any;
-                version: number;
-                [k: string]: unknown;
-              }[];
-              direction: ('ltr' | 'rtl') | null;
-              format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-              indent: number;
-              version: number;
-            };
-            [k: string]: unknown;
-          };
-          id?: string | null;
-        }[];
-        minChoice: number;
-        maxChoice: number;
-        required: boolean;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'satsifaction-survey-input-choice-blocks';
-      }
-    | {
-        isTextArea: boolean;
-        regexPattern?: string | null;
-        regexMode?: ('contains' | 'notContains' | 'matches' | 'notMatches') | null;
-        required: boolean;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'satsifaction-survey-input-text-blocks';
-      }
-    | {
-        maxSize?: number | null;
-        acceptTypes?: string[] | null;
-        required: boolean;
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'satsifaction-survey-input-upload-blocks';
-      }
-    | {
-        min: number;
-        max: number;
-        inputs: (
-          | {
-              choices: {
-                content: {
-                  root: {
-                    type: string;
-                    children: {
-                      type: any;
-                      version: number;
-                      [k: string]: unknown;
-                    }[];
-                    direction: ('ltr' | 'rtl') | null;
-                    format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-                    indent: number;
-                    version: number;
-                  };
-                  [k: string]: unknown;
-                };
-                id?: string | null;
-              }[];
-              minChoice: number;
-              maxChoice: number;
-              required: boolean;
-              id?: string | null;
-              blockName?: string | null;
-              blockType: 'satsifaction-survey-input-choice-blocks';
-            }
-          | {
-              isTextArea: boolean;
-              regexPattern?: string | null;
-              regexMode?: ('contains' | 'notContains' | 'matches' | 'notMatches') | null;
-              required: boolean;
-              id?: string | null;
-              blockName?: string | null;
-              blockType: 'satsifaction-survey-input-text-blocks';
-            }
-          | {
-              maxSize?: number | null;
-              acceptTypes?: string[] | null;
-              required: boolean;
-              id?: string | null;
-              blockName?: string | null;
-              blockType: 'satsifaction-survey-input-upload-blocks';
-            }
-        )[];
-        id?: string | null;
-        blockName?: string | null;
-        blockType: 'satsifaction-survey-multi-input-blocks';
-      }
-  )[];
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -1427,97 +1211,7 @@ export interface SurveysSelect<T extends boolean = true> {
   deletedBy?: T;
   title?: T;
   description?: T;
-  blocks?:
-    | T
-    | {
-        'survey-text-blocks'?:
-          | T
-          | {
-              content?: T;
-              id?: T;
-              blockName?: T;
-            };
-        'survey-input-choice-blocks'?:
-          | T
-          | {
-              choices?:
-                | T
-                | {
-                    content?: T;
-                    id?: T;
-                  };
-              minChoice?: T;
-              maxChoice?: T;
-              required?: T;
-              id?: T;
-              blockName?: T;
-            };
-        'survey-input-text-blocks'?:
-          | T
-          | {
-              isTextArea?: T;
-              regexPattern?: T;
-              regexMode?: T;
-              required?: T;
-              id?: T;
-              blockName?: T;
-            };
-        'survey-input-upload-blocks'?:
-          | T
-          | {
-              maxSize?: T;
-              acceptTypes?: T;
-              required?: T;
-              id?: T;
-              blockName?: T;
-            };
-        'survey-multi-input-blocks'?:
-          | T
-          | {
-              min?: T;
-              max?: T;
-              inputs?:
-                | T
-                | {
-                    'survey-input-choice-blocks'?:
-                      | T
-                      | {
-                          choices?:
-                            | T
-                            | {
-                                content?: T;
-                                id?: T;
-                              };
-                          minChoice?: T;
-                          maxChoice?: T;
-                          required?: T;
-                          id?: T;
-                          blockName?: T;
-                        };
-                    'survey-input-text-blocks'?:
-                      | T
-                      | {
-                          isTextArea?: T;
-                          regexPattern?: T;
-                          regexMode?: T;
-                          required?: T;
-                          id?: T;
-                          blockName?: T;
-                        };
-                    'survey-input-upload-blocks'?:
-                      | T
-                      | {
-                          maxSize?: T;
-                          acceptTypes?: T;
-                          required?: T;
-                          id?: T;
-                          blockName?: T;
-                        };
-                  };
-              id?: T;
-              blockName?: T;
-            };
-      };
+  content?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1537,97 +1231,7 @@ export interface SatsifactionSurveysSelect<T extends boolean = true> {
   deletedBy?: T;
   title?: T;
   description?: T;
-  blocks?:
-    | T
-    | {
-        'satsifaction-survey-text-blocks'?:
-          | T
-          | {
-              content?: T;
-              id?: T;
-              blockName?: T;
-            };
-        'satsifaction-survey-input-choice-blocks'?:
-          | T
-          | {
-              choices?:
-                | T
-                | {
-                    content?: T;
-                    id?: T;
-                  };
-              minChoice?: T;
-              maxChoice?: T;
-              required?: T;
-              id?: T;
-              blockName?: T;
-            };
-        'satsifaction-survey-input-text-blocks'?:
-          | T
-          | {
-              isTextArea?: T;
-              regexPattern?: T;
-              regexMode?: T;
-              required?: T;
-              id?: T;
-              blockName?: T;
-            };
-        'satsifaction-survey-input-upload-blocks'?:
-          | T
-          | {
-              maxSize?: T;
-              acceptTypes?: T;
-              required?: T;
-              id?: T;
-              blockName?: T;
-            };
-        'satsifaction-survey-multi-input-blocks'?:
-          | T
-          | {
-              min?: T;
-              max?: T;
-              inputs?:
-                | T
-                | {
-                    'satsifaction-survey-input-choice-blocks'?:
-                      | T
-                      | {
-                          choices?:
-                            | T
-                            | {
-                                content?: T;
-                                id?: T;
-                              };
-                          minChoice?: T;
-                          maxChoice?: T;
-                          required?: T;
-                          id?: T;
-                          blockName?: T;
-                        };
-                    'satsifaction-survey-input-text-blocks'?:
-                      | T
-                      | {
-                          isTextArea?: T;
-                          regexPattern?: T;
-                          regexMode?: T;
-                          required?: T;
-                          id?: T;
-                          blockName?: T;
-                        };
-                    'satsifaction-survey-input-upload-blocks'?:
-                      | T
-                      | {
-                          maxSize?: T;
-                          acceptTypes?: T;
-                          required?: T;
-                          id?: T;
-                          blockName?: T;
-                        };
-                  };
-              id?: T;
-              blockName?: T;
-            };
-      };
+  content?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
