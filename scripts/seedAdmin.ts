@@ -32,7 +32,11 @@ const ALL_MENUS: Role["menus"] = [
 	"credit-application-assignment-viewer",
 	"credit-application-assignment-auditor",
 	"credit-application-assignment-editor",
-	"credit-application-assignment-approver"
+	"credit-application-assignment-approver",
+	"customer-satisfaction-viewer",
+	"customer-satisfaction-auditor",
+	"customer-satisfaction-editor",
+	"customer-satisfaction-approver"
 ];
 
 type ReviewCommentValue = NonNullable<Role["reviewComment"]>;

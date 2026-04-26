@@ -159,7 +159,11 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "credit-application-assignment-viewer", label: "Credit Application Assignment - Viewer" },
 				{ value: "credit-application-assignment-auditor", label: "Credit Application Assignment - Auditor" },
 				{ value: "credit-application-assignment-editor", label: "Credit Application Assignment - Editor" },
-				{ value: "credit-application-assignment-approver", label: "Credit Application Assignment - Approver" }
+				{ value: "credit-application-assignment-approver", label: "Credit Application Assignment - Approver" },
+				{ value: "customer-satisfaction-viewer", label: "Customer Satisfaction - Viewer" },
+				{ value: "customer-satisfaction-auditor", label: "Customer Satisfaction - Auditor" },
+				{ value: "customer-satisfaction-editor", label: "Customer Satisfaction - Editor" },
+				{ value: "customer-satisfaction-approver", label: "Customer Satisfaction - Approver" }
 			],
 			required: true,
 			hasMany: true,

@@ -5,6 +5,7 @@ import sharp from "sharp";
 
 import { CreditApplicationAssignments } from "./collections/CreditApplicationAssignmentCollection";
 import { CreditApplications, CreditApplicationImports, CreditApplicationFieldMasks, CreditApplicationDefaultFieldMask } from "./collections/CreditApplicationCollection";
+import { CustomerSatisfactionResponses } from "./collections/CustomerSatisfactionResponseCollection";
 import { SatisfactionSurveys } from "./collections/CustomerSatisfactionSurveyCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { GenericRichtextUploads } from "./collections/GenericCollection";
@@ -39,7 +40,8 @@ export default buildConfig({
 		CreditApplications(),
 		CreditApplicationFieldMasks(),
 		Surveys(),
-		SatisfactionSurveys()
+		SatisfactionSurveys(),
+		CustomerSatisfactionResponses()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),
