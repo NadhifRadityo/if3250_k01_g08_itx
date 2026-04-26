@@ -818,34 +818,13 @@ function resolveImportDownloadHref(filename: string | null | undefined): string 
 	return `/api/credit-application-imports/file/${encodeURIComponent(trimmed)}`;
 }
 
-function resolveLoopbackOrigin(headers: Awaited<ReturnType<typeof nextHeaders>>): string {
-	const forwardedProto = headers.get("x-forwarded-proto")?.split(",")[0]?.trim() ?? "http";
-	const forwardedHost = headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-	const host = forwardedHost ?? headers.get("host")?.trim() ?? "127.0.0.1:3000";
-
-	try {
-		const parsed = new URL(`${forwardedProto}://${host}`);
-		const portSegment = parsed.port.length > 0 ? `:${parsed.port}` : "";
-		return `${parsed.protocol}//127.0.0.1${portSegment}`;
-	} catch{
-		return `${forwardedProto}://127.0.0.1:3000`;
-	}
-}
-
-function resolveImportLoopbackFileUrl(
-	fileUrl: string,
-	headers: Awaited<ReturnType<typeof nextHeaders>>
-): string {
-	return new URL(fileUrl, resolveLoopbackOrigin(headers)).toString();
-}
-
 async function parseExcelRowsFromImportFile(
 	fileUrl: string,
 	requestHeaders: Awaited<ReturnType<typeof nextHeaders>>
 ): Promise<ParsedCreditApplicationImportRow[]> {
 	let response: Response;
 	try {
-		response = await fetch(resolveImportLoopbackFileUrl(fileUrl, requestHeaders), {
+		response = await fetch(new URL(fileUrl, `http://localhost:${process.env.PORT}`), {
 			cache: "no-store",
 			headers: requestHeaders.has("cookie") ? { cookie: requestHeaders.get("cookie")! } : undefined
 		});
