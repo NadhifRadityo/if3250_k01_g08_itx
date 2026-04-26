@@ -7,6 +7,9 @@
 	"scripts": {
 		"build": "next build --webpack",
 		"dev": "next dev",
+		"db:docker": "docker compose up -d",
+		"db:docker:down": "docker compose down",
+		"db:docker:logs": "docker compose logs -f postgres",
 		"db:reset": "payload run ./scripts/resetDatabase.ts",
 		"seed:admin": "payload run ./scripts/seedAdmin.ts",
 		"seed:user-role-team": "payload run ./scripts/seedUserRoleTeam.ts",
