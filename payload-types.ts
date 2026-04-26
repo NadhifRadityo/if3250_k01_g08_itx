@@ -77,8 +77,7 @@ export interface Config {
     'credit-applications': CreditApplication;
     'credit-application-field-masks': CreditApplicationFieldMask;
     surveys: Survey;
-    'satisfaction-surveys': SatisfactionSurvey;
-    'csat-responses': CsatResponse;
+    'satsifaction-surveys': SatsifactionSurvey;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSync;
     search: Search;
     'payload-kv': PayloadKv;
@@ -103,8 +102,7 @@ export interface Config {
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
-    'satisfaction-surveys': SatisfactionSurveysSelect<false> | SatisfactionSurveysSelect<true>;
-    'csat-responses': CsatResponsesSelect<false> | CsatResponsesSelect<true>;
+    'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSyncsSelect<false> | DatabaseLockingPluginTransactionSyncsSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -251,10 +249,6 @@ export interface Role {
     | 'credit-application-assignment-auditor'
     | 'credit-application-assignment-editor'
     | 'credit-application-assignment-approver'
-    | 'customer-satisfaction-viewer'
-    | 'customer-satisfaction-auditor'
-    | 'customer-satisfaction-editor'
-    | 'customer-satisfaction-approver'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
@@ -638,9 +632,9 @@ export interface Survey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "satisfaction-surveys".
+ * via the `definition` "satsifaction-surveys".
  */
-export interface SatisfactionSurvey {
+export interface SatsifactionSurvey {
   id: string;
   createdAt: string;
   createdBy?: (string | null) | User;
@@ -648,21 +642,7 @@ export interface SatisfactionSurvey {
   updatedBy?: (string | null) | User;
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
-  isActive?: boolean | null;
-  csatId: string;
-  csatDescription: string;
-  sequence: number;
-  inputType: 'free_text' | 'option';
-  freeText1?: string | null;
-  freeText2?: string | null;
-  freeText3?: string | null;
-  freeText4?: string | null;
-  freeText5?: string | null;
-  option1Desc?: string | null;
-  option2Desc?: string | null;
-  option3Desc?: string | null;
-  option4Desc?: string | null;
-  option5Desc?: string | null;
+  title: string;
   description?: {
     root: {
       type: string;
@@ -678,6 +658,15 @@ export interface SatisfactionSurvey {
     };
     [k: string]: unknown;
   } | null;
+  content:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -697,28 +686,6 @@ export interface SatisfactionSurvey {
     [k: string]: unknown;
   } | null;
   _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "csat-responses".
- */
-export interface CsatResponse {
-  id: string;
-  assignment: string | CreditApplicationAssignment;
-  customerName?: string | null;
-  customerPhone?: string | null;
-  submittedAt: string;
-  responses: {
-    csatQuestion: string | SatisfactionSurvey;
-    inputType: 'free_text' | 'option';
-    answerText?: string | null;
-    answerOptionValue?: number | null;
-    id?: string | null;
-  }[];
-  scoreAverage?: number | null;
-  updatedAt: string;
-  createdAt: string;
-  deletedAt?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -947,12 +914,8 @@ export interface PayloadLockedDocument {
         value: string | Survey;
       } | null)
     | ({
-        relationTo: 'satisfaction-surveys';
-        value: string | SatisfactionSurvey;
-      } | null)
-    | ({
-        relationTo: 'csat-responses';
-        value: string | CsatResponse;
+        relationTo: 'satsifaction-surveys';
+        value: string | SatsifactionSurvey;
       } | null)
     | ({
         relationTo: 'database-locking-plugin-transaction-syncs';
@@ -1257,59 +1220,23 @@ export interface SurveysSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "satisfaction-surveys_select".
+ * via the `definition` "satsifaction-surveys_select".
  */
-export interface SatisfactionSurveysSelect<T extends boolean = true> {
+export interface SatsifactionSurveysSelect<T extends boolean = true> {
   createdAt?: T;
   createdBy?: T;
   updatedAt?: T;
   updatedBy?: T;
   deletedAt?: T;
   deletedBy?: T;
-  isActive?: T;
-  csatId?: T;
-  csatDescription?: T;
-  sequence?: T;
-  inputType?: T;
-  freeText1?: T;
-  freeText2?: T;
-  freeText3?: T;
-  freeText4?: T;
-  freeText5?: T;
-  option1Desc?: T;
-  option2Desc?: T;
-  option3Desc?: T;
-  option4Desc?: T;
-  option5Desc?: T;
+  title?: T;
   description?: T;
+  content?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
   reviewComment?: T;
   _status?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "csat-responses_select".
- */
-export interface CsatResponsesSelect<T extends boolean = true> {
-  assignment?: T;
-  customerName?: T;
-  customerPhone?: T;
-  submittedAt?: T;
-  responses?:
-    | T
-    | {
-        csatQuestion?: T;
-        inputType?: T;
-        answerText?: T;
-        answerOptionValue?: T;
-        id?: T;
-      };
-  scoreAverage?: T;
-  updatedAt?: T;
-  createdAt?: T;
-  deletedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
