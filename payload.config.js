@@ -12,7 +12,6 @@ import { Roles } from "./collections/RoleCollection";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
 import { Surveys } from "./collections/SurveyCollection";
-import { SurveyQuestionDetails } from "./collections/SurveyQuestionDetailCollection";
 import { Teams } from "./collections/TeamCollection";
 import { Users, StagedUsers } from "./collections/UserCollection";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
@@ -40,8 +39,7 @@ export default buildConfig({
 		CreditApplications(),
 		CreditApplicationFieldMasks(),
 		Surveys(),
-		SatisfactionSurveys(),
-		SurveyQuestionDetails()
+		SatisfactionSurveys()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),
