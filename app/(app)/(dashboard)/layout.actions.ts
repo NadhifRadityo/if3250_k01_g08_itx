@@ -8,7 +8,7 @@ import { getPayload, type Payload } from "payload";
 import payloadConfig from "@payload-config";
 import type { Role, User } from "@/payload-types";
 
-const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "customer-satisfaction"] as const;
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
 export type DashboardMode = "viewer" | "editor" | "approver" | "import-viewer" | "import-editor" | "import-approver";
@@ -63,7 +63,8 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"team-management": "Team Management",
 	"credit-application-management": "Credit Application Management",
 	"credit-application-assignment": "Credit Application Assignment",
-	"customer-satisfaction": "CSAT Question"
+	"survey-management": "Survey Management",
+	"satisfaction-survey-management": "Satisfaction Survey Management"
 };
 
 const modeLabelMap: Record<DashboardMode, string> = {
@@ -76,8 +77,6 @@ const modeLabelMap: Record<DashboardMode, string> = {
 };
 
 const auditorLabel = "Auditor";
-const csatMakerLabel = "CSAT Question Maker";
-const csatCheckerLabel = "CSAT Question Checker";
 
 const dashboardRoleMenus = [
 	"user-management-viewer",
@@ -103,10 +102,14 @@ const dashboardRoleMenus = [
 	"credit-application-assignment-auditor",
 	"credit-application-assignment-editor",
 	"credit-application-assignment-approver",
-	"customer-satisfaction-viewer",
-	"customer-satisfaction-auditor",
-	"customer-satisfaction-editor",
-	"customer-satisfaction-approver"
+	"survey-management-viewer",
+	"survey-management-auditor",
+	"survey-management-editor",
+	"survey-management-approver",
+	"satisfaction-survey-management-viewer",
+	"satisfaction-survey-management-auditor",
+	"satisfaction-survey-management-editor",
+	"satisfaction-survey-management-approver"
 ] as const satisfies DashboardRoleMenu[];
 
 const dashboardRoleMenuSet = new Set<DashboardRoleMenu>(dashboardRoleMenus);
@@ -175,18 +178,16 @@ function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: Dashb
 		return null;
 
 	const baseHref = `/${key}`;
-	const viewLinkLabel = key == "customer-satisfaction"
-		? csatMakerLabel
-		: hasViewer ? modeLabelMap.viewer : auditorLabel;
+	const viewLinkLabel = hasViewer ? modeLabelMap.viewer : auditorLabel;
 	const links: DashboardNavLink[] = [];
 
 	if(hasEditor)
-		links.push({ label: key == "customer-satisfaction" ? csatMakerLabel : modeLabelMap.editor, mode: "editor", href: `${baseHref}/editor` });
+		links.push({ label: modeLabelMap.editor, mode: "editor", href: `${baseHref}/editor` });
 	else if(hasViewer || hasAuditor)
 		links.push({ label: viewLinkLabel, mode: "viewer", href: `${baseHref}/viewer` });
 
 	if(hasApprover)
-		links.push({ label: key == "customer-satisfaction" ? csatCheckerLabel : modeLabelMap.approver, mode: "approver", href: `${baseHref}/approver` });
+		links.push({ label: modeLabelMap.approver, mode: "approver", href: `${baseHref}/approver` });
 
 	if(key == "credit-application-management") {
 		if(hasImportEditor)
@@ -293,10 +294,7 @@ function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: Dash
 		return hasImportApprover ? null : "/";
 	}
 
-	if(mode == "approver")
-		return hasApprover ? null : "/";
-
-	return "/";
+	return hasApprover ? null : "/";
 }
 
 function resolveViewerEditorTarget(menus: DashboardRoleMenu[], key: DashboardManagementKey): DashboardViewerEditorTarget {
@@ -321,7 +319,8 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 		"team-management": resolveViewerEditorTarget(menus, "team-management"),
 		"credit-application-management": resolveViewerEditorTarget(menus, "credit-application-management"),
 		"credit-application-assignment": resolveViewerEditorTarget(menus, "credit-application-assignment"),
-		"customer-satisfaction": resolveViewerEditorTarget(menus, "customer-satisfaction")
+		"survey-management": resolveViewerEditorTarget(menus, "survey-management"),
+		"satisfaction-survey-management": resolveViewerEditorTarget(menus, "satisfaction-survey-management")
 	};
 }
 
@@ -376,14 +375,22 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Credit Application Assignment - Editor";
 	if(menu == "credit-application-assignment-approver")
 		return "Credit Application Assignment - Approver";
-	if(menu == "customer-satisfaction-viewer")
-		return "Customer Satisfaction - Viewer";
-	if(menu == "customer-satisfaction-auditor")
-		return "Customer Satisfaction - Auditor";
-	if(menu == "customer-satisfaction-editor")
-		return "Customer Satisfaction - Editor";
-	if(menu == "customer-satisfaction-approver")
-		return "Customer Satisfaction - Approver";
+	if(menu == "survey-management-viewer")
+		return "Survey Management - Viewer";
+	if(menu == "survey-management-auditor")
+		return "Survey Management - Auditor";
+	if(menu == "survey-management-editor")
+		return "Survey Management - Editor";
+	if(menu == "survey-management-approver")
+		return "Survey Management - Approver";
+	if(menu == "satisfaction-survey-management-viewer")
+		return "Satisfaction Survey Management - Viewer";
+	if(menu == "satisfaction-survey-management-auditor")
+		return "Satisfaction Survey Management - Auditor";
+	if(menu == "satisfaction-survey-management-editor")
+		return "Satisfaction Survey Management - Editor";
+	if(menu == "satisfaction-survey-management-approver")
+		return "Satisfaction Survey Management - Approver";
 	return menu;
 }
 
@@ -488,7 +495,8 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"credit-application-management": { key: "credit-application-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null },
-			"customer-satisfaction": { key: "customer-satisfaction", viewerHref: null, editorHref: null, preferredHref: null }
+			"survey-management": { key: "survey-management", viewerHref: null, editorHref: null, preferredHref: null },
+			"satisfaction-survey-management": { key: "satisfaction-survey-management", viewerHref: null, editorHref: null, preferredHref: null }
 		};
 	}
 

@@ -1150,7 +1150,7 @@ function getQuestionClass(block: JsonFieldBlock, rounded: JsonRoundedMode): stri
 		return "text-sm font-medium text-muted-foreground";
 
 	return cn(
-		"text-balance font-serif text-2xl leading-tight sm:text-3xl",
+		"text-balance font-sans text-2xl leading-tight sm:text-3xl",
 		rounded == "none" && "rounded-none"
 	);
 }
@@ -2663,9 +2663,9 @@ function renderContentBlock(block: JsonContentBlock, context: ResolutionContext,
 				return null;
 
 			const headingClass = level == 1 ?
-				"font-serif text-4xl leading-tight sm:text-5xl" :
+				"font-sans text-4xl leading-tight sm:text-5xl" :
 				level == 2 ?
-					"font-serif text-2xl leading-tight sm:text-3xl" :
+					"font-sans text-2xl leading-tight sm:text-3xl" :
 					"text-lg font-semibold";
 
 			return React.createElement(
@@ -2798,7 +2798,7 @@ function SlideChrome({
 			{title || description ? (
 				<div className={cn("space-y-3", currentSlide.kind == "start" || currentSlide.kind == "end" ? "text-center" : "text-left")}>
 					{title ? (
-						<h1 className="font-serif text-4xl leading-tight text-balance sm:text-5xl">
+						<h1 className="font-sans text-4xl leading-tight text-balance sm:text-5xl">
 							{title}
 						</h1>
 					) : null}

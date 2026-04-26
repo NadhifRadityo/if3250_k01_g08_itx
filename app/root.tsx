@@ -105,6 +105,7 @@ export async function generateRootViewport() {
 		themeColor: "#672431",
 		width: "device-width",
 		initialScale: 1,
+		minimumScale: 1,
 		maximumScale: 6
 	} as NextViewport;
 }

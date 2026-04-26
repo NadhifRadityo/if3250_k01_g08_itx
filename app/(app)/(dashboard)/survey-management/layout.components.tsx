@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useCallback, type DragEvent, type ReactNode, type MouseEvent } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, CheckIcon, ArrowUpIcon, HistoryIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
+import { XIcon, PlusIcon, ArrowUpIcon, HistoryIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import { DatetimeInput } from "@/components/DatetimeInput";
@@ -23,24 +23,22 @@ import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@
 import { Textarea } from "@/components/radix/Textarea";
 
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
-import * as roleActions from "./layout.actions";
+import * as surveyActions from "./layout.actions";
 
 export const PAGE_SIZE = 20;
 
 export type SortDirection = "asc" | "desc";
-export type SortField = roleActions.RoleManagementSortField;
-export type FilterColumn = roleActions.RoleManagementFilterColumn;
-export type FilterOperator = roleActions.RoleManagementFilterOperator;
-export type FilterCombinator = roleActions.RoleManagementFilterCombinator;
-export type FilterInput = roleActions.RoleManagementFilterInput;
-export type QueryRolesOutput = Awaited<ReturnType<typeof roleActions.queryRolesAction>>;
-export type RoleTableRow = QueryRolesOutput["docs"][number];
-export type RoleManagementTabMode = "viewer" | Parameters<typeof roleActions.queryRolesAction>[0]["mode"];
-export type RoleRelationColumn = roleActions.RoleRelationColumn;
-export type RoleRequestReviewDiff = Awaited<ReturnType<typeof roleActions.getRoleRequestReviewDiffAction>>;
-export type RoleRequestHistory = Awaited<ReturnType<typeof roleActions.getRoleRequestHistoryAction>>;
-export type RoleLevel = roleActions.RoleLevel;
-export type RoleMenu = roleActions.RoleMenu;
+export type SortField = surveyActions.SurveyManagementSortField;
+export type FilterColumn = surveyActions.SurveyManagementFilterColumn;
+export type FilterOperator = surveyActions.SurveyManagementFilterOperator;
+export type FilterCombinator = surveyActions.SurveyManagementFilterCombinator;
+export type FilterInput = surveyActions.SurveyManagementFilterInput;
+export type QuerySurveysOutput = Awaited<ReturnType<typeof surveyActions.querySurveysAction>>;
+export type SurveyTableRow = QuerySurveysOutput["docs"][number];
+export type SurveyManagementTabMode = "viewer" | Parameters<typeof surveyActions.querySurveysAction>[0]["mode"];
+export type SurveyRelationColumn = surveyActions.SurveyRelationColumn;
+export type SurveyRequestReviewDiff = Awaited<ReturnType<typeof surveyActions.getSurveyRequestReviewDiffAction>>;
+export type SurveyRequestHistory = Awaited<ReturnType<typeof surveyActions.getSurveyRequestHistoryAction>>;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
 export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
 export type ActionError = {
@@ -84,10 +82,10 @@ export type FilterCondition = {
 	listDateText: string;
 };
 
-export type RoleTableColumnId = "name" |
+export type SurveyTableColumnId = "title" |
 	"id" |
-	"level" |
-	"menus" |
+	"descriptionText" |
+	"contentText" |
 	"createdBy" |
 	"updatedBy" |
 	"deletedBy" |
@@ -101,8 +99,8 @@ export type RoleTableColumnId = "name" |
 	"reviewApproved" |
 	"reviewCommentText";
 
-export type RoleTableColumnConfig = {
-	id: RoleTableColumnId;
+export type SurveyTableColumnConfig = {
+	id: SurveyTableColumnId;
 	label: string;
 	sortField?: SortField;
 	headClassName?: string;
@@ -110,10 +108,10 @@ export type RoleTableColumnConfig = {
 };
 
 export type FormState = {
-	roleId?: string;
-	name: string;
-	level: RoleLevel;
-	menus: RoleMenu[];
+	surveyId?: string;
+	title: string;
+	description: string;
+	content: string;
 };
 
 export type FilterSummaryItem = {
@@ -123,54 +121,13 @@ export type FilterSummaryItem = {
 	valueLabel: string;
 };
 
-export const roleLevelOptions: Array<{ value: RoleLevel, label: string }> = [
-	{ value: "admin", label: "Admin" },
-	{ value: "manager", label: "Manager" },
-	{ value: "supervisor", label: "Supervisor" },
-	{ value: "officer", label: "Officer" }
-];
-
-export const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
-	{ value: "user-management-viewer", label: "User Management - Viewer" },
-	{ value: "user-management-auditor", label: "User Management - Auditor" },
-	{ value: "user-management-editor", label: "User Management - Editor" },
-	{ value: "user-management-approver", label: "User Management - Approver" },
-	{ value: "role-management-viewer", label: "Role Management - Viewer" },
-	{ value: "role-management-auditor", label: "Role Management - Auditor" },
-	{ value: "role-management-editor", label: "Role Management - Editor" },
-	{ value: "role-management-approver", label: "Role Management - Approver" },
-	{ value: "team-management-viewer", label: "Team Management - Viewer" },
-	{ value: "team-management-auditor", label: "Team Management - Auditor" },
-	{ value: "team-management-editor", label: "Team Management - Editor" },
-	{ value: "team-management-approver", label: "Team Management - Approver" },
-	{ value: "credit-application-management-viewer", label: "Credit Application Management - Viewer" },
-	{ value: "credit-application-management-auditor", label: "Credit Application Management - Auditor" },
-	{ value: "credit-application-management-editor", label: "Credit Application Management - Editor" },
-	{ value: "credit-application-management-approver", label: "Credit Application Management - Approver" },
-	{ value: "credit-application-management-import-viewer", label: "Credit Application Management - Import Viewer" },
-	{ value: "credit-application-management-import-editor", label: "Credit Application Management - Import Editor" },
-	{ value: "credit-application-management-import-approver", label: "Credit Application Management - Import Approver" },
-	{ value: "credit-application-assignment-viewer", label: "Credit Application Assignment - Viewer" },
-	{ value: "credit-application-assignment-auditor", label: "Credit Application Assignment - Auditor" },
-	{ value: "credit-application-assignment-editor", label: "Credit Application Assignment - Editor" },
-	{ value: "credit-application-assignment-approver", label: "Credit Application Assignment - Approver" },
-	{ value: "survey-management-viewer", label: "Survey Management - Viewer" },
-	{ value: "survey-management-auditor", label: "Survey Management - Auditor" },
-	{ value: "survey-management-editor", label: "Survey Management - Editor" },
-	{ value: "survey-management-approver", label: "Survey Management - Approver" },
-	{ value: "satisfaction-survey-management-viewer", label: "Satisfaction Survey Management - Viewer" },
-	{ value: "satisfaction-survey-management-auditor", label: "Satisfaction Survey Management - Auditor" },
-	{ value: "satisfaction-survey-management-editor", label: "Satisfaction Survey Management - Editor" },
-	{ value: "satisfaction-survey-management-approver", label: "Satisfaction Survey Management - Approver" }
-];
-
 export const reviewStatusOptions: Array<{ value: string, label: string }> = [
 	{ value: "pending", label: "Pending" },
 	{ value: "approved", label: "Approved" },
 	{ value: "rejected", label: "Rejected" }
 ];
 
-export const emptyQueryResult: QueryRolesOutput = {
+export const emptyQueryResult: QuerySurveysOutput = {
 	docs: [],
 	totalDocs: 0,
 	page: 1,
@@ -179,19 +136,19 @@ export const emptyQueryResult: QueryRolesOutput = {
 };
 
 export const defaultFormState: FormState = {
-	name: "",
-	level: "officer",
-	menus: []
+	title: "",
+	description: "",
+	content: "{\n  \"slides\": []\n}"
 };
 
-export const ROLE_COLUMN_PREFERENCES_KEY = "role-management-columns-v1";
+export const SURVEY_COLUMN_PREFERENCES_KEY = "survey-management-columns-v1";
 export const RELATION_FILTER_QUERY_PARAM = "relationFilters";
 
-export const roleTableColumns: RoleTableColumnConfig[] = [
+export const surveyTableColumns: SurveyTableColumnConfig[] = [
 	{ id: "id", label: "ID", sortField: "id", cellClassName: "font-mono text-xs" },
-	{ id: "name", label: "Name", sortField: "name", cellClassName: "font-medium" },
-	{ id: "level", label: "Level", sortField: "level" },
-	{ id: "menus", label: "Menus", sortField: "menus", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ id: "title", label: "Title", sortField: "title", cellClassName: "font-medium" },
+	{ id: "descriptionText", label: "Description", sortField: "descriptionText", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ id: "contentText", label: "Content", sortField: "contentText", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs" },
 	{ id: "createdBy", label: "Created By" },
 	{ id: "updatedBy", label: "Updated By" },
 	{ id: "deletedBy", label: "Deleted By" },
@@ -206,26 +163,28 @@ export const roleTableColumns: RoleTableColumnConfig[] = [
 	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
-function getRoleDrawerValueClassName(columnId: string): string {
+function getSurveyDrawerValueClassName(columnId: string): string {
 	if(columnId == "id")
 		return "text-xs font-mono";
-	if(columnId == "name")
+	if(columnId == "title")
 		return "text-sm font-medium";
+	if(columnId == "contentText")
+		return "text-xs font-mono";
 	return "text-sm";
 }
 
-export const defaultRoleColumnOrder: RoleTableColumnId[] = roleTableColumns.map(column => column.id);
-export const defaultRoleVisibleColumns: RoleTableColumnId[] = ["name", "level", "menus", "requestType", "status", "updatedAt", "reviewCommentText"];
-export const defaultRoleHiddenColumns: RoleTableColumnId[] = defaultRoleColumnOrder.filter(columnId => !defaultRoleVisibleColumns.includes(columnId));
+export const defaultSurveyColumnOrder: SurveyTableColumnId[] = surveyTableColumns.map(column => column.id);
+export const defaultSurveyVisibleColumns: SurveyTableColumnId[] = ["title", "descriptionText", "requestType", "status", "updatedAt", "reviewCommentText"];
+export const defaultSurveyHiddenColumns: SurveyTableColumnId[] = defaultSurveyColumnOrder.filter(columnId => !defaultSurveyVisibleColumns.includes(columnId));
 
-export const roleRelationColumnSet = new Set<RoleRelationColumn>([
+export const surveyRelationColumnSet = new Set<SurveyRelationColumn>([
 	"reviewedBy",
 	"createdBy",
 	"updatedBy",
 	"deletedBy"
 ]);
 
-const roleNonEligibleColumnSet = new Set<string>([
+const surveyNonEligibleColumnSet = new Set<string>([
 	"actions",
 	"status",
 	"requestType",
@@ -235,8 +194,8 @@ const roleNonEligibleColumnSet = new Set<string>([
 	"deletedBy"
 ]);
 
-export function getEligibleDetailTriggerRoleColumnId(visibleColumns: RoleTableColumnConfig[]): RoleTableColumnId | null {
-	const triggerColumn = visibleColumns.find(column => !roleNonEligibleColumnSet.has(column.id));
+export function getEligibleDetailTriggerSurveyColumnId(visibleColumns: SurveyTableColumnConfig[]): SurveyTableColumnId | null {
+	const triggerColumn = visibleColumns.find(column => !surveyNonEligibleColumnSet.has(column.id));
 	return triggerColumn?.id ?? null;
 }
 
@@ -254,11 +213,11 @@ export const filterOperatorOptions: Array<{ value: FilterOperator, label: string
 	{ value: "less_than_equal", label: "Is Less Than Or Equal To" }
 ];
 
-export const roleFilterColumns: FilterColumnOption[] = [
+export const surveyFilterColumns: FilterColumnOption[] = [
 	{ value: "id", label: "ID", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "name", label: "Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter role name" },
-	{ value: "level", label: "Level", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: roleLevelOptions.map(option => ({ value: option.value, label: option.label })) },
-	{ value: "menus", label: "Menus", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: roleMenuOptions.map(option => ({ value: option.value, label: option.label })) },
+	{ value: "title", label: "Title", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter survey title" },
+	{ value: "descriptionText", label: "Description", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter description text" },
+	{ value: "contentText", label: "Content", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter content text" },
 	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
@@ -293,14 +252,14 @@ export function dedupeSelectOptions(options: SearchableSelectOption[]): Searchab
 }
 
 export function getFilterColumnConfig(column: FilterColumn): FilterColumnOption {
-	return roleFilterColumns.find(option => option.value == column) ?? roleFilterColumns[0];
+	return surveyFilterColumns.find(option => option.value == column) ?? surveyFilterColumns[0];
 }
 
-export function getResolvedRoleFilterColumnConfig(
+export function getResolvedSurveyFilterColumnConfig(
 	column: FilterColumn,
 	idSelectOptions: Array<{ value: string, label: string }>,
 	reviewedBySelectOptions: Array<{ value: string, label: string }>,
-	searchRoleOptions?: FilterSelectSearchAction,
+	searchSurveyOptions?: FilterSelectSearchAction,
 	searchAuditUserOptions?: FilterSelectSearchAction
 ): FilterColumnOption {
 	const config = getFilterColumnConfig(column);
@@ -309,7 +268,7 @@ export function getResolvedRoleFilterColumnConfig(
 			return {
 				...config,
 				selectOptions: idSelectOptions,
-				searchOptionsAction: searchRoleOptions
+				searchOptionsAction: searchSurveyOptions
 			};
 		case "createdBy":
 		case "updatedBy":
@@ -325,7 +284,7 @@ export function getResolvedRoleFilterColumnConfig(
 	}
 }
 
-export function createFilterCondition(column: FilterColumn = roleFilterColumns[0].value): FilterCondition {
+export function createFilterCondition(column: FilterColumn = surveyFilterColumns[0].value): FilterCondition {
 	const columnConfig = getFilterColumnConfig(column);
 	return {
 		column,
@@ -432,7 +391,7 @@ export function formatDateTime(dateValue: string | null) {
 	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
-export function getReviewStatus(row: RoleTableRow): { label: string, variant: "default" | "secondary" | "destructive" } {
+export function getReviewStatus(row: SurveyTableRow): { label: string, variant: "default" | "secondary" | "destructive" } {
 	if(row.reviewedAt == null)
 		return { label: "Pending", variant: "secondary" };
 	if(row.reviewApproved == true)
@@ -445,8 +404,8 @@ function renderRequestTypeTrigger({
 	onOpenRequestChanges,
 	className
 }: {
-	row: RoleTableRow;
-	onOpenRequestChanges?: (row: RoleTableRow) => void;
+	row: SurveyTableRow;
+	onOpenRequestChanges?: (row: SurveyTableRow) => void;
 	className?: string;
 }): ReactNode {
 	if(onOpenRequestChanges == null)
@@ -464,7 +423,7 @@ function renderRequestTypeTrigger({
 	);
 }
 
-export function reorderColumns(order: RoleTableColumnId[], sourceId: RoleTableColumnId, targetId: RoleTableColumnId): RoleTableColumnId[] {
+export function reorderColumns(order: SurveyTableColumnId[], sourceId: SurveyTableColumnId, targetId: SurveyTableColumnId): SurveyTableColumnId[] {
 	if(sourceId == targetId)
 		return order;
 	const sourceIndex = order.indexOf(sourceId);
@@ -477,11 +436,11 @@ export function reorderColumns(order: RoleTableColumnId[], sourceId: RoleTableCo
 	return nextOrder;
 }
 
-type RoleActiveFiltersSummaryProps = {
+type SurveyActiveFiltersSummaryProps = {
 	items: FilterSummaryItem[];
 };
 
-export function RoleActiveFiltersSummary({ items }: RoleActiveFiltersSummaryProps) {
+export function SurveyActiveFiltersSummary({ items }: SurveyActiveFiltersSummaryProps) {
 	if(items.length == 0)
 		return null;
 
@@ -506,20 +465,20 @@ export function RoleActiveFiltersSummary({ items }: RoleActiveFiltersSummaryProp
 	);
 }
 
-type RoleColumnConfigCardProps = {
+type SurveyColumnConfigCardProps = {
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
-	orderedColumns: RoleTableColumnConfig[];
-	hiddenColumnIds: RoleTableColumnId[];
+	orderedColumns: SurveyTableColumnConfig[];
+	hiddenColumnIds: SurveyTableColumnId[];
 	visibleColumnCount: number;
-	onToggleColumnVisibility: (columnId: RoleTableColumnId, checked: boolean) => void;
+	onToggleColumnVisibility: (columnId: SurveyTableColumnId, checked: boolean) => void;
 	onReset: () => void;
-	onColumnDragStart: (columnId: RoleTableColumnId) => void;
-	onColumnDragOver: (event: DragEvent<HTMLDivElement>, targetColumnId: RoleTableColumnId) => void;
+	onColumnDragStart: (columnId: SurveyTableColumnId) => void;
+	onColumnDragOver: (event: DragEvent<HTMLDivElement>, targetColumnId: SurveyTableColumnId) => void;
 	onColumnDragEnd: () => void;
 };
 
-export function RoleColumnConfigCard({
+export function SurveyColumnConfigCard({
 	isOpen,
 	onOpenChange,
 	orderedColumns,
@@ -530,7 +489,7 @@ export function RoleColumnConfigCard({
 	onColumnDragStart,
 	onColumnDragOver,
 	onColumnDragEnd
-}: RoleColumnConfigCardProps) {
+}: SurveyColumnConfigCardProps) {
 	return (
 		<Collapsible open={isOpen} onOpenChange={onOpenChange}>
 			<CollapsibleContent>
@@ -541,14 +500,14 @@ export function RoleColumnConfigCard({
 							<p className="text-muted-foreground text-sm">Toggle visibility and drag cards to reorder columns.</p>
 						</div>
 						<div className="flex items-center gap-2">
-							<p className="text-muted-foreground text-sm">Visible {visibleColumnCount} of {roleTableColumns.length}</p>
+							<p className="text-muted-foreground text-sm">Visible {visibleColumnCount} of {surveyTableColumns.length}</p>
 							<Button type="button" variant="outline" size="sm" onClick={onReset}>Reset</Button>
 						</div>
 					</div>
 					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
 						{orderedColumns.map(column => {
 							const isVisible = !hiddenColumnIds.includes(column.id);
-							const isOnlyVisibleColumn = isVisible && hiddenColumnIds.length >= roleTableColumns.length - 1;
+							const isOnlyVisibleColumn = isVisible && hiddenColumnIds.length >= surveyTableColumns.length - 1;
 							return (
 								<div
 									key={column.id}
@@ -578,19 +537,19 @@ export function RoleColumnConfigCard({
 	);
 }
 
-type RoleRequestDeleteDialogProps = {
+type SurveyRequestDeleteDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onConfirm: () => void;
 	isMutating: boolean;
 };
 
-export function RoleRequestDeleteDialog({
+export function SurveyRequestDeleteDialog({
 	open,
 	onOpenChange,
 	onConfirm,
 	isMutating
-}: RoleRequestDeleteDialogProps) {
+}: SurveyRequestDeleteDialogProps) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
@@ -609,19 +568,19 @@ export function RoleRequestDeleteDialog({
 	);
 }
 
-type RoleRequestCancelDialogProps = {
+type SurveyRequestCancelDialogProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onConfirm: () => void;
 	isMutating: boolean;
 };
 
-export function RoleRequestCancelDialog({
+export function SurveyRequestCancelDialog({
 	open,
 	onOpenChange,
 	onConfirm,
 	isMutating
-}: RoleRequestCancelDialogProps) {
+}: SurveyRequestCancelDialogProps) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
@@ -640,19 +599,19 @@ export function RoleRequestCancelDialog({
 	);
 }
 
-type RoleRequestFilterCardProps = {
+type SurveyRequestFilterCardProps = {
 	isLoading: boolean;
 	isMutating: boolean;
-	filters: UseRoleRequestFiltersResult;
+	filters: UseSurveyRequestFiltersResult;
 	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption;
 };
 
-export function RoleRequestFilterCard({
+export function SurveyRequestFilterCard({
 	isLoading,
 	isMutating,
 	filters,
 	getResolvedFilterColumnConfig
-}: RoleRequestFilterCardProps) {
+}: SurveyRequestFilterCardProps) {
 	return (
 		<Collapsible open={filters.isFilterOpen} onOpenChange={filters.setIsFilterOpen}>
 			<CollapsibleContent>
@@ -701,7 +660,7 @@ export function RoleRequestFilterCard({
 											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(index, value as FilterColumn)}>
 												<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
 												<SelectContent>
-													{roleFilterColumns.map(column => (
+													{surveyFilterColumns.map(column => (
 														<SelectItem key={column.value} value={column.value}>{column.label}</SelectItem>
 													))}
 												</SelectContent>
@@ -828,80 +787,63 @@ export function RoleRequestFilterCard({
 	);
 }
 
-type RoleRequestFormDrawerProps = {
+type SurveyRequestFormDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	formState: FormState;
 	formError: { title: string, message: string } | null;
-	selectedMenuLabels: string[];
 	isMutating: boolean;
-	onNameChange: (value: string) => void;
-	onLevelChange: (value: RoleLevel) => void;
-	onToggleMenu: (menu: RoleMenu) => void;
+	onTitleChange: (value: string) => void;
+	onDescriptionChange: (value: string) => void;
+	onContentChange: (value: string) => void;
 	onSubmit: () => void;
 };
 
-export function RoleRequestFormDrawer({
+export function SurveyRequestFormDrawer({
 	open,
 	onOpenChange,
 	formState,
 	formError,
-	selectedMenuLabels,
 	isMutating,
-	onNameChange,
-	onLevelChange,
-	onToggleMenu,
+	onTitleChange,
+	onDescriptionChange,
+	onContentChange,
 	onSubmit
-}: RoleRequestFormDrawerProps) {
+}: SurveyRequestFormDrawerProps) {
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>{formState.roleId == null ? "Add Role" : "Edit Role"}</DrawerTitle>
-					<DrawerDescription>Changes in editor mode create pending role requests that require approver review before publication.</DrawerDescription>
+					<DrawerTitle>{formState.surveyId == null ? "Add Survey" : "Edit Survey"}</DrawerTitle>
+					<DrawerDescription>Changes in editor mode create pending survey requests that require approver review before publication.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
 					<div className="grid gap-3 pb-4 sm:grid-cols-2">
 						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Role Name</label>
-							<Input value={formState.name} onChange={event => onNameChange(event.target.value)} placeholder="Credit Approval Supervisor" />
+							<label className="text-sm font-medium">Survey Title</label>
+							<Input value={formState.title} onChange={event => onTitleChange(event.target.value)} placeholder="Customer Satisfaction Survey" />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Level</label>
-							<Select value={formState.level} onValueChange={value => onLevelChange(value as RoleLevel)}>
-								<SelectTrigger className="w-full">
-									<SelectValue placeholder="Select level" />
-								</SelectTrigger>
-								<SelectContent>
-									{roleLevelOptions.map(option => (
-										<SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							<label className="text-sm font-medium">Description</label>
+							<Textarea
+								value={formState.description}
+								onChange={event => onDescriptionChange(event.target.value)}
+								placeholder="Short survey description"
+								className="min-h-28"
+							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">
-								<label className="text-sm font-medium">Menus</label>
-								<Badge variant="outline">{formState.menus.length} selected</Badge>
+								<label className="text-sm font-medium">Content JSON</label>
+								<Badge variant="outline">Required</Badge>
 							</div>
-							<div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border p-2">
-								{roleMenuOptions.map(menu => {
-									const selected = formState.menus.includes(menu.value);
-									return (
-										<Button
-											key={menu.value}
-											type="button"
-											variant={selected ? "secondary" : "outline"}
-											onClick={() => onToggleMenu(menu.value)}
-											className="h-auto w-full justify-between py-2"
-										>
-											<span className="text-left text-sm">{menu.label}</span>
-											{selected ? <CheckIcon className="size-4" /> : null}
-										</Button>
-									);
-								})}
-							</div>
-							<p className="text-muted-foreground text-xs">{selectedMenuLabels.length > 0 ? selectedMenuLabels.join(", ") : "No menu selected."}</p>
+							<Textarea
+								value={formState.content}
+								onChange={event => onContentChange(event.target.value)}
+								placeholder='{"slides":[]}'
+								className="min-h-72 font-mono text-xs"
+							/>
+							<p className="text-muted-foreground text-xs">Use valid JSON for the survey schema or block content.</p>
 						</div>
 						{formError != null ? (
 							<Alert variant="destructive" className="sm:col-span-2">
@@ -921,10 +863,10 @@ export function RoleRequestFormDrawer({
 	);
 }
 
-type RoleRequestReviewDrawerProps = {
+type SurveyRequestReviewDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	reviewDrawerState: { row: RoleTableRow, diff: RoleRequestReviewDiff | null } | null;
+	reviewDrawerState: { row: SurveyTableRow, diff: SurveyRequestReviewDiff | null } | null;
 	reviewError: { title: string, message: string } | null;
 	isReviewDiffLoading: boolean;
 	reviewReason: string;
@@ -932,10 +874,10 @@ type RoleRequestReviewDrawerProps = {
 	onApprove: () => void;
 	onReject: () => void;
 	isMutating: boolean;
-	onOpenRequestChanges?: (row: RoleTableRow) => void;
+	onOpenRequestChanges?: (row: SurveyTableRow) => void;
 };
 
-export function RoleRequestReviewDrawer({
+export function SurveyRequestReviewDrawer({
 	open,
 	onOpenChange,
 	reviewDrawerState,
@@ -947,7 +889,7 @@ export function RoleRequestReviewDrawer({
 	onReject,
 	isMutating,
 	onOpenRequestChanges
-}: RoleRequestReviewDrawerProps) {
+}: SurveyRequestReviewDrawerProps) {
 	return (
 		<Drawer
 			open={open}
@@ -998,11 +940,11 @@ export function RoleRequestReviewDrawer({
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
 											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getRoleDrawerValueClassName(item.field))}>{item.previousValue}</div>
+											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getSurveyDrawerValueClassName(item.field))}>{item.previousValue}</div>
 										</div>
 										<div className="space-y-1">
 											<p className="text-muted-foreground text-xs font-medium">Requested</p>
-											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getRoleDrawerValueClassName(item.field))}>{item.requestedValue}</div>
+											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getSurveyDrawerValueClassName(item.field))}>{item.requestedValue}</div>
 										</div>
 									</div>
 								</div>
@@ -1033,21 +975,21 @@ export function RoleRequestReviewDrawer({
 	);
 }
 
-type RoleRequestChangePreviewDrawerProps = {
+type SurveyRequestChangePreviewDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	row: RoleTableRow | null;
+	row: SurveyTableRow | null;
 };
 
-export function RoleRequestChangePreviewDrawer({
+export function SurveyRequestChangePreviewDrawer({
 	open,
 	onOpenChange,
 	row
-}: RoleRequestChangePreviewDrawerProps) {
+}: SurveyRequestChangePreviewDrawerProps) {
 	const diffQuery = useQuery({
-		queryKey: ["role-management", "request-change-preview", row?.id ?? null],
+		queryKey: ["survey-management", "request-change-preview", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => roleActions.getRoleRequestReviewDiffAction(row!.id),
+		queryFn: () => surveyActions.getSurveyRequestReviewDiffAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -1090,11 +1032,11 @@ export function RoleRequestChangePreviewDrawer({
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
 											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getRoleDrawerValueClassName(item.field))}>{item.previousValue}</div>
+											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getSurveyDrawerValueClassName(item.field))}>{item.previousValue}</div>
 										</div>
 										<div className="space-y-1">
 											<p className="text-muted-foreground text-xs font-medium">Requested</p>
-											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getRoleDrawerValueClassName(item.field))}>{item.requestedValue}</div>
+											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getSurveyDrawerValueClassName(item.field))}>{item.requestedValue}</div>
 										</div>
 									</div>
 								</div>
@@ -1110,22 +1052,22 @@ export function RoleRequestChangePreviewDrawer({
 	);
 }
 
-type RoleRequestsTableProps = {
-	queryResult: QueryRolesOutput;
-	visibleColumns: RoleTableColumnConfig[];
+type SurveyRequestsTableProps = {
+	queryResult: QuerySurveysOutput;
+	visibleColumns: SurveyTableColumnConfig[];
 	visibleColumnCount: number;
 	includeActions?: boolean;
-	detailTriggerColumnId: RoleTableColumnId | null;
+	detailTriggerColumnId: SurveyTableColumnId | null;
 	isLoading: boolean;
 	isMutating: boolean;
 	getSortDirection: (field: SortField) => SortDirection | null;
 	onToggleSortField: (field: SortField) => void;
-	onOpenDetails: (row: RoleTableRow) => void;
-	renderRoleCell: (columnId: RoleTableColumnConfig["id"], row: RoleTableRow) => ReactNode;
-	renderActions: (row: RoleTableRow) => ReactNode;
+	onOpenDetails: (row: SurveyTableRow) => void;
+	renderSurveyCell: (columnId: SurveyTableColumnConfig["id"], row: SurveyTableRow) => ReactNode;
+	renderActions: (row: SurveyTableRow) => ReactNode;
 };
 
-export function RoleRequestsTable({
+export function SurveyRequestsTable({
 	queryResult,
 	visibleColumns,
 	visibleColumnCount,
@@ -1136,9 +1078,9 @@ export function RoleRequestsTable({
 	getSortDirection,
 	onToggleSortField,
 	onOpenDetails,
-	renderRoleCell,
+	renderSurveyCell,
 	renderActions
-}: RoleRequestsTableProps) {
+}: SurveyRequestsTableProps) {
 	const renderSortIcon = (field: SortField) => {
 		const direction = getSortDirection(field);
 		if(direction == "asc")
@@ -1178,19 +1120,19 @@ export function RoleRequestsTable({
 				<TableBody>
 					{isLoading ? (
 						<TableRow>
-							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading role requests...</TableCell>
+							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading survey requests...</TableCell>
 						</TableRow>
 					) : null}
 					{!isLoading && queryResult.docs.length == 0 ? (
 						<TableRow>
-							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No role requests found.</TableCell>
+							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No survey requests found.</TableCell>
 						</TableRow>
 					) : null}
 					{queryResult.docs.map(row => {
 						return (
 							<TableRow key={row.id}>
 								{visibleColumns.map(column => {
-									const cellValue = renderRoleCell(column.id, row);
+									const cellValue = renderSurveyCell(column.id, row);
 									const isDetailTriggerColumn = detailTriggerColumnId != null && column.id == detailTriggerColumnId;
 									return (
 										<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
@@ -1218,19 +1160,19 @@ export function RoleRequestsTable({
 	);
 }
 
-type RoleRequestDetailsDrawerProps = {
+type SurveyRequestDetailsDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	row: RoleTableRow | null;
-	renderActions: (row: RoleTableRow) => ReactNode;
-	relationNavigation?: RoleRelationNavigation;
-	onOpenRequestChanges?: (row: RoleTableRow) => void;
+	row: SurveyTableRow | null;
+	renderActions: (row: SurveyTableRow) => ReactNode;
+	relationNavigation?: SurveyRelationNavigation;
+	onOpenRequestChanges?: (row: SurveyTableRow) => void;
 };
 
-type RoleRelationNavigation = {
-	getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
+type SurveyRelationNavigation = {
+	getHrefBase: (managementKey: string) => string | null;
 	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
-		targetManagementKey: "user-management" | "role-management" | "team-management";
+		targetManagementKey: string;
 		hrefBase: string;
 		relationFilters: unknown;
 		relationContext?: string;
@@ -1244,7 +1186,7 @@ type RoleRelationNavigation = {
 	}) => void;
 };
 
-function getRoleRelationSummaryLabel(column: RoleRelationColumn): string {
+function getSurveyRelationSummaryLabel(column: SurveyRelationColumn): string {
 	if(column == "reviewedBy")
 		return "Reviewed By";
 	if(column == "createdBy")
@@ -1254,24 +1196,24 @@ function getRoleRelationSummaryLabel(column: RoleRelationColumn): string {
 	return "Deleted By";
 }
 
-function renderRoleUserRelationValue({
+function renderSurveyUserRelationValue({
 	column,
 	value,
 	relationId,
 	relationNavigation,
 	stagedUserIdByUserId
 }: {
-	column: RoleRelationColumn;
+	column: SurveyRelationColumn;
 	value: string;
 	relationId: string | null;
-	relationNavigation?: RoleRelationNavigation;
+	relationNavigation?: SurveyRelationNavigation;
 	stagedUserIdByUserId?: Record<string, string>;
 }): ReactNode {
 	const normalizedValue = value.trim();
 	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
 		return value;
 
-	const summaryLabel = getRoleRelationSummaryLabel(column);
+	const summaryLabel = getSurveyRelationSummaryLabel(column);
 	const hrefBase = relationNavigation?.getHrefBase("user-management");
 	if(hrefBase != null && relationNavigation != null) {
 		const stagedUserId = stagedUserIdByUserId?.[relationId] ?? null;
@@ -1281,7 +1223,7 @@ function renderRoleUserRelationValue({
 		const relationFilters = [{ column: "id", operator: "equals", value: stagedUserId }];
 		const searchParams = new URLSearchParams();
 		searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
-		searchParams.set("relationContext", `role-management:${column}`);
+		searchParams.set("relationContext", `survey-management:${column}`);
 		const href = `${hrefBase}?${searchParams.toString()}`;
 		return (
 			<Link
@@ -1301,7 +1243,7 @@ function renderRoleUserRelationValue({
 						targetManagementKey: "user-management",
 						hrefBase,
 						relationFilters,
-						relationContext: `role-management:${column}`
+						relationContext: `survey-management:${column}`
 					});
 				}}
 				className="text-primary underline underline-offset-2 hover:opacity-80"
@@ -1331,14 +1273,14 @@ function renderRoleUserRelationValue({
 	);
 }
 
-export function RoleRequestDetailsDrawer({
+export function SurveyRequestDetailsDrawer({
 	open,
 	onOpenChange,
 	row,
 	renderActions,
 	relationNavigation,
 	onOpenRequestChanges
-}: RoleRequestDetailsDrawerProps) {
+}: SurveyRequestDetailsDrawerProps) {
 	const [historyOpen, setHistoryOpen] = useState(false);
 
 	useEffect(() => {
@@ -1347,16 +1289,16 @@ export function RoleRequestDetailsDrawer({
 	}, [open]);
 
 	const detailsQuery = useQuery({
-		queryKey: ["role-management", "details", row?.id ?? null],
+		queryKey: ["survey-management", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => roleActions.getRoleRequestDetailsAction(row!.id),
+		queryFn: () => surveyActions.getSurveyRequestDetailsAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
 
 	const historyAccessQuery = useQuery({
-		queryKey: ["role-management", "history-access"],
-		queryFn: () => roleActions.canAccessRoleRequestHistoryAction(),
+		queryKey: ["survey-management", "history-access"],
+		queryFn: () => surveyActions.canAccessSurveyRequestHistoryAction(),
 		staleTime: 60_000,
 		refetchOnWindowFocus: true
 	});
@@ -1364,9 +1306,9 @@ export function RoleRequestDetailsDrawer({
 	const canAccessHistory = historyAccessQuery.data == true;
 
 	const historyQuery = useQuery({
-		queryKey: ["role-management", "history", row?.id ?? null],
+		queryKey: ["survey-management", "history", row?.id ?? null],
 		enabled: historyOpen && row != null && canAccessHistory,
-		queryFn: () => roleActions.getRoleRequestHistoryAction(row!.id),
+		queryFn: () => surveyActions.getSurveyRequestHistoryAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -1374,28 +1316,26 @@ export function RoleRequestDetailsDrawer({
 	const details = detailsQuery.data;
 	const actionRow = details?.row ?? row;
 
-	const renderDetailColumnValue = (columnId: RoleTableColumnId, value: ReactNode) => {
-		return <div className={cn(getRoleDrawerValueClassName(columnId), "wrap-break-word")}>{value}</div>;
+	const renderDetailColumnValue = (columnId: SurveyTableColumnId, value: ReactNode) => {
+		return <div className={cn(getSurveyDrawerValueClassName(columnId), "wrap-break-word")}>{value}</div>;
 	};
 
-	const renderDetailValue = (columnId: RoleTableColumnId, data: roleActions.RoleRequestDetailsOutput) => {
+	const renderDetailValue = (columnId: SurveyTableColumnId, data: surveyActions.SurveyRequestDetailsOutput) => {
 		switch(columnId) {
 			case "id":
 				return renderDetailColumnValue(columnId, data.row.id);
-			case "name":
-				return renderDetailColumnValue(columnId, data.row.name);
-			case "level":
-				return renderDetailColumnValue(columnId, roleLevelOptions.find(option => option.value == data.row.level)?.label ?? data.row.level);
-			case "menus": {
-				const labels = data.row.menus.map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu);
-				return renderDetailColumnValue(columnId, labels.length > 0 ? labels.join(", ") : "-");
-			}
+			case "title":
+				return renderDetailColumnValue(columnId, data.row.title);
+			case "descriptionText":
+				return renderDetailColumnValue(columnId, data.row.descriptionText.length > 0 ? data.row.descriptionText : "-");
+			case "contentText":
+				return renderDetailColumnValue(columnId, data.row.contentText.length > 0 ? data.row.contentText : "-");
 			case "createdBy":
-				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
 			case "updatedBy":
-				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
 			case "deletedBy":
-				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
 			case "createdAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
 			case "updatedAt":
@@ -1411,7 +1351,7 @@ export function RoleRequestDetailsDrawer({
 			case "reviewedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
 			case "reviewedBy":
-				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
 			case "reviewApproved":
 				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
 			case "reviewCommentText":
@@ -1426,12 +1366,12 @@ export function RoleRequestDetailsDrawer({
 			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 					<DrawerHeader>
-						<DrawerTitle>Role Request Details</DrawerTitle>
-						<DrawerDescription>Review all available columns for this role request entry.</DrawerDescription>
+						<DrawerTitle>Survey Request Details</DrawerTitle>
+						<DrawerDescription>Review all available columns for this survey request entry.</DrawerDescription>
 					</DrawerHeader>
 					<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
 						{row == null ? (
-							<p className="text-muted-foreground text-sm">No role request selected.</p>
+							<p className="text-muted-foreground text-sm">No survey request selected.</p>
 						) : detailsQuery.isPending ? (
 							<div className="space-y-2">
 								<Skeleton className="h-20 w-full" />
@@ -1442,10 +1382,10 @@ export function RoleRequestDetailsDrawer({
 							<Alert variant="destructive">
 								<CircleAlertIcon />
 								<AlertTitle>Error</AlertTitle>
-								<AlertDescription>Unable to load role request details.</AlertDescription>
+								<AlertDescription>Unable to load survey request details.</AlertDescription>
 							</Alert>
 						) : (
-							roleTableColumns.map(column => (
+							surveyTableColumns.map(column => (
 								<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
 									<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
 									{renderDetailValue(column.id, details)}
@@ -1468,12 +1408,12 @@ export function RoleRequestDetailsDrawer({
 			<Drawer open={historyOpen} onOpenChange={setHistoryOpen} direction="right">
 				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
 					<DrawerHeader>
-						<DrawerTitle>Role Request History</DrawerTitle>
+						<DrawerTitle>Survey Request History</DrawerTitle>
 						<DrawerDescription>Changes are shown from the most recent version to the earliest version.</DrawerDescription>
 					</DrawerHeader>
 					<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
 						{row == null ? (
-							<p className="text-muted-foreground text-sm">No role request selected.</p>
+							<p className="text-muted-foreground text-sm">No survey request selected.</p>
 						) : historyAccessQuery.isPending ? (
 							<div className="space-y-2">
 								<Skeleton className="h-28 w-full" />
@@ -1483,7 +1423,7 @@ export function RoleRequestDetailsDrawer({
 							<Alert variant="destructive">
 								<CircleAlertIcon />
 								<AlertTitle>Unauthorized</AlertTitle>
-								<AlertDescription>You need Role Management auditor access to view history.</AlertDescription>
+								<AlertDescription>You need Survey Management auditor access to view history.</AlertDescription>
 							</Alert>
 						) : historyQuery.isPending ? (
 							<div className="space-y-2">
@@ -1494,10 +1434,10 @@ export function RoleRequestDetailsDrawer({
 							<Alert variant="destructive">
 								<CircleAlertIcon />
 								<AlertTitle>Error</AlertTitle>
-								<AlertDescription>Unable to load role request history.</AlertDescription>
+								<AlertDescription>Unable to load survey request history.</AlertDescription>
 							</Alert>
 						) : historyQuery.data.entries.length == 0 ? (
-							<p className="text-muted-foreground text-sm">No history entries found for this role request.</p>
+							<p className="text-muted-foreground text-sm">No history entries found for this survey request.</p>
 						) : (
 							historyQuery.data.entries.map(entry => (
 								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
@@ -1527,41 +1467,37 @@ export function RoleRequestDetailsDrawer({
 	);
 }
 
-type UseRoleCellRendererOptions = {
-	relationValuesByRowId: Record<string, roleActions.RoleRelationValues>;
+type UseSurveyCellRendererOptions = {
+	relationValuesByRowId: Record<string, surveyActions.SurveyRelationValues>;
 	isRelationLoading: boolean;
-	relationNavigation?: RoleRelationNavigation;
-	onOpenRequestChanges?: (row: RoleTableRow) => void;
+	relationNavigation?: SurveyRelationNavigation;
+	onOpenRequestChanges?: (row: SurveyTableRow) => void;
 };
 
-export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseRoleCellRendererOptions) {
-	return useCallback((columnId: RoleTableColumnId, row: RoleTableRow) => {
+export function useSurveyCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseSurveyCellRendererOptions) {
+	return useCallback((columnId: SurveyTableColumnId, row: SurveyTableRow) => {
 		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "id":
 				return row.id;
-			case "name":
-				return row.name;
-			case "level":
-				return roleLevelOptions.find(option => option.value == row.level)?.label ?? row.level;
-			case "menus": {
-				if(row.menus.length == 0)
-					return "-";
-				const labels = row.menus.map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu);
-				return labels.join(", ");
-			}
+			case "title":
+				return row.title;
+			case "descriptionText":
+				return row.descriptionText.length > 0 ? row.descriptionText : "-";
+			case "contentText":
+				return row.contentText.length > 0 ? row.contentText : "-";
 			case "createdBy":
 				if(isRelationLoading && resolvedValues.createdBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRoleUserRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationId: row.createdById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderSurveyUserRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationId: row.createdById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "updatedBy":
 				if(isRelationLoading && resolvedValues.updatedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRoleUserRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderSurveyUserRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "deletedBy":
 				if(isRelationLoading && resolvedValues.deletedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRoleUserRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderSurveyUserRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1579,7 +1515,7 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedBy":
 				if(isRelationLoading && resolvedValues.reviewedBy == null)
 					return <Skeleton className="h-4 w-28" />;
-				return renderRoleUserRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderSurveyUserRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			case "reviewCommentText":
@@ -1590,20 +1526,20 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 	}, [isRelationLoading, onOpenRequestChanges, relationValuesByRowId, relationNavigation]);
 }
 
-export function useRoleColumnPreferences() {
+export function useSurveyColumnPreferences() {
 	const [isColumnOpen, setIsColumnOpen] = useState(false);
-	const [columnOrder, setColumnOrder] = useState<RoleTableColumnId[]>(defaultRoleColumnOrder);
-	const [hiddenColumnIds, setHiddenColumnIds] = useState<RoleTableColumnId[]>(defaultRoleHiddenColumns);
-	const [draggedColumnId, setDraggedColumnId] = useState<RoleTableColumnId | null>(null);
+	const [columnOrder, setColumnOrder] = useState<SurveyTableColumnId[]>(defaultSurveyColumnOrder);
+	const [hiddenColumnIds, setHiddenColumnIds] = useState<SurveyTableColumnId[]>(defaultSurveyHiddenColumns);
+	const [draggedColumnId, setDraggedColumnId] = useState<SurveyTableColumnId | null>(null);
 
 	const columnById = useMemo(() => Object.fromEntries(
-		roleTableColumns.map(column => [column.id, column])
-	) as Record<RoleTableColumnId, RoleTableColumnConfig>, []);
+		surveyTableColumns.map(column => [column.id, column])
+	) as Record<SurveyTableColumnId, SurveyTableColumnConfig>, []);
 
 	const orderedColumns = useMemo(() => {
 		const normalizedOrder = [
 			...columnOrder.filter(columnId => columnById[columnId] != null),
-			...defaultRoleColumnOrder.filter(columnId => !columnOrder.includes(columnId))
+			...defaultSurveyColumnOrder.filter(columnId => !columnOrder.includes(columnId))
 		];
 		return normalizedOrder.map(columnId => columnById[columnId]);
 	}, [columnById, columnOrder]);
@@ -1615,49 +1551,49 @@ export function useRoleColumnPreferences() {
 	useEffect(() => {
 		if(typeof window == "undefined")
 			return;
-		const rawPreferences = window.localStorage.getItem(ROLE_COLUMN_PREFERENCES_KEY);
+		const rawPreferences = window.localStorage.getItem(SURVEY_COLUMN_PREFERENCES_KEY);
 		if(rawPreferences == null)
 			return;
 
 		try {
 			const parsed = JSON.parse(rawPreferences) as { order?: unknown, hidden?: unknown };
-			const parsedOrder = Array.isArray(parsed.order) ? parsed.order.filter((value): value is RoleTableColumnId =>
-				typeof value == "string" && defaultRoleColumnOrder.includes(value as RoleTableColumnId)
+			const parsedOrder = Array.isArray(parsed.order) ? parsed.order.filter((value): value is SurveyTableColumnId =>
+				typeof value == "string" && defaultSurveyColumnOrder.includes(value as SurveyTableColumnId)
 			) : [];
 			const deduplicatedOrder = parsedOrder.filter((columnId, index) => parsedOrder.indexOf(columnId) == index);
 			setColumnOrder([
 				...deduplicatedOrder,
-				...defaultRoleColumnOrder.filter(columnId => !deduplicatedOrder.includes(columnId))
+				...defaultSurveyColumnOrder.filter(columnId => !deduplicatedOrder.includes(columnId))
 			]);
 
-			const parsedHidden = Array.isArray(parsed.hidden) ? parsed.hidden.filter((value): value is RoleTableColumnId =>
-				typeof value == "string" && defaultRoleColumnOrder.includes(value as RoleTableColumnId)
+			const parsedHidden = Array.isArray(parsed.hidden) ? parsed.hidden.filter((value): value is SurveyTableColumnId =>
+				typeof value == "string" && defaultSurveyColumnOrder.includes(value as SurveyTableColumnId)
 			) : [];
 			const deduplicatedHidden = parsedHidden.filter((columnId, index) => parsedHidden.indexOf(columnId) == index);
-			setHiddenColumnIds(deduplicatedHidden.slice(0, Math.max(defaultRoleColumnOrder.length - 1, 0)));
+			setHiddenColumnIds(deduplicatedHidden.slice(0, Math.max(defaultSurveyColumnOrder.length - 1, 0)));
 		} catch{
-			setColumnOrder(defaultRoleColumnOrder);
-			setHiddenColumnIds(defaultRoleHiddenColumns);
+			setColumnOrder(defaultSurveyColumnOrder);
+			setHiddenColumnIds(defaultSurveyHiddenColumns);
 		}
 	}, []);
 
 	useEffect(() => {
 		if(typeof window == "undefined")
 			return;
-		window.localStorage.setItem(ROLE_COLUMN_PREFERENCES_KEY, JSON.stringify({
+		window.localStorage.setItem(SURVEY_COLUMN_PREFERENCES_KEY, JSON.stringify({
 			order: columnOrder,
 			hidden: hiddenColumnIds
 		}));
 	}, [columnOrder, hiddenColumnIds]);
 
-	const toggleColumnVisibility = (columnId: RoleTableColumnId, checked: boolean) => {
+	const toggleColumnVisibility = (columnId: SurveyTableColumnId, checked: boolean) => {
 		setHiddenColumnIds(previous => {
 			const isHidden = previous.includes(columnId);
 			if(checked)
 				return isHidden ? previous.filter(value => value != columnId) : previous;
 			if(isHidden)
 				return previous;
-			const visibleCount = roleTableColumns.length - previous.length;
+			const visibleCount = surveyTableColumns.length - previous.length;
 			if(visibleCount <= 1)
 				return previous;
 			return [...previous, columnId];
@@ -1665,15 +1601,15 @@ export function useRoleColumnPreferences() {
 	};
 
 	const resetColumnPreferences = () => {
-		setColumnOrder(defaultRoleColumnOrder);
-		setHiddenColumnIds(defaultRoleHiddenColumns);
+		setColumnOrder(defaultSurveyColumnOrder);
+		setHiddenColumnIds(defaultSurveyHiddenColumns);
 	};
 
-	const handleColumnDragStart = (columnId: RoleTableColumnId) => {
+	const handleColumnDragStart = (columnId: SurveyTableColumnId) => {
 		setDraggedColumnId(columnId);
 	};
 
-	const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, targetColumnId: RoleTableColumnId) => {
+	const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, targetColumnId: SurveyTableColumnId) => {
 		event.preventDefault();
 		if(draggedColumnId == null || draggedColumnId == targetColumnId)
 			return;
@@ -1698,19 +1634,19 @@ export function useRoleColumnPreferences() {
 	};
 }
 
-export function useRoleFilterColumnConfig() {
-	const searchRoleOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
-		const roles = await roleActions.searchRoleOptionsAction(keyword, selectedValues);
-		return dedupeSelectOptions(roles.map(role => ({
-			value: role.id,
-			label: `${role.name} (${role.id})`,
-			renderLabel: <span>{role.name} (<span className="font-mono">{role.id}</span>)</span>,
-			keywords: `${role.id} ${role.name} ${role.level}`
+export function useSurveyFilterColumnConfig() {
+	const searchSurveyOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const surveys = await surveyActions.searchSurveyOptionsAction(keyword, selectedValues);
+		return dedupeSelectOptions(surveys.map(survey => ({
+			value: survey.id,
+			label: `${survey.title} (${survey.id})`,
+			renderLabel: <span>{survey.title} (<span className="font-mono">{survey.id}</span>)</span>,
+			keywords: `${survey.id} ${survey.title}`
 		})));
 	}, []);
 
 	const searchAuditUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
-		const users = await roleActions.searchRoleAuditUserOptionsAction(keyword, selectedValues);
+		const users = await surveyActions.searchSurveyAuditUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(users.map(user => ({
 			value: user.id,
 			label: `${user.name} (${user.email})`,
@@ -1719,25 +1655,25 @@ export function useRoleFilterColumnConfig() {
 	}, []);
 
 	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
-		getResolvedRoleFilterColumnConfig(column, [], [], searchRoleOptions, searchAuditUserOptions)
-	), [searchAuditUserOptions, searchRoleOptions]);
+		getResolvedSurveyFilterColumnConfig(column, [], [], searchSurveyOptions, searchAuditUserOptions)
+	), [searchAuditUserOptions, searchSurveyOptions]);
 
 	return {
 		getResolvedFilterColumnConfig
 	};
 }
 
-type UseRoleManagementQueryStateOptions = {
+type UseSurveyManagementQueryStateOptions = {
 	debounceMs?: number;
 	defaultSortField?: SortField;
 	defaultSortDirection?: SortDirection;
 };
 
-export function useRoleManagementQueryState({
+export function useSurveyManagementQueryState({
 	debounceMs = 250,
 	defaultSortField = "updatedAt",
 	defaultSortDirection = "desc"
-}: UseRoleManagementQueryStateOptions = {}) {
+}: UseSurveyManagementQueryStateOptions = {}) {
 	const [keyword, setKeyword] = useState("");
 	const [debouncedKeyword, setDebouncedKeyword] = useState("");
 	const [sortState, setSortState] = useState<Array<{ field: SortField, direction: SortDirection }>>([
@@ -1783,16 +1719,16 @@ export function useRoleManagementQueryState({
 	};
 }
 
-type UseRoleRelationsOptions = {
-	docs: RoleTableRow[];
-	visibleColumns: RoleTableColumnConfig[];
+type UseSurveyRelationsOptions = {
+	docs: SurveyTableRow[];
+	visibleColumns: SurveyTableColumnConfig[];
 };
 
-export function useRoleRelations({ docs, visibleColumns }: UseRoleRelationsOptions) {
+export function useSurveyRelations({ docs, visibleColumns }: UseSurveyRelationsOptions) {
 	const visibleRelationColumns = useMemo(() => (
 		visibleColumns
 			.map(column => column.id)
-			.filter((columnId): columnId is RoleRelationColumn => roleRelationColumnSet.has(columnId as RoleRelationColumn))
+			.filter((columnId): columnId is SurveyRelationColumn => surveyRelationColumnSet.has(columnId as SurveyRelationColumn))
 	), [visibleColumns]);
 
 	const relationRows = useMemo(() => docs.map(row => ({
@@ -1804,9 +1740,9 @@ export function useRoleRelations({ docs, visibleColumns }: UseRoleRelationsOptio
 	})), [docs]);
 
 	const relationsQuery = useQuery({
-		queryKey: ["role-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
+		queryKey: ["survey-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
 		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => roleActions.resolveRoleRelationColumnsAction({
+		queryFn: () => surveyActions.resolveSurveyRelationColumnsAction({
 			rows: relationRows,
 			columns: visibleRelationColumns
 		}),
@@ -1825,11 +1761,11 @@ export function useRoleRelations({ docs, visibleColumns }: UseRoleRelationsOptio
 	};
 }
 
-type UseRoleRequestFiltersOptions = {
+type UseSurveyRequestFiltersOptions = {
 	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption;
 };
 
-export type UseRoleRequestFiltersResult = {
+export type UseSurveyRequestFiltersResult = {
 	isFilterOpen: boolean;
 	isFilterStateReady: boolean;
 	setIsFilterOpen: (open: boolean) => void;
@@ -1888,11 +1824,11 @@ function createFilterConditionsFromAppliedFilters(
 
 declare global {
 	interface Window {
-		__roleDashboardFilters?: string;
+		__surveyDashboardFilters?: string;
 	}
 }
 
-export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRoleRequestFiltersOptions): UseRoleRequestFiltersResult {
+export function useSurveyRequestFilters({ getResolvedFilterColumnConfig }: UseSurveyRequestFiltersOptions): UseSurveyRequestFiltersResult {
 	const pathname = usePathname();
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -1901,13 +1837,13 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 	const [filters, setFilters0] = useState<FilterCondition[]>([]);
 	const setFilters = useCallback((v: FilterCondition[] | ((o: FilterCondition[]) => FilterCondition[])) => {
 		if(typeof v != "function") {
-			window.__roleDashboardFilters = JSON.stringify(v);
+			window.__surveyDashboardFilters = JSON.stringify(v);
 			setFilters0(v);
 			return;
 		}
 		setFilters0(o => {
 			const n = v(o);
-			window.__roleDashboardFilters = JSON.stringify(n);
+			window.__surveyDashboardFilters = JSON.stringify(n);
 			return n;
 		});
 	}, [setFilters0]);
@@ -1915,8 +1851,8 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 
 	useEffect(() => {
 		const nextSearchParams = new URLSearchParams(searchParamsKey);
-		const pendingNavigation = consumePendingRelationFilterNavigation("role-management");
-		const relationFilters = pendingNavigation?.relationFiltersJson ?? nextSearchParams.get(RELATION_FILTER_QUERY_PARAM) ?? window.__roleDashboardFilters ?? null;
+		const pendingNavigation = consumePendingRelationFilterNavigation("survey-management" as any);
+		const relationFilters = pendingNavigation?.relationFiltersJson ?? nextSearchParams.get(RELATION_FILTER_QUERY_PARAM) ?? window.__surveyDashboardFilters ?? null;
 		if(relationFilters != null) {
 			try {
 				const parsed = JSON.parse(relationFilters) as unknown;
@@ -2136,7 +2072,7 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 	};
 
 	const addFilter = () => {
-		setFilters(previous => [...previous, createFilterCondition(roleFilterColumns[0].value)]);
+		setFilters(previous => [...previous, createFilterCondition(surveyFilterColumns[0].value)]);
 	};
 
 	const removeFilter = (filterIndex: number) => {
@@ -2195,11 +2131,11 @@ export function useRoleRequestFilters({ getResolvedFilterColumnConfig }: UseRole
 	};
 }
 
-type RoleQueryActionInput = Parameters<typeof import("./layout.actions").queryRolesEditorAction>[0];
+type SurveyQueryActionInput = Parameters<typeof import("./layout.actions").querySurveysEditorAction>[0];
 
-type UseRoleRequestsQueryOptions = {
+type UseSurveyRequestsQueryOptions = {
 	queryScope: string;
-	queryAction: (input: RoleQueryActionInput) => Promise<QueryRolesOutput>;
+	queryAction: (input: SurveyQueryActionInput) => Promise<QuerySurveysOutput>;
 	debouncedKeyword: string;
 	sortTokens: string[];
 	appliedFilters: FilterInput[];
@@ -2207,7 +2143,7 @@ type UseRoleRequestsQueryOptions = {
 	includeSoftDeleted: boolean;
 };
 
-export function useRoleRequestsQuery({
+export function useSurveyRequestsQuery({
 	queryScope,
 	queryAction,
 	debouncedKeyword,
@@ -2215,12 +2151,12 @@ export function useRoleRequestsQuery({
 	appliedFilters,
 	isFilterStateReady,
 	includeSoftDeleted
-}: UseRoleRequestsQueryOptions) {
+}: UseSurveyRequestsQueryOptions) {
 	const [pageIndex, setPageIndex] = useState(1);
 
-	const rolesQuery = useQuery({
+	const surveysQuery = useQuery({
 		enabled: isFilterStateReady,
-		queryKey: ["role-management", "roles", {
+		queryKey: ["survey-management", "surveys", {
 			queryScope,
 			debouncedKeyword,
 			sortTokens,
@@ -2245,15 +2181,15 @@ export function useRoleRequestsQuery({
 	}, [appliedFilters, debouncedKeyword, includeSoftDeleted, sortTokens]);
 
 	useEffect(() => {
-		if(rolesQuery.data == null || rolesQuery.isFetching)
+		if(surveysQuery.data == null || surveysQuery.isFetching)
 			return;
-		if(rolesQuery.data.page != pageIndex)
-			setPageIndex(rolesQuery.data.page);
-	}, [pageIndex, rolesQuery.data, rolesQuery.isFetching]);
+		if(surveysQuery.data.page != pageIndex)
+			setPageIndex(surveysQuery.data.page);
+	}, [pageIndex, surveysQuery.data, surveysQuery.isFetching]);
 
-	const queryResult = rolesQuery.data ?? emptyQueryResult;
-	const isLoading = !isFilterStateReady || rolesQuery.isPending;
-	const queryErrorMessage = rolesQuery.error instanceof Error ? rolesQuery.error.message : rolesQuery.error != null ? "Failed to load role requests." : null;
+	const queryResult = surveysQuery.data ?? emptyQueryResult;
+	const isLoading = !isFilterStateReady || surveysQuery.isPending;
+	const queryErrorMessage = surveysQuery.error instanceof Error ? surveysQuery.error.message : surveysQuery.error != null ? "Failed to load survey requests." : null;
 
 	return {
 		pageIndex,

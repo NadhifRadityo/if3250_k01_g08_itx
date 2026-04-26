@@ -3,3 +3,18 @@
 body {
 	@apply bg-sidebar;
 }
+
+@media (pointer: fine) {
+	body::-webkit-scrollbar {
+		@apply bg-sidebar;
+	}
+	body::-webkit-scrollbar-corner {
+		@apply bg-sidebar;
+	}
+	*::-webkit-scrollbar-thumb {
+		@apply bg-border/80;
+	}
+	*::-webkit-scrollbar-thumb:hover {
+		@apply bg-border;
+	}
+}

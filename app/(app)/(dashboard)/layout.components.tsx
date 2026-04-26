@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, type ReactNode, type ChangeEvent } from "react";
 import { usePathname } from "next/navigation";
-import { UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileTextIcon, ShieldCheckIcon, ChevronRightIcon, ChevronsUpDownIcon, SmilePlusIcon } from "lucide-react";
+import { UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileTextIcon, ShieldCheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react";
 
 import useIsMobile from "@/utils/useIsMobile";
 import { Image } from "@/components/Image";
@@ -22,7 +22,7 @@ import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
 
-const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|customer-satisfaction)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
+const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|survey-management|satisfaction-survey-management)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
 
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
@@ -43,8 +43,10 @@ function getManagementIcon(key: DashboardManagementKey) {
 		return FileTextIcon;
 	if(key == "credit-application-assignment")
 		return FileTextIcon;
-	if(key == "customer-satisfaction")
-		return SmilePlusIcon;
+	if(key == "survey-management")
+		return FileTextIcon;
+	if(key == "satisfaction-survey-management")
+		return FileTextIcon;
 	return UsersIcon;
 }
 
@@ -80,7 +82,7 @@ export function DashboardManagementPageFrame({ title, description, children }: {
 	return (
 		<main className="bg-muted p-4 md:p-6">
 			<div className="mb-4 space-y-1">
-				<h1 className="text-2xl font-semibold font-serif">{title}</h1>
+				<h1 className="text-2xl font-semibold font-sans">{title}</h1>
 				<p className="text-muted-foreground text-sm">{description}</p>
 			</div>
 			<Card>
@@ -225,7 +227,7 @@ export function DashboardShell({
 
 	return (
 		<SidebarProvider className="[--sidebar-width:20rem]!">
-			<Sidebar collapsible="icon" variant="inset" className="bg-sidebar [anchor-name:--sidebar-anchor]">
+			<Sidebar collapsible="icon" variant="inset" className="bg-sidebar h-lvh pb-[calc(100lvh-100dvh)] [anchor-name:--sidebar-anchor]">
 				<SidebarHeader>
 					<SidebarMenu>
 						<SidebarMenuItem>
@@ -342,14 +344,15 @@ export function DashboardShell({
 				</SidebarFooter>
 				<SidebarRail />
 			</Sidebar>
-			<div className="fixed [position-anchor:--sidebar-anchor] top-[anchor(top)] bottom-0 left-[anchor(right)] right-0 z-1 pointer-events-none select-none bg-sidebar mask-[url(#sidebar-cutout)] [anchor-name:--sidebar-cutout]" />
-			<svg className="fixed [position-anchor:--sidebar-cutout] top-[anchor(top)] h-[anchor-size(height)] left-[anchor(left)] w-[anchor-size(width)] opacity-0 pointer-events-none select-none">
+			<div className="fixed [position-anchor:--sidebar-anchor] top-[anchor(top)] bottom-0 left-[anchor(right)] right-0 z-50 pointer-events-none select-none bg-sidebar mask-[url(#sidebar-cutout)] [anchor-name:--sidebar-cutout]" />
+			<div className="fixed [position-anchor:--sidebar-cutout] top-[calc(100svh-1px)] left-[anchor(left)] w-[anchor-size(width))] h-[calc(100lvh-100dvh)] z-50 pointer-events-none select-none bg-sidebar" />
+			<svg className="fixed [position-anchor:--sidebar-cutout] top-[anchor(top)] h-[anchor-size(height)] left-[anchor(left)] w-[anchor-size(width))] opacity-0 pointer-events-none select-none">
 				<mask id="sidebar-cutout">
 					<rect className="w-full h-full fill-white" />
 					<rect className="[y:--spacing(2)] w-[calc(100%---spacing(2))] h-[calc(100%---spacing(4))] [rx:calc(var(--radius)*1.4)] fill-black" />
 				</mask>
 			</svg>
-			<SidebarInset className="md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-1 m-0!">
+			<SidebarInset className="md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-1 m-0! rounded-none sm:py-2 sm:pr-2">
 				<header className="flex bg-muted rounded-tl-xl rounded-tr-xl h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
 					<div className="flex items-center gap-2 px-4">
 						<SidebarTrigger className="-ml-1" />

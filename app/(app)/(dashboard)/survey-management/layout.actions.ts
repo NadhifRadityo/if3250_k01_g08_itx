@@ -5,102 +5,24 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { Role } from "@/payload-types";
+import type { Survey } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
 const RELATION_SEARCH_LIMIT = 20;
-const roleLevelValues = ["admin", "manager", "supervisor", "officer"] as const;
-const roleMenuValues = [
-	"user-management-viewer",
-	"user-management-auditor",
-	"user-management-editor",
-	"user-management-approver",
-	"role-management-viewer",
-	"role-management-auditor",
-	"role-management-editor",
-	"role-management-approver",
-	"team-management-viewer",
-	"team-management-auditor",
-	"team-management-editor",
-	"team-management-approver",
-	"credit-application-management-viewer",
-	"credit-application-management-auditor",
-	"credit-application-management-editor",
-	"credit-application-management-approver",
-	"credit-application-management-import-viewer",
-	"credit-application-management-import-editor",
-	"credit-application-management-import-approver",
-	"credit-application-assignment-viewer",
-	"credit-application-assignment-auditor",
-	"credit-application-assignment-editor",
-	"credit-application-assignment-approver",
-	"survey-management-viewer",
-	"survey-management-auditor",
-	"survey-management-editor",
-	"survey-management-approver",
-	"satisfaction-survey-management-viewer",
-	"satisfaction-survey-management-auditor",
-	"satisfaction-survey-management-editor",
-	"satisfaction-survey-management-approver"
-] as const;
-const roleStatusValues = ["pending", "approved", "rejected"] as const;
-const roleLevelLabelMap: Record<RoleLevel, string> = {
-	admin: "Admin",
-	manager: "Manager",
-	supervisor: "Supervisor",
-	officer: "Officer"
-};
-const roleMenuLabelMap: Record<RoleMenu, string> = {
-	"user-management-viewer": "User Management - Viewer",
-	"user-management-auditor": "User Management - Auditor",
-	"user-management-editor": "User Management - Editor",
-	"user-management-approver": "User Management - Approver",
-	"role-management-viewer": "Role Management - Viewer",
-	"role-management-auditor": "Role Management - Auditor",
-	"role-management-editor": "Role Management - Editor",
-	"role-management-approver": "Role Management - Approver",
-	"team-management-viewer": "Team Management - Viewer",
-	"team-management-auditor": "Team Management - Auditor",
-	"team-management-editor": "Team Management - Editor",
-	"team-management-approver": "Team Management - Approver",
-	"credit-application-management-viewer": "Credit Application Management - Viewer",
-	"credit-application-management-auditor": "Credit Application Management - Auditor",
-	"credit-application-management-editor": "Credit Application Management - Editor",
-	"credit-application-management-approver": "Credit Application Management - Approver",
-	"credit-application-management-import-viewer": "Credit Application Management - Import Viewer",
-	"credit-application-management-import-editor": "Credit Application Management - Import Editor",
-	"credit-application-management-import-approver": "Credit Application Management - Import Approver",
-	"credit-application-assignment-viewer": "Credit Application Assignment - Viewer",
-	"credit-application-assignment-auditor": "Credit Application Assignment - Auditor",
-	"credit-application-assignment-editor": "Credit Application Assignment - Editor",
-	"credit-application-assignment-approver": "Credit Application Assignment - Approver",
-	"survey-management-viewer": "Survey Management - Viewer",
-	"survey-management-auditor": "Survey Management - Auditor",
-	"survey-management-editor": "Survey Management - Editor",
-	"survey-management-approver": "Survey Management - Approver",
-	"satisfaction-survey-management-viewer": "Satisfaction Survey Management - Viewer",
-	"satisfaction-survey-management-auditor": "Satisfaction Survey Management - Auditor",
-	"satisfaction-survey-management-editor": "Satisfaction Survey Management - Editor",
-	"satisfaction-survey-management-approver": "Satisfaction Survey Management - Approver"
-};
-const roleHistoryRequiredMenu: RoleMenu = "role-management-auditor";
+const surveyStatusValues = ["pending", "approved", "rejected"] as const;
+const surveyHistoryRequiredMenu = "survey-management-auditor";
+export type SurveyManagementStatus = typeof surveyStatusValues[number];
 
-export type RoleLevel = Role["level"];
-export type RoleMenu = Role["menus"][number];
-export type RoleManagementStatus = typeof roleStatusValues[number];
+const surveyStatusSet = new Set<SurveyManagementStatus>(surveyStatusValues);
 
-const roleLevelSet = new Set<RoleLevel>(roleLevelValues);
-const roleMenuSet = new Set<RoleMenu>(roleMenuValues);
-const roleStatusSet = new Set<RoleManagementStatus>(roleStatusValues);
-
-const sortableFields = new Set<RoleManagementSortField>([
+const sortableFields = new Set<SurveyManagementSortField>([
 	"id",
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
-	"name",
-	"level",
-	"menus",
+	"title",
+	"descriptionText",
+	"contentText",
 	"reviewedAt",
 	"reviewedBy",
 	"reviewApproved",
@@ -108,11 +30,11 @@ const sortableFields = new Set<RoleManagementSortField>([
 	"status",
 	"reviewCommentText"
 ]);
-const filterableColumns = new Set<RoleManagementFilterColumn>([
+const filterableColumns = new Set<SurveyManagementFilterColumn>([
 	"id",
-	"name",
-	"level",
-	"menus",
+	"title",
+	"descriptionText",
+	"contentText",
 	"createdAt",
 	"createdBy",
 	"updatedAt",
@@ -124,7 +46,7 @@ const filterableColumns = new Set<RoleManagementFilterColumn>([
 	"status",
 	"reviewApproved"
 ]);
-const filterOperators = new Set<RoleManagementFilterOperator>([
+const filterOperators = new Set<SurveyManagementFilterOperator>([
 	"equals",
 	"not_equals",
 	"contains",
@@ -137,22 +59,22 @@ const filterOperators = new Set<RoleManagementFilterOperator>([
 	"greater_than_equal",
 	"less_than_equal"
 ]);
-const statusFilterOperators = new Set<RoleManagementFilterOperator>([
+const statusFilterOperators = new Set<SurveyManagementFilterOperator>([
 	"equals",
 	"not_equals",
 	"in",
 	"not_in",
 	"exists"
 ]);
-const dateFilterColumns = new Set<RoleManagementFilterColumn>([
+const dateFilterColumns = new Set<SurveyManagementFilterColumn>([
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
 	"reviewedAt"
 ]);
-const booleanFilterColumns = new Set<RoleManagementFilterColumn>(["reviewApproved"]);
+const booleanFilterColumns = new Set<SurveyManagementFilterColumn>(["reviewApproved"]);
 
-type ReviewCommentValue = NonNullable<Role["reviewComment"]>;
+type ReviewCommentValue = NonNullable<Survey["reviewComment"]>;
 const defaultReviewComment: ReviewCommentValue = {
 	root: {
 		type: "root",
@@ -173,25 +95,25 @@ const defaultReviewComment: ReviewCommentValue = {
 	}
 };
 
-export type RoleManagementTabMode = "editor" | "approver";
-export type RoleManagementSortField = "createdAt" |
+export type SurveyManagementTabMode = "editor" | "approver";
+export type SurveyManagementSortField = "createdAt" |
 	"id" |
 	"updatedAt" |
 	"deletedAt" |
-	"name" |
-	"level" |
-	"menus" |
+	"title" |
+	"descriptionText" |
+	"contentText" |
 	"reviewedAt" |
 	"reviewedBy" |
 	"reviewApproved" |
 	"requestType" |
 	"status" |
 	"reviewCommentText";
-export type RoleManagementSortToken = `${"+" | "-"}${RoleManagementSortField}`;
-export type RoleManagementFilterColumn = "name" |
+export type SurveyManagementSortToken = `${"+" | "-"}${SurveyManagementSortField}`;
+export type SurveyManagementFilterColumn = "title" |
 	"id" |
-	"level" |
-	"menus" |
+	"descriptionText" |
+	"contentText" |
 	"createdAt" |
 	"createdBy" |
 	"updatedAt" |
@@ -202,7 +124,7 @@ export type RoleManagementFilterColumn = "name" |
 	"reviewedBy" |
 	"status" |
 	"reviewApproved";
-export type RoleManagementFilterOperator = "equals" |
+export type SurveyManagementFilterOperator = "equals" |
 	"not_equals" |
 	"contains" |
 	"not_contains" |
@@ -213,19 +135,19 @@ export type RoleManagementFilterOperator = "equals" |
 	"less_than" |
 	"greater_than_equal" |
 	"less_than_equal";
-export type RoleManagementFilterCombinator = "and" | "or";
-export type RoleManagementFilterInput = {
-	column: RoleManagementFilterColumn;
-	operator: RoleManagementFilterOperator;
+export type SurveyManagementFilterCombinator = "and" | "or";
+export type SurveyManagementFilterInput = {
+	column: SurveyManagementFilterColumn;
+	operator: SurveyManagementFilterOperator;
 	value?: string | Array<string | boolean> | boolean | null;
-	joinWithPrevious?: RoleManagementFilterCombinator;
+	joinWithPrevious?: SurveyManagementFilterCombinator;
 };
 
-export type RoleTableRow = {
+export type SurveyTableRow = {
 	id: string;
-	name: string;
-	level: RoleLevel;
-	menus: RoleMenu[];
+	title: string;
+	descriptionText: string;
+	contentText: string;
 	isSoftDeleted: boolean;
 	createdById: string | null;
 	updatedById: string | null;
@@ -240,94 +162,93 @@ export type RoleTableRow = {
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type RoleRelationColumn = "reviewedBy" |
+export type SurveyRelationColumn = "reviewedBy" |
 	"createdBy" |
 	"updatedBy" |
 	"deletedBy";
 
-export type ResolveRoleRelationColumnsInput = {
-	rows: Array<Pick<RoleTableRow, "id" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
-	columns: RoleRelationColumn[];
+export type ResolveSurveyRelationColumnsInput = {
+	rows: Array<Pick<SurveyTableRow, "id" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
+	columns: SurveyRelationColumn[];
 };
 
-export type RoleRelationValues = Partial<Record<RoleRelationColumn, string>> & {
+export type SurveyRelationValues = Partial<Record<SurveyRelationColumn, string>> & {
 	stagedUserIdByUserId?: Record<string, string>;
 };
 
-export type ResolveRoleRelationColumnsOutput = Array<{
+export type ResolveSurveyRelationColumnsOutput = Array<{
 	id: string;
-	values: RoleRelationValues;
+	values: SurveyRelationValues;
 }>;
 
-export type QueryRolesInput = {
+export type QuerySurveysInput = {
 	keyword: string;
 	sort: string[];
-	filters?: RoleManagementFilterInput[];
-	filterCombinator?: RoleManagementFilterCombinator;
+	filters?: SurveyManagementFilterInput[];
+	filterCombinator?: SurveyManagementFilterCombinator;
 	page: number;
 	limit: number;
-	mode: RoleManagementTabMode;
+	mode: SurveyManagementTabMode;
 	includeSoftDeleted?: boolean;
 };
 
-export type QueryRolesOutput = {
-	docs: RoleTableRow[];
+export type QuerySurveysOutput = {
+	docs: SurveyTableRow[];
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
 	hasPreviousPage: boolean;
 };
 
-export type RoleFilterUserOption = {
+export type SurveyFilterUserOption = {
 	id: string;
 	name: string;
 	email: string;
 };
 
-export type RoleFilterIdOption = {
+export type SurveyFilterIdOption = {
 	id: string;
-	name: string;
-	level: RoleLevel;
+	title: string;
 };
 
-export type UpsertRoleRequestInput = {
-	roleId?: string;
-	name: string;
-	level: RoleLevel;
-	menus: RoleMenu[];
+export type UpsertSurveyRequestInput = {
+	surveyId?: string;
+	title: string;
+	description: string;
+	content: string;
 };
 
-export type ReviewRoleRequestInput = {
-	roleId: string;
+export type ReviewSurveyRequestInput = {
+	surveyId: string;
 	decision: "approve" | "reject";
 	reason?: string;
 };
 
-export type RoleRequestReviewDiffItem = {
-	field: "name" | "level" | "menus" | "deletedAt";
+export type SurveyRequestReviewDiffItem = {
+	field: "title" | "descriptionText" | "contentText" | "deletedAt";
 	label: string;
 	previousValue: string;
 	requestedValue: string;
 	changed: boolean;
 };
 
-export type RoleRequestReviewDiffOutput = {
+export type SurveyRequestReviewDiffOutput = {
 	requestId: string;
 	requestType: "Create" | "Update" | "Delete";
-	items: RoleRequestReviewDiffItem[];
+	items: SurveyRequestReviewDiffItem[];
 	changedCount: number;
 };
 
-export type RoleRequestDetailsOutput = {
-	row: RoleTableRow;
-	relationValues: RoleRelationValues;
-	relationReferences: Partial<Record<RoleRelationColumn, Array<{ type: "user", id: string, label: string }>>>;
+export type SurveyRequestDetailsOutput = {
+	row: SurveyTableRow;
+	relationValues: SurveyRelationValues;
+	relationReferences: Partial<Record<SurveyRelationColumn, Array<{ type: "user", id: string, label: string }>>>;
 };
 
-export type RoleRequestHistoryColumn = "id" |
-	"name" |
-	"level" |
-	"menus" |
+export type SurveyRequestHistoryColumn = "id" |
+	"title" |
+	"descriptionText" |
+	"contentText" |
 	"createdBy" |
 	"updatedBy" |
 	"deletedBy" |
@@ -341,34 +262,35 @@ export type RoleRequestHistoryColumn = "id" |
 	"reviewApproved" |
 	"reviewCommentText";
 
-export type RoleRequestHistoryChangeItem = {
-	column: RoleRequestHistoryColumn;
+export type SurveyRequestHistoryChangeItem = {
+	column: SurveyRequestHistoryColumn;
 	label: string;
 	previousValue: string;
 	nextValue: string;
 	changed: boolean;
 };
 
-export type RoleRequestHistoryEntry = {
+export type SurveyRequestHistoryEntry = {
 	versionId: string;
 	changedAt: string | null;
-	changes: RoleRequestHistoryChangeItem[];
+	changes: SurveyRequestHistoryChangeItem[];
 	changedCount: number;
 };
 
-export type RoleRequestHistoryOutput = {
+export type SurveyRequestHistoryOutput = {
 	requestId: string;
-	entries: RoleRequestHistoryEntry[];
+	entries: SurveyRequestHistoryEntry[];
 };
 
-type SortFieldKey = RoleManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
+type SortFieldKey = SurveyManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-function normalizeSortTokens(sort: string[]): RoleManagementSortToken[] {
+function normalizeSortTokens(sort: string[]): SurveyManagementSortToken[] {
 	const prefixed = sort
 		.map(token => token.trim())
 		.filter(token => token.length > 0)
 		.map(token => token.startsWith("+") || token.startsWith("-") ? token : `+${token}`)
-		.filter(token => sortableFields.has(token.slice(1) as RoleManagementSortField)) as RoleManagementSortToken[];
+		.filter(token => sortableFields.has(token.slice(1) as SurveyManagementSortField)) as SurveyManagementSortToken[];
 	const deduplicated = prefixed.filter((token, index, source) =>
 		index == source.findIndex(candidate => candidate.slice(1) == token.slice(1))
 	);
@@ -390,51 +312,22 @@ function parseBooleanValue(value: unknown): boolean | null {
 	return null;
 }
 
-function normalizeRoleLevelValue(value: unknown): RoleLevel | null {
+function normalizeSurveyStatusValue(value: unknown): SurveyManagementStatus | null {
 	if(typeof value != "string")
 		return null;
-	const normalized = value.trim().toLowerCase() as RoleLevel;
-	return roleLevelSet.has(normalized) ? normalized : null;
+	const normalized = value.trim().toLowerCase() as SurveyManagementStatus;
+	return surveyStatusSet.has(normalized) ? normalized : null;
 }
 
-function normalizeRoleMenuValue(value: unknown): RoleMenu | null {
-	if(typeof value != "string")
-		return null;
-	const normalized = value.trim().toLowerCase() as RoleMenu;
-	return roleMenuSet.has(normalized) ? normalized : null;
-}
-
-function normalizeRoleMenuValues(value: unknown): RoleMenu[] {
-	if(!Array.isArray(value))
-		return [];
-	const normalized = value
-		.map(normalizeRoleMenuValue)
-		.filter((menu): menu is RoleMenu => menu != null);
-	return normalized.filter((menu, index) => normalized.indexOf(menu) == index);
-}
-
-function normalizeRoleStatusValue(value: unknown): RoleManagementStatus | null {
-	if(typeof value != "string")
-		return null;
-	const normalized = value.trim().toLowerCase() as RoleManagementStatus;
-	return roleStatusSet.has(normalized) ? normalized : null;
-}
-
-function normalizeScalarFilterValue(column: RoleManagementFilterColumn, rawValue: unknown): string | boolean | null {
+function normalizeScalarFilterValue(column: SurveyManagementFilterColumn, rawValue: unknown): string | boolean | null {
 	if(rawValue == null)
 		return null;
 
 	if(booleanFilterColumns.has(column))
 		return parseBooleanValue(rawValue);
 
-	if(column == "level")
-		return normalizeRoleLevelValue(rawValue);
-
-	if(column == "menus")
-		return normalizeRoleMenuValue(rawValue);
-
 	if(column == "status")
-		return normalizeRoleStatusValue(rawValue);
+		return normalizeSurveyStatusValue(rawValue);
 
 	if(typeof rawValue != "string")
 		return null;
@@ -451,11 +344,11 @@ function normalizeScalarFilterValue(column: RoleManagementFilterColumn, rawValue
 	return trimmed;
 }
 
-function normalizeFilters(filters: RoleManagementFilterInput[] | undefined, fallbackCombinator: RoleManagementFilterCombinator): RoleManagementFilterInput[] {
+function normalizeFilters(filters: SurveyManagementFilterInput[] | undefined, fallbackCombinator: SurveyManagementFilterCombinator): SurveyManagementFilterInput[] {
 	if(filters == null)
 		return [];
 
-	const normalized: RoleManagementFilterInput[] = [];
+	const normalized: SurveyManagementFilterInput[] = [];
 	for(const filter of filters) {
 		if(filter == null || !filterableColumns.has(filter.column) || !filterOperators.has(filter.operator))
 			continue;
@@ -503,7 +396,7 @@ function normalizeFilters(filters: RoleManagementFilterInput[] | undefined, fall
 	return normalized;
 }
 
-function normalizeFilterCombinator(filterCombinator: RoleManagementFilterCombinator | undefined): RoleManagementFilterCombinator {
+function normalizeFilterCombinator(filterCombinator: SurveyManagementFilterCombinator | undefined): SurveyManagementFilterCombinator {
 	return filterCombinator == "or" ? "or" : "and";
 }
 
@@ -523,6 +416,59 @@ function richTextToPlainText(value: unknown): string {
 		.join(" ")
 		.replace(/\s+/g, " ")
 		.trim();
+}
+
+function plainTextToRichText(value: string | null | undefined): NonNullable<Survey["description"]> {
+	const text = (value ?? "").trim();
+	if(text.length == 0)
+		return {
+			root: {
+				type: "root",
+				version: 1,
+				format: "",
+				indent: 0,
+				direction: null,
+				children: [
+					{
+						type: "paragraph",
+						version: 1,
+						format: "",
+						indent: 0,
+						direction: null,
+						children: []
+					}
+				]
+			}
+		};
+	return {
+		root: {
+			type: "root",
+			version: 1,
+			format: "",
+			indent: 0,
+			direction: null,
+			children: [
+				{
+					type: "paragraph",
+					version: 1,
+					format: "",
+					indent: 0,
+					direction: null,
+					children: [
+						{
+							type: "text",
+							version: 1,
+							text,
+							format: 0,
+							detail: 0,
+							mode: "normal",
+							style: ""
+						}
+					]
+				}
+			]
+		}
+	};
 }
 
 function plainTextToReviewComment(value: string | null | undefined): ReviewCommentValue {
@@ -576,24 +522,33 @@ function formatReviewDateValue(value: string | null | undefined): string {
 	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
-function formatReviewRoleLevelValue(value: unknown): string {
-	const level = normalizeRoleLevelValue(value);
-	if(level == null)
-		return "-";
-	return roleLevelLabelMap[level];
+function contentToText(value: unknown): string {
+	if(value == null)
+		return "";
+	if(typeof value == "string")
+		return value.trim();
+	try {
+		return JSON.stringify(value, null, 2);
+	} catch {
+		return String(value);
+	}
 }
 
-function formatReviewRoleMenusValue(value: unknown): string {
-	const menus = normalizeRoleMenuValues(value);
-	if(menus.length == 0)
-		return "-";
-	return menus.map(menu => roleMenuLabelMap[menu]).join(", ");
+function parseContentInput(value: string): JsonValue {
+	const trimmed = value.trim();
+	if(trimmed.length == 0)
+		throw new Error("Content JSON is required.");
+	try {
+		return JSON.parse(trimmed) as JsonValue;
+	} catch {
+		throw new Error("Content must be valid JSON.");
+	}
 }
 
-async function resolveUserRoleMenus(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<RoleMenu[]> {
+async function resolveUserMenus(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<string[]> {
 	const rawRole = user.role;
-	if(rawRole != null && typeof rawRole == "object" && "menus" in rawRole)
-		return normalizeRoleMenuValues(rawRole.menus);
+	if(rawRole != null && typeof rawRole == "object" && "menus" in rawRole && Array.isArray(rawRole.menus))
+		return rawRole.menus.filter(menu => typeof menu == "string").map(menu => String(menu));
 
 	const roleId = getRelationshipId(rawRole);
 	if(roleId == null)
@@ -611,19 +566,19 @@ async function resolveUserRoleMenus(payload: Awaited<ReturnType<typeof getPayloa
 		}
 	});
 
-	return normalizeRoleMenuValues(role.menus);
+	return Array.isArray(role.menus) ? role.menus.filter(menu => typeof menu == "string").map(menu => String(menu)) : [];
 }
 
-async function hasRoleRequestHistoryAccess(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<boolean> {
-	const roleMenus = await resolveUserRoleMenus(payload, user);
-	return roleMenus.includes(roleHistoryRequiredMenu);
+async function hasSurveyRequestHistoryAccess(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<boolean> {
+	const surveyMenus = await resolveUserMenus(payload, user);
+	return surveyMenus.includes(surveyHistoryRequiredMenu);
 }
 
-const roleRequestHistoryColumns = [
+const surveyRequestHistoryColumns = [
 	"id",
-	"name",
-	"level",
-	"menus",
+	"title",
+	"descriptionText",
+	"contentText",
 	"createdBy",
 	"updatedBy",
 	"deletedBy",
@@ -636,13 +591,13 @@ const roleRequestHistoryColumns = [
 	"reviewedBy",
 	"reviewApproved",
 	"reviewCommentText"
-] as const satisfies RoleRequestHistoryColumn[];
+] as const satisfies SurveyRequestHistoryColumn[];
 
-const roleRequestHistoryColumnLabelMap: Record<RoleRequestHistoryColumn, string> = {
+const surveyRequestHistoryColumnLabelMap: Record<SurveyRequestHistoryColumn, string> = {
 	id: "ID",
-	name: "Name",
-	level: "Level",
-	menus: "Menus",
+	title: "Title",
+	descriptionText: "Description",
+	contentText: "Content",
 	createdBy: "Created By",
 	updatedBy: "Updated By",
 	deletedBy: "Deleted By",
@@ -657,7 +612,7 @@ const roleRequestHistoryColumnLabelMap: Record<RoleRequestHistoryColumn, string>
 	reviewCommentText: "Review Comment"
 };
 
-function getRoleRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
+function getSurveyRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
 	if(deletedAt != null)
 		return "Delete";
 	if(createdAt == null || updatedAt == null)
@@ -665,7 +620,7 @@ function getRoleRequestType(deletedAt: string | null | undefined, createdAt: str
 	return createdAt == updatedAt ? "Create" : "Update";
 }
 
-function getRoleHistoryStatusLabel(reviewedAt: string | null | undefined, reviewApproved: boolean | null | undefined): string {
+function getSurveyHistoryStatusLabel(reviewedAt: string | null | undefined, reviewApproved: boolean | null | undefined): string {
 	if(reviewedAt == null)
 		return "Pending";
 	if(reviewApproved == true)
@@ -716,7 +671,7 @@ function normalizeSelectedIds(selectedIds: string[] = []): string[] {
 	)];
 }
 
-export async function searchRoleAuditUserOptionsAction(keyword: string, selectedIds: string[] = []): Promise<RoleFilterUserOption[]> {
+export async function searchSurveyAuditUserOptionsAction(keyword: string, selectedIds: string[] = []): Promise<SurveyFilterUserOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -757,7 +712,7 @@ export async function searchRoleAuditUserOptionsAction(keyword: string, selected
 	}));
 }
 
-export async function searchRoleOptionsAction(keyword: string, selectedIds: string[] = []): Promise<RoleFilterIdOption[]> {
+export async function searchSurveyOptionsAction(keyword: string, selectedIds: string[] = []): Promise<SurveyFilterIdOption[]> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -767,7 +722,7 @@ export async function searchRoleOptionsAction(keyword: string, selectedIds: stri
 	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
 	const keywordFilters: Where[] = [
 		{ id: { like: normalizedKeyword } },
-		{ name: { like: normalizedKeyword } }
+		{ title: { like: normalizedKeyword } }
 	];
 	const whereTerms: Where[] = [];
 	if(keywordFilters.length > 0)
@@ -777,7 +732,7 @@ export async function searchRoleOptionsAction(keyword: string, selectedIds: stri
 	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
 
 	const result = await payload.find({
-		collection: "roles",
+		collection: "surveys",
 		user,
 		overrideAccess: false,
 		draft: true,
@@ -787,20 +742,18 @@ export async function searchRoleOptionsAction(keyword: string, selectedIds: stri
 		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
 		sort: "-updatedAt",
 		select: {
-			name: true,
-			level: true
+			title: true
 		},
 		...(where != null ? { where } : {})
 	});
 
 	return result.docs.map(doc => ({
 		id: String(doc.id),
-		name: doc.name,
-		level: normalizeRoleLevelValue(doc.level) ?? "officer"
+		title: doc.title
 	}));
 }
 
-function toPayloadSort(sort: RoleManagementSortToken[]): string {
+function toPayloadSort(sort: SurveyManagementSortToken[]): string {
 	return sort.map(token => {
 		const direction = token.startsWith("-") ? "-" : "";
 		const field = token.slice(1) as SortFieldKey;
@@ -809,19 +762,19 @@ function toPayloadSort(sort: RoleManagementSortToken[]): string {
 			path = "reviewedBy.name";
 		else if(field == "requestType")
 			path = "deletedAt";
-		else if(field == "status" || field == "reviewCommentText")
+		else if(field == "status" || field == "reviewCommentText" || field == "descriptionText" || field == "contentText")
 			path = "reviewedAt";
 		else
-			path = field;
+			path = field == "title" ? "title" : field;
 		return `${direction}${path}`;
 	}).join(",");
 }
 
-function toPayloadFilterWhere(filters: RoleManagementFilterInput[]): Where | null {
+function toPayloadFilterWhere(filters: SurveyManagementFilterInput[]): Where | null {
 	if(filters.length == 0)
 		return null;
 
-	const operatorMap: Record<RoleManagementFilterOperator, string> = {
+	const operatorMap: Record<SurveyManagementFilterOperator, string> = {
 		equals: "equals",
 		not_equals: "not_equals",
 		contains: "like",
@@ -841,7 +794,7 @@ function toPayloadFilterWhere(filters: RoleManagementFilterInput[]): Where | nul
 		]
 	};
 
-	const getStatusWhere = (status: RoleManagementStatus): Where => {
+	const getStatusWhere = (status: SurveyManagementStatus): Where => {
 		if(status == "pending")
 			return { reviewedAt: { exists: false } };
 		if(status == "approved") {
@@ -860,14 +813,14 @@ function toPayloadFilterWhere(filters: RoleManagementFilterInput[]): Where | nul
 		};
 	};
 
-	const buildStatusFilterWhere = (filter: RoleManagementFilterInput): Where | null => {
+	const buildStatusFilterWhere = (filter: SurveyManagementFilterInput): Where | null => {
 		if(filter.operator == "exists")
 			return filter.value == true ? null : impossibleWhere;
 
 		const rawStatuses = Array.isArray(filter.value) ? filter.value : [filter.value];
 		const statuses = rawStatuses
-			.map(normalizeRoleStatusValue)
-			.filter((status): status is RoleManagementStatus => status != null)
+			.map(normalizeSurveyStatusValue)
+			.filter((status): status is SurveyManagementStatus => status != null)
 			.filter((status, index, source) => source.indexOf(status) == index);
 		if(statuses.length == 0)
 			return null;
@@ -877,7 +830,7 @@ function toPayloadFilterWhere(filters: RoleManagementFilterInput[]): Where | nul
 
 		if(filter.operator == "not_equals" || filter.operator == "not_in") {
 			const excluded = new Set(statuses);
-			const remaining = roleStatusValues.filter(status => !excluded.has(status));
+			const remaining = surveyStatusValues.filter(status => !excluded.has(status));
 			if(remaining.length == 0)
 				return impossibleWhere;
 			return remaining.length == 1 ? getStatusWhere(remaining[0]) : { or: remaining.map(getStatusWhere) };
@@ -900,7 +853,7 @@ function toPayloadFilterWhere(filters: RoleManagementFilterInput[]): Where | nul
 
 			return {
 				where: {
-					[filter.column]: {
+					[(filter.column == "descriptionText" ? "description" : filter.column == "contentText" ? "content" : filter.column)]: {
 						[operatorMap[filter.operator]]: filter.value
 					}
 				} as Where,
@@ -933,7 +886,7 @@ function toPayloadFilterWhere(filters: RoleManagementFilterInput[]): Where | nul
 	};
 }
 
-export async function queryRolesAction({ keyword, sort, filters, filterCombinator, page, limit, mode, includeSoftDeleted = false }: QueryRolesInput): Promise<QueryRolesOutput> {
+export async function querySurveysAction({ keyword, sort, filters, filterCombinator, page, limit, mode, includeSoftDeleted = false }: QuerySurveysInput): Promise<QuerySurveysOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -942,15 +895,14 @@ export async function queryRolesAction({ keyword, sort, filters, filterCombinato
 	const pageSize = Number.isFinite(limit) ? Math.max(1, Math.min(MAX_PAGE_SIZE, Math.floor(limit))) : MAX_PAGE_SIZE;
 	const pageNumber = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
 	const normalizedKeyword = keyword.trim();
-	const normalizedKeywordLower = normalizedKeyword.toLowerCase();
 	const sortTokens = normalizeSortTokens(sort);
 	const normalizedFilterCombinator = normalizeFilterCombinator(filterCombinator);
 	const normalizedFilters = normalizeFilters(filters, normalizedFilterCombinator);
 	const payloadFilterWhere = toPayloadFilterWhere(normalizedFilters);
 	const payloadSort = toPayloadSort(sortTokens);
 
-	const roleFindResult = await payload.find({
-		collection: "roles",
+	const surveyFindResult = await payload.find({
+		collection: "surveys",
 		user,
 		overrideAccess: false,
 		draft: true,
@@ -965,17 +917,13 @@ export async function queryRolesAction({ keyword, sort, filters, filterCombinato
 				{ deletedAt: { exists: false } },
 				{ _status: { equals: "draft" } }
 			] }]),
-			...(normalizedKeyword.length > 0 ? [{ or: [
-				{ name: { like: normalizedKeyword } },
-				{ level: { equals: normalizedKeywordLower } },
-				{ menus: { in: [normalizedKeywordLower] } }
-			] }] : []),
+			...(normalizedKeyword.length > 0 ? [{ title: { like: normalizedKeyword } }] : []),
 			...(payloadFilterWhere != null ? [payloadFilterWhere] : [])
 		] },
 		select: {
-			name: true,
-			level: true,
-			menus: true,
+			title: true,
+			description: true,
+			content: true,
 			createdBy: true,
 			updatedBy: true,
 			deletedBy: true,
@@ -990,21 +938,21 @@ export async function queryRolesAction({ keyword, sort, filters, filterCombinato
 		}
 	});
 
-	const mappedRows: RoleTableRow[] = roleFindResult.docs.map(doc => {
+	const mappedRows: SurveyTableRow[] = surveyFindResult.docs.map(doc => {
 		const createdById = getRelationshipId(doc.createdBy);
 		const updatedById = getRelationshipId(doc.updatedBy);
 		const deletedById = getRelationshipId(doc.deletedBy);
 		const reviewedById = getRelationshipId(doc.reviewedBy);
+		const descriptionText = richTextToPlainText(doc.description);
+		const contentText = contentToText(doc.content);
 		const reviewCommentText = richTextToPlainText(doc.reviewComment);
 		const requestType = doc.deletedAt != null ? "Delete" : doc.createdAt == doc.updatedAt ? "Create" : "Update";
-		const level = normalizeRoleLevelValue(doc.level) ?? "officer";
-		const menus = normalizeRoleMenuValues(doc.menus);
 
 		return {
 			id: String(doc.id),
-			name: doc.name,
-			level,
-			menus,
+			title: doc.title,
+			descriptionText,
+			contentText,
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
 			createdById,
 			updatedById,
@@ -1022,39 +970,39 @@ export async function queryRolesAction({ keyword, sort, filters, filterCombinato
 
 	return {
 		docs: mappedRows,
-		totalDocs: roleFindResult.totalDocs,
-		page: roleFindResult.page ?? pageNumber,
-		hasNextPage: roleFindResult.hasNextPage,
-		hasPreviousPage: roleFindResult.hasPrevPage
+		totalDocs: surveyFindResult.totalDocs,
+		page: surveyFindResult.page ?? pageNumber,
+		hasNextPage: surveyFindResult.hasNextPage,
+		hasPreviousPage: surveyFindResult.hasPrevPage
 	};
 }
 
-type QueryRolesSharedInput = Omit<QueryRolesInput, "mode">;
+type QuerySurveysSharedInput = Omit<QuerySurveysInput, "mode">;
 
-export async function queryRolesViewerAction(input: QueryRolesSharedInput): Promise<QueryRolesOutput> {
-	return queryRolesAction({
+export async function querySurveysViewerAction(input: QuerySurveysSharedInput): Promise<QuerySurveysOutput> {
+	return querySurveysAction({
 		...input,
 		mode: "editor",
 		includeSoftDeleted: false
 	});
 }
 
-export async function queryRolesEditorAction(input: QueryRolesSharedInput): Promise<QueryRolesOutput> {
-	return queryRolesAction({
+export async function querySurveysEditorAction(input: QuerySurveysSharedInput): Promise<QuerySurveysOutput> {
+	return querySurveysAction({
 		...input,
 		mode: "editor"
 	});
 }
 
-export async function queryRolesApproverAction(input: QueryRolesSharedInput): Promise<QueryRolesOutput> {
-	return queryRolesAction({
+export async function querySurveysApproverAction(input: QuerySurveysSharedInput): Promise<QuerySurveysOutput> {
+	return querySurveysAction({
 		...input,
 		mode: "approver",
 		includeSoftDeleted: false
 	});
 }
 
-export async function resolveRoleRelationColumnsAction({ rows, columns }: ResolveRoleRelationColumnsInput): Promise<ResolveRoleRelationColumnsOutput> {
+export async function resolveSurveyRelationColumnsAction({ rows, columns }: ResolveSurveyRelationColumnsInput): Promise<ResolveSurveyRelationColumnsOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1080,7 +1028,7 @@ export async function resolveRoleRelationColumnsAction({ rows, columns }: Resolv
 	const usersById = await findUsersByIds(payload, user, [...userIds]);
 
 	return rows.map(row => {
-		const values: RoleRelationValues = {};
+		const values: SurveyRelationValues = {};
 
 		if(requestedColumns.includes("reviewedBy"))
 			values.reviewedBy = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
@@ -1116,24 +1064,24 @@ export async function resolveRoleRelationColumnsAction({ rows, columns }: Resolv
 	});
 }
 
-export async function getRoleRequestDetailsAction(roleId: string): Promise<RoleRequestDetailsOutput> {
+export async function getSurveyRequestDetailsAction(surveyId: string): Promise<SurveyRequestDetailsOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const role = await payload.findByID({
-		collection: "roles",
+	const survey = await payload.findByID({
+		collection: "surveys",
 		user,
 		overrideAccess: false,
 		draft: true,
 		trash: true,
-		id: roleId,
+		id: surveyId,
 		depth: 0,
 		select: {
-			name: true,
-			level: true,
-			menus: true,
+			title: true,
+			description: true,
+			content: true,
 			createdBy: true,
 			updatedBy: true,
 			deletedBy: true,
@@ -1148,30 +1096,30 @@ export async function getRoleRequestDetailsAction(roleId: string): Promise<RoleR
 		}
 	});
 
-	const createdById = getRelationshipId(role.createdBy);
-	const updatedById = getRelationshipId(role.updatedBy);
-	const deletedById = getRelationshipId(role.deletedBy);
-	const reviewedById = getRelationshipId(role.reviewedBy);
-	const reviewCommentText = richTextToPlainText(role.reviewComment);
-	const requestType = role.deletedAt != null ? "Delete" : role.createdAt == role.updatedAt ? "Create" : "Update";
-	const level = normalizeRoleLevelValue(role.level) ?? "officer";
-	const menus = normalizeRoleMenuValues(role.menus);
+	const createdById = getRelationshipId(survey.createdBy);
+	const updatedById = getRelationshipId(survey.updatedBy);
+	const deletedById = getRelationshipId(survey.deletedBy);
+	const reviewedById = getRelationshipId(survey.reviewedBy);
+	const descriptionText = richTextToPlainText(survey.description);
+	const contentText = contentToText(survey.content);
+	const reviewCommentText = richTextToPlainText(survey.reviewComment);
+	const requestType = survey.deletedAt != null ? "Delete" : survey.createdAt == survey.updatedAt ? "Create" : "Update";
 
-	const row: RoleTableRow = {
-		id: String(role.id),
-		name: role.name,
-		level,
-		menus,
-		isSoftDeleted: role.deletedAt != null && role._status == "published",
+	const row: SurveyTableRow = {
+		id: String(survey.id),
+		title: survey.title,
+		descriptionText,
+		contentText,
+		isSoftDeleted: survey.deletedAt != null && survey._status == "published",
 		createdById,
 		updatedById,
 		deletedById,
-		createdAt: role.createdAt,
-		updatedAt: role.updatedAt,
-		deletedAt: role.deletedAt ?? null,
-		reviewedAt: role.reviewedAt ?? null,
+		createdAt: survey.createdAt,
+		updatedAt: survey.updatedAt,
+		deletedAt: survey.deletedAt ?? null,
+		reviewedAt: survey.reviewedAt ?? null,
 		reviewedById,
-		reviewApproved: role.reviewApproved ?? null,
+		reviewApproved: survey.reviewApproved ?? null,
 		reviewCommentText,
 		requestType
 	};
@@ -1188,7 +1136,7 @@ export async function getRoleRequestDetailsAction(roleId: string): Promise<RoleR
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
 
-	const relationValues: RoleRelationValues = {
+	const relationValues: SurveyRelationValues = {
 		reviewedBy: row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-",
 		createdBy: row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-",
 		updatedBy: row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-",
@@ -1203,7 +1151,7 @@ export async function getRoleRequestDetailsAction(roleId: string): Promise<RoleR
 	if(Object.keys(stagedUserIdByUserId).length > 0)
 		relationValues.stagedUserIdByUserId = stagedUserIdByUserId;
 
-	const relationReferences: RoleRequestDetailsOutput["relationReferences"] = {
+	const relationReferences: SurveyRequestDetailsOutput["relationReferences"] = {
 		reviewedBy: row.reviewedById != null ? [{ type: "user", id: row.reviewedById, label: usersById.get(row.reviewedById)?.name ?? "User" }] : [],
 		createdBy: row.createdById != null ? [{ type: "user", id: row.createdById, label: usersById.get(row.createdById)?.name ?? "User" }] : [],
 		updatedBy: row.updatedById != null ? [{ type: "user", id: row.updatedById, label: usersById.get(row.updatedById)?.name ?? "User" }] : [],
@@ -1217,25 +1165,25 @@ export async function getRoleRequestDetailsAction(roleId: string): Promise<RoleR
 	};
 }
 
-export async function canAccessRoleRequestHistoryAction(): Promise<boolean> {
+export async function canAccessSurveyRequestHistoryAction(): Promise<boolean> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null)
 		return false;
 
-	return hasRoleRequestHistoryAccess(payload, user);
+	return hasSurveyRequestHistoryAccess(payload, user);
 }
 
-export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleRequestHistoryOutput> {
+export async function getSurveyRequestHistoryAction(surveyId: string): Promise<SurveyRequestHistoryOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
-	if(!await hasRoleRequestHistoryAccess(payload, user)) return unauthorized();
+	if(!await hasSurveyRequestHistoryAccess(payload, user)) return unauthorized();
 
 	const versionsResult = await payload.findVersions({
-		collection: "roles",
+		collection: "surveys",
 		user,
 		overrideAccess: true,
 		trash: true,
@@ -1244,16 +1192,16 @@ export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleR
 		sort: "-updatedAt",
 		where: {
 			parent: {
-				equals: roleId
+				equals: surveyId
 			}
 		},
 		select: {
 			updatedAt: true,
 			version: {
 				id: true,
-				name: true,
-				level: true,
-				menus: true,
+				title: true,
+				description: true,
+				content: true,
 				createdBy: true,
 				updatedBy: true,
 				deletedBy: true,
@@ -1268,14 +1216,14 @@ export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleR
 		}
 	});
 
-	type RoleVersionSnapshotDoc = {
+	type SurveyVersionSnapshotDoc = {
 		id?: string | number;
 		updatedAt?: string | null;
 		version?: {
 			id?: string | number;
-			name?: string;
-			level?: unknown;
-			menus?: unknown;
+			title?: string;
+			description?: unknown;
+			content?: unknown;
 			createdBy?: unknown;
 			updatedBy?: unknown;
 			deletedBy?: unknown;
@@ -1289,7 +1237,7 @@ export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleR
 		};
 	};
 
-	const historyDocs = versionsResult.docs as RoleVersionSnapshotDoc[];
+	const historyDocs = versionsResult.docs as SurveyVersionSnapshotDoc[];
 
 	const relationUserIds = new Set<string>();
 	for(const historyDoc of historyDocs) {
@@ -1314,14 +1262,14 @@ export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleR
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
 
-	type RoleHistorySnapshot = {
+	type SurveyHistorySnapshot = {
 		versionId: string;
 		changedAt: string | null;
-		values: Record<RoleRequestHistoryColumn, string>;
+		values: Record<SurveyRequestHistoryColumn, string>;
 	};
 
 	const snapshotsMaybe = historyDocs
-		.map<RoleHistorySnapshot | null>(historyDoc => {
+		.map<SurveyHistorySnapshot | null>(historyDoc => {
 			const version = historyDoc.version;
 			if(version == null)
 				return null;
@@ -1330,6 +1278,8 @@ export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleR
 			const updatedById = getRelationshipId(version.updatedBy);
 			const deletedById = getRelationshipId(version.deletedBy);
 			const reviewedById = getRelationshipId(version.reviewedBy);
+			const descriptionText = richTextToPlainText(version.description);
+			const contentText = contentToText(version.content);
 			const reviewCommentText = richTextToPlainText(version.reviewComment);
 
 			const createdAt = version.createdAt ?? null;
@@ -1338,21 +1288,21 @@ export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleR
 			const reviewedAt = version.reviewedAt ?? null;
 
 			return {
-				versionId: String(version.id ?? historyDoc.id ?? roleId),
+				versionId: String(version.id ?? historyDoc.id ?? surveyId),
 				changedAt: historyDoc.updatedAt ?? updatedAt,
 				values: {
-					id: String(version.id ?? roleId),
-					name: (version.name ?? "-").trim().length > 0 ? version.name ?? "-" : "-",
-					level: formatReviewRoleLevelValue(version.level),
-					menus: formatReviewRoleMenusValue(version.menus),
+					id: String(version.id ?? surveyId),
+					title: (version.title ?? "-").trim().length > 0 ? version.title ?? "-" : "-",
+					descriptionText: descriptionText.length > 0 ? descriptionText : "-",
+					contentText: contentText.length > 0 ? contentText : "-",
 					createdBy: createdById != null ? (usersById.get(createdById)?.name ?? "-") : "-",
 					updatedBy: updatedById != null ? (usersById.get(updatedById)?.name ?? "-") : "-",
 					deletedBy: deletedById != null ? (usersById.get(deletedById)?.name ?? "-") : "-",
 					createdAt: formatReviewDateValue(createdAt),
 					updatedAt: formatReviewDateValue(updatedAt),
 					deletedAt: formatReviewDateValue(deletedAt),
-					requestType: getRoleRequestType(deletedAt, createdAt, updatedAt),
-					status: getRoleHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
+					requestType: getSurveyRequestType(deletedAt, createdAt, updatedAt),
+					status: getSurveyHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
 					reviewedAt: formatReviewDateValue(reviewedAt),
 					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
 					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
@@ -1361,17 +1311,17 @@ export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleR
 			};
 		});
 
-	const snapshots = snapshotsMaybe.filter((snapshot): snapshot is RoleHistorySnapshot => snapshot != null);
+	const snapshots = snapshotsMaybe.filter((snapshot): snapshot is SurveyHistorySnapshot => snapshot != null);
 
-	const entries: RoleRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
+	const entries: SurveyRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
 		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
 
-		const changes: RoleRequestHistoryChangeItem[] = roleRequestHistoryColumns.map(column => {
+		const changes: SurveyRequestHistoryChangeItem[] = surveyRequestHistoryColumns.map(column => {
 			const previousValue = previousSnapshot?.values[column] ?? "-";
 			const nextValue = snapshot.values[column];
 			return {
 				column,
-				label: roleRequestHistoryColumnLabelMap[column],
+				label: surveyRequestHistoryColumnLabelMap[column],
 				previousValue,
 				nextValue,
 				changed: previousValue != nextValue
@@ -1387,38 +1337,34 @@ export async function getRoleRequestHistoryAction(roleId: string): Promise<RoleR
 	});
 
 	return {
-		requestId: roleId,
+		requestId: surveyId,
 		entries
 	};
 }
 
-export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
+export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const name = input.name.trim();
-	const level = normalizeRoleLevelValue(input.level);
-	const menus = normalizeRoleMenuValues(input.menus);
+	const title = input.title.trim();
+	const description = input.description.trim();
+	const content = parseContentInput(input.content);
 
-	if(name.length == 0)
-		throw new Error("Role name is required.");
-	if(level == null)
-		throw new Error("Role level is invalid.");
-	if(menus.length == 0)
-		throw new Error("At least one menu is required.");
+	if(title.length == 0)
+		throw new Error("Survey title is required.");
 
-	if(input.roleId == null) {
+	if(input.surveyId == null) {
 		const created = await payload.create({
 			user,
-			collection: "roles",
+			collection: "surveys",
 			overrideAccess: true,
 			data: {
 				_status: "draft",
-				name,
-				level,
-				menus,
+				title,
+				description: plainTextToRichText(description) as any,
+				content,
 				deletedAt: null,
 				deletedBy: null,
 				reviewedAt: null,
@@ -1427,13 +1373,13 @@ export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 				reviewComment: null
 			}
 		});
-		return { roleId: created.id };
+		return { surveyId: created.id };
 	}
 
 	await payload.findByID({
 		user,
-		collection: "roles",
-		id: input.roleId,
+		collection: "surveys",
+		id: input.surveyId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0
@@ -1441,15 +1387,15 @@ export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 
 	await payload.update({
 		user,
-		collection: "roles",
-		id: input.roleId,
+		collection: "surveys",
+		id: input.surveyId,
 		overrideAccess: true,
 		trash: true,
 		data: {
 			_status: "draft",
-			name,
-			level,
-			menus,
+			title,
+			description: plainTextToRichText(description) as any,
+			content,
 			deletedAt: null,
 			deletedBy: null,
 			reviewedAt: null,
@@ -1459,10 +1405,10 @@ export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 		}
 	});
 
-	return { roleId: input.roleId };
+	return { surveyId: input.surveyId };
 }
 
-export async function requestDeleteRoleAction(roleId: string) {
+export async function requestDeleteSurveyAction(surveyId: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1470,8 +1416,8 @@ export async function requestDeleteRoleAction(roleId: string) {
 
 	await payload.findByID({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0
@@ -1479,8 +1425,8 @@ export async function requestDeleteRoleAction(roleId: string) {
 
 	await payload.update({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		data: {
@@ -1494,44 +1440,44 @@ export async function requestDeleteRoleAction(roleId: string) {
 		}
 	});
 
-	return { roleId };
+	return { surveyId };
 }
 
-export async function cancelRoleRequestAction(roleId: string) {
+export async function cancelSurveyRequestAction(surveyId: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const role = await payload.findByID({
+	const survey = await payload.findByID({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
 	});
-	if(role.reviewedAt != null && role.reviewApproved != false)
+	if(survey.reviewedAt != null && survey.reviewApproved != false)
 		throw new Error("Cannot restore an approved request.");
 
 	const approvedVersions = await payload.findVersions({
 		user,
-		collection: "roles",
+		collection: "surveys",
 		overrideAccess: true,
 		trash: true,
 		pagination: false,
 		limit: 1,
 		sort: "-updatedAt",
 		where: { and: [
-			{ parent: { equals: roleId } },
+			{ parent: { equals: surveyId } },
 			{ "version._status": { equals: "published" } }
 		] },
 		select: {
 			version: {
-				name: true,
-				level: true,
-				menus: true,
+				title: true,
+				description: true,
+				content: true,
 				deletedAt: true,
 				deletedBy: true,
 				reviewedAt: true,
@@ -1547,8 +1493,8 @@ export async function cancelRoleRequestAction(roleId: string) {
 	if(approvedVersion == null) {
 		await payload.update({
 			user,
-			collection: "roles",
-			id: roleId,
+			collection: "surveys",
+			id: surveyId,
 			overrideAccess: true,
 			trash: true,
 			data: {
@@ -1562,25 +1508,23 @@ export async function cancelRoleRequestAction(roleId: string) {
 			}
 		});
 
-		return { roleId, softDeleted: true };
+		return { surveyId, softDeleted: true };
 	}
 
 	const approvedDeletedBy = getRelationshipId(approvedVersion.deletedBy);
 	const approvedReviewedBy = getRelationshipId(approvedVersion.reviewedBy);
-	const approvedLevel = normalizeRoleLevelValue(approvedVersion.level) ?? "officer";
-	const approvedMenus = normalizeRoleMenuValues(approvedVersion.menus);
 
 	await payload.update({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		data: {
 			_status: "published",
-			name: approvedVersion.name,
-			level: approvedLevel,
-			menus: approvedMenus,
+			title: approvedVersion.title,
+			description: (approvedVersion.description ?? plainTextToRichText("")) as any,
+			content: approvedVersion.content ?? { slides: [] },
 			deletedAt: approvedVersion.deletedAt ?? null,
 			deletedBy: approvedDeletedBy,
 			reviewedAt: approvedVersion.reviewedAt ?? null,
@@ -1590,32 +1534,32 @@ export async function cancelRoleRequestAction(roleId: string) {
 		}
 	});
 
-	return { roleId, softDeleted: false };
+	return { surveyId, softDeleted: false };
 }
 
-export async function requestRestoreRoleAction(roleId: string) {
+export async function requestRestoreSurveyAction(surveyId: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const role = await payload.findByID({
+	const survey = await payload.findByID({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
 	});
 
-	if(role.deletedAt == null)
-		throw new Error("Role is not deleted.");
+	if(survey.deletedAt == null)
+		throw new Error("Survey is not deleted.");
 
 	await payload.update({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		data: {
@@ -1629,25 +1573,25 @@ export async function requestRestoreRoleAction(roleId: string) {
 		}
 	});
 
-	return { roleId };
+	return { surveyId };
 }
 
-export async function reviewRoleRequestAction({ roleId, decision, reason }: ReviewRoleRequestInput) {
+export async function reviewSurveyRequestAction({ surveyId, decision, reason }: ReviewSurveyRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const role = await payload.findByID({
+	const survey = await payload.findByID({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
 	});
-	if(role.reviewedAt != null)
+	if(survey.reviewedAt != null)
 		throw new Error("This request has already been reviewed.");
 	if(decision != "approve" && decision != "reject")
 		throw new Error("Invalid review decision.");
@@ -1658,8 +1602,8 @@ export async function reviewRoleRequestAction({ roleId, decision, reason }: Revi
 	if(decision == "reject") {
 		await payload.update({
 			user,
-			collection: "roles",
-			id: roleId,
+			collection: "surveys",
+			id: surveyId,
 			overrideAccess: true,
 			trash: true,
 			data: {
@@ -1672,13 +1616,13 @@ export async function reviewRoleRequestAction({ roleId, decision, reason }: Revi
 				reviewComment
 			}
 		});
-		return { roleId, decision };
+		return { surveyId, decision };
 	}
 
 	await payload.update({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		data: {
@@ -1690,19 +1634,19 @@ export async function reviewRoleRequestAction({ roleId, decision, reason }: Revi
 		}
 	});
 
-	return { roleId, decision };
+	return { surveyId, decision };
 }
 
-export async function getRoleRequestReviewDiffAction(roleId: string): Promise<RoleRequestReviewDiffOutput> {
+export async function getSurveyRequestReviewDiffAction(surveyId: string): Promise<SurveyRequestReviewDiffOutput> {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const role = await payload.findByID({
+	const survey = await payload.findByID({
 		user,
-		collection: "roles",
-		id: roleId,
+		collection: "surveys",
+		id: surveyId,
 		overrideAccess: true,
 		trash: true,
 		depth: 0,
@@ -1711,7 +1655,7 @@ export async function getRoleRequestReviewDiffAction(roleId: string): Promise<Ro
 
 	const approvedVersions = await payload.findVersions({
 		user,
-		collection: "roles",
+		collection: "surveys",
 		overrideAccess: true,
 		trash: true,
 		pagination: false,
@@ -1719,15 +1663,15 @@ export async function getRoleRequestReviewDiffAction(roleId: string): Promise<Ro
 		sort: "-updatedAt",
 		where: {
 			and: [
-				{ parent: { equals: roleId } },
+				{ parent: { equals: surveyId } },
 				{ "version._status": { equals: "published" } }
 			]
 		},
 		select: {
 			version: {
-				name: true,
-				level: true,
-				menus: true,
+				title: true,
+				description: true,
+				content: true,
 				deletedAt: true
 			}
 		}
@@ -1735,43 +1679,43 @@ export async function getRoleRequestReviewDiffAction(roleId: string): Promise<Ro
 
 	const approvedVersion = approvedVersions.docs[0]?.version;
 
-	const requestType: RoleRequestReviewDiffOutput["requestType"] =
-		role.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
+	const requestType: SurveyRequestReviewDiffOutput["requestType"] =
+		survey.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
 
 	const comparisonItems = [
 		{
-			field: "name",
-			label: "Role Name",
-			previousValue: approvedVersion?.name ?? "-",
-			requestedValue: role.name
+			field: "title",
+			label: "Title",
+			previousValue: approvedVersion?.title ?? "-",
+			requestedValue: survey.title
 		},
 		{
-			field: "level",
-			label: "Level",
-			previousValue: formatReviewRoleLevelValue(approvedVersion?.level),
-			requestedValue: formatReviewRoleLevelValue(role.level)
+			field: "descriptionText",
+			label: "Description",
+			previousValue: richTextToPlainText(approvedVersion?.description),
+			requestedValue: richTextToPlainText(survey.description)
 		},
 		{
-			field: "menus",
-			label: "Menus",
-			previousValue: formatReviewRoleMenusValue(approvedVersion?.menus),
-			requestedValue: formatReviewRoleMenusValue(role.menus)
+			field: "contentText",
+			label: "Content",
+			previousValue: contentToText(approvedVersion?.content),
+			requestedValue: contentToText(survey.content)
 		},
 		{
 			field: "deletedAt",
 			label: "Deleted At",
 			previousValue: formatReviewDateValue(approvedVersion?.deletedAt ?? null),
-			requestedValue: formatReviewDateValue(role.deletedAt)
+			requestedValue: formatReviewDateValue(survey.deletedAt)
 		}
-	] satisfies Array<Omit<RoleRequestReviewDiffItem, "changed">>;
+	] satisfies Array<Omit<SurveyRequestReviewDiffItem, "changed">>;
 
-	const items: RoleRequestReviewDiffItem[] = comparisonItems.map(item => ({
+	const items: SurveyRequestReviewDiffItem[] = comparisonItems.map(item => ({
 		...item,
 		changed: item.previousValue != item.requestedValue
 	}));
 
 	return {
-		requestId: roleId,
+		requestId: surveyId,
 		requestType,
 		items,
 		changedCount: items.filter(item => item.changed).length

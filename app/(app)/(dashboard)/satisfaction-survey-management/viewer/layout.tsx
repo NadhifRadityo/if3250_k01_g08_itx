@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { resolveManagementModeRedirectHrefAction } from "../../layout.actions";
 
 export default async function Layout({ children }: { children: ReactNode }) {
-	const redirectHref = await resolveManagementModeRedirectHrefAction("customer-satisfaction", "approver");
+	const redirectHref = await resolveManagementModeRedirectHrefAction("satisfaction-survey-management", "viewer");
 	if(redirectHref != null)
 		redirect(redirectHref);
 

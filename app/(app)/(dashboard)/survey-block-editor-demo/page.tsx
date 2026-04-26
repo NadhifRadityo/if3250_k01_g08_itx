@@ -2,19 +2,20 @@
 
 import * as React from "react";
 
-import Form, { type FormSubmitPayload, type JsonFormDefinition } from "@/components/Form";
-import { Alert, AlertDescription, AlertTitle } from "@/components/radix/Alert";
+import { type FormSubmitPayload, type JsonFormDefinition } from "@/components/Form";
+import FormEditor from "@/components/FormEditor";
+import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import {
 	Card,
-	CardContent,
-	CardDescription,
+	CardTitle,
 	CardHeader,
-	CardTitle
+	CardContent,
+	CardDescription
 } from "@/components/radix/Card";
 
 const demoForm: JsonFormDefinition = {
 	id: "forms-md-inspired-demo",
-	title: "Forms.md-inspired JSON form",
+	title: "Forms.md-inspired slide form",
 	description: "A slide-first survey runtime built with native React, Radix UI, and Tailwind.",
 	settings: {
 		buttonAlignment: "start",
@@ -29,7 +30,7 @@ const demoForm: JsonFormDefinition = {
 		restartButton: "show",
 		rounded: "default",
 		sanitize: true,
-		saveState: true,
+		saveState: false,
 		slideControls: "show",
 		submitButtonText: "Kirim respons",
 		verticalAlignment: "start"
@@ -43,7 +44,7 @@ const demoForm: JsonFormDefinition = {
 				{
 					align: "center",
 					level: 1,
-					text: "Bangun survei modern dengan schema JSON",
+					text: "Bangun survei modern dengan editor visual",
 					type: "heading"
 				},
 				{
@@ -87,7 +88,7 @@ const demoForm: JsonFormDefinition = {
 					type: "text"
 				},
 				{
-					text: "Kami gunakan ini untuk mempersonalisasi slide berikutnya lewat JSON binding.",
+					text: "Nama ini dipakai untuk mempersonalisasi slide berikutnya.",
 					type: "description"
 				},
 				{
@@ -346,7 +347,7 @@ const demoForm: JsonFormDefinition = {
 					text: [
 						"Terima kasih, ",
 						{ bind: { source: "field", key: "fullName", fallback: "responden" } },
-						". Slide end ini juga membaca state dari binding JSON."
+						". Slide akhir ini juga membaca jawaban sebelumnya secara langsung."
 					],
 					type: "description"
 				},
@@ -363,7 +364,7 @@ const demoForm: JsonFormDefinition = {
 
 function formatPayload(payload: FormSubmitPayload | null): string {
 	if(payload == null)
-		return "Belum ada submit. Jalankan form untuk melihat payload runtime di sini.";
+		return "Belum ada submit. Jalankan preview di kanan untuk melihat payload runtime di sini.";
 
 	return JSON.stringify({
 		kind: payload.kind,
@@ -377,41 +378,41 @@ function formatPayload(payload: FormSubmitPayload | null): string {
 }
 
 export default function SurveyBlockEditorDemoPage() {
+	const [schema, setSchema] = React.useState<JsonFormDefinition>(() => demoForm);
 	const [lastPartialSubmit, setLastPartialSubmit] = React.useState<FormSubmitPayload | null>(null);
 	const [lastSubmit, setLastSubmit] = React.useState<FormSubmitPayload | null>(null);
 
 	return (
 		<div className="bg-background min-h-svh">
-			<div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 xl:grid xl:grid-cols-[minmax(0,1.35fr)_360px] xl:items-start">
-				<div className="space-y-6">
-					<Alert>
-						<AlertTitle>Survey runtime demo</AlertTitle>
-						<AlertDescription>
-							Halaman ini memperlihatkan schema JSON murni yang dirender oleh [components/Form.tsx](/c:/Projects/if3250_k01_g08_itx/components/Form.tsx), termasuk conditional slides, interleaved blocks, dan partial submit.
-						</AlertDescription>
-					</Alert>
-					<Form
-						form={demoForm}
-						onPartialSubmit={payload => {
-							setLastPartialSubmit(payload);
-						}}
-						onSubmit={payload => {
-							setLastSubmit(payload);
-						}}
-					/>
-				</div>
-				<div className="space-y-4 xl:sticky xl:top-6">
+			<div className="mx-auto flex w-full max-w-[1680px] flex-col gap-6 px-4 py-6 md:px-6">
+				<Alert>
+					<AlertTitle>Form editor demo</AlertTitle>
+					<AlertDescription>
+						Halaman ini menggabungkan [components/FormEditor.tsx](/c:/Projects/if3250_k01_g08_itx/components/FormEditor.tsx) dan [components/Form.tsx](/c:/Projects/if3250_k01_g08_itx/components/Form.tsx). Pane kiri membangun alur form secara visual, pane kanan menampilkan preview hidup dari form yang sama.
+					</AlertDescription>
+				</Alert>
+				<FormEditor
+					onChange={setSchema}
+					onPreviewPartialSubmit={payload => {
+						setLastPartialSubmit(payload);
+					}}
+					onPreviewSubmit={payload => {
+						setLastSubmit(payload);
+					}}
+					value={schema}
+				/>
+				<div className="grid gap-4 xl:grid-cols-[320px_1fr_1fr]">
 					<Card className="rounded-3xl">
 						<CardHeader>
 							<CardTitle>Runtime notes</CardTitle>
 							<CardDescription>
-								Contoh ini sengaja mencampur heading, helper copy, media, dan beberapa input dalam satu slide untuk menekankan arsitektur block-first.
+								Rute demo ini memakai form awal yang cukup kaya supaya editor visualnya langsung terasa berguna.
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-3 text-sm leading-relaxed text-muted-foreground">
-							<p>Slide `follow-up` hanya tampil bila `clarityRating` bernilai 4 atau kurang.</p>
-							<p>Slide `profile` memakai `post: "slide-progress"` dan slide `work-context` memakai `post: "every-change"`.</p>
-							<p>State form disimpan ke local storage agar refresh halaman tetap mempertahankan progres demo.</p>
+							<p>Form saat ini memiliki {schema.slides.length} slide.</p>
+							<p>Preview submit parsial dan final tetap diteruskan ke halaman ini supaya Anda bisa mengecek payload runtime sambil mengedit.</p>
+							<p>Slide follow-up akan tetap muncul hanya saat rating kejelasan rendah, jadi demo ini masih bagus untuk mencoba alur bercabang.</p>
 						</CardContent>
 					</Card>
 					<Card className="rounded-3xl">

@@ -53,7 +53,9 @@ const emptySegments: DatetimeSegments = {
 	second: ""
 };
 
-function parseDatetimeValue(value: string | null | undefined, mode: DatetimeInputMode): Date | null {
+function parseDatetimeValue(value: string | number | null | undefined, mode: DatetimeInputMode): Date | null {
+	if(typeof value == "number")
+		value = `${value}`;
 	const trimmed = value?.trim() ?? "";
 	if(trimmed.length == 0)
 		return null;

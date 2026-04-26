@@ -160,10 +160,14 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "credit-application-assignment-auditor", label: "Credit Application Assignment - Auditor" },
 				{ value: "credit-application-assignment-editor", label: "Credit Application Assignment - Editor" },
 				{ value: "credit-application-assignment-approver", label: "Credit Application Assignment - Approver" },
-				{ value: "customer-satisfaction-viewer", label: "Customer Satisfaction - Viewer" },
-				{ value: "customer-satisfaction-auditor", label: "Customer Satisfaction - Auditor" },
-				{ value: "customer-satisfaction-editor", label: "Customer Satisfaction - Editor" },
-				{ value: "customer-satisfaction-approver", label: "Customer Satisfaction - Approver" }
+				{ value: "survey-management-viewer", label: "Survey Management - Viewer" },
+				{ value: "survey-management-auditor", label: "Survey Management - Auditor" },
+				{ value: "survey-management-editor", label: "Survey Management - Editor" },
+				{ value: "survey-management-approver", label: "Survey Management - Approver" },
+				{ value: "satisfaction-survey-management-viewer", label: "Satisfaction Survey Management - Viewer" },
+				{ value: "satisfaction-survey-management-auditor", label: "Satisfaction Survey Management - Auditor" },
+				{ value: "satisfaction-survey-management-editor", label: "Satisfaction Survey Management - Editor" },
+				{ value: "satisfaction-survey-management-approver", label: "Satisfaction Survey Management - Approver" }
 			],
 			required: true,
 			hasMany: true,
