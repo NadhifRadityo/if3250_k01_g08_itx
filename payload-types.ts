@@ -78,6 +78,7 @@ export interface Config {
     'credit-application-field-masks': CreditApplicationFieldMask;
     surveys: Survey;
     'satsifaction-surveys': SatsifactionSurvey;
+    'survey-question-details': SurveyQuestionDetail;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSync;
     search: Search;
     'payload-kv': PayloadKv;
@@ -103,6 +104,7 @@ export interface Config {
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
     'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
+    'survey-question-details': SurveyQuestionDetailsSelect<false> | SurveyQuestionDetailsSelect<true>;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSyncsSelect<false> | DatabaseLockingPluginTransactionSyncsSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -249,6 +251,10 @@ export interface Role {
     | 'credit-application-assignment-auditor'
     | 'credit-application-assignment-editor'
     | 'credit-application-assignment-approver'
+    | 'survey-question-header-maker'
+    | 'survey-question-header-checker'
+    | 'survey-question-detail-maker'
+    | 'survey-question-detail-checker'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
@@ -586,6 +592,8 @@ export interface Survey {
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
   title: string;
+  product: string;
+  isActive: 'yes' | 'no';
   description?: {
     root: {
       type: string;
@@ -905,6 +913,49 @@ export interface SatsifactionSurvey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-question-details".
+ */
+export interface SurveyQuestionDetail {
+  id: string;
+  createdBy?: (string | null) | User;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  questionHeader: string | Survey;
+  questionId: string;
+  description: string;
+  typeOfAnswer: 'freetext' | 'option';
+  valueFreeText?: string | null;
+  valueOptions?:
+    | {
+        value: string;
+        id?: string | null;
+      }[]
+    | null;
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "database-locking-plugin-transaction-syncs".
  */
 export interface DatabaseLockingPluginTransactionSync {
@@ -1132,6 +1183,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'satsifaction-surveys';
         value: string | SatsifactionSurvey;
+      } | null)
+    | ({
+        relationTo: 'survey-question-details';
+        value: string | SurveyQuestionDetail;
       } | null)
     | ({
         relationTo: 'database-locking-plugin-transaction-syncs';
@@ -1426,6 +1481,8 @@ export interface SurveysSelect<T extends boolean = true> {
   deletedAt?: T;
   deletedBy?: T;
   title?: T;
+  product?: T;
+  isActive?: T;
   description?: T;
   blocks?:
     | T
@@ -1632,6 +1689,34 @@ export interface SatsifactionSurveysSelect<T extends boolean = true> {
   reviewedBy?: T;
   reviewApproved?: T;
   reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-question-details_select".
+ */
+export interface SurveyQuestionDetailsSelect<T extends boolean = true> {
+  createdBy?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  questionHeader?: T;
+  questionId?: T;
+  description?: T;
+  typeOfAnswer?: T;
+  valueFreeText?: T;
+  valueOptions?:
+    | T
+    | {
+        value?: T;
+        id?: T;
+      };
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  updatedAt?: T;
+  createdAt?: T;
   _status?: T;
 }
 /**
