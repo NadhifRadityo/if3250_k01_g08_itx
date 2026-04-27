@@ -1,6 +1,6 @@
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
-import { buildConfig } from "payload";
+import { buildConfig, databaseKVAdapter } from "payload";
 import sharp from "sharp";
 
 import { CreditApplicationAssignments } from "./collections/CreditApplicationAssignmentCollection";
@@ -23,6 +23,7 @@ export default buildConfig({
 		pool: { connectionString: process.env.PAYLOAD_POSTGRES },
 		idType: "uuid"
 	}),
+	kv: databaseKVAdapter(),
 	sharp: sharp,
 	editor: lexicalEditor(),
 	globals: [

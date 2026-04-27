@@ -6,8 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, ArrowUpIcon, HistoryIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
+import type { ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
+import { ReviewCommentInput } from "@/components/ReviewCommentInput";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -20,7 +22,6 @@ import { Input } from "@/components/radix/Input";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
-import { Textarea } from "@/components/radix/Textarea";
 
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as creditApplicationAssignmentActions from "./layout.actions";
@@ -895,8 +896,8 @@ type CreditApplicationAssignmentRequestReviewDrawerProps = {
 	reviewDrawerState: { row: CreditApplicationAssignmentTableRow, diff: CreditApplicationAssignmentRequestReviewDiff | null } | null;
 	reviewError: ActionError | null;
 	isReviewDiffLoading: boolean;
-	reviewReason: string;
-	onReviewReasonChange: (value: string) => void;
+	reviewComment: ReviewCommentRichText;
+	onReviewCommentChange: (value: ReviewCommentRichText) => void;
 	onApprove: () => void;
 	onReject: () => void;
 	isMutating: boolean;
@@ -909,8 +910,8 @@ export function CreditApplicationAssignmentRequestReviewDrawer({
 	reviewDrawerState,
 	reviewError,
 	isReviewDiffLoading,
-	reviewReason,
-	onReviewReasonChange,
+	reviewComment,
+	onReviewCommentChange,
 	onApprove,
 	onReject,
 	isMutating,
@@ -981,8 +982,8 @@ export function CreditApplicationAssignmentRequestReviewDrawer({
 					) : null}
 
 					<div className="space-y-2">
-						<label className="text-sm font-medium">Review Reason (optional)</label>
-						<Textarea value={reviewReason} onChange={event => onReviewReasonChange(event.target.value)} placeholder="Provide a review reason" />
+						<label className="text-sm font-medium">Review Comment (optional)</label>
+						<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} />
 					</div>
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">

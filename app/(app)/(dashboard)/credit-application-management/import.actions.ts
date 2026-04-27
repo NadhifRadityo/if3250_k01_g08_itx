@@ -6,6 +6,8 @@ import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
 import ExcelJS from "@/utils/exceljs";
+import { createPlainTextRichText } from "@/utils/reviewCommentRichText";
+import type { CreditApplicationImport } from "@/payload-types";
 
 import {
 	resolveManagementRootHref,
@@ -45,31 +47,8 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const RELATION_SEARCH_LIMIT = 20;
 
-type CreditApplicationImportReviewCommentValue = {
-	root: {
-		type: string;
-		version: number;
-		format: string;
-		indent: number;
-		direction: "ltr" | "rtl" | null;
-		children: Array<{
-			type: string;
-			version: number;
-			format: string | number;
-			indent: number;
-			direction: "ltr" | "rtl" | null;
-			children: Array<{
-				type: string;
-				version: number;
-				text: string;
-				format: number;
-				detail: number;
-				mode: "normal" | "token" | "segmented";
-				style: string;
-			}>;
-		}>;
-	};
-};
+type CreditApplicationImportReviewCommentValue = NonNullable<CreditApplicationImport["reviewComment"]>;
+type CreditApplicationImportDescriptionValue = NonNullable<CreditApplicationImport["description"]>;
 
 export type ParsedCreditApplicationImportRow = {
 	name: string;
@@ -233,7 +212,7 @@ export type CreditApplicationImportPreviewOutput = {
 export type ReviewCreditApplicationImportInput = {
 	importId: string;
 	decision: "approve" | "reject";
-	reason?: string;
+	reviewComment: CreditApplicationImportReviewCommentValue;
 };
 
 export type UpdateCreditApplicationImportDescriptionInput = {
@@ -341,70 +320,8 @@ async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, u
 	return map;
 }
 
-function plainTextToReviewComment(value: string | undefined): CreditApplicationImportReviewCommentValue {
-	const text = (value ?? "").trim();
-	return {
-		root: {
-			type: "root",
-			version: 1,
-			format: "",
-			indent: 0,
-			direction: null,
-			children: [
-				{
-					type: "paragraph",
-					version: 1,
-					format: "",
-					indent: 0,
-					direction: null,
-					children: text.length == 0 ? [] : [
-						{
-							type: "text",
-							version: 1,
-							text,
-							format: 0,
-							detail: 0,
-							mode: "normal",
-							style: ""
-						}
-					]
-				}
-			]
-		}
-	};
-}
-
-function plainTextToRichText(value: string): CreditApplicationImportReviewCommentValue {
-	const text = value.trim();
-	return {
-		root: {
-			type: "root",
-			version: 1,
-			format: "",
-			indent: 0,
-			direction: null,
-			children: [
-				{
-					type: "paragraph",
-					version: 1,
-					format: "",
-					indent: 0,
-					direction: null,
-					children: text.length == 0 ? [] : [
-						{
-							type: "text",
-							version: 1,
-							text,
-							format: 0,
-							detail: 0,
-							mode: "normal",
-							style: ""
-						}
-					]
-				}
-			]
-		}
-	};
+function plainTextToRichText(value: string): CreditApplicationImportDescriptionValue {
+	return createPlainTextRichText(value);
 }
 
 function richTextToPlainText(value: unknown): string {
@@ -1417,7 +1334,7 @@ export async function reviewCreditApplicationImportAction(input: ReviewCreditApp
 		throw new Error("Cannot review a cancelled import. Restore it first.");
 
 	const now = new Date().toISOString();
-	const reviewComment = plainTextToReviewComment(input.reason);
+	const reviewComment = input.reviewComment;
 
 	if(input.decision == "reject") {
 		await context.payload.update({
@@ -1430,7 +1347,7 @@ export async function reviewCreditApplicationImportAction(input: ReviewCreditApp
 				reviewedAt: now,
 				reviewedBy: context.user.id,
 				reviewApproved: false,
-				reviewComment: reviewComment as unknown as Record<string, unknown>
+				reviewComment: reviewComment
 			}
 		});
 
@@ -1484,7 +1401,7 @@ export async function reviewCreditApplicationImportAction(input: ReviewCreditApp
 				reviewedAt: now,
 				reviewedBy: context.user.id,
 				reviewApproved: true,
-				reviewComment: plainTextToReviewComment("Imported from approved Excel document.") as any
+				reviewComment: createPlainTextRichText("Imported from approved Excel document.") as any
 			}
 		});
 	}
@@ -1499,7 +1416,7 @@ export async function reviewCreditApplicationImportAction(input: ReviewCreditApp
 			reviewedAt: now,
 			reviewedBy: context.user.id,
 			reviewApproved: true,
-			reviewComment: reviewComment as unknown as Record<string, unknown>
+			reviewComment: reviewComment
 		}
 	});
 

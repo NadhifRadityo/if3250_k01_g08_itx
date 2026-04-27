@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import type { Role, User, StagedUser } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -78,25 +79,7 @@ const userStatusSet = new Set<UserManagementStatus>(userStatusValues);
 const userHistoryRequiredMenu = "user-management-auditor";
 
 type ReviewCommentValue = NonNullable<StagedUser["reviewComment"]>;
-const defaultReviewComment: ReviewCommentValue = {
-	root: {
-		type: "root",
-		version: 1,
-		format: "",
-		indent: 0,
-		direction: null,
-		children: [
-			{
-				type: "paragraph",
-				version: 1,
-				format: "",
-				indent: 0,
-				direction: null,
-				children: []
-			}
-		]
-	}
-};
+const defaultReviewComment: ReviewCommentValue = createEmptyReviewComment();
 
 export type UserManagementTabMode = "editor" | "approver";
 export type UserManagementSortField = "createdAt" |
@@ -245,7 +228,7 @@ export type UpsertStagedUserRequestInput = {
 export type ReviewStagedUserRequestInput = {
 	stagedUserId: string;
 	decision: "approve" | "reject";
-	reason?: string;
+	reviewComment: ReviewCommentValue;
 };
 
 export type UserRequestReviewDiffItem = {
@@ -449,41 +432,6 @@ function richTextToPlainText(value: unknown): string {
 		.join(" ")
 		.replace(/\s+/g, " ")
 		.trim();
-}
-
-function plainTextToReviewComment(value: string | null | undefined): ReviewCommentValue {
-	const text = (value ?? "").trim();
-	if(text.length == 0)
-		return defaultReviewComment;
-	return {
-		root: {
-			type: "root",
-			version: 1,
-			format: "",
-			indent: 0,
-			direction: null,
-			children: [
-				{
-					type: "paragraph",
-					version: 1,
-					format: "",
-					indent: 0,
-					direction: null,
-					children: [
-						{
-							type: "text",
-							version: 1,
-							text,
-							format: 0,
-							detail: 0,
-							mode: "normal",
-							style: ""
-						}
-					]
-				}
-			]
-		}
-	};
 }
 
 function getRelationshipId(value: unknown): string | null {
@@ -968,7 +916,7 @@ function toPayloadFilterWhere(filters: UserManagementFilterInput[]): Where | nul
 					[filter.column]: {
 						[operatorMap[filter.operator]]: filter.value
 					}
-				} as Where,
+				},
 				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
 			};
 		})
@@ -994,7 +942,7 @@ function toPayloadFilterWhere(filters: UserManagementFilterInput[]): Where | nul
 		return andTerms[0].length == 1 ? andTerms[0][0] : { and: andTerms[0] };
 
 	return {
-		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm } as Where))
+		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm }))
 	};
 }
 
@@ -1567,11 +1515,11 @@ export async function getStagedUserRequestHistoryAction(stagedUserId: string): P
 					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
 					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
 					reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
-				} as Record<UserRequestHistoryColumn, string>
+				}
 			};
 		});
 
-	const snapshots = snapshotsMaybe.filter(snapshot => snapshot != null) as UserHistorySnapshot[];
+	const snapshots = snapshotsMaybe.filter(snapshot => snapshot != null);
 
 	const entries: UserRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
 		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
@@ -1881,7 +1829,7 @@ export async function requestRestoreStagedUserAction(stagedUserId: string) {
 	return { stagedUserId };
 }
 
-export async function reviewStagedUserRequestAction({ stagedUserId, decision, reason }: ReviewStagedUserRequestInput) {
+export async function reviewStagedUserRequestAction({ stagedUserId, decision, reviewComment }: ReviewStagedUserRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1903,8 +1851,6 @@ export async function reviewStagedUserRequestAction({ stagedUserId, decision, re
 		throw new Error("Invalid review decision.");
 
 	const now = new Date().toISOString();
-	const reviewComment = plainTextToReviewComment(reason);
-
 	if(decision == "reject") {
 		await payload.update({
 			collection: "staged-users",

@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import type { User, CreditApplicationAssignment } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -76,25 +77,7 @@ const booleanFilterColumns = new Set<CreditApplicationAssignmentFilterColumn>(["
 type ReviewCommentValue = NonNullable<CreditApplicationAssignment["reviewComment"]>;
 type SortFieldKey = CreditApplicationAssignmentSortToken extends `${"+" | "-"}${infer T}` ? T : never;
 
-const defaultReviewComment: ReviewCommentValue = {
-	root: {
-		type: "root",
-		version: 1,
-		format: "",
-		indent: 0,
-		direction: null,
-		children: [
-			{
-				type: "paragraph",
-				version: 1,
-				format: "",
-				indent: 0,
-				direction: null,
-				children: []
-			}
-		]
-	}
-};
+const defaultReviewComment: ReviewCommentValue = createEmptyReviewComment();
 
 export type CreditApplicationAssignmentTabMode = "editor" | "approver";
 export type CreditApplicationAssignmentSortField = "createdAt" |
@@ -231,7 +214,7 @@ export type UpsertCreditApplicationAssignmentRequestInput = {
 export type ReviewCreditApplicationAssignmentRequestInput = {
 	assignmentId: string;
 	decision: "approve" | "reject";
-	reason?: string;
+	reviewComment: ReviewCommentValue;
 };
 
 export type CreditApplicationAssignmentRequestReviewDiffItem = {
@@ -438,41 +421,6 @@ function richTextToPlainText(value: unknown): string {
 		.join(" ")
 		.replace(/\s+/g, " ")
 		.trim();
-}
-
-function plainTextToReviewComment(value: string | null | undefined): ReviewCommentValue {
-	const text = (value ?? "").trim();
-	if(text.length == 0)
-		return defaultReviewComment;
-	return {
-		root: {
-			type: "root",
-			version: 1,
-			format: "",
-			indent: 0,
-			direction: null,
-			children: [
-				{
-					type: "paragraph",
-					version: 1,
-					format: "",
-					indent: 0,
-					direction: null,
-					children: [
-						{
-							type: "text",
-							version: 1,
-							text,
-							format: 0,
-							detail: 0,
-							mode: "normal",
-							style: ""
-						}
-					]
-				}
-			]
-		}
-	};
 }
 
 function getRelationshipId(value: unknown): string | null {
@@ -1753,7 +1701,7 @@ export async function requestRestoreCreditApplicationAssignmentAction(assignment
 export async function reviewCreditApplicationAssignmentRequestAction({
 	assignmentId,
 	decision,
-	reason
+	reviewComment
 }: ReviewCreditApplicationAssignmentRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
@@ -1777,8 +1725,6 @@ export async function reviewCreditApplicationAssignmentRequestAction({
 		throw new Error("Invalid review decision.");
 
 	const now = new Date().toISOString();
-	const reviewComment = plainTextToReviewComment(reason);
-
 	if(decision == "reject") {
 		await payload.update({
 			user,

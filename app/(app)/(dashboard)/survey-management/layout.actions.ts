@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import type { Survey } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -75,25 +76,7 @@ const dateFilterColumns = new Set<SurveyManagementFilterColumn>([
 const booleanFilterColumns = new Set<SurveyManagementFilterColumn>(["reviewApproved"]);
 
 type ReviewCommentValue = NonNullable<Survey["reviewComment"]>;
-const defaultReviewComment: ReviewCommentValue = {
-	root: {
-		type: "root",
-		version: 1,
-		format: "",
-		indent: 0,
-		direction: null,
-		children: [
-			{
-				type: "paragraph",
-				version: 1,
-				format: "",
-				indent: 0,
-				direction: null,
-				children: []
-			}
-		]
-	}
-};
+const defaultReviewComment: ReviewCommentValue = createEmptyReviewComment();
 
 export type SurveyManagementTabMode = "editor" | "approver";
 export type SurveyManagementSortField = "createdAt" |
@@ -221,7 +204,7 @@ export type UpsertSurveyRequestInput = {
 export type ReviewSurveyRequestInput = {
 	surveyId: string;
 	decision: "approve" | "reject";
-	reason?: string;
+	reviewComment: ReviewCommentValue;
 };
 
 export type SurveyRequestReviewDiffItem = {
@@ -420,7 +403,7 @@ function richTextToPlainText(value: unknown): string {
 
 function plainTextToRichText(value: string | null | undefined): NonNullable<Survey["description"]> {
 	const text = (value ?? "").trim();
-	if(text.length == 0)
+	if(text.length == 0) {
 		return {
 			root: {
 				type: "root",
@@ -440,41 +423,7 @@ function plainTextToRichText(value: string | null | undefined): NonNullable<Surv
 				]
 			}
 		};
-	return {
-		root: {
-			type: "root",
-			version: 1,
-			format: "",
-			indent: 0,
-			direction: null,
-			children: [
-				{
-					type: "paragraph",
-					version: 1,
-					format: "",
-					indent: 0,
-					direction: null,
-					children: [
-						{
-							type: "text",
-							version: 1,
-							text,
-							format: 0,
-							detail: 0,
-							mode: "normal",
-							style: ""
-						}
-					]
-				}
-			]
-		}
-	};
-}
-
-function plainTextToReviewComment(value: string | null | undefined): ReviewCommentValue {
-	const text = (value ?? "").trim();
-	if(text.length == 0)
-		return defaultReviewComment;
+	}
 	return {
 		root: {
 			type: "root",
@@ -529,7 +478,7 @@ function contentToText(value: unknown): string {
 		return value.trim();
 	try {
 		return JSON.stringify(value, null, 2);
-	} catch {
+	} catch{
 		return String(value);
 	}
 }
@@ -540,7 +489,7 @@ function parseContentInput(value: string): JsonValue {
 		throw new Error("Content JSON is required.");
 	try {
 		return JSON.parse(trimmed) as JsonValue;
-	} catch {
+	} catch{
 		throw new Error("Content must be valid JSON.");
 	}
 }
@@ -856,7 +805,7 @@ function toPayloadFilterWhere(filters: SurveyManagementFilterInput[]): Where | n
 					[(filter.column == "descriptionText" ? "description" : filter.column == "contentText" ? "content" : filter.column)]: {
 						[operatorMap[filter.operator]]: filter.value
 					}
-				} as Where,
+				},
 				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
 			};
 		})
@@ -882,7 +831,7 @@ function toPayloadFilterWhere(filters: SurveyManagementFilterInput[]): Where | n
 		return andTerms[0].length == 1 ? andTerms[0][0] : { and: andTerms[0] };
 
 	return {
-		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm } as Where))
+		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm }))
 	};
 }
 
@@ -1576,7 +1525,7 @@ export async function requestRestoreSurveyAction(surveyId: string) {
 	return { surveyId };
 }
 
-export async function reviewSurveyRequestAction({ surveyId, decision, reason }: ReviewSurveyRequestInput) {
+export async function reviewSurveyRequestAction({ surveyId, decision, reviewComment }: ReviewSurveyRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1597,8 +1546,6 @@ export async function reviewSurveyRequestAction({ surveyId, decision, reason }: 
 		throw new Error("Invalid review decision.");
 
 	const now = new Date().toISOString();
-	const reviewComment = plainTextToReviewComment(reason);
-
 	if(decision == "reject") {
 		await payload.update({
 			user,

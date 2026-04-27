@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
+import { createEmptyReviewComment, type ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 
@@ -38,7 +39,7 @@ export default function RoleManagementApproverPage() {
 
 	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: RoleTableRow, diff: RoleRequestReviewDiff | null } | null>(null);
 	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
-	const [reviewReason, setReviewReason] = useState("");
+	const [reviewComment, setReviewComment] = useState<ReviewCommentRichText>(() => createEmptyReviewComment());
 	const [detailRow, setDetailRow] = useState<RoleTableRow | null>(null);
 	const [requestChangeRow, setRequestChangeRow] = useState<RoleTableRow | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
@@ -101,7 +102,7 @@ export default function RoleManagementApproverPage() {
 	};
 
 	const openReviewDrawer = (row: RoleTableRow) => {
-		setReviewReason("");
+		setReviewComment(createEmptyReviewComment());
 		setReviewError(null);
 		setReviewDrawerState({ row, diff: null });
 		setIsReviewDiffLoading(true);
@@ -125,10 +126,10 @@ export default function RoleManagementApproverPage() {
 			await roleActions.reviewRoleRequestAction({
 				roleId: reviewDrawerState.row.id,
 				decision,
-				reason: reviewReason
+				reviewComment
 			});
 			setReviewDrawerState(null);
-			setReviewReason("");
+			setReviewComment(createEmptyReviewComment());
 		});
 	};
 
@@ -243,13 +244,14 @@ export default function RoleManagementApproverPage() {
 					if(!open) {
 						setReviewDrawerState(null);
 						setReviewError(null);
+						setReviewComment(createEmptyReviewComment());
 					}
 				}}
 				reviewDrawerState={reviewDrawerState}
 				reviewError={reviewError}
 				isReviewDiffLoading={isReviewDiffLoading}
-				reviewReason={reviewReason}
-				onReviewReasonChange={setReviewReason}
+				reviewComment={reviewComment}
+				onReviewCommentChange={setReviewComment}
 				onApprove={() => submitReview("approve")}
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}

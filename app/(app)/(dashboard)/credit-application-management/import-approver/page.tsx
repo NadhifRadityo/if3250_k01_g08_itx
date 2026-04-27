@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
+import { createEmptyReviewComment, type ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 
@@ -33,7 +34,7 @@ import {
 export default function CreditApplicationImportApproverPage() {
 	const [detailRow, setDetailRow] = useState<CreditApplicationImportTableRow | null>(null);
 	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: CreditApplicationImportTableRow } | null>(null);
-	const [reviewReason, setReviewReason] = useState("");
+	const [reviewComment, setReviewComment] = useState<ReviewCommentRichText>(() => createEmptyReviewComment());
 	const [reviewError, setReviewError] = useState<ActionError | null>(null);
 	const [pageError, setPageError] = useState<ActionError | null>(null);
 	const [isMutating, startMutationTransition] = useTransition();
@@ -119,10 +120,10 @@ export default function CreditApplicationImportApproverPage() {
 			await importActions.reviewCreditApplicationImportAction({
 				importId: reviewDrawerState.row.id,
 				decision,
-				reason: reviewReason
+				reviewComment
 			});
 			setReviewDrawerState(null);
-			setReviewReason("");
+			setReviewComment(createEmptyReviewComment());
 			setReviewError(null);
 		}, {
 			onError: setReviewError,
@@ -137,7 +138,7 @@ export default function CreditApplicationImportApproverPage() {
 				type="button"
 				size="sm"
 				onClick={() => {
-					setReviewReason("");
+					setReviewComment(createEmptyReviewComment());
 					setReviewError(null);
 					setReviewDrawerState({ row });
 				}}
@@ -242,14 +243,14 @@ export default function CreditApplicationImportApproverPage() {
 				onOpenChange={open => {
 					if(!open) {
 						setReviewDrawerState(null);
-						setReviewReason("");
+						setReviewComment(createEmptyReviewComment());
 						setReviewError(null);
 					}
 				}}
 				reviewDrawerState={reviewDrawerState}
 				reviewError={reviewError}
-				reviewReason={reviewReason}
-				onReviewReasonChange={setReviewReason}
+				reviewComment={reviewComment}
+				onReviewCommentChange={setReviewComment}
 				onApprove={() => submitReview("approve")}
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}

@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
+import { createPlainTextRichText, createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import type { CreditApplication } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -125,25 +126,7 @@ type ReviewCommentValue = NonNullable<CreditApplication["reviewComment"]>;
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-const defaultReviewComment: ReviewCommentValue = {
-	root: {
-		type: "root",
-		version: 1,
-		format: "",
-		indent: 0,
-		direction: null,
-		children: [
-			{
-				type: "paragraph",
-				version: 1,
-				format: "",
-				indent: 0,
-				direction: null,
-				children: []
-			}
-		]
-	}
-};
+const defaultReviewComment: ReviewCommentValue = createEmptyReviewComment();
 
 export type CreditApplicationManagementTabMode = "editor" | "approver";
 export type CreditApplicationManagementSortField = "createdAt" |
@@ -352,7 +335,7 @@ export type UpsertCreditApplicationRequestInput = {
 export type ReviewCreditApplicationRequestInput = {
 	creditApplicationId: string;
 	decision: "approve" | "reject";
-	reason?: string;
+	reviewComment: ReviewCommentValue;
 };
 
 export type CreditApplicationRequestReviewDiffItem = {
@@ -651,42 +634,7 @@ function richTextToPlainText(value: unknown): string {
 }
 
 function plainTextToRichText(value: string | null | undefined): ReviewCommentValue {
-	const text = (value ?? "").trim();
-	if(text.length == 0)
-		return defaultReviewComment;
-	return {
-		root: {
-			type: "root",
-			version: 1,
-			format: "",
-			indent: 0,
-			direction: null,
-			children: [
-				{
-					type: "paragraph",
-					version: 1,
-					format: "",
-					indent: 0,
-					direction: null,
-					children: [
-						{
-							type: "text",
-							version: 1,
-							text,
-							format: 0,
-							detail: 0,
-							mode: "normal",
-							style: ""
-						}
-					]
-				}
-			]
-		}
-	};
-}
-
-function plainTextToReviewComment(value: string | null | undefined): ReviewCommentValue {
-	return plainTextToRichText(value);
+	return createPlainTextRichText(value);
 }
 
 function getRelationshipId(value: unknown): string | null {
@@ -1133,7 +1081,7 @@ function toPayloadFilterWhere(filters: CreditApplicationManagementFilterInput[])
 					[filter.column]: {
 						[operatorMap[filter.operator]]: filter.value
 					}
-				} as Where,
+				},
 				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
 			};
 		})
@@ -1159,7 +1107,7 @@ function toPayloadFilterWhere(filters: CreditApplicationManagementFilterInput[])
 		return andTerms[0].length == 1 ? andTerms[0][0] : { and: andTerms[0] };
 
 	return {
-		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm } as Where))
+		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm }))
 	};
 }
 
@@ -2139,7 +2087,11 @@ export async function requestRestoreCreditApplicationAction(creditApplicationId:
 	return { creditApplicationId };
 }
 
-export async function reviewCreditApplicationRequestAction({ creditApplicationId, decision, reason }: ReviewCreditApplicationRequestInput) {
+export async function reviewCreditApplicationRequestAction({
+	creditApplicationId,
+	decision,
+	reviewComment
+}: ReviewCreditApplicationRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -2160,8 +2112,6 @@ export async function reviewCreditApplicationRequestAction({ creditApplicationId
 		throw new Error("Invalid review decision.");
 
 	const now = new Date().toISOString();
-	const reviewComment = plainTextToReviewComment(reason);
-
 	if(decision == "reject") {
 		await payload.update({
 			user,

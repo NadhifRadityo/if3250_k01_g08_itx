@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import type { Team } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -73,25 +74,7 @@ const teamStatusSet = new Set<TeamManagementStatus>(teamStatusValues);
 const teamHistoryRequiredMenu = "team-management-auditor";
 
 type ReviewCommentValue = NonNullable<Team["reviewComment"]>;
-const defaultReviewComment: ReviewCommentValue = {
-	root: {
-		type: "root",
-		version: 1,
-		format: "",
-		indent: 0,
-		direction: null,
-		children: [
-			{
-				type: "paragraph",
-				version: 1,
-				format: "",
-				indent: 0,
-				direction: null,
-				children: []
-			}
-		]
-	}
-};
+const defaultReviewComment: ReviewCommentValue = createEmptyReviewComment();
 
 export type TeamManagementTabMode = "editor" | "approver";
 export type TeamManagementSortField =
@@ -236,7 +219,7 @@ export type UpsertTeamRequestInput = {
 export type ReviewTeamRequestInput = {
 	teamId: string;
 	decision: "approve" | "reject";
-	reason?: string;
+	reviewComment: ReviewCommentValue;
 };
 
 export type TeamRequestReviewDiffItem = {
@@ -432,41 +415,6 @@ function richTextToPlainText(value: unknown): string {
 		.join(" ")
 		.replace(/\s+/g, " ")
 		.trim();
-}
-
-function plainTextToReviewComment(value: string | null | undefined): ReviewCommentValue {
-	const text = (value ?? "").trim();
-	if(text.length == 0)
-		return defaultReviewComment;
-	return {
-		root: {
-			type: "root",
-			version: 1,
-			format: "",
-			indent: 0,
-			direction: null,
-			children: [
-				{
-					type: "paragraph",
-					version: 1,
-					format: "",
-					indent: 0,
-					direction: null,
-					children: [
-						{
-							type: "text",
-							version: 1,
-							text,
-							format: 0,
-							detail: 0,
-							mode: "normal",
-							style: ""
-						}
-					]
-				}
-			]
-		}
-	};
 }
 
 function getRelationshipId(value: unknown): string | null {
@@ -729,7 +677,7 @@ function toPayloadFilterWhere(filters: TeamManagementFilterInput[]): Where | nul
 					[filter.column]: {
 						[operatorMap[filter.operator]]: filter.value
 					}
-				} as Where,
+				},
 				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
 			};
 		})
@@ -755,7 +703,7 @@ function toPayloadFilterWhere(filters: TeamManagementFilterInput[]): Where | nul
 		return andTerms[0].length == 1 ? andTerms[0][0] : { and: andTerms[0] };
 
 	return {
-		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm } as Where))
+		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm }))
 	};
 }
 
@@ -1671,7 +1619,7 @@ export async function requestRestoreTeamAction(teamId: string) {
 	return { teamId };
 }
 
-export async function reviewTeamRequestAction({ teamId, decision, reason }: ReviewTeamRequestInput) {
+export async function reviewTeamRequestAction({ teamId, decision, reviewComment }: ReviewTeamRequestInput) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1692,8 +1640,6 @@ export async function reviewTeamRequestAction({ teamId, decision, reason }: Revi
 		throw new Error("Invalid review decision.");
 
 	const now = new Date().toISOString();
-	const reviewComment = plainTextToReviewComment(reason);
-
 	if(decision == "reject") {
 		await payload.update({
 			user,
