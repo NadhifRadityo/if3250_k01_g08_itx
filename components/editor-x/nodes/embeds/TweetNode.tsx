@@ -105,7 +105,7 @@ function TweetComponent({
 		>
 			{isTweetLoading ? loadingComponent : null}
 			<div
-				style={{ display: "inline-block", width: "550px" }}
+				style={{ display: "inline-block", width: "500px" }}
 				ref={containerRef}
 			/>
 		</BlockWithAlignableContents>

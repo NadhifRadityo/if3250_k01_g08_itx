@@ -1,7 +1,7 @@
 /* eslint-disable no-restricted-syntax */
 
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
-import { useMemo, useState, useEffect, useCallback } from "react";
+import { useRef, useMemo, useState, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
@@ -62,6 +62,72 @@ type Emoji = {
 };
 
 const MAX_EMOJI_SUGGESTION_COUNT = 10;
+
+function ComponentPickerMenu({
+	options,
+	selectedIndex,
+	selectOptionAndCleanUp,
+	setHighlightedIndex
+}: {
+	options: Array<EmojiOption>;
+	selectedIndex: number | null;
+	selectOptionAndCleanUp: (option: EmojiOption) => void;
+	setHighlightedIndex: (index: number) => void;
+}) {
+	const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+	useEffect(() => {
+		if(selectedIndex !== null && itemRefs.current[selectedIndex]) {
+			itemRefs.current[selectedIndex]?.scrollIntoView({
+				block: "nearest",
+				behavior: "auto"
+			});
+		}
+	}, [selectedIndex]);
+
+	return (
+		<div className="absolute z-50 min-w-36 rounded-md shadow-md pointer-events-auto">
+			<Command
+				value={options[selectedIndex ?? 0]?.title}
+				onKeyDown={e => {
+					if(e.key === "ArrowUp") {
+						e.preventDefault();
+						setHighlightedIndex(
+							selectedIndex !== null ?
+								(selectedIndex - 1 + options.length) % options.length :
+								options.length - 1
+						);
+					} else if(e.key === "ArrowDown") {
+						e.preventDefault();
+						setHighlightedIndex(
+							selectedIndex !== null ? (selectedIndex + 1) % options.length : 0
+						);
+					}
+				}}
+			>
+				<CommandList>
+					<CommandGroup>
+						{options.map((option, index) => (
+							<CommandItem
+								key={option.key}
+								ref={el => {
+									itemRefs.current[index] = el;
+								}}
+								value={option.title}
+								onSelect={() => {
+									selectOptionAndCleanUp(option);
+								}}
+								className="flex items-center gap-2 whitespace-nowrap"
+							>
+								{option.emoji} {option.title}
+							</CommandItem>
+						))}
+					</CommandGroup>
+				</CommandList>
+			</Command>
+		</div>
+	);
+}
 
 export function EmojiPickerPlugin() {
 	const [editor] = useLexicalComposerContext();
@@ -138,49 +204,12 @@ export function EmojiPickerPlugin() {
 			) => {
 				return anchorElementRef.current && options.length ?
 					createPortal(
-						<div className="absolute z-10 min-w-36 rounded-md shadow-md">
-							<Command
-								onKeyDown={e => {
-									if(e.key === "ArrowUp") {
-										e.preventDefault();
-										setHighlightedIndex(
-											selectedIndex !== null ?
-												(selectedIndex - 1 + options.length) %
-												options.length :
-												options.length - 1
-										);
-									} else if(e.key === "ArrowDown") {
-										e.preventDefault();
-										setHighlightedIndex(
-											selectedIndex !== null ?
-												(selectedIndex + 1) % options.length :
-												0
-										);
-									}
-								}}
-							>
-								<CommandList>
-									<CommandGroup>
-										{options.map((option, index) => (
-											<CommandItem
-												key={option.key}
-												value={option.title}
-												onSelect={() => {
-													selectOptionAndCleanUp(option);
-												}}
-												className={`flex items-center gap-2 ${
-													selectedIndex === index ?
-														"bg-accent" :
-														"!bg-transparent"
-												}`}
-											>
-												{option.emoji} {option.title}
-											</CommandItem>
-										))}
-									</CommandGroup>
-								</CommandList>
-							</Command>
-						</div>,
+						<ComponentPickerMenu
+							options={options}
+							selectedIndex={selectedIndex}
+							selectOptionAndCleanUp={selectOptionAndCleanUp}
+							setHighlightedIndex={setHighlightedIndex}
+						/>,
 						anchorElementRef.current
 					) :
 					null;

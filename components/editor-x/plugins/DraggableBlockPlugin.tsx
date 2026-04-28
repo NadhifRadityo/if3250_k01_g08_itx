@@ -10,6 +10,7 @@ import {
 	type JSX
 } from "react";
 import * as ReactDOM from "react-dom";
+import { Presence } from "@radix-ui/react-presence";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DraggableBlockPlugin_EXPERIMENTAL } from "@lexical/react/LexicalDraggableBlockPlugin";
 import {
@@ -22,6 +23,8 @@ import {
 	type NodeKey
 } from "lexical";
 import { PlusIcon, GripVerticalIcon } from "lucide-react";
+
+import cn from "@/utils/cn";
 
 import { Button } from "../../radix/Button";
 import {
@@ -80,7 +83,7 @@ export function DraggableBlockPlugin({
 		if(!queryString)
 			return baseOptions;
 
-		const regex = new RegExp(queryString, "i");
+		const regex = new RegExp(queryString.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 		return [
 			...(dynamicOptionsFn?.({ queryString }) ?? []),
 			...baseOptions.filter(
@@ -100,6 +103,15 @@ export function DraggableBlockPlugin({
 
 	useEffect(() => {
 		if(!isPickerOpen) return;
+		let timeoutHandle = setTimeout(() => {
+			if(menuRef.current != null)
+				menuRef.current.style.display = "none";
+			pickerRef.current?.querySelector("input")?.focus({ focusVisible: true });
+			timeoutHandle = setTimeout(() => {
+				if(menuRef.current != null)
+					menuRef.current.style.display = "flex";
+			});
+		});
 		const handleClickOutside = (event: MouseEvent) => {
 			const target = event.target as Node | null;
 			if(
@@ -112,7 +124,10 @@ export function DraggableBlockPlugin({
 			setPickerState(null);
 		};
 		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
+		return () => {
+			clearTimeout(timeoutHandle);
+			document.removeEventListener("mousedown", handleClickOutside);
+		};
 	}, [isPickerOpen]);
 
 	const selectOption = useCallback(
@@ -150,30 +165,6 @@ export function DraggableBlockPlugin({
 		[editor, pickerState, queryString, showModal]
 	);
 
-	useEffect(() => {
-		if(!isPickerOpen) return;
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if(!options.length) return;
-			if(event.key === "ArrowDown") {
-				event.preventDefault();
-				setHighlightedIndex(i => (i + 1 >= options.length ? 0 : i + 1));
-			} else if(event.key === "ArrowUp") {
-				event.preventDefault();
-				setHighlightedIndex(i => (i - 1 < 0 ? options.length - 1 : i - 1));
-			} else if(event.key === "Enter") {
-				event.preventDefault();
-				const option = options[highlightedIndex];
-				if(option) selectOption(option);
-			} else if(event.key === "Escape") {
-				event.preventDefault();
-				setIsPickerOpen(false);
-				setPickerState(null);
-			}
-		};
-		window.addEventListener("keydown", handleKeyDown);
-		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [highlightedIndex, isPickerOpen, options, selectOption]);
-
 	function openComponentPicker(e: React.MouseEvent) {
 		if(!draggableElement || !editor) return;
 
@@ -202,22 +193,68 @@ export function DraggableBlockPlugin({
 		setIsPickerOpen(true);
 	}
 
+	useEffect(() => {
+		const onKeyDown = (e: KeyboardEvent) => {
+			if(e.key != "Escape") return;
+			if(!(e.target instanceof Node)) return;
+			if(
+				(pickerRef.current && pickerRef.current.contains(e.target)) ||
+				(menuRef.current && menuRef.current.contains(e.target))
+			) {
+				e.stopImmediatePropagation();
+				e.stopPropagation();
+				e.preventDefault();
+				setIsPickerOpen(false);
+				setPickerState(null);
+				editor.focus();
+			}
+		};
+		globalThis.addEventListener("keydown", onKeyDown, { capture: true });
+		return () => {
+			globalThis.removeEventListener("keydown", onKeyDown);
+		};
+	}, [editor, setIsPickerOpen, setPickerState]);
+
+	const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
+	useEffect(() => {
+		if(highlightedIndex !== null && itemRefs.current[highlightedIndex]) {
+			itemRefs.current[highlightedIndex]?.scrollIntoView({
+				block: "nearest",
+				behavior: "auto"
+			});
+		}
+	}, [highlightedIndex]);
+
 	if(!anchorElem) return null;
 
 	return (
 		<>
 			{modal}
-			{isPickerOpen && pickerPosition ?
-				ReactDOM.createPortal(
+			{ReactDOM.createPortal((
+				<Presence present={isPickerOpen && pickerPosition != null}>
 					<div
 						ref={pickerRef}
-						className="absolute z-50 w-56 rounded-md shadow-md"
+						className={cn(
+							"absolute z-50 w-56 rounded-md shadow-md pointer-events-auto duration-100",
+							isPickerOpen && pickerPosition != null ? "animate-in fade-in-0 zoom-in-95 slide-in-from-left-2" : "animate-out fade-out-0 zoom-out-95 slide-out-to-left-2"
+						)}
 						style={{
-							left: pickerPosition.left,
-							top: pickerPosition.top
+							left: pickerPosition?.left,
+							top: pickerPosition?.top
 						}}
 					>
-						<Command>
+						<Command
+							value={options[highlightedIndex ?? 0]?.title}
+							onKeyDown={e => {
+								if(e.key === "ArrowUp") {
+									e.preventDefault();
+									setHighlightedIndex((highlightedIndex - 1 + options.length) % options.length);
+								} else if(e.key === "ArrowDown") {
+									e.preventDefault();
+									setHighlightedIndex((highlightedIndex + 1) % options.length);
+								}
+							}}
+						>
 							<CommandInput
 								placeholder="Filter blocks..."
 								value={queryString}
@@ -229,17 +266,16 @@ export function DraggableBlockPlugin({
 									{options.map((option, i) => (
 										<CommandItem
 											key={option.key}
+											ref={el => {
+												itemRefs.current[i] = el;
+											}}
 											value={option.title}
 											onSelect={() => {
 												setHighlightedIndex(i);
 												selectOption(option);
 											}}
 											onMouseEnter={() => setHighlightedIndex(i)}
-											className={`flex items-center gap-2 ${
-												highlightedIndex === i ?
-													"bg-accent" :
-													"!bg-transparent"
-											}`}
+											className="flex items-center gap-2 whitespace-nowrap"
 										>
 											{option.icon}
 											{option.title}
@@ -248,10 +284,9 @@ export function DraggableBlockPlugin({
 								</CommandGroup>
 							</CommandList>
 						</Command>
-					</div>,
-					document.body
-				) :
-				null}
+					</div>
+				</Presence>
+			), document.body)}
 			<DraggableBlockPlugin_EXPERIMENTAL
 				anchorElem={anchorElem}
 				menuRef={menuRef}
@@ -259,7 +294,7 @@ export function DraggableBlockPlugin({
 				menuComponent={(
 					<div
 						ref={menuRef}
-						className="draggable-block-menu absolute top-0 left-0 flex items-center opacity-0 will-change-transform"
+						className="draggable-block-menu absolute top-0 left-0 flex items-center opacity-0 will-change-transform [translate:-4px_0]"
 					>
 						<Button
 							variant="ghost"
@@ -283,7 +318,7 @@ export function DraggableBlockPlugin({
 				targetLineComponent={(
 					<div
 						ref={targetLineRef}
-						className="bg-primary pointer-events-none absolute top-0 left-0 h-0.5 opacity-0 will-change-transform"
+						className="bg-[linear-gradient(to_right,transparent_48px,var(--primary)_48px)] pointer-events-none absolute top-0 left-0 h-0.5 opacity-0 will-change-transform"
 					/>
 				)}
 				isOnMenu={isOnMenu}

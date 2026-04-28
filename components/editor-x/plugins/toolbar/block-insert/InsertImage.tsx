@@ -2,16 +2,20 @@ import { ImageIcon } from "lucide-react";
 
 import { DropdownMenuItem } from "../../../../radix/DropdownMenu";
 import { useToolbarContext } from "../../../context/ToolbarContext";
-import { InsertImageDialog } from "../../../extensions/ImagesExtension";
+import { InsertImageDialog, type UploadedImage } from "../../../extensions/ImagesExtension";
 
-export function InsertImage() {
+export function InsertImage({ onUpload }: { onUpload: (formData: FormData) => Promise<UploadedImage> }) {
 	const { activeEditor, showModal } = useToolbarContext();
 
 	return (
 		<DropdownMenuItem
 			onClick={() => {
 				showModal("Insert Image", onClose => (
-					<InsertImageDialog activeEditor={activeEditor} onClose={onClose} />
+					<InsertImageDialog
+						activeEditor={activeEditor}
+						onClose={onClose}
+						onUpload={onUpload}
+					/>
 				));
 			}}
 		>

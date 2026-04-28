@@ -2,6 +2,7 @@
 import { useRef, useEffect } from "react";
 import {
 	$getSelection,
+	mergeRegister,
 	SELECTION_CHANGE_COMMAND,
 	COMMAND_PRIORITY_CRITICAL,
 	type BaseSelection
@@ -17,24 +18,25 @@ export function useUpdateToolbarHandler(
 	callbackRef.current = callback;
 
 	useEffect(() => {
-		return activeEditor.registerCommand(
-			SELECTION_CHANGE_COMMAND,
-			() => {
-				const selection = $getSelection();
-				if(selection)
-					callbackRef.current(selection);
+		return mergeRegister(
+			activeEditor.registerUpdateListener(({ editorState }) => {
+				editorState.read(() => {
+					const selection = $getSelection();
+					if(selection)
+						callbackRef.current(selection);
+				});
+			}),
+			activeEditor.registerCommand(
+				SELECTION_CHANGE_COMMAND,
+				() => {
+					const selection = $getSelection();
+					if(selection)
+						callbackRef.current(selection);
 
-				return false;
-			},
-			COMMAND_PRIORITY_CRITICAL
+					return false;
+				},
+				COMMAND_PRIORITY_CRITICAL
+			)
 		);
-	}, [activeEditor]);
-
-	useEffect(() => {
-		activeEditor.getEditorState().read(() => {
-			const selection = $getSelection();
-			if(selection)
-				callbackRef.current(selection);
-		});
 	}, [activeEditor]);
 }

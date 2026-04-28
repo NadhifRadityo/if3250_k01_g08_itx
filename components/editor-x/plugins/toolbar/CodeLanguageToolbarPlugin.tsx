@@ -3,11 +3,7 @@
 /* eslint-disable @typescript-eslint/strict-boolean-expressions */
 import { useState, useCallback } from "react";
 import { $isCodeNode } from "@lexical/code";
-import {
-	CODE_LANGUAGE_MAP,
-	CODE_LANGUAGE_FRIENDLY_NAME_MAP
-	//   getLanguageFriendlyName,
-} from "@lexical/code-prism";
+import { normalizeCodeLanguage, getCodeLanguageOptions } from "@lexical/code-shiki";
 import { $isListNode } from "@lexical/list";
 import { $findMatchingParent } from "@lexical/utils";
 import {
@@ -26,17 +22,6 @@ import {
 } from "../../../radix/Select";
 import { useToolbarContext } from "../../context/ToolbarContext";
 import { useUpdateToolbarHandler } from "../../editor-hooks/UseUpdateToolbar";
-
-function getCodeLanguageOptions(): [string, string][] {
-	const options: [string, string][] = [];
-
-	for(const [lang, friendlyName] of Object.entries(
-		CODE_LANGUAGE_FRIENDLY_NAME_MAP
-	))
-		options.push([lang, friendlyName]);
-
-	return options;
-}
 
 const CODE_LANGUAGE_OPTIONS = getCodeLanguageOptions();
 
@@ -71,7 +56,7 @@ export function CodeLanguageToolbarPlugin() {
 					const language =
 						element.getLanguage()!;
 					setCodeLanguage(
-						language ? CODE_LANGUAGE_MAP[language] || language : ""
+						language ? normalizeCodeLanguage(language) : ""
 					);
 					return;
 				}

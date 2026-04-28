@@ -61,10 +61,10 @@ function $search(selection: null | BaseSelection): [boolean, string] {
 	if(!$isTextNode(node) || !node.isSimpleText() || !$isAtNodeEnd(anchor))
 		return [false, ""];
 
-	const word = [];
+	const word = [] as string[];
 	const text = node.getTextContent();
 	let i = node.getTextContentSize();
-	let c;
+	let c: string;
 	while(i-- && i >= 0 && (c = text[i]) !== " ")
 		word.push(c);
 

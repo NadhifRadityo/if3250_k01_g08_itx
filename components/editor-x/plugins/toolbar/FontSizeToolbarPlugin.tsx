@@ -68,7 +68,7 @@ export function FontSizeToolbarPlugin() {
 				value={fontSize}
 				onChange={e =>
 					updateFontSize(parseInt(e.target.value) || DEFAULT_FONT_SIZE)}
-				className="w-12 text-center h-8"
+				className="w-12 px-2 text-center h-7"
 				min={MIN_FONT_SIZE}
 				max={MAX_FONT_SIZE}
 			/>

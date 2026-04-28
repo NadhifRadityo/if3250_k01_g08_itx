@@ -146,6 +146,7 @@ export default function DateTimeComponent({
 			</PopoverTrigger>
 			<PopoverContent className="w-auto p-0" align="start">
 				<Calendar
+					className="mx-auto"
 					captionLayout="dropdown"
 					mode="single"
 					selected={selected}
@@ -171,7 +172,7 @@ export default function DateTimeComponent({
 								value={timeValue}
 								onChange={handleTimeChange}
 								disabled={!includeTime}
-								className="h-7 w-28 px-1.5 text-xs"
+								className="h-7 w-24 px-1.5 text-xs"
 							/>
 							<span className="text-xs text-muted-foreground">
 								{userTimeZone}

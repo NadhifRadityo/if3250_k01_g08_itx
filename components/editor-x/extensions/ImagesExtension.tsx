@@ -31,7 +31,9 @@ import {
 	type LexicalEditor,
 	type LexicalCommand
 } from "lexical";
+import { CircleAlertIcon } from "lucide-react";
 
+import { Alert, AlertTitle, AlertDescription } from "../../radix/Alert";
 import { Button } from "../../radix/Button";
 import { DialogFooter } from "../../radix/Dialog";
 import { Field, FieldGroup, FieldLabel } from "../../radix/Field";
@@ -45,6 +47,13 @@ import {
 } from "../nodes/ImageNode";
 
 export type InsertImagePayload = Readonly<ImagePayload>;
+
+export interface UploadedImage {
+	altText: string;
+	height?: number;
+	src: string;
+	width?: number;
+}
 
 export const INSERT_IMAGE_COMMAND: LexicalCommand<InsertImagePayload> =
 	createCommand("INSERT_IMAGE_COMMAND");
@@ -96,69 +105,99 @@ export function InsertImageUriDialogBody({
 }
 
 export function InsertImageUploadedDialogBody({
-	onClick
+	onClick,
+	onUpload
 }: {
 	onClick: (payload: InsertImagePayload) => void;
+	onUpload: (formData: FormData) => Promise<UploadedImage>;
 }) {
-	const [src, setSrc] = useState("");
+	const [error, setError] = useState<any>(null);
+	const [isUploading, setIsUploading] = useState(false);
 	const [altText, setAltText] = useState("");
-
-	const isDisabled = src === "";
-
-	const loadImage = (files: FileList | null) => {
-		const reader = new FileReader();
-		reader.onload = function () {
-			if(typeof reader.result === "string")
-				setSrc(reader.result);
-
-			return "";
-		};
-		if(files !== null)
-			reader.readAsDataURL(files[0]);
-	};
+	const [selectedFile, setSelectedFile] = useState<File | null>(null);
+	const inputFileRef = useRef<HTMLInputElement>(null);
+	useEffect(() => {
+		const dataTransfer = new DataTransfer();
+		if(selectedFile != null)
+			dataTransfer.items.add(selectedFile);
+		inputFileRef.current!.files = dataTransfer.files;
+	}, [selectedFile]);
 
 	return (
-		<FieldGroup>
-			<Field>
-				<FieldLabel htmlFor="image-upload">Image Upload</FieldLabel>
-				<Input
-					id="image-upload"
-					type="file"
-					onChange={e => loadImage(e.target.files)}
-					accept="image/*"
-					data-test-id="image-modal-file-upload"
-				/>
-			</Field>
-			<Field>
-				<FieldLabel htmlFor="alt-text">Alt Text</FieldLabel>
-				<Input
-					id="alt-text"
-					placeholder="Descriptive alternative text"
-					onChange={e => setAltText(e.target.value)}
-					value={altText}
-					data-test-id="image-modal-alt-text-input"
-				/>
-			</Field>
-			<DialogFooter>
-				<Button
-					type="submit"
-					disabled={isDisabled}
-					onClick={() => onClick({ altText, src })}
-					data-test-id="image-modal-file-upload-btn"
-				>
-					Confirm
-				</Button>
-			</DialogFooter>
-		</FieldGroup>
+		<>
+			{error != null ? (
+				<Alert variant="destructive" className="mb-2">
+					<CircleAlertIcon />
+					<AlertTitle>{error.name ?? "Error"}</AlertTitle>
+					<AlertDescription>{error.message ?? "Unable to upload image"}</AlertDescription>
+				</Alert>
+			) : null}
+			<FieldGroup>
+				<Field>
+					<FieldLabel htmlFor="image-upload">Image Upload</FieldLabel>
+					<Input
+						ref={inputFileRef}
+						id="image-upload"
+						type="file"
+						onChange={e => setSelectedFile(e.target.files?.[0] ?? null)}
+						disabled={isUploading}
+						accept="image/*"
+						data-test-id="image-modal-file-upload"
+					/>
+				</Field>
+				<Field>
+					<FieldLabel htmlFor="alt-text">Alt Text</FieldLabel>
+					<Input
+						id="alt-text"
+						placeholder="Descriptive alternative text"
+						onChange={e => setAltText(e.target.value)}
+						value={altText}
+						disabled={isUploading}
+						data-test-id="image-modal-alt-text-input"
+					/>
+				</Field>
+				<DialogFooter>
+					<Button
+						type="submit"
+						disabled={selectedFile == null || isUploading}
+						onClick={async () => {
+							if(selectedFile == null) return;
+							try {
+								setIsUploading(true);
+								const formData = new FormData();
+								formData.set("altText", altText);
+								formData.set("image", selectedFile);
+								const uploadedImage = await onUpload(formData);
+								onClick({
+									altText: uploadedImage.altText,
+									height: uploadedImage.height,
+									src: uploadedImage.src,
+									width: uploadedImage.width
+								});
+							} catch(e) {
+								setError(e);
+							} finally {
+								setIsUploading(false);
+							}
+						}}
+						data-test-id="image-modal-file-upload-btn"
+					>
+						Confirm
+					</Button>
+				</DialogFooter>
+			</FieldGroup>
+		</>
 	);
 }
 
 export function InsertImageDialog({
 	activeEditor,
-	onClose
+	onClose,
+	onUpload
 }: {
 	activeEditor: LexicalEditor;
 	onClose: () => void;
+	onUpload: (formData: FormData) => Promise<UploadedImage>;
 }): JSX.Element {
 	const hasModifier = useRef(false);
 
@@ -174,7 +213,6 @@ export function InsertImageDialog({
 	}, [activeEditor]);
 
 	const onClick = (payload: InsertImagePayload) => {
-		console.log("onClick", payload);
 		activeEditor.dispatchCommand(INSERT_IMAGE_COMMAND, payload);
 		onClose();
 	};
@@ -189,7 +227,7 @@ export function InsertImageDialog({
 				<InsertImageUriDialogBody onClick={onClick} />
 			</TabsContent>
 			<TabsContent value="file">
-				<InsertImageUploadedDialogBody onClick={onClick} />
+				<InsertImageUploadedDialogBody onClick={onClick} onUpload={onUpload} />
 			</TabsContent>
 		</Tabs>
 	);
@@ -230,10 +268,7 @@ export const ImagesExtension = defineExtension({
 		)
 });
 
-const TRANSPARENT_IMAGE =
-	"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-const img = document.createElement("img");
-img.src = TRANSPARENT_IMAGE;
+let TRANSPARENT_IMAGE = null as HTMLImageElement | null;
 
 function $onDragStart(event: DragEvent): boolean {
 	const node = $getImageNodeInSelection();
@@ -244,8 +279,12 @@ function $onDragStart(event: DragEvent): boolean {
 	if(!dataTransfer)
 		return false;
 
+	if(TRANSPARENT_IMAGE == null) {
+		TRANSPARENT_IMAGE = document.createElement("img");
+		TRANSPARENT_IMAGE.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+	}
 	dataTransfer.setData("text/plain", "_");
-	dataTransfer.setDragImage(img, 0, 0);
+	dataTransfer.setDragImage(TRANSPARENT_IMAGE, 0, 0);
 	dataTransfer.setData(
 		"application/x-lexical-drag",
 		JSON.stringify({

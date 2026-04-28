@@ -1,6 +1,5 @@
-/* eslint-disable no-restricted-syntax */
-
-import { useMemo, useState, useCallback, type JSX } from "react";
+import { useState, useCallback, type JSX } from "react";
+import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 
 import {
 	Dialog,
@@ -13,46 +12,41 @@ export function useEditorModal(): [
   JSX.Element | null,
   (title: string, showModal: (onClose: () => void) => JSX.Element) => void
 ] {
+	const [editor] = useLexicalComposerContext();
+	const [open, setOpen] = useState(false);
 	const [modalContent, setModalContent] = useState<null | {
-		closeOnClickOutside: boolean;
-		content: JSX.Element;
 		title: string;
+		content: JSX.Element;
 	}>(null);
 
-	const onClose = useCallback(() => {
-		setModalContent(null);
-	}, []);
+	const onClose = () => {
+		setOpen(false);
+		editor.focus();
+	};
 
-	const modal = useMemo(() => {
-		if(modalContent === null)
-			return null;
-
-		const { title, content } = modalContent;
-		return (
-			<Dialog open={true} onOpenChange={onClose}>
-				<DialogContent>
-					<DialogHeader>
-						<DialogTitle>{title}</DialogTitle>
-					</DialogHeader>
-					{content}
-				</DialogContent>
-			</Dialog>
-		);
-	}, [modalContent, onClose]);
+	const modal = (
+		<Dialog open={open && modalContent != null} onOpenChange={onClose}>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>{modalContent?.title}</DialogTitle>
+				</DialogHeader>
+				{modalContent?.content}
+			</DialogContent>
+		</Dialog>
+	);
 
 	const showModal = useCallback(
 		(
 			title: string,
-			getContent: (onClose: () => void) => JSX.Element,
-			closeOnClickOutside = false
+			getContent: (onClose: () => void) => JSX.Element
 		) => {
+			setOpen(true);
 			setModalContent({
-				closeOnClickOutside,
-				content: getContent(onClose),
-				title
+				title,
+				content: getContent(onClose)
 			});
 		},
-		[onClose]
+		[]
 	);
 
 	return [modal, showModal];

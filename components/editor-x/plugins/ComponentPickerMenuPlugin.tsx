@@ -54,8 +54,9 @@ function ComponentPickerMenu({
 	}, [selectedIndex]);
 
 	return (
-		<div className="absolute z-10 h-min min-w-48 rounded-md shadow-md">
+		<div className="absolute z-50 h-min min-w-48 rounded-md shadow-md pointer-events-auto">
 			<Command
+				value={options[selectedIndex ?? 0]?.title}
 				onKeyDown={e => {
 					if(e.key === "ArrowUp") {
 						e.preventDefault();
@@ -84,9 +85,7 @@ function ComponentPickerMenu({
 								onSelect={() => {
 									selectOptionAndCleanUp(option);
 								}}
-								className={`flex items-center gap-2 ${
-									selectedIndex === index ? "bg-accent" : "!bg-transparent"
-								}`}
+								className="flex items-center gap-2"
 							>
 								{option.icon}
 								{option.title}
@@ -122,7 +121,7 @@ export function ComponentPickerMenuPlugin({
 		if(!queryString)
 			return baseOptions;
 
-		const regex = new RegExp(queryString, "i");
+		const regex = new RegExp(queryString.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 
 		return [
 			...(dynamicOptionsFn?.({ queryString }) || []),

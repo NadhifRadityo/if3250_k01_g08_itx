@@ -1,6 +1,6 @@
 import { type EditorThemeClasses } from "lexical";
 
-import "./editor-theme.css";
+import "./EditorTheme.css";
 
 export const editorTheme: EditorThemeClasses = {
 	ltr: "text-left",
@@ -13,7 +13,7 @@ export const editorTheme: EditorThemeClasses = {
 		h5: "scroll-m-20 text-lg font-semibold tracking-tight",
 		h6: "scroll-m-20 text-base font-semibold tracking-tight"
 	},
-	paragraph: "leading-7 [&:not(:first-child)]:mt-6",
+	paragraph: "leading-5 [&:not(:first-child)]:mt-2",
 	quote: "mt-6 border-l-2 pl-6 italic",
 	link: "text-blue-600 hover:underline hover:cursor-pointer",
 	list: {
@@ -44,9 +44,10 @@ export const editorTheme: EditorThemeClasses = {
 		]
 	},
 	hashtag: "text-blue-600 bg-blue-100 rounded-md px-1",
+	specialText: "text-red-600 bg-red-100 rounded-md px-1",
 	text: {
 		bold: "font-bold",
-		code: "bg-gray-100 p-1 rounded-md",
+		code: "bg-gray-200 p-1 rounded-md",
 		italic: "italic",
 		strikethrough: "line-through",
 		subscript: "sub",
