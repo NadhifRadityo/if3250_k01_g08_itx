@@ -25,6 +25,7 @@ import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@
 
 import { EntrySummaryDrawer, useEntrySummaryDrawer, consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as userActions from "./layout.actions";
+import { uploadGenericRichtextImage } from "../../editor-x.actions";
 
 export const PAGE_SIZE = 20;
 
@@ -1054,7 +1055,7 @@ export function UserRequestReviewDrawer({
 
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Review Comment (optional)</label>
-							<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} />
+							<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:justify-end">

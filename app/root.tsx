@@ -90,7 +90,7 @@ export async function generateRootMetadata() {
 			]
 		},
 		other: {
-			"msapplication-TileColor": "#ff0000",
+			"msapplication-TileColor": "#181934",
 			"msapplication-TileImage": faviconMstile144x144.src,
 			"msapplication-square70x70logo": faviconMstile70x70.src,
 			"msapplication-square144x144logo": faviconMstile144x144.src,
@@ -102,7 +102,7 @@ export async function generateRootMetadata() {
 export async function generateRootViewport() {
 	return {
 		colorScheme: "light",
-		themeColor: "#672431",
+		themeColor: "#181934",
 		width: "device-width",
 		initialScale: 1,
 		minimumScale: 1,

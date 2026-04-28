@@ -24,6 +24,7 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 import { Textarea } from "@/components/radix/Textarea";
 
+import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as creditApplicationActions from "./layout.actions";
 
@@ -1246,7 +1247,7 @@ export function CreditApplicationRequestReviewDrawer({
 
 					<div className="space-y-2">
 						<label className="text-sm font-medium">Review Comment (optional)</label>
-						<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} />
+						<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 					</div>
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">

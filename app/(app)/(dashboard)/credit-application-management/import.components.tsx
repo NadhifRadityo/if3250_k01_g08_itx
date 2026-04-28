@@ -54,6 +54,7 @@ import importTemplateLogo from "@/app/_static/favicons/logo.png";
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as importActions from "./import.actions";
 import { RELATION_FILTER_QUERY_PARAM } from "./layout.components";
+import { uploadGenericRichtextImage } from "../../editor-x.actions";
 
 export const PAGE_SIZE = 20;
 
@@ -1326,7 +1327,7 @@ export function CreditApplicationImportRequestReviewDrawer({
 
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Review Comment (optional)</label>
-							<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} />
+							<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 
 						{reviewError != null ? (

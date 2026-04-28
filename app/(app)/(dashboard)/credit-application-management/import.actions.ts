@@ -1098,9 +1098,9 @@ export async function searchCreditApplicationImportOptionsAction(keyword: string
 	});
 
 	return result.docs.map(doc => ({
-		id: String(doc.id),
-		filename: doc.filename,
-		mimeType: doc.mimeType
+		id: doc.id,
+		filename: doc.filename!,
+		mimeType: doc.mimeType!
 	}));
 }
 
