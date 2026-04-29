@@ -168,6 +168,11 @@ export type CreditApplicationAssignmentCreditApplicationOption = {
 	email: string;
 };
 
+export type CreateCreditApplicationAssignmentsRequestInput = {
+	creditApplications: string[];
+	officer: string;
+};
+
 export type CreditApplicationAssignmentOfficerOption = {
 	id: string;
 	name: string;
@@ -523,6 +528,48 @@ async function findCreditApplicationsByIds(
 	return map;
 }
 
+async function findCreditApplicationAssignmentsByCreditApplicationIds(
+	payload: Payload,
+	user: User,
+	creditApplicationIds: string[]
+): Promise<Map<string, { id: string, deletedAt: string | null }>> {
+	if(creditApplicationIds.length == 0)
+		return new Map();
+
+	const assignmentsResult = await payload.find({
+		collection: "credit-application-assignments",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: Math.max(creditApplicationIds.length, 1),
+		where: {
+			creditApplication: {
+				in: creditApplicationIds
+			}
+		},
+		select: {
+			creditApplication: true,
+			deletedAt: true
+		}
+	});
+
+	const map = new Map<string, { id: string, deletedAt: string | null }>();
+	for(const doc of assignmentsResult.docs) {
+		const creditApplicationId = getRelationshipId(doc.creditApplication);
+		if(creditApplicationId == null)
+			continue;
+		map.set(creditApplicationId, {
+			id: String(doc.id),
+			deletedAt: doc.deletedAt ?? null
+		});
+	}
+
+	return map;
+}
+
 async function ensureOfficerUser(payload: Payload, user: User, officerId: string): Promise<void> {
 	const officer = await payload.findByID({
 		collection: "users",
@@ -572,7 +619,7 @@ export async function searchCreditApplicationOptionsAction(
 	const whereTerms: Where[] = [];
 	if(keywordFilters.length > 0)
 		whereTerms.push({ or: keywordFilters });
-	if(normalizedSelectedIds.length > 0)
+	if(normalizedKeyword.length > 0 && normalizedSelectedIds.length > 0)
 		whereTerms.push({ id: { in: normalizedSelectedIds } });
 	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
 
@@ -598,6 +645,82 @@ export async function searchCreditApplicationOptionsAction(
 		name: normalizeOptionalTextValue(doc.name),
 		email: normalizeOptionalTextValue(doc.email)
 	}));
+}
+
+export async function searchAvailableCreditApplicationOptionsAction(
+	keyword: string,
+	selectedIds: string[] = []
+): Promise<CreditApplicationAssignmentCreditApplicationOption[]> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null)
+		return unauthorized();
+
+	const normalizedKeyword = keyword.trim();
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = normalizedKeyword.length == 0 ? [] : [
+		{ id: { like: normalizedKeyword } },
+		{ name: { like: normalizedKeyword } },
+		{ email: { like: normalizedKeyword } }
+	];
+	const whereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
+
+	const result = await payload.find({
+		collection: "credit-applications",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT * 5 + normalizedSelectedIds.length,
+		sort: "-updatedAt",
+		select: {
+			name: true,
+			email: true
+		},
+		...(where != null ? { where } : {})
+	});
+
+	const selectedCreditApplicationsById = await findCreditApplicationsByIds(payload, user, normalizedSelectedIds);
+	const assignmentsByCreditApplication = await findCreditApplicationAssignmentsByCreditApplicationIds(
+		payload,
+		user,
+		result.docs.map(doc => String(doc.id))
+	);
+	const normalizedSelectedIdSet = new Set(normalizedSelectedIds);
+	const availableOptionsById = new Map<string, CreditApplicationAssignmentCreditApplicationOption>();
+	for(const doc of result.docs) {
+		const creditApplicationId = String(doc.id);
+		const assignment = assignmentsByCreditApplication.get(creditApplicationId);
+		if(!normalizedSelectedIdSet.has(creditApplicationId) && assignment != null && assignment.deletedAt == null)
+			continue;
+		availableOptionsById.set(creditApplicationId, {
+			id: creditApplicationId,
+			name: normalizeOptionalTextValue(doc.name),
+			email: normalizeOptionalTextValue(doc.email)
+		});
+	}
+	for(const creditApplicationId of normalizedSelectedIds) {
+		if(availableOptionsById.has(creditApplicationId))
+			continue;
+		const selectedCreditApplication = selectedCreditApplicationsById.get(creditApplicationId);
+		if(selectedCreditApplication == null)
+			continue;
+		availableOptionsById.set(creditApplicationId, {
+			id: creditApplicationId,
+			name: selectedCreditApplication.name,
+			email: selectedCreditApplication.email
+		});
+	}
+
+	return [...availableOptionsById.values()]
+		.slice(0, RELATION_SEARCH_LIMIT + normalizedSelectedIds.length)
+		;
 }
 
 export async function searchCreditApplicationAssignmentOptionsAction(
@@ -1342,6 +1465,83 @@ export async function upsertCreditApplicationAssignmentRequestAction(
 	});
 
 	return { assignmentId: input.assignmentId };
+}
+
+export async function createCreditApplicationAssignmentsRequestAction(
+	input: CreateCreditApplicationAssignmentsRequestInput
+) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null)
+		return unauthorized();
+
+	const creditApplicationIds = normalizeSelectedIds(input.creditApplications);
+	const officer = input.officer.trim();
+
+	if(creditApplicationIds.length == 0)
+		throw new Error("At least one credit application is required.");
+	if(officer.length == 0)
+		throw new Error("Officer is required.");
+
+	await ensureOfficerUser(payload, user, officer);
+
+	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, creditApplicationIds);
+	const missingCreditApplicationIds = creditApplicationIds.filter(creditApplicationId => !creditApplicationsById.has(creditApplicationId));
+	if(missingCreditApplicationIds.length > 0)
+		throw new Error("One or more selected credit applications could not be found.");
+
+	const assignmentsByCreditApplication = await findCreditApplicationAssignmentsByCreditApplicationIds(payload, user, creditApplicationIds);
+	const activeAssignedCreditApplicationIds = creditApplicationIds.filter(creditApplicationId => {
+		const assignment = assignmentsByCreditApplication.get(creditApplicationId);
+		return assignment != null && assignment.deletedAt == null;
+	});
+	if(activeAssignedCreditApplicationIds.length > 0)
+		throw new Error("One or more selected credit applications already have an assignment.");
+
+	const requestData = {
+		_status: "draft" as const,
+		officer,
+		deletedAt: null,
+		deletedBy: null,
+		reviewedAt: null,
+		reviewedBy: null,
+		reviewApproved: null,
+		reviewComment: null
+	};
+
+	const assignmentIds: string[] = [];
+	for(const creditApplicationId of creditApplicationIds) {
+		const existingAssignment = assignmentsByCreditApplication.get(creditApplicationId);
+		if(existingAssignment == null) {
+			const created = await payload.create({
+				user,
+				collection: "credit-application-assignments",
+				overrideAccess: true,
+				data: {
+					...requestData,
+					creditApplication: creditApplicationId
+				}
+			});
+			assignmentIds.push(String(created.id));
+			continue;
+		}
+
+		const restored = await payload.update({
+			user,
+			collection: "credit-application-assignments",
+			id: existingAssignment.id,
+			overrideAccess: true,
+			trash: true,
+			data: {
+				...requestData,
+				creditApplication: creditApplicationId
+			}
+		});
+		assignmentIds.push(String(restored.id));
+	}
+
+	return { assignmentIds };
 }
 
 export async function requestDeleteCreditApplicationAssignmentAction(assignmentId: string) {

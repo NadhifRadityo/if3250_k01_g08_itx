@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { XIcon, PlusIcon, PencilIcon, Trash2Icon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
@@ -11,6 +11,7 @@ import { Switch } from "@/components/radix/Switch";
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
 import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
 import * as creditApplicationAssignmentActions from "../layout.actions";
+import type { SearchableSelectOption } from "@/components/SearchableSelect";
 import { CreditApplicationAssignmentActiveFiltersSummary } from "../layout.components";
 import { CreditApplicationAssignmentColumnConfigCard } from "../layout.components";
 import { CreditApplicationAssignmentRequestCancelDialog } from "../layout.components";
@@ -52,10 +53,17 @@ export default function CreditApplicationAssignmentEditorPage() {
 	const columnPreferences = useCreditApplicationAssignmentColumnPreferences();
 	const queryState = useCreditApplicationAssignmentManagementQueryState();
 	const {
-		searchCreditApplicationOptions,
 		searchOfficerOptions,
 		getResolvedFilterColumnConfig
 	} = useCreditApplicationAssignmentFilterColumnConfig();
+	const searchCreditApplicationOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => (
+		(await creditApplicationAssignmentActions.searchAvailableCreditApplicationOptionsAction(keyword, selectedValues)).map(creditApplication => ({
+			value: creditApplication.id,
+			label: `${creditApplication.name} (${creditApplication.id})`,
+			renderLabel: <span>{creditApplication.name} (<span className="font-mono">{creditApplication.id}</span>)</span>,
+			keywords: `${creditApplication.id} ${creditApplication.name} ${creditApplication.email}`
+		}))
+	), []);
 	const filters = useCreditApplicationAssignmentRequestFilters({ getResolvedFilterColumnConfig });
 
 	const includeSoftDeleted = showSoftDeleted;
@@ -127,7 +135,7 @@ export default function CreditApplicationAssignmentEditorPage() {
 		setFormError(null);
 		setFormState({
 			assignmentId: row.id,
-			creditApplication: row.creditApplication ?? "",
+			creditApplications: row.creditApplication != null ? [row.creditApplication] : [],
 			officer: row.officer ?? ""
 		});
 		setIsFormOpen(true);
@@ -135,16 +143,24 @@ export default function CreditApplicationAssignmentEditorPage() {
 
 	const submitForm = () => {
 		setFormError(null);
-		if(formState.creditApplication.trim().length == 0)
-			return setFormError({ title: "ValidationError", message: "Credit application is required." });
+		const creditApplications = [...new Set(formState.creditApplications.map(creditApplication => creditApplication.trim()).filter(creditApplication => creditApplication.length > 0))];
+		if(creditApplications.length == 0)
+			return setFormError({ title: "ValidationError", message: "At least one credit application is required." });
 		if(formState.officer.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Officer is required." });
 		runMutation(async () => {
-			await creditApplicationAssignmentActions.upsertCreditApplicationAssignmentRequestAction({
-				assignmentId: formState.assignmentId,
-				creditApplication: formState.creditApplication,
-				officer: formState.officer
-			});
+			if(formState.assignmentId == null) {
+				await creditApplicationAssignmentActions.createCreditApplicationAssignmentsRequestAction({
+					creditApplications,
+					officer: formState.officer
+				});
+			} else {
+				await creditApplicationAssignmentActions.upsertCreditApplicationAssignmentRequestAction({
+					assignmentId: formState.assignmentId,
+					creditApplication: creditApplications[0] ?? "",
+					officer: formState.officer
+				});
+			}
 			setIsFormOpen(false);
 		}, {
 			onError: setFormError,
@@ -341,7 +357,7 @@ export default function CreditApplicationAssignmentEditorPage() {
 				onSearchCreditApplications={searchCreditApplicationOptions}
 				onSearchOfficers={searchOfficerOptions}
 				isMutating={isMutating}
-				onCreditApplicationChange={value => setFormState(previous => ({ ...previous, creditApplication: value }))}
+				onCreditApplicationsChange={values => setFormState(previous => ({ ...previous, creditApplications: values }))}
 				onOfficerChange={value => setFormState(previous => ({ ...previous, officer: value }))}
 				onSubmit={submitForm}
 			/>

@@ -11,7 +11,7 @@ import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
 import { ReviewCommentInput } from "@/components/ReviewCommentInput";
 import { ReviewCommentPreview } from "@/components/ReviewCommentInput";
-import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
+import { SearchableSelect, SearchableMultiSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Badge } from "@/components/radix/Badge";
@@ -109,7 +109,7 @@ export type CreditApplicationAssignmentTableColumnConfig = {
 
 export type FormState = {
 	assignmentId?: string;
-	creditApplication: string;
+	creditApplications: string[];
 	officer: string;
 };
 
@@ -136,7 +136,7 @@ export const emptyQueryResult: QueryCreditApplicationAssignmentsOutput = {
 };
 
 export const defaultFormState: FormState = {
-	creditApplication: "",
+	creditApplications: [],
 	officer: ""
 };
 
@@ -817,7 +817,7 @@ type CreditApplicationAssignmentRequestFormDrawerProps = {
 	onSearchCreditApplications: FilterSelectSearchAction;
 	onSearchOfficers: FilterSelectSearchAction;
 	isMutating: boolean;
-	onCreditApplicationChange: (value: string) => void;
+	onCreditApplicationsChange: (values: string[]) => void;
 	onOfficerChange: (value: string) => void;
 	onSubmit: () => void;
 };
@@ -830,31 +830,56 @@ export function CreditApplicationAssignmentRequestFormDrawer({
 	onSearchCreditApplications,
 	onSearchOfficers,
 	isMutating,
-	onCreditApplicationChange,
+	onCreditApplicationsChange,
 	onOfficerChange,
 	onSubmit
 }: CreditApplicationAssignmentRequestFormDrawerProps) {
+	const isCreateMode = formState.assignmentId == null;
+	const selectedCreditApplicationCount = formState.creditApplications.length;
+	const selectedCreditApplicationLabel = selectedCreditApplicationCount == 0 ? "No credit applications selected." :
+		selectedCreditApplicationCount == 1 ? "1 credit application selected." :
+			`${selectedCreditApplicationCount} credit applications selected.`;
+
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-xl">
 				<DrawerHeader>
-					<DrawerTitle>{formState.assignmentId == null ? "Add Credit Application Assignment" : "Edit Credit Application Assignment"}</DrawerTitle>
-					<DrawerDescription>Changes in editor mode create pending assignment requests that require approver review before publication.</DrawerDescription>
+					<DrawerTitle>{isCreateMode ? "Add Credit Application Assignments" : "Edit Credit Application Assignment"}</DrawerTitle>
+					<DrawerDescription>
+						{isCreateMode
+							? "Select one or more credit applications and one officer. Each selected application will create its own pending assignment request, and deleted assignments will be restored."
+							: "Changes in editor mode create pending assignment requests that require approver review before publication."}
+					</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
-					<div className="grid gap-3 pb-4">
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Credit Application</label>
-							<SearchableSelect
-								value={formState.creditApplication}
-								onValueChange={onCreditApplicationChange}
-								options={[]}
-								onSearch={onSearchCreditApplications}
-								placeholder="Select credit application"
-								searchPlaceholder="Search credit applications"
-							/>
+					<div className="grid gap-3 pb-4 sm:grid-cols-2">
+						<div className="space-y-2 sm:col-span-2">
+							<div className="flex items-center justify-between gap-2">
+								<label className="text-sm font-medium">{isCreateMode ? "Credit Applications" : "Credit Application"}</label>
+								{isCreateMode ? <Badge variant="outline">{selectedCreditApplicationCount} selected</Badge> : null}
+							</div>
+							{isCreateMode ? (
+								<SearchableMultiSelect
+									values={formState.creditApplications}
+									onValuesChange={onCreditApplicationsChange}
+									options={[]}
+									onSearch={onSearchCreditApplications}
+									placeholder="Select credit applications"
+									searchPlaceholder="Search credit applications"
+								/>
+							) : (
+								<SearchableSelect
+									value={formState.creditApplications[0] ?? ""}
+									onValueChange={value => onCreditApplicationsChange(value.length > 0 ? [value] : [])}
+									options={[]}
+									onSearch={onSearchCreditApplications}
+									placeholder="Select credit application"
+									searchPlaceholder="Search credit applications"
+								/>
+							)}
+							<p className="text-muted-foreground text-xs">{selectedCreditApplicationLabel}</p>
 						</div>
-						<div className="space-y-2">
+						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Officer</label>
 							<SearchableSelect
 								value={formState.officer}
@@ -866,7 +891,7 @@ export function CreditApplicationAssignmentRequestFormDrawer({
 							/>
 						</div>
 						{formError != null ? (
-							<Alert variant="destructive">
+							<Alert variant="destructive" className="sm:col-span-2">
 								<CircleAlertIcon />
 								<AlertTitle>{formError.title}</AlertTitle>
 								<AlertDescription>{formError.message}</AlertDescription>
@@ -876,7 +901,7 @@ export function CreditApplicationAssignmentRequestFormDrawer({
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
+					<Button type="button" onClick={onSubmit} disabled={isMutating}>{isCreateMode ? "Create Requests" : "Save"}</Button>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>

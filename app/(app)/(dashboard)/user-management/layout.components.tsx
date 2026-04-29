@@ -860,15 +860,15 @@ export function UserRequestFormDrawer({
 							<label className="text-sm font-medium">Email</label>
 							<Input value={formState.email} onChange={event => onEmailChange(event.target.value)} placeholder="user@example.com" />
 						</div>
-						<div className="space-y-2">
+						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Name</label>
 							<Input value={formState.name} onChange={event => onNameChange(event.target.value)} placeholder="Full name" />
 						</div>
-						<div className="space-y-2">
+						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Employee ID</label>
 							<Input value={formState.employeeId} onChange={event => onEmployeeIdChange(event.target.value)} placeholder="EMP-0001" />
 						</div>
-						<div className="space-y-2">
+						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Role</label>
 							<SearchableSelect
 								value={formState.role}
@@ -879,7 +879,7 @@ export function UserRequestFormDrawer({
 								searchPlaceholder="Type role name"
 							/>
 						</div>
-						<div className="space-y-2">
+						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Supervisor</label>
 							<SearchableSelect
 								value={formState.supervisor}
@@ -1104,20 +1104,20 @@ export function UserRequestChangePreviewDrawer({
 												<Badge variant={changed ? "default" : "secondary"}>{changed ? "Changed" : "Unchanged"}</Badge>
 											</div>
 											<div className="grid gap-2 sm:grid-cols-2">
-										<div className="space-y-1">
-											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
+												<div className="space-y-1">
+													<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+													<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
 														{renderUserRequestReviewDiffValue(field, previousValue, diff.relations, relationNavigation)}
-											</div>
-										</div>
-										<div className="space-y-1">
-											<p className="text-muted-foreground text-xs font-medium">Requested</p>
-											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
+													</div>
+												</div>
+												<div className="space-y-1">
+													<p className="text-muted-foreground text-xs font-medium">Requested</p>
+													<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
 														{renderUserRequestReviewDiffValue(field, requestedValue, diff.relations, relationNavigation)}
+													</div>
+												</div>
 											</div>
 										</div>
-									</div>
-								</div>
 									);
 								})}
 							</div>
