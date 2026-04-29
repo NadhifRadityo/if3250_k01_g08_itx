@@ -19,7 +19,6 @@ import { useCreditApplicationCellRenderer } from "../layout.components";
 import { useCreditApplicationColumnPreferences } from "../layout.components";
 import { useCreditApplicationFilterColumnConfig } from "../layout.components";
 import { useCreditApplicationManagementQueryState } from "../layout.components";
-import { useCreditApplicationRelations } from "../layout.components";
 import { useCreditApplicationRequestFilters } from "../layout.components";
 import { useCreditApplicationRequestsQuery } from "../layout.components";
 import { type CreditApplicationTableRow } from "../layout.components";
@@ -49,16 +48,8 @@ export default function CreditApplicationManagementViewerPage() {
 		includeSoftDeleted: false
 	});
 
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useCreditApplicationRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderCreditApplicationCell = useCreditApplicationCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,

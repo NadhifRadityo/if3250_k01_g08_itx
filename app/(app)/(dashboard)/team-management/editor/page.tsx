@@ -26,7 +26,6 @@ import { useTeamCellRenderer } from "../layout.components";
 import { useTeamColumnPreferences } from "../layout.components";
 import { useTeamFilterColumnConfig } from "../layout.components";
 import { useTeamManagementQueryState } from "../layout.components";
-import { useTeamRelations } from "../layout.components";
 import { useTeamRequestFilters } from "../layout.components";
 import { useTeamRequestsQuery } from "../layout.components";
 import {
@@ -76,16 +75,8 @@ export default function TeamManagementEditorPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useTeamRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderTeamCell = useTeamCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -137,8 +128,8 @@ export default function TeamManagementEditorPage() {
 		setFormState({
 			teamId: row.id,
 			name: row.name,
-			supervisorId: row.supervisorId ?? "",
-			officerIds: row.officerIds
+			supervisor: row.supervisor ?? "",
+			officers: row.officers
 		});
 		setIsFormOpen(true);
 	};
@@ -147,16 +138,16 @@ export default function TeamManagementEditorPage() {
 		setFormError(null);
 		if(formState.name.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Team name is required." });
-		if(formState.supervisorId.trim().length == 0)
+		if(formState.supervisor.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Supervisor is required." });
-		if(formState.officerIds.length == 0)
+		if(formState.officers.length == 0)
 			return setFormError({ title: "ValidationError", message: "At least one officer is required." });
 		runMutation(async () => {
 			await teamActions.upsertTeamRequestAction({
 				teamId: formState.teamId,
 				name: formState.name,
-				supervisorId: formState.supervisorId,
-				officerIds: formState.officerIds
+				supervisor: formState.supervisor,
+				officers: formState.officers
 			});
 			setIsFormOpen(false);
 		}, {
@@ -335,6 +326,11 @@ export default function TeamManagementEditorPage() {
 						setRequestChangeRow(null);
 				}}
 				row={requestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<TeamRequestFormDrawer
@@ -350,8 +346,8 @@ export default function TeamManagementEditorPage() {
 				onSearchOfficers={searchOfficerUserOptions}
 				isMutating={isMutating}
 				onNameChange={value => setFormState(previous => ({ ...previous, name: value }))}
-				onSupervisorChange={value => setFormState(previous => ({ ...previous, supervisorId: value }))}
-				onOfficerIdsChange={values => setFormState(previous => ({ ...previous, officerIds: values }))}
+				onSupervisorChange={value => setFormState(previous => ({ ...previous, supervisor: value }))}
+				onOfficersChange={values => setFormState(previous => ({ ...previous, officers: values }))}
 				onSubmit={submitForm}
 			/>
 

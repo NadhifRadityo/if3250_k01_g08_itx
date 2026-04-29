@@ -24,7 +24,6 @@ import { useTeamCellRenderer } from "../layout.components";
 import { useTeamColumnPreferences } from "../layout.components";
 import { useTeamFilterColumnConfig } from "../layout.components";
 import { useTeamManagementQueryState } from "../layout.components";
-import { useTeamRelations } from "../layout.components";
 import { useTeamRequestFilters } from "../layout.components";
 import { useTeamRequestsQuery } from "../layout.components";
 import {
@@ -64,16 +63,8 @@ export default function TeamManagementApproverPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted: false
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useTeamRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderTeamCell = useTeamCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -256,6 +247,11 @@ export default function TeamManagementApproverPage() {
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}
 				onOpenRequestChanges={setRequestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<TeamRequestChangePreviewDrawer
@@ -265,6 +261,11 @@ export default function TeamManagementApproverPage() {
 						setRequestChangeRow(null);
 				}}
 				row={requestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			{renderTeamCell.relationSummaryPickerDrawer}

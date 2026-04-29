@@ -26,7 +26,6 @@ import { useRoleCellRenderer } from "../layout.components";
 import { useRoleColumnPreferences } from "../layout.components";
 import { useRoleFilterColumnConfig } from "../layout.components";
 import { useRoleManagementQueryState } from "../layout.components";
-import { useRoleRelations } from "../layout.components";
 import { useRoleRequestFilters } from "../layout.components";
 import { useRoleRequestsQuery } from "../layout.components";
 import {
@@ -74,16 +73,8 @@ export default function RoleManagementEditorPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useRoleRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderRoleCell = useRoleCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -141,7 +132,7 @@ export default function RoleManagementEditorPage() {
 	const openEditDialog = (row: RoleTableRow) => {
 		setFormError(null);
 		setFormState({
-			roleId: row.id,
+			role: row.id,
 			name: row.name,
 			level: row.level,
 			menus: row.menus
@@ -166,7 +157,7 @@ export default function RoleManagementEditorPage() {
 			return setFormError({ title: "ValidationError", message: "At least one menu is required." });
 		runMutation(async () => {
 			await roleActions.upsertRoleRequestAction({
-				roleId: formState.roleId,
+				roleId: formState.role,
 				name: formState.name,
 				level: formState.level,
 				menus: formState.menus

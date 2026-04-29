@@ -19,7 +19,6 @@ import { useCreditApplicationAssignmentCellRenderer } from "../layout.components
 import { useCreditApplicationAssignmentColumnPreferences } from "../layout.components";
 import { useCreditApplicationAssignmentFilterColumnConfig } from "../layout.components";
 import { useCreditApplicationAssignmentManagementQueryState } from "../layout.components";
-import { useCreditApplicationAssignmentRelations } from "../layout.components";
 import { useCreditApplicationAssignmentRequestFilters } from "../layout.components";
 import { useCreditApplicationAssignmentRequestsQuery } from "../layout.components";
 import { type CreditApplicationAssignmentTableRow } from "../layout.components";
@@ -48,16 +47,8 @@ export default function CreditApplicationAssignmentViewerPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted: false
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useCreditApplicationAssignmentRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderAssignmentCell = useCreditApplicationAssignmentCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -169,6 +160,11 @@ export default function CreditApplicationAssignmentViewerPage() {
 						setRequestChangeRow(null);
 				}}
 				row={requestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />

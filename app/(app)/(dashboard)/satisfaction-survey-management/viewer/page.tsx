@@ -19,7 +19,6 @@ import { useSurveyCellRenderer } from "../layout.components";
 import { useSurveyColumnPreferences } from "../layout.components";
 import { useSurveyFilterColumnConfig } from "../layout.components";
 import { useSurveyManagementQueryState } from "../layout.components";
-import { useSurveyRelations } from "../layout.components";
 import { useSurveyRequestFilters } from "../layout.components";
 import { useSurveyRequestsQuery } from "../layout.components";
 import { type SurveyTableRow } from "../layout.components";
@@ -49,16 +48,8 @@ export default function SurveyManagementViewerPage() {
 		includeSoftDeleted: false
 	});
 
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useSurveyRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderSurveyCell = useSurveyCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,

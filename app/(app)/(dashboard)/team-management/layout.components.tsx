@@ -9,7 +9,7 @@ import cn from "@/utils/cn";
 import type { ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
-import { ReviewCommentInput } from "@/components/ReviewCommentInput";
+import { ReviewCommentInput, ReviewCommentPreview } from "@/components/ReviewCommentInput";
 import { SearchableSelect, SearchableMultiSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -23,15 +23,13 @@ import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 
+import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import {
-	EntrySummaryDrawer,
-	useEntrySummaryDrawer,
 	RelationSummaryPickerDrawer,
 	consumePendingRelationFilterNavigation,
 	type RelationSummaryPickerState
 } from "../relation-navigation.components";
 import * as teamActions from "./layout.actions";
-import { uploadGenericRichtextImage } from "../../editor-x.actions";
 
 export const PAGE_SIZE = 20;
 
@@ -45,7 +43,6 @@ export type QueryTeamsOutput = Awaited<ReturnType<typeof teamActions.queryTeamsA
 export type TeamTableRow = QueryTeamsOutput["docs"][number];
 export type TeamManagementTabMode = "viewer" | Parameters<typeof teamActions.queryTeamsAction>[0]["mode"];
 export type AssignableUsers = Awaited<ReturnType<typeof teamActions.searchTeamAssignableUsersAction>>;
-export type TeamRelationColumn = teamActions.TeamRelationColumn;
 export type TeamRequestReviewDiff = Awaited<ReturnType<typeof teamActions.getTeamRequestReviewDiffAction>>;
 export type TeamRequestHistory = Awaited<ReturnType<typeof teamActions.getTeamRequestHistoryAction>>;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
@@ -106,7 +103,7 @@ export type TeamTableColumnId = "name" |
 	"reviewedAt" |
 	"reviewedBy" |
 	"reviewApproved" |
-	"reviewCommentText";
+	"reviewComment";
 
 export type TeamTableColumnConfig = {
 	id: TeamTableColumnId;
@@ -119,8 +116,8 @@ export type TeamTableColumnConfig = {
 export type FormState = {
 	teamId?: string;
 	name: string;
-	supervisorId: string;
-	officerIds: string[];
+	supervisor: string;
+	officers: string[];
 };
 
 export type FilterSummaryItem = {
@@ -137,6 +134,7 @@ export const emptyAssignableUsers: AssignableUsers = {
 
 export const emptyQueryResult: QueryTeamsOutput = {
 	docs: [],
+	relations: {},
 	totalDocs: 0,
 	page: 1,
 	hasNextPage: false,
@@ -145,8 +143,8 @@ export const emptyQueryResult: QueryTeamsOutput = {
 
 export const defaultFormState: FormState = {
 	name: "",
-	supervisorId: "",
-	officerIds: []
+	supervisor: "",
+	officers: []
 };
 
 export const TEAM_COLUMN_PREFERENCES_KEY = "team-management-columns-v1";
@@ -169,12 +167,12 @@ export const teamTableColumns: TeamTableColumnConfig[] = [
 	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
 	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
 	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
-	{ id: "requestType", label: "Request", sortField: "requestType" },
-	{ id: "status", label: "Status", sortField: "status" },
+	{ id: "requestType", label: "Request" },
+	{ id: "status", label: "Status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
 	{ id: "reviewedBy", label: "Reviewed By", sortField: "reviewedBy" },
 	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
-	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
+	{ id: "reviewComment", label: "Review Comment", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
 function getTeamDrawerValueClassName(columnId: string): string {
@@ -182,21 +180,14 @@ function getTeamDrawerValueClassName(columnId: string): string {
 		return "text-xs font-mono";
 	if(columnId == "name")
 		return "text-sm font-medium";
+	if(columnId == "reviewComment")
+		return "text-sm leading-relaxed";
 	return "text-sm";
 }
 
 export const defaultTeamColumnOrder: TeamTableColumnId[] = teamTableColumns.map(column => column.id);
-export const defaultTeamVisibleColumns: TeamTableColumnId[] = ["name", "supervisor", "officers", "requestType", "status", "updatedAt", "reviewCommentText"];
+export const defaultTeamVisibleColumns: TeamTableColumnId[] = ["name", "supervisor", "officers", "requestType", "status", "updatedAt", "reviewComment"];
 export const defaultTeamHiddenColumns: TeamTableColumnId[] = defaultTeamColumnOrder.filter(columnId => !defaultTeamVisibleColumns.includes(columnId));
-
-export const teamRelationColumnSet = new Set<TeamRelationColumn>([
-	"supervisor",
-	"officers",
-	"reviewedBy",
-	"createdBy",
-	"updatedBy",
-	"deletedBy"
-]);
 
 const teamNonEligibleColumnSet = new Set<string>([
 	"actions",
@@ -832,7 +823,7 @@ type TeamRequestFormDrawerProps = {
 	isMutating: boolean;
 	onNameChange: (value: string) => void;
 	onSupervisorChange: (value: string) => void;
-	onOfficerIdsChange: (values: string[]) => void;
+	onOfficersChange: (values: string[]) => void;
 	onSubmit: () => void;
 };
 
@@ -846,7 +837,7 @@ export function TeamRequestFormDrawer({
 	isMutating,
 	onNameChange,
 	onSupervisorChange,
-	onOfficerIdsChange,
+	onOfficersChange,
 	onSubmit
 }: TeamRequestFormDrawerProps) {
 	return (
@@ -865,7 +856,7 @@ export function TeamRequestFormDrawer({
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Supervisor</label>
 							<SearchableSelect
-								value={formState.supervisorId}
+								value={formState.supervisor}
 								onValueChange={onSupervisorChange}
 								options={[]}
 								onSearch={onSearchSupervisors}
@@ -876,17 +867,17 @@ export function TeamRequestFormDrawer({
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">
 								<label className="text-sm font-medium">Officers</label>
-								<Badge variant="outline">{formState.officerIds.length} selected</Badge>
+								<Badge variant="outline">{formState.officers.length} selected</Badge>
 							</div>
 							<SearchableMultiSelect
-								values={formState.officerIds}
-								onValuesChange={onOfficerIdsChange}
+								values={formState.officers}
+								onValuesChange={onOfficersChange}
 								options={[]}
 								onSearch={onSearchOfficers}
 								placeholder="Select officers"
 								searchPlaceholder="Type officer name or email"
 							/>
-							<p className="text-muted-foreground text-xs">{formState.officerIds.length > 0 ? `${formState.officerIds.length} officer(s) selected.` : "No officers selected."}</p>
+							<p className="text-muted-foreground text-xs">{formState.officers.length > 0 ? `${formState.officers.length} officer(s) selected.` : "No officers selected."}</p>
 						</div>
 						{formError != null ? (
 							<Alert variant="destructive" className="sm:col-span-2">
@@ -918,6 +909,7 @@ type TeamRequestReviewDrawerProps = {
 	onReject: () => void;
 	isMutating: boolean;
 	onOpenRequestChanges?: (row: TeamTableRow) => void;
+	relationNavigation?: TeamRelationNavigation;
 };
 
 export function TeamRequestReviewDrawer({
@@ -931,40 +923,112 @@ export function TeamRequestReviewDrawer({
 	onApprove,
 	onReject,
 	isMutating,
-	onOpenRequestChanges
+	onOpenRequestChanges,
+	relationNavigation
 }: TeamRequestReviewDrawerProps) {
-	const entrySummary = useEntrySummaryDrawer();
+	const diff = reviewDrawerState?.diff;
+	const relations = diff == null ? {} as teamActions.TeamRelationValues : diff.relations;
+	const [relationSummaryPickerOpen, setRelationSummaryPickerOpen] = useState(false);
+	const [relationSummaryPicker, setRelationSummaryPicker] = useState<RelationSummaryPickerState | null>(null);
+	const rowId = reviewDrawerState?.row.id ?? "review";
+	useEffect(() => {
+		if(!open) {
+			setRelationSummaryPickerOpen(false);
+			setRelationSummaryPicker(null);
+		}
+	}, [open]);
+	const openRelationSummary = useCallback((cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => {
+		if(relationNavigation == null || normalizedRelationIds.length == 0)
+			return;
+
+		const normalizedDisplayTokens = normalizedValue
+			.split(",")
+			.map(token => token.trim())
+			.filter(token => token.length > 0);
+		const hasAlignedTokens = normalizedDisplayTokens.length == normalizedRelationIds.length;
+		const choices = normalizedRelationIds.map((relationId, index) => {
+			const title = normalizedRelationIds.length == 1 ? normalizedValue :
+				hasAlignedTokens ? normalizedDisplayTokens[index] :
+					`${fallbackLabel} ${index + 1}`;
+			return {
+				id: relationId,
+				title: title.length > 0 ? title : relationId,
+				description: `${fallbackLabel} user`,
+				meta: [{ label: "User ID", value: relationId }]
+			};
+		});
+
+		if(choices.length == 1) {
+			const choice = choices[0];
+			relationNavigation.onOpenSummary({
+				type: "user",
+				id: choice.id,
+				fallbackTitle: choice.title,
+				fallbackDescription: choice.description,
+				fallbackMeta: choice.meta
+			});
+			return;
+		}
+
+		setRelationSummaryPicker({ cellKey, sectionLabel: fallbackLabel, choices });
+		setRelationSummaryPickerOpen(true);
+	}, [relationNavigation]);
+	const diffEntries = diff == null ? [] : [
+		{
+			field: "name" as const,
+			label: "Team Name",
+			previousValue: diff.name[0] ?? "-",
+			requestedValue: diff.name[1] ?? "-",
+			previousRaw: diff.name[0],
+			requestedRaw: diff.name[1]
+		},
+		{
+			field: "supervisor" as const,
+			label: "Supervisor",
+			previousValue: diff.supervisor[0] == null ? "-" : diff.relations[`users:${diff.supervisor[0]}`]?.name ?? diff.supervisor[0],
+			requestedValue: diff.supervisor[1] == null ? "-" : diff.relations[`users:${diff.supervisor[1]}`]?.name ?? diff.supervisor[1],
+			previousRelationIds: diff.supervisor[0] != null ? [diff.supervisor[0]] : [],
+			requestedRelationIds: diff.supervisor[1] != null ? [diff.supervisor[1]] : [],
+			previousRaw: diff.supervisor[0],
+			requestedRaw: diff.supervisor[1]
+		},
+		{
+			field: "officers" as const,
+			label: "Officers",
+			previousValue: diff.officers[0].length == 0 ? "-" : diff.officers[0].map(officer => diff.relations[`users:${officer}`]?.name ?? officer).join(", "),
+			requestedValue: diff.officers[1].length == 0 ? "-" : diff.officers[1].map(officer => diff.relations[`users:${officer}`]?.name ?? officer).join(", "),
+			previousRelationIds: diff.officers[0],
+			requestedRelationIds: diff.officers[1],
+			previousRaw: diff.officers[0],
+			requestedRaw: diff.officers[1]
+		},
+		{
+			field: "deletedAt" as const,
+			label: "Deleted At",
+			previousValue: formatDateTime(diff.deletedAt[0]),
+			requestedValue: formatDateTime(diff.deletedAt[1]),
+			previousRaw: diff.deletedAt[0],
+			requestedRaw: diff.deletedAt[1]
+		}
+	];
 
 	const renderReferenceValue = (
+		field: "supervisor" | "officers",
 		value: string,
-		references: Array<{ type: "user", id: string, label: string }> | undefined,
-		sectionLabel: string,
+		relationIds: string[],
 		valueClassName: string
 	) => {
-		if(references == null || references.length == 0)
-			return <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>{value}</div>;
-
 		return (
 			<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>
-				<div className="flex flex-wrap gap-1.5">
-					{references.map(reference => (
-						<Button
-							key={`${reference.type}-${reference.id}-${sectionLabel}`}
-							type="button"
-							variant="link"
-							size="sm"
-							onClick={() => entrySummary.openSummary({
-								type: reference.type,
-								id: reference.id,
-								fallbackTitle: reference.label,
-								fallbackDescription: sectionLabel
-							})}
-							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word select-auto"
-						>
-							{reference.label}
-						</Button>
-					))}
-				</div>
+				{renderTeamRelationValue({
+					column: field,
+					value,
+					relationIds,
+					relations,
+					rowId,
+					relationNavigation,
+					onOpenRelationSummary: openRelationSummary
+				})}
 			</div>
 		);
 	};
@@ -988,9 +1052,7 @@ export function TeamRequestReviewDrawer({
 									requestTypeLabel: reviewDrawerState.diff?.requestType ?? reviewDrawerState.row.requestType
 								}) : "-"}
 							</p>
-							<p className="text-muted-foreground">
-								{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
-							</p>
+							<p className="text-muted-foreground">{diff != null ? `${diffEntries.filter(item => JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw)).length} changed field(s)` : "Loading differences..."}</p>
 						</div>
 
 						{isReviewDiffLoading ? (
@@ -999,24 +1061,24 @@ export function TeamRequestReviewDrawer({
 								<Skeleton className="h-20 w-full" />
 								<Skeleton className="h-20 w-full" />
 							</div>
-						) : reviewDrawerState?.diff == null ? (
+						) : diff == null ? (
 							<p className="text-muted-foreground text-sm">No diff is available for this request.</p>
 						) : (
 							<div className="space-y-2">
-								{reviewDrawerState.diff.items.map(item => (
+								{diffEntries.map(item => (
 									<div key={item.field} className="space-y-2 rounded-lg border p-3">
 										<div className="flex items-center justify-between gap-2">
 											<p className="text-sm font-medium">{item.label}</p>
-											<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+											<Badge variant={JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "default" : "secondary"}>{JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "Changed" : "Unchanged"}</Badge>
 										</div>
 										<div className="grid gap-2 sm:grid-cols-2">
 											<div className="space-y-1">
 												<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-												{renderReferenceValue(item.previousValue, item.previousReferences, `Team ${item.label} (last approved)`, getTeamDrawerValueClassName(item.field))}
+												{item.field == "supervisor" || item.field == "officers" ? renderReferenceValue(item.field, item.previousValue, item.previousRelationIds, getTeamDrawerValueClassName(item.field)) : <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getTeamDrawerValueClassName(item.field))}>{item.previousValue}</div>}
 											</div>
 											<div className="space-y-1">
 												<p className="text-muted-foreground text-xs font-medium">Requested</p>
-												{renderReferenceValue(item.requestedValue, item.requestedReferences, `Team ${item.label} (requested)`, getTeamDrawerValueClassName(item.field))}
+												{item.field == "supervisor" || item.field == "officers" ? renderReferenceValue(item.field, item.requestedValue, item.requestedRelationIds, getTeamDrawerValueClassName(item.field)) : <div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getTeamDrawerValueClassName(item.field))}>{item.requestedValue}</div>}
 											</div>
 										</div>
 									</div>
@@ -1034,7 +1096,7 @@ export function TeamRequestReviewDrawer({
 
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Review Comment (optional)</label>
-							<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
+							<ReviewCommentInput serializedState={reviewComment} onSerializedStateChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:justify-end">
@@ -1044,13 +1106,11 @@ export function TeamRequestReviewDrawer({
 					</DrawerFooter>
 				</DrawerContent>
 			</Drawer>
-
-			<EntrySummaryDrawer
-				isOpen={entrySummary.isOpen}
-				onOpenChange={entrySummary.onOpenChange}
-				isLoading={entrySummary.isLoading}
-				errorMessage={entrySummary.errorMessage}
-				summary={entrySummary.summary}
+			<RelationSummaryPickerDrawer
+				isOpen={relationSummaryPickerOpen}
+				onOpenChange={setRelationSummaryPickerOpen}
+				picker={relationSummaryPicker}
+				onOpenSummary={request => relationNavigation?.onOpenSummary(request)}
 			/>
 		</>
 	);
@@ -1060,14 +1120,17 @@ type TeamRequestChangePreviewDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	row: TeamTableRow | null;
+	relationNavigation?: TeamRelationNavigation;
 };
 
 export function TeamRequestChangePreviewDrawer({
 	open,
 	onOpenChange,
-	row
+	row,
+	relationNavigation
 }: TeamRequestChangePreviewDrawerProps) {
-	const entrySummary = useEntrySummaryDrawer();
+	const [relationSummaryPickerOpen, setRelationSummaryPickerOpen] = useState(false);
+	const [relationSummaryPicker, setRelationSummaryPicker] = useState<RelationSummaryPickerState | null>(null);
 	const diffQuery = useQuery({
 		queryKey: ["team-management", "request-change-preview", row?.id ?? null],
 		enabled: open && row != null,
@@ -1075,37 +1138,105 @@ export function TeamRequestChangePreviewDrawer({
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
+	const diff = diffQuery.data;
+	useEffect(() => {
+		if(!open) {
+			setRelationSummaryPickerOpen(false);
+			setRelationSummaryPicker(null);
+		}
+	}, [open]);
+	const openRelationSummary = useCallback((cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => {
+		if(relationNavigation == null || normalizedRelationIds.length == 0)
+			return;
+
+		const normalizedDisplayTokens = normalizedValue
+			.split(",")
+			.map(token => token.trim())
+			.filter(token => token.length > 0);
+		const hasAlignedTokens = normalizedDisplayTokens.length == normalizedRelationIds.length;
+		const choices = normalizedRelationIds.map((relationId, index) => {
+			const title = normalizedRelationIds.length == 1 ? normalizedValue :
+				hasAlignedTokens ? normalizedDisplayTokens[index] :
+					`${fallbackLabel} ${index + 1}`;
+			return {
+				id: relationId,
+				title: title.length > 0 ? title : relationId,
+				description: `${fallbackLabel} user`,
+				meta: [{ label: "User ID", value: relationId }]
+			};
+		});
+
+		if(choices.length == 1) {
+			const choice = choices[0];
+			relationNavigation.onOpenSummary({
+				type: "user",
+				id: choice.id,
+				fallbackTitle: choice.title,
+				fallbackDescription: choice.description,
+				fallbackMeta: choice.meta
+			});
+			return;
+		}
+
+		setRelationSummaryPicker({ cellKey, sectionLabel: fallbackLabel, choices });
+		setRelationSummaryPickerOpen(true);
+	}, [relationNavigation]);
+	const diffEntries = diff == null ? [] : [
+		{
+			field: "name" as const,
+			label: "Team Name",
+			previousValue: diff.name[0] ?? "-",
+			requestedValue: diff.name[1] ?? "-",
+			previousRaw: diff.name[0],
+			requestedRaw: diff.name[1]
+		},
+		{
+			field: "supervisor" as const,
+			label: "Supervisor",
+			previousValue: diff.supervisor[0] == null ? "-" : diff.relations[`users:${diff.supervisor[0]}`]?.name ?? diff.supervisor[0],
+			requestedValue: diff.supervisor[1] == null ? "-" : diff.relations[`users:${diff.supervisor[1]}`]?.name ?? diff.supervisor[1],
+			previousRelationIds: diff.supervisor[0] != null ? [diff.supervisor[0]] : [],
+			requestedRelationIds: diff.supervisor[1] != null ? [diff.supervisor[1]] : [],
+			previousRaw: diff.supervisor[0],
+			requestedRaw: diff.supervisor[1]
+		},
+		{
+			field: "officers" as const,
+			label: "Officers",
+			previousValue: diff.officers[0].length == 0 ? "-" : diff.officers[0].map(officer => diff.relations[`users:${officer}`]?.name ?? officer).join(", "),
+			requestedValue: diff.officers[1].length == 0 ? "-" : diff.officers[1].map(officer => diff.relations[`users:${officer}`]?.name ?? officer).join(", "),
+			previousRelationIds: diff.officers[0],
+			requestedRelationIds: diff.officers[1],
+			previousRaw: diff.officers[0],
+			requestedRaw: diff.officers[1]
+		},
+		{
+			field: "deletedAt" as const,
+			label: "Deleted At",
+			previousValue: formatDateTime(diff.deletedAt[0]),
+			requestedValue: formatDateTime(diff.deletedAt[1]),
+			previousRaw: diff.deletedAt[0],
+			requestedRaw: diff.deletedAt[1]
+		}
+	];
 
 	const renderReferenceValue = (
+		field: "supervisor" | "officers",
 		value: string,
-		references: Array<{ type: "user", id: string, label: string }> | undefined,
-		sectionLabel: string,
+		relationIds: string[],
 		valueClassName: string
 	) => {
-		if(references == null || references.length == 0)
-			return <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>{value}</div>;
-
 		return (
 			<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>
-				<div className="flex flex-wrap gap-1.5">
-					{references.map(reference => (
-						<Button
-							key={`${reference.type}-${reference.id}-${sectionLabel}`}
-							type="button"
-							variant="link"
-							size="sm"
-							onClick={() => entrySummary.openSummary({
-								type: reference.type,
-								id: reference.id,
-								fallbackTitle: reference.label,
-								fallbackDescription: sectionLabel
-							})}
-							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word select-auto"
-						>
-							{reference.label}
-						</Button>
-					))}
-				</div>
+				{renderTeamRelationValue({
+					column: field,
+					value,
+					relationIds,
+					relations: diff?.relations ?? {},
+					rowId: row?.id ?? field,
+					relationNavigation,
+					onOpenRelationSummary: openRelationSummary
+				})}
 			</div>
 		);
 	};
@@ -1121,7 +1252,7 @@ export function TeamRequestChangePreviewDrawer({
 					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
 							<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
-							<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+							<p className="text-muted-foreground">{diff != null ? `${diffEntries.filter(item => JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw)).length} changed field(s)` : "Loading differences..."}</p>
 						</div>
 
 						{row == null ? (
@@ -1132,7 +1263,7 @@ export function TeamRequestChangePreviewDrawer({
 								<Skeleton className="h-20 w-full" />
 								<Skeleton className="h-20 w-full" />
 							</div>
-						) : diffQuery.isError || diffQuery.data == null ? (
+						) : diffQuery.isError || diff == null ? (
 							<Alert variant="destructive">
 								<CircleAlertIcon />
 								<AlertTitle>Error</AlertTitle>
@@ -1140,20 +1271,20 @@ export function TeamRequestChangePreviewDrawer({
 							</Alert>
 						) : (
 							<div className="space-y-2">
-								{diffQuery.data.items.map(item => (
+								{diffEntries.map(item => (
 									<div key={item.field} className="space-y-2 rounded-lg border p-3">
 										<div className="flex items-center justify-between gap-2">
 											<p className="text-sm font-medium">{item.label}</p>
-											<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+											<Badge variant={JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "default" : "secondary"}>{JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "Changed" : "Unchanged"}</Badge>
 										</div>
 										<div className="grid gap-2 sm:grid-cols-2">
 											<div className="space-y-1">
 												<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-												{renderReferenceValue(item.previousValue, item.previousReferences, `Team ${item.label} (last approved)`, getTeamDrawerValueClassName(item.field))}
+												{item.field == "supervisor" || item.field == "officers" ? renderReferenceValue(item.field, item.previousValue, item.previousRelationIds, getTeamDrawerValueClassName(item.field)) : <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getTeamDrawerValueClassName(item.field))}>{item.previousValue}</div>}
 											</div>
 											<div className="space-y-1">
 												<p className="text-muted-foreground text-xs font-medium">Requested</p>
-												{renderReferenceValue(item.requestedValue, item.requestedReferences, `Team ${item.label} (requested)`, getTeamDrawerValueClassName(item.field))}
+												{item.field == "supervisor" || item.field == "officers" ? renderReferenceValue(item.field, item.requestedValue, item.requestedRelationIds, getTeamDrawerValueClassName(item.field)) : <div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getTeamDrawerValueClassName(item.field))}>{item.requestedValue}</div>}
 											</div>
 										</div>
 									</div>
@@ -1167,12 +1298,11 @@ export function TeamRequestChangePreviewDrawer({
 				</DrawerContent>
 			</Drawer>
 
-			<EntrySummaryDrawer
-				isOpen={entrySummary.isOpen}
-				onOpenChange={entrySummary.onOpenChange}
-				isLoading={entrySummary.isLoading}
-				errorMessage={entrySummary.errorMessage}
-				summary={entrySummary.summary}
+			<RelationSummaryPickerDrawer
+				isOpen={relationSummaryPickerOpen}
+				onOpenChange={setRelationSummaryPickerOpen}
+				picker={relationSummaryPicker}
+				onOpenSummary={request => relationNavigation?.onOpenSummary(request)}
 			/>
 		</>
 	);
@@ -1312,33 +1442,19 @@ type TeamRelationNavigation = {
 	}) => void;
 };
 
-function getTeamRelationFallbackLabel(column: TeamRelationColumn): string {
-	if(column == "supervisor")
-		return "Supervisor";
-	if(column == "officers")
-		return "Officer";
-	if(column == "reviewedBy")
-		return "Reviewed By";
-	if(column == "createdBy")
-		return "Created By";
-	if(column == "updatedBy")
-		return "Updated By";
-	return "Deleted By";
-}
-
 function renderTeamRelationValue({
 	column,
 	value,
 	relationIds,
-	stagedUserIdByUserId,
+	relations,
 	rowId,
 	relationNavigation,
 	onOpenRelationSummary
 }: {
-	column: TeamRelationColumn;
+	column: string;
 	value: string;
 	relationIds: string[];
-	stagedUserIdByUserId?: Record<string, string>;
+	relations: teamActions.TeamRelationValues;
 	rowId: string;
 	relationNavigation?: TeamRelationNavigation;
 	onOpenRelationSummary?: (cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => void;
@@ -1350,14 +1466,20 @@ function renderTeamRelationValue({
 	if(normalizedRelationIds.length == 0 || normalizedValue.length == 0 || normalizedValue == "-")
 		return value;
 
-	const fallbackLabel = getTeamRelationFallbackLabel(column);
+	const fallbackLabel = {
+		"supervisor": "Supervisor",
+		"officers": "Officer",
+		"reviewedBy": "Reviewed By",
+		"createdBy": "Created By",
+		"updatedBy": "Updated By",
+		"deletedBy": "Deleted By"
+	}[column]!;
 	const cellKey = `${rowId}:${column}`;
 
 	const hrefBase = relationNavigation?.getHrefBase("user-management");
 	if(hrefBase != null && relationNavigation != null) {
-		const relationStagedUserIdByUserId = stagedUserIdByUserId ?? {};
 		const mappedStagedUserIds = normalizedRelationIds
-			.map(relationId => relationStagedUserIdByUserId[relationId])
+			.map(relationId => relations[`users:${relationId}`]?.stagedUserId ?? null)
 			.filter((stagedUserId): stagedUserId is string => typeof stagedUserId == "string" && stagedUserId.trim().length > 0);
 		if(mappedStagedUserIds.length != normalizedRelationIds.length)
 			return value;
@@ -1443,6 +1565,106 @@ function renderTeamRelationValue({
 			{value}
 		</Button>
 	);
+}
+
+type TeamRequestHistoryEntry = TeamRequestHistory["entries"][number];
+type TeamRequestHistoryField = Exclude<keyof TeamRequestHistoryEntry, "versionId">;
+
+const teamRequestHistoryFields: TeamRequestHistoryField[] = [
+	"id",
+	"name",
+	"supervisor",
+	"officers",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"requestType",
+	"status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewComment"
+];
+
+const teamRequestHistoryFieldLabelMap: Record<TeamRequestHistoryField, string> = {
+	id: "ID",
+	name: "Name",
+	supervisor: "Supervisor",
+	officers: "Officers",
+	createdBy: "Created By",
+	updatedBy: "Updated By",
+	deletedBy: "Deleted By",
+	createdAt: "Created At",
+	updatedAt: "Updated At",
+	deletedAt: "Deleted At",
+	requestType: "Request",
+	status: "Status",
+	reviewedAt: "Reviewed At",
+	reviewedBy: "Reviewed By",
+	reviewApproved: "Review Approved",
+	reviewComment: "Review Comment"
+};
+
+function renderTeamRequestHistoryValue(
+	field: TeamRequestHistoryField,
+	value: any,
+	relations: teamActions.TeamRelationValues = {},
+	relationNavigation?: TeamRelationNavigation,
+	rowId?: string,
+	onOpenRelationSummary?: (cellKey: string, normalizedValue: string, fallbackLabel: string, normalizedRelationIds: string[]) => void
+) {
+	switch(field) {
+		case "reviewComment":
+			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
+		case "reviewApproved":
+			return value == null ? "-" : value as boolean ? "True" : "False";
+		case "status": {
+			if(value == null || String(value).length == 0)
+				return "-";
+			const normalizedStatus = String(value).toLowerCase();
+			if(normalizedStatus == "pending")
+				return <Badge variant="secondary">Pending</Badge>;
+			if(normalizedStatus == "approved")
+				return <Badge variant="default">Approved</Badge>;
+			if(normalizedStatus == "rejected")
+				return <Badge variant="destructive">Rejected</Badge>;
+			return <Badge variant="outline">{String(value)}</Badge>;
+		}
+		case "supervisor":
+		case "createdBy":
+		case "updatedBy":
+		case "deletedBy":
+		case "reviewedBy":
+			return renderTeamRelationValue({
+				column: field,
+				value: value == null ? "-" : relations[`users:${value}`]?.name ?? String(value),
+				relationIds: value == null ? [] : [String(value)],
+				relations,
+				rowId: rowId ?? field,
+				relationNavigation,
+				onOpenRelationSummary
+			});
+		case "createdAt":
+		case "updatedAt":
+		case "deletedAt":
+		case "reviewedAt":
+			return formatDateTime(value);
+		case "officers":
+			return renderTeamRelationValue({
+				column: field,
+				value: value == null || value.length == 0 ? "-" : value.map((officer: string) => relations[`users:${officer}`]?.name ?? officer).join(", "),
+				relationIds: Array.isArray(value) ? value : [],
+				relations,
+				rowId: rowId ?? field,
+				relationNavigation,
+				onOpenRelationSummary
+			});
+		default:
+			return value == null || String(value).length == 0 ? "-" : String(value);
+	}
 }
 
 export function TeamRequestDetailsDrawer({
@@ -1538,15 +1760,15 @@ export function TeamRequestDetailsDrawer({
 			case "name":
 				return renderDetailColumnValue(columnId, data.row.name);
 			case "supervisor":
-				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "supervisor", value: data.relationValues.supervisor ?? "-", relationIds: data.row.supervisorId != null ? [data.row.supervisorId] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "supervisor", value: data.row.supervisor == null ? "-" : data.relations[`users:${data.row.supervisor}`]?.name ?? data.row.supervisor, relationIds: data.row.supervisor != null ? [data.row.supervisor] : [], relations: data.relations, rowId: data.row.id, relationNavigation }));
 			case "officers":
-				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "officers", value: data.relationValues.officers ?? "-", relationIds: data.row.officerIds, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation, onOpenRelationSummary: openRelationSummary }));
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "officers", value: data.row.officers.length == 0 ? "-" : data.row.officers.map(officer => data.relations[`users:${officer}`]?.name ?? officer).join(", "), relationIds: data.row.officers, relations: data.relations, rowId: data.row.id, relationNavigation, onOpenRelationSummary: openRelationSummary }));
 			case "createdBy":
-				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationIds: data.row.createdById != null ? [data.row.createdById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "createdBy", value: data.row.createdBy == null ? "-" : data.relations[`users:${data.row.createdBy}`]?.name ?? data.row.createdBy, relationIds: data.row.createdBy != null ? [data.row.createdBy] : [], relations: data.relations, rowId: data.row.id, relationNavigation }));
 			case "updatedBy":
-				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationIds: data.row.updatedById != null ? [data.row.updatedById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "updatedBy", value: data.row.updatedBy == null ? "-" : data.relations[`users:${data.row.updatedBy}`]?.name ?? data.row.updatedBy, relationIds: data.row.updatedBy != null ? [data.row.updatedBy] : [], relations: data.relations, rowId: data.row.id, relationNavigation }));
 			case "deletedBy":
-				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationIds: data.row.deletedById != null ? [data.row.deletedById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "deletedBy", value: data.row.deletedBy == null ? "-" : data.relations[`users:${data.row.deletedBy}`]?.name ?? data.row.deletedBy, relationIds: data.row.deletedBy != null ? [data.row.deletedBy] : [], relations: data.relations, rowId: data.row.id, relationNavigation }));
 			case "createdAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
 			case "updatedAt":
@@ -1562,11 +1784,11 @@ export function TeamRequestDetailsDrawer({
 			case "reviewedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
 			case "reviewedBy":
-				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationIds: data.row.reviewedById != null ? [data.row.reviewedById] : [], stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId, rowId: data.row.id, relationNavigation }));
+				return renderDetailColumnValue(columnId, renderTeamRelationValue({ column: "reviewedBy", value: data.row.reviewedBy == null ? "-" : data.relations[`users:${data.row.reviewedBy}`]?.name ?? data.row.reviewedBy, relationIds: data.row.reviewedBy != null ? [data.row.reviewedBy] : [], relations: data.relations, rowId: data.row.id, relationNavigation }));
 			case "reviewApproved":
 				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
-			case "reviewCommentText":
-				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			case "reviewComment":
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.reviewComment ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			default:
 				return renderDetailColumnValue(columnId, "-");
 		}
@@ -1650,23 +1872,41 @@ export function TeamRequestDetailsDrawer({
 						) : historyQuery.data.entries.length == 0 ? (
 							<p className="text-muted-foreground text-sm">No history entries found for this team request.</p>
 						) : (
-							historyQuery.data.entries.map(entry => (
-								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
-									<div className="flex items-center justify-between gap-2">
-										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
-										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+							historyQuery.data.entries.map((entry, entryIndex, historyEntries) => {
+								const previousEntry = historyEntries[entryIndex + 1] ?? null;
+								const changes = teamRequestHistoryFields.flatMap(field => {
+									const nextValue = entry[field];
+									const previousValue = previousEntry?.[field] ?? null;
+									if(JSON.stringify(nextValue) == JSON.stringify(previousValue))
+										return [];
+									return [{
+										field,
+										label: teamRequestHistoryFieldLabelMap[field],
+										previousValue,
+										nextValue
+									}];
+								});
+
+								return (
+									<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-sm font-semibold">{formatDateTime(entry.updatedAt)}</p>
+											<Badge variant="outline">{changes.length} change(s)</Badge>
+										</div>
+										<div className="space-y-1">
+											{changes.length == 0 ? (
+												<p className="text-muted-foreground text-xs">No field changes detected.</p>
+											) : changes.map(change => (
+												<div key={`${entry.versionId}-${change.field}`} className="space-y-0.5 rounded-md border p-2 text-xs">
+													<div className="font-medium">{change.label}</div>
+													<div className="text-muted-foreground">From: {renderTeamRequestHistoryValue(change.field, change.previousValue, historyQuery.data.relations, relationNavigation, `${entry.versionId}:${change.field}:from`, openRelationSummary)}</div>
+													<div>To: {renderTeamRequestHistoryValue(change.field, change.nextValue, historyQuery.data.relations, relationNavigation, `${entry.versionId}:${change.field}:to`, openRelationSummary)}</div>
+												</div>
+											))}
+										</div>
 									</div>
-									<div className="space-y-1">
-										{entry.changes.map(change => (
-											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed ? "border-primary/30 bg-primary/5" : "opacity-70")}>
-												<p className="font-medium">{change.label}</p>
-												<p className="text-muted-foreground">From: {change.previousValue}</p>
-												<p>To: {change.nextValue}</p>
-											</div>
-										))}
-									</div>
-								</div>
-							))
+								);
+							})
 						)}
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
@@ -1686,13 +1926,12 @@ export function TeamRequestDetailsDrawer({
 }
 
 type UseTeamCellRendererOptions = {
-	relationValuesByRowId: Record<string, teamActions.TeamRelationValues>;
-	isRelationLoading: boolean;
+	relations: teamActions.TeamRelationValues;
 	relationNavigation?: TeamRelationNavigation;
 	onOpenRequestChanges?: (row: TeamTableRow) => void;
 };
 
-export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseTeamCellRendererOptions) {
+export function useTeamCellRenderer({ relations, relationNavigation, onOpenRequestChanges }: UseTeamCellRendererOptions) {
 	const [relationSummaryPickerOpen, setRelationSummaryPickerOpen] = useState(false);
 	const [relationSummaryPicker, setRelationSummaryPicker] = useState<RelationSummaryPickerState | null>(null);
 
@@ -1743,32 +1982,21 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 	);
 
 	const result = useCallback((columnId: TeamTableColumnId, row: TeamTableRow) => {
-		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "id":
 				return row.id;
 			case "name":
 				return row.name;
 			case "supervisor":
-				if(isRelationLoading && resolvedValues.supervisor == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderTeamRelationValue({ column: "supervisor", value: resolvedValues.supervisor ?? "-", relationIds: row.supervisorId != null ? [row.supervisorId] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
+				return renderTeamRelationValue({ column: "supervisor", value: row.supervisor == null ? "-" : relations[`users:${row.supervisor}`]?.name ?? row.supervisor, relationIds: row.supervisor != null ? [row.supervisor] : [], relations, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "officers":
-				if(isRelationLoading && resolvedValues.officers == null)
-					return <Skeleton className="h-4 w-36" />;
-				return renderTeamRelationValue({ column: "officers", value: resolvedValues.officers ?? "-", relationIds: row.officerIds, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
+				return renderTeamRelationValue({ column: "officers", value: row.officers.length == 0 ? "-" : row.officers.map(officer => relations[`users:${officer}`]?.name ?? officer).join(", "), relationIds: row.officers, relations, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "createdBy":
-				if(isRelationLoading && resolvedValues.createdBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderTeamRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationIds: row.createdById != null ? [row.createdById] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
+				return renderTeamRelationValue({ column: "createdBy", value: row.createdBy == null ? "-" : relations[`users:${row.createdBy}`]?.name ?? row.createdBy, relationIds: row.createdBy != null ? [row.createdBy] : [], relations, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "updatedBy":
-				if(isRelationLoading && resolvedValues.updatedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderTeamRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationIds: row.updatedById != null ? [row.updatedById] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
+				return renderTeamRelationValue({ column: "updatedBy", value: row.updatedBy == null ? "-" : relations[`users:${row.updatedBy}`]?.name ?? row.updatedBy, relationIds: row.updatedBy != null ? [row.updatedBy] : [], relations, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "deletedBy":
-				if(isRelationLoading && resolvedValues.deletedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderTeamRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationIds: row.deletedById != null ? [row.deletedById] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
+				return renderTeamRelationValue({ column: "deletedBy", value: row.deletedBy == null ? "-" : relations[`users:${row.deletedBy}`]?.name ?? row.deletedBy, relationIds: row.deletedBy != null ? [row.deletedBy] : [], relations, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1784,17 +2012,15 @@ export function useTeamCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedAt":
 				return formatDateTime(row.reviewedAt);
 			case "reviewedBy":
-				if(isRelationLoading && resolvedValues.reviewedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderTeamRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationIds: row.reviewedById != null ? [row.reviewedById] : [], stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
+				return renderTeamRelationValue({ column: "reviewedBy", value: row.reviewedBy == null ? "-" : relations[`users:${row.reviewedBy}`]?.name ?? row.reviewedBy, relationIds: row.reviewedBy != null ? [row.reviewedBy] : [], relations, rowId: row.id, relationNavigation, onOpenRelationSummary: openRelationSummary });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
-			case "reviewCommentText":
-				return row.reviewCommentText.length > 0 ? row.reviewCommentText : "-";
+			case "reviewComment":
+				return <ReviewCommentPreview serializedState={row.reviewComment ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, onOpenRequestChanges, openRelationSummary, relationNavigation, relationValuesByRowId]);
+	}, [onOpenRequestChanges, openRelationSummary, relationNavigation, relations]);
 	const result2 = result as typeof result & { relationSummaryPickerDrawer: typeof relationSummaryPickerDrawer };
 	result2.relationSummaryPickerDrawer = relationSummaryPickerDrawer;
 	return result2;
@@ -2010,50 +2236,6 @@ export function useTeamManagementQueryState({
 		sortTokens,
 		getSortDirection,
 		toggleSortField
-	};
-}
-
-type UseTeamRelationsOptions = {
-	docs: TeamTableRow[];
-	visibleColumns: TeamTableColumnConfig[];
-};
-
-export function useTeamRelations({ docs, visibleColumns }: UseTeamRelationsOptions) {
-	const visibleRelationColumns = useMemo(() => (
-		visibleColumns
-			.map(column => column.id)
-			.filter((columnId): columnId is TeamRelationColumn => teamRelationColumnSet.has(columnId as TeamRelationColumn))
-	), [visibleColumns]);
-
-	const relationRows = useMemo(() => docs.map(row => ({
-		id: row.id,
-		supervisorId: row.supervisorId,
-		officerIds: row.officerIds,
-		reviewedById: row.reviewedById,
-		createdById: row.createdById,
-		updatedById: row.updatedById,
-		deletedById: row.deletedById
-	})), [docs]);
-
-	const relationsQuery = useQuery({
-		queryKey: ["team-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
-		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => teamActions.resolveTeamRelationColumnsAction({
-			rows: relationRows,
-			columns: visibleRelationColumns
-		}),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const relationValuesByRowId = useMemo(() => Object.fromEntries(
-		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	), [relationsQuery.data]);
-	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
-
-	return {
-		relationValuesByRowId,
-		isRelationLoading
 	};
 }
 

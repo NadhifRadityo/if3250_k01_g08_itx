@@ -5,7 +5,8 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
-import { createPlainTextRichText, createEmptyReviewComment } from "@/utils/reviewCommentRichText";
+import type { RelationUser } from "@/utils/requestRelationValues";
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import type { CreditApplication } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -45,10 +46,7 @@ const sortableFields = new Set<CreditApplicationManagementSortField>([
 	"otherDate2",
 	"reviewedAt",
 	"reviewedBy",
-	"reviewApproved",
-	"requestType",
-	"status",
-	"reviewCommentText"
+	"reviewApproved"
 ]);
 const filterableColumns = new Set<CreditApplicationManagementFilterColumn>([
 	"id",
@@ -122,6 +120,7 @@ const numberFilterColumns = new Set<CreditApplicationManagementFilterColumn>([
 ]);
 const booleanFilterColumns = new Set<CreditApplicationManagementFilterColumn>(["reviewApproved"]);
 
+type RichTextValue = NonNullable<CreditApplication["remarks"]>;
 type ReviewCommentValue = NonNullable<CreditApplication["reviewComment"]>;
 
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
@@ -156,10 +155,7 @@ export type CreditApplicationManagementSortField = "createdAt" |
 	"otherDate2" |
 	"reviewedAt" |
 	"reviewedBy" |
-	"reviewApproved" |
-	"requestType" |
-	"status" |
-	"reviewCommentText";
+	"reviewApproved";
 export type CreditApplicationManagementSortToken = `${"+" | "-"}${CreditApplicationManagementSortField}`;
 export type CreditApplicationManagementFilterColumn = "name" |
 	"id" |
@@ -222,16 +218,16 @@ export type CreditApplicationTableRow = {
 	smsNumber: string;
 	collateralRegistryName: string;
 	collateralName: string;
-	collateralDescription: string;
+	collateralDescription: RichTextValue | null;
 	assetId: string;
 	assetName: string;
-	assetDescription: string;
+	assetDescription: RichTextValue | null;
 	period: number | null;
 	installment: number | null;
 	downPayment: number | null;
 	plafond: number | null;
 	vendor: string;
-	remarks: string;
+	remarks: RichTextValue | null;
 	otherText1: string;
 	otherText2: string;
 	otherNumber1: number | null;
@@ -240,37 +236,20 @@ export type CreditApplicationTableRow = {
 	otherDate2: string | null;
 	others: string;
 	isSoftDeleted: boolean;
-	createdById: string | null;
-	updatedById: string | null;
-	deletedById: string | null;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
 	reviewedAt: string | null;
-	reviewedById: string | null;
+	reviewedBy: string | null;
 	reviewApproved: boolean | null;
-	reviewCommentText: string;
+	reviewComment: ReviewCommentValue | null;
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type CreditApplicationRelationColumn = "reviewedBy" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy";
-
-export type ResolveCreditApplicationRelationColumnsInput = {
-	rows: Array<Pick<CreditApplicationTableRow, "id" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
-	columns: CreditApplicationRelationColumn[];
-};
-
-export type CreditApplicationRelationValues = Partial<Record<CreditApplicationRelationColumn, string>> & {
-	stagedUserIdByUserId?: Record<string, string>;
-};
-
-export type ResolveCreditApplicationRelationColumnsOutput = Array<{
-	id: string;
-	values: CreditApplicationRelationValues;
-}>;
+export type CreditApplicationRelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 export type queryCreditApplicationsInput = {
 	keyword: string;
@@ -285,6 +264,7 @@ export type queryCreditApplicationsInput = {
 
 export type queryCreditApplicationsOutput = {
 	docs: CreditApplicationTableRow[];
+	relations: CreditApplicationRelationValues;
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
@@ -313,16 +293,16 @@ export type UpsertCreditApplicationRequestInput = {
 	smsNumber: string;
 	collateralRegistryName: string;
 	collateralName: string;
-	collateralDescription: string;
+	collateralDescription: RichTextValue | null;
 	assetId: string;
 	assetName: string;
-	assetDescription: string;
+	assetDescription: RichTextValue | null;
 	period: number | null;
 	installment: number | null;
 	downPayment: number | null;
 	plafond: number | null;
 	vendor: string;
-	remarks: string;
+	remarks: RichTextValue | null;
 	otherText1: string;
 	otherText2: string;
 	otherNumber1: number | null;
@@ -338,109 +318,89 @@ export type ReviewCreditApplicationRequestInput = {
 	reviewComment: ReviewCommentValue;
 };
 
-export type CreditApplicationRequestReviewDiffItem = {
-	field: "name" |
-		"email" |
-		"addresses" |
-		"phoneNumbers" |
-		"whatsappNumber" |
-		"smsNumber" |
-		"collateralRegistryName" |
-		"collateralName" |
-		"collateralDescription" |
-		"assetId" |
-		"assetName" |
-		"assetDescription" |
-		"period" |
-		"installment" |
-		"downPayment" |
-		"plafond" |
-		"vendor" |
-		"remarks" |
-		"otherText1" |
-		"otherText2" |
-		"otherNumber1" |
-		"otherNumber2" |
-		"otherDate1" |
-		"otherDate2" |
-		"others" |
-		"deletedAt";
-	label: string;
-	previousValue: string;
-	requestedValue: string;
-	changed: boolean;
-};
-
 export type CreditApplicationRequestReviewDiffOutput = {
 	requestId: string;
 	requestType: "Create" | "Update" | "Delete";
-	items: CreditApplicationRequestReviewDiffItem[];
-	changedCount: number;
+	name: [CreditApplication["name"], CreditApplication["name"]];
+	email: [CreditApplication["email"], CreditApplication["email"]];
+	addresses: [CreditApplication["addresses"], CreditApplication["addresses"]];
+	phoneNumbers: [CreditApplication["phoneNumbers"], CreditApplication["phoneNumbers"]];
+	whatsappNumber: [CreditApplication["whatsappNumber"], CreditApplication["whatsappNumber"]];
+	smsNumber: [CreditApplication["smsNumber"], CreditApplication["smsNumber"]];
+	collateralRegistryName: [CreditApplication["collateralRegistryName"], CreditApplication["collateralRegistryName"]];
+	collateralName: [CreditApplication["collateralName"], CreditApplication["collateralName"]];
+	collateralDescription: [CreditApplication["collateralDescription"], CreditApplication["collateralDescription"]];
+	assetId: [CreditApplication["assetId"], CreditApplication["assetId"]];
+	assetName: [CreditApplication["assetName"], CreditApplication["assetName"]];
+	assetDescription: [CreditApplication["assetDescription"], CreditApplication["assetDescription"]];
+	period: [CreditApplication["period"], CreditApplication["period"]];
+	installment: [CreditApplication["installment"], CreditApplication["installment"]];
+	downPayment: [CreditApplication["downPayment"], CreditApplication["downPayment"]];
+	plafond: [CreditApplication["plafond"], CreditApplication["plafond"]];
+	vendor: [CreditApplication["vendor"], CreditApplication["vendor"]];
+	remarks: [CreditApplication["remarks"], CreditApplication["remarks"]];
+	otherText1: [CreditApplication["otherText1"], CreditApplication["otherText1"]];
+	otherText2: [CreditApplication["otherText2"], CreditApplication["otherText2"]];
+	otherNumber1: [CreditApplication["otherNumber1"], CreditApplication["otherNumber1"]];
+	otherNumber2: [CreditApplication["otherNumber2"], CreditApplication["otherNumber2"]];
+	otherDate1: [CreditApplication["otherDate1"], CreditApplication["otherDate1"]];
+	otherDate2: [CreditApplication["otherDate2"], CreditApplication["otherDate2"]];
+	others: [CreditApplication["others"], CreditApplication["others"]];
+	deletedAt: [CreditApplication["deletedAt"], CreditApplication["deletedAt"]];
+	relations: CreditApplicationRelationValues;
 };
 
 export type CreditApplicationRequestDetailsOutput = {
 	row: CreditApplicationTableRow;
-	relationValues: CreditApplicationRelationValues;
-	relationReferences: Partial<Record<CreditApplicationRelationColumn, Array<{ type: "user", id: string, label: string }>>>;
-};
-
-export type CreditApplicationRequestHistoryColumn = "id" |
-	"name" |
-	"email" |
-	"addresses" |
-	"phoneNumbers" |
-	"whatsappNumber" |
-	"smsNumber" |
-	"collateralRegistryName" |
-	"collateralName" |
-	"collateralDescription" |
-	"assetId" |
-	"assetName" |
-	"assetDescription" |
-	"period" |
-	"installment" |
-	"downPayment" |
-	"plafond" |
-	"vendor" |
-	"remarks" |
-	"otherText1" |
-	"otherText2" |
-	"otherNumber1" |
-	"otherNumber2" |
-	"otherDate1" |
-	"otherDate2" |
-	"others" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy" |
-	"createdAt" |
-	"updatedAt" |
-	"deletedAt" |
-	"requestType" |
-	"status" |
-	"reviewedAt" |
-	"reviewedBy" |
-	"reviewApproved" |
-	"reviewCommentText";
-
-export type CreditApplicationRequestHistoryChangeItem = {
-	column: CreditApplicationRequestHistoryColumn;
-	label: string;
-	previousValue: string;
-	nextValue: string;
-	changed: boolean;
+	relations: CreditApplicationRelationValues;
 };
 
 export type CreditApplicationRequestHistoryEntry = {
 	versionId: string;
-	changedAt: string | null;
-	changes: CreditApplicationRequestHistoryChangeItem[];
-	changedCount: number;
+	id: string;
+	name: string | null;
+	email: string | null;
+	addresses: string[] | null;
+	phoneNumbers: string[] | null;
+	whatsappNumber: string | null;
+	smsNumber: string | null;
+	collateralRegistryName: string | null;
+	collateralName: string | null;
+	collateralDescription: RichTextValue | null;
+	assetId: string | null;
+	assetName: string | null;
+	assetDescription: RichTextValue | null;
+	period: number | null;
+	installment: number | null;
+	downPayment: number | null;
+	plafond: number | null;
+	vendor: string | null;
+	remarks: RichTextValue | null;
+	otherText1: string | null;
+	otherText2: string | null;
+	otherNumber1: number | null;
+	otherNumber2: number | null;
+	otherDate1: string | null;
+	otherDate2: string | null;
+	others: JsonValue | null;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+	deletedAt: string | null;
+	requestType: "Create" | "Update" | "Delete";
+	status: string;
+	reviewedAt: string | null;
+	reviewedBy: string | null;
+	reviewApproved: boolean | null;
+	reviewComment: ReviewCommentValue | null;
 };
 
 export type CreditApplicationRequestHistoryOutput = {
 	requestId: string;
 	entries: CreditApplicationRequestHistoryEntry[];
+	relations: CreditApplicationRelationValues;
 };
 
 type SortFieldKey = CreditApplicationManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
@@ -615,28 +575,6 @@ function normalizeFilterCombinator(filterCombinator: CreditApplicationManagement
 	return filterCombinator == "or" ? "or" : "and";
 }
 
-function richTextToPlainText(value: unknown): string {
-	if(value == null || typeof value != "object") return "";
-	const nodes: unknown[] = [];
-	const collectNodes = (node: unknown) => {
-		if(node == null || typeof node != "object") return;
-		nodes.push(node);
-		if("children" in node && Array.isArray(node.children))
-			node.children.forEach(collectNodes);
-	};
-	collectNodes((value as { root?: unknown }).root);
-	return nodes
-		.filter((node): node is { text: string } => node != null && typeof node == "object" && "text" in node && typeof node.text == "string")
-		.map(node => node.text)
-		.join(" ")
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
-function plainTextToRichText(value: string | null | undefined): ReviewCommentValue {
-	return createPlainTextRichText(value);
-}
-
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string") return value;
 	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
@@ -751,88 +689,6 @@ async function hasCreditApplicationRequestHistoryAccess(payload: Awaited<ReturnT
 	const creditApplicationMenus = await resolveUserCreditApplicationMenus(payload, user);
 	return creditApplicationMenus.includes(creditApplicationHistoryRequiredMenu);
 }
-
-const creditApplicationRequestHistoryColumns = [
-	"id",
-	"name",
-	"email",
-	"addresses",
-	"phoneNumbers",
-	"whatsappNumber",
-	"smsNumber",
-	"collateralRegistryName",
-	"collateralName",
-	"collateralDescription",
-	"assetId",
-	"assetName",
-	"assetDescription",
-	"period",
-	"installment",
-	"downPayment",
-	"plafond",
-	"vendor",
-	"remarks",
-	"otherText1",
-	"otherText2",
-	"otherNumber1",
-	"otherNumber2",
-	"otherDate1",
-	"otherDate2",
-	"others",
-	"createdBy",
-	"updatedBy",
-	"deletedBy",
-	"createdAt",
-	"updatedAt",
-	"deletedAt",
-	"requestType",
-	"status",
-	"reviewedAt",
-	"reviewedBy",
-	"reviewApproved",
-	"reviewCommentText"
-] as const satisfies CreditApplicationRequestHistoryColumn[];
-
-const creditApplicationRequestHistoryColumnLabelMap: Record<CreditApplicationRequestHistoryColumn, string> = {
-	id: "ID",
-	name: "Name",
-	email: "Email",
-	addresses: "Addresses",
-	phoneNumbers: "Phone Numbers",
-	whatsappNumber: "Whatsapp Number",
-	smsNumber: "SMS Number",
-	collateralRegistryName: "Collateral Registry Name",
-	collateralName: "Collateral Name",
-	collateralDescription: "Collateral Description",
-	assetId: "Asset ID",
-	assetName: "Asset Name",
-	assetDescription: "Asset Description",
-	period: "Period",
-	installment: "Installment",
-	downPayment: "Down Payment",
-	plafond: "Plafond",
-	vendor: "Vendor",
-	remarks: "Remarks",
-	otherText1: "Other Text 1",
-	otherText2: "Other Text 2",
-	otherNumber1: "Other Number 1",
-	otherNumber2: "Other Number 2",
-	otherDate1: "Other Date 1",
-	otherDate2: "Other Date 2",
-	others: "Others",
-	createdBy: "Created By",
-	updatedBy: "Updated By",
-	deletedBy: "Deleted By",
-	createdAt: "Created At",
-	updatedAt: "Updated At",
-	deletedAt: "Deleted At",
-	requestType: "Request",
-	status: "Status",
-	reviewedAt: "Reviewed At",
-	reviewedBy: "Reviewed By",
-	reviewApproved: "Review Approved",
-	reviewCommentText: "Review Comment"
-};
 
 function getCreditApplicationRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
 	if(deletedAt != null)
@@ -985,10 +841,6 @@ function toPayloadSort(sort: CreditApplicationManagementSortToken[]): string {
 		let path: string;
 		if(field == "reviewedBy")
 			path = "reviewedBy.name";
-		else if(field == "requestType")
-			path = "deletedAt";
-		else if(field == "status" || field == "reviewCommentText")
-			path = "reviewedAt";
 		else
 			path = field;
 		return `${direction}${path}`;
@@ -1200,18 +1052,17 @@ export async function queryCreditApplicationsAction({ keyword, sort, filters, fi
 	});
 
 	const mappedRows: CreditApplicationTableRow[] = creditApplicationFindResult.docs.map(doc => {
-		const createdById = getRelationshipId(doc.createdBy);
-		const updatedById = getRelationshipId(doc.updatedBy);
-		const deletedById = getRelationshipId(doc.deletedBy);
-		const reviewedById = getRelationshipId(doc.reviewedBy);
-		const reviewCommentText = richTextToPlainText(doc.reviewComment);
+		const createdBy = getRelationshipId(doc.createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
 		const requestType = doc.deletedAt != null ? "Delete" : doc.createdAt == doc.updatedAt ? "Create" : "Update";
 		const email = normalizeOptionalTextValue(doc.email);
 		const addresses = normalizeCreditApplicationMenuValues(doc.addresses);
 		const phoneNumbers = normalizeCreditApplicationMenuValues(doc.phoneNumbers);
-		const collateralDescription = richTextToPlainText(doc.collateralDescription);
-		const assetDescription = richTextToPlainText(doc.assetDescription);
-		const remarks = richTextToPlainText(doc.remarks);
+		const collateralDescription = doc.collateralDescription ?? null;
+		const assetDescription = doc.assetDescription ?? null;
+		const remarks = doc.remarks ?? null;
 
 		return {
 			id: String(doc.id),
@@ -1241,22 +1092,44 @@ export async function queryCreditApplicationsAction({ keyword, sort, filters, fi
 			otherDate2: normalizeOptionalDateValue(doc.otherDate2),
 			others: normalizeOptionalJsonTextValue(doc.others),
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
-			createdById,
-			updatedById,
-			deletedById,
+			createdBy,
+			updatedBy,
+			deletedBy,
 			createdAt: doc.createdAt,
 			updatedAt: doc.updatedAt,
 			deletedAt: doc.deletedAt ?? null,
 			reviewedAt: doc.reviewedAt ?? null,
-			reviewedById,
+			reviewedBy,
 			reviewApproved: doc.reviewApproved ?? null,
-			reviewCommentText,
+			reviewComment: doc.reviewComment ?? null,
 			requestType
 		};
 	});
 
+	const userIds = new Set<string>();
+	for(const doc of creditApplicationFindResult.docs) {
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
+		if(reviewedBy != null)
+			userIds.add(reviewedBy);
+		const createdBy = getRelationshipId(doc.createdBy);
+		if(createdBy != null)
+			userIds.add(createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		if(updatedBy != null)
+			userIds.add(updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		if(deletedBy != null)
+			userIds.add(deletedBy);
+	}
+
+	const usersById = await findUsersByIds(payload, user, [...userIds]);
+	const relations: CreditApplicationRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
+
 	return {
 		docs: mappedRows,
+		relations,
 		totalDocs: creditApplicationFindResult.totalDocs,
 		page: creditApplicationFindResult.page ?? pageNumber,
 		hasNextPage: creditApplicationFindResult.hasNextPage,
@@ -1286,68 +1159,6 @@ export async function queryCreditApplicationsApproverAction(input: queryCreditAp
 		...input,
 		mode: "approver",
 		includeSoftDeleted: false
-	});
-}
-
-export async function resolveCreditApplicationRelationColumnsAction({ rows, columns }: ResolveCreditApplicationRelationColumnsInput): Promise<ResolveCreditApplicationRelationColumnsOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	if(rows.length == 0 || columns.length == 0)
-		return [];
-
-	const requestedColumns = [...new Set(columns)];
-
-	const userIds = new Set<string>();
-	for(const row of rows) {
-		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
-			userIds.add(row.reviewedById);
-		if(requestedColumns.includes("createdBy") && row.createdById != null)
-			userIds.add(row.createdById);
-		if(requestedColumns.includes("updatedBy") && row.updatedById != null)
-			userIds.add(row.updatedById);
-		if(requestedColumns.includes("deletedBy") && row.deletedById != null)
-			userIds.add(row.deletedById);
-	}
-
-	const usersById = await findUsersByIds(payload, user, [...userIds]);
-
-	return rows.map(row => {
-		const values: CreditApplicationRelationValues = {};
-
-		if(requestedColumns.includes("reviewedBy"))
-			values.reviewedBy = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("createdBy"))
-			values.createdBy = row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("updatedBy"))
-			values.updatedBy = row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("deletedBy"))
-			values.deletedBy = row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-";
-
-		const relationUserIds = new Set<string>();
-		if(row.reviewedById != null)
-			relationUserIds.add(row.reviewedById);
-		if(row.createdById != null)
-			relationUserIds.add(row.createdById);
-		if(row.updatedById != null)
-			relationUserIds.add(row.updatedById);
-		if(row.deletedById != null)
-			relationUserIds.add(row.deletedById);
-
-		const stagedUserIdByUserId = Object.fromEntries(
-			[...relationUserIds]
-				.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-				.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-		);
-		if(Object.keys(stagedUserIdByUserId).length > 0)
-			values.stagedUserIdByUserId = stagedUserIdByUserId;
-
-		return {
-			id: row.id,
-			values
-		};
 	});
 }
 
@@ -1405,18 +1216,17 @@ export async function getCreditApplicationRequestDetailsAction(creditApplication
 		}
 	});
 
-	const createdById = getRelationshipId(creditApplication.createdBy);
-	const updatedById = getRelationshipId(creditApplication.updatedBy);
-	const deletedById = getRelationshipId(creditApplication.deletedBy);
-	const reviewedById = getRelationshipId(creditApplication.reviewedBy);
-	const reviewCommentText = richTextToPlainText(creditApplication.reviewComment);
+	const createdBy = getRelationshipId(creditApplication.createdBy);
+	const updatedBy = getRelationshipId(creditApplication.updatedBy);
+	const deletedBy = getRelationshipId(creditApplication.deletedBy);
+	const reviewedBy = getRelationshipId(creditApplication.reviewedBy);
 	const requestType = creditApplication.deletedAt != null ? "Delete" : creditApplication.createdAt == creditApplication.updatedAt ? "Create" : "Update";
 	const email = normalizeOptionalTextValue(creditApplication.email);
 	const addresses = normalizeCreditApplicationMenuValues(creditApplication.addresses);
 	const phoneNumbers = normalizeCreditApplicationMenuValues(creditApplication.phoneNumbers);
-	const collateralDescription = richTextToPlainText(creditApplication.collateralDescription);
-	const assetDescription = richTextToPlainText(creditApplication.assetDescription);
-	const remarks = richTextToPlainText(creditApplication.remarks);
+	const collateralDescription = creditApplication.collateralDescription ?? null;
+	const assetDescription = creditApplication.assetDescription ?? null;
+	const remarks = creditApplication.remarks ?? null;
 
 	const row: CreditApplicationTableRow = {
 		id: String(creditApplication.id),
@@ -1446,57 +1256,37 @@ export async function getCreditApplicationRequestDetailsAction(creditApplication
 		otherDate2: normalizeOptionalDateValue(creditApplication.otherDate2),
 		others: normalizeOptionalJsonTextValue(creditApplication.others),
 		isSoftDeleted: creditApplication.deletedAt != null && creditApplication._status == "published",
-		createdById,
-		updatedById,
-		deletedById,
+		createdBy,
+		updatedBy,
+		deletedBy,
 		createdAt: creditApplication.createdAt,
 		updatedAt: creditApplication.updatedAt,
 		deletedAt: creditApplication.deletedAt ?? null,
 		reviewedAt: creditApplication.reviewedAt ?? null,
-		reviewedById,
+		reviewedBy,
 		reviewApproved: creditApplication.reviewApproved ?? null,
-		reviewCommentText,
+		reviewComment: creditApplication.reviewComment ?? null,
 		requestType
 	};
 
 	const relationUserIds = new Set<string>();
-	if(row.reviewedById != null)
-		relationUserIds.add(row.reviewedById);
-	if(row.createdById != null)
-		relationUserIds.add(row.createdById);
-	if(row.updatedById != null)
-		relationUserIds.add(row.updatedById);
-	if(row.deletedById != null)
-		relationUserIds.add(row.deletedById);
+	if(row.reviewedBy != null)
+		relationUserIds.add(row.reviewedBy);
+	if(row.createdBy != null)
+		relationUserIds.add(row.createdBy);
+	if(row.updatedBy != null)
+		relationUserIds.add(row.updatedBy);
+	if(row.deletedBy != null)
+		relationUserIds.add(row.deletedBy);
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
-
-	const relationValues: CreditApplicationRelationValues = {
-		reviewedBy: row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-",
-		createdBy: row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-",
-		updatedBy: row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-",
-		deletedBy: row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-"
-	};
-
-	const stagedUserIdByUserId = Object.fromEntries(
-		[...relationUserIds]
-			.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-			.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-	);
-	if(Object.keys(stagedUserIdByUserId).length > 0)
-		relationValues.stagedUserIdByUserId = stagedUserIdByUserId;
-
-	const relationReferences: CreditApplicationRequestDetailsOutput["relationReferences"] = {
-		reviewedBy: row.reviewedById != null ? [{ type: "user", id: row.reviewedById, label: usersById.get(row.reviewedById)?.name ?? "User" }] : [],
-		createdBy: row.createdById != null ? [{ type: "user", id: row.createdById, label: usersById.get(row.createdById)?.name ?? "User" }] : [],
-		updatedBy: row.updatedById != null ? [{ type: "user", id: row.updatedById, label: usersById.get(row.updatedById)?.name ?? "User" }] : [],
-		deletedBy: row.deletedById != null ? [{ type: "user", id: row.deletedById, label: usersById.get(row.deletedById)?.name ?? "User" }] : []
-	};
+	const relations: CreditApplicationRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
 
 	return {
 		row,
-		relationValues,
-		relationReferences
+		relations
 	};
 }
 
@@ -1624,43 +1414,39 @@ export async function getCreditApplicationRequestHistoryAction(creditApplication
 		if(version == null)
 			continue;
 
-		const createdById = getRelationshipId(version.createdBy);
-		const updatedById = getRelationshipId(version.updatedBy);
-		const deletedById = getRelationshipId(version.deletedBy);
-		const reviewedById = getRelationshipId(version.reviewedBy);
+		const createdBy = getRelationshipId(version.createdBy);
+		const updatedBy = getRelationshipId(version.updatedBy);
+		const deletedBy = getRelationshipId(version.deletedBy);
+		const reviewedBy = getRelationshipId(version.reviewedBy);
 
-		if(createdById != null)
-			relationUserIds.add(createdById);
-		if(updatedById != null)
-			relationUserIds.add(updatedById);
-		if(deletedById != null)
-			relationUserIds.add(deletedById);
-		if(reviewedById != null)
-			relationUserIds.add(reviewedById);
+		if(createdBy != null)
+			relationUserIds.add(createdBy);
+		if(updatedBy != null)
+			relationUserIds.add(updatedBy);
+		if(deletedBy != null)
+			relationUserIds.add(deletedBy);
+		if(reviewedBy != null)
+			relationUserIds.add(reviewedBy);
 	}
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
-
-	type CreditApplicationHistorySnapshot = {
-		versionId: string;
-		changedAt: string | null;
-		values: Record<CreditApplicationRequestHistoryColumn, string>;
-	};
+	const relations: CreditApplicationRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
 
 	const snapshotsMaybe = historyDocs
-		.map<CreditApplicationHistorySnapshot | null>(historyDoc => {
+		.map<CreditApplicationRequestHistoryEntry | null>(historyDoc => {
 			const version = historyDoc.version;
 			if(version == null)
 				return null;
 
-			const createdById = getRelationshipId(version.createdBy);
-			const updatedById = getRelationshipId(version.updatedBy);
-			const deletedById = getRelationshipId(version.deletedBy);
-			const reviewedById = getRelationshipId(version.reviewedBy);
-			const reviewCommentText = richTextToPlainText(version.reviewComment);
-			const collateralDescriptionText = richTextToPlainText(version.collateralDescription);
-			const assetDescriptionText = richTextToPlainText(version.assetDescription);
-			const remarksText = richTextToPlainText(version.remarks);
+			const createdBy = getRelationshipId(version.createdBy);
+			const updatedBy = getRelationshipId(version.updatedBy);
+			const deletedBy = getRelationshipId(version.deletedBy);
+			const reviewedBy = getRelationshipId(version.reviewedBy);
+			const collateralDescriptionText = version.collateralDescription;
+			const assetDescriptionText = version.assetDescription;
+			const remarksText = version.remarks;
 
 			const createdAt = version.createdAt ?? null;
 			const updatedAt = version.updatedAt ?? null;
@@ -1669,78 +1455,53 @@ export async function getCreditApplicationRequestHistoryAction(creditApplication
 
 			return {
 				versionId: String(version.id ?? historyDoc.id ?? creditApplicationId),
-				changedAt: historyDoc.updatedAt ?? updatedAt,
-				values: {
-					id: String(version.id ?? creditApplicationId),
-					name: (version.name ?? "-").trim().length > 0 ? version.name ?? "-" : "-",
-					email: formatReviewCreditApplicationLevelValue(version.email),
-					addresses: formatReviewCreditApplicationMenusValue(version.addresses),
-					phoneNumbers: formatReviewCreditApplicationMenusValue(version.phoneNumbers),
-					whatsappNumber: formatReviewOptionalTextValue(version.whatsappNumber),
-					smsNumber: formatReviewOptionalTextValue(version.smsNumber),
-					collateralRegistryName: formatReviewOptionalTextValue(version.collateralRegistryName),
-					collateralName: formatReviewOptionalTextValue(version.collateralName),
-					collateralDescription: collateralDescriptionText.length > 0 ? collateralDescriptionText : "-",
-					assetId: formatReviewOptionalTextValue(version.assetId),
-					assetName: formatReviewOptionalTextValue(version.assetName),
-					assetDescription: assetDescriptionText.length > 0 ? assetDescriptionText : "-",
-					period: formatReviewNumberValue(version.period),
-					installment: formatReviewNumberValue(version.installment),
-					downPayment: formatReviewNumberValue(version.downPayment),
-					plafond: formatReviewNumberValue(version.plafond),
-					vendor: formatReviewOptionalTextValue(version.vendor),
-					remarks: remarksText.length > 0 ? remarksText : "-",
-					otherText1: formatReviewOptionalTextValue(version.otherText1),
-					otherText2: formatReviewOptionalTextValue(version.otherText2),
-					otherNumber1: formatReviewNumberValue(version.otherNumber1),
-					otherNumber2: formatReviewNumberValue(version.otherNumber2),
-					otherDate1: formatReviewDateValue(typeof version.otherDate1 == "string" ? version.otherDate1 : null),
-					otherDate2: formatReviewDateValue(typeof version.otherDate2 == "string" ? version.otherDate2 : null),
-					others: formatReviewJsonValue(version.others),
-					createdBy: createdById != null ? (usersById.get(createdById)?.name ?? "-") : "-",
-					updatedBy: updatedById != null ? (usersById.get(updatedById)?.name ?? "-") : "-",
-					deletedBy: deletedById != null ? (usersById.get(deletedById)?.name ?? "-") : "-",
-					createdAt: formatReviewDateValue(createdAt),
-					updatedAt: formatReviewDateValue(updatedAt),
-					deletedAt: formatReviewDateValue(deletedAt),
-					requestType: getCreditApplicationRequestType(deletedAt, createdAt, updatedAt),
-					status: getCreditApplicationHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
-					reviewedAt: formatReviewDateValue(reviewedAt),
-					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
-					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
-					reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
-				}
+				id: String(version.id ?? creditApplicationId),
+				name: version.name ?? null,
+				email: typeof version.email == "string" ? version.email : null,
+				addresses: Array.isArray(version.addresses) ? version.addresses.filter((value): value is string => typeof value == "string") : null,
+				phoneNumbers: Array.isArray(version.phoneNumbers) ? version.phoneNumbers.filter((value): value is string => typeof value == "string") : null,
+				whatsappNumber: typeof version.whatsappNumber == "string" ? version.whatsappNumber : null,
+				smsNumber: typeof version.smsNumber == "string" ? version.smsNumber : null,
+				collateralRegistryName: typeof version.collateralRegistryName == "string" ? version.collateralRegistryName : null,
+				collateralName: typeof version.collateralName == "string" ? version.collateralName : null,
+				collateralDescription: collateralDescriptionText as RichTextValue | null,
+				assetId: typeof version.assetId == "string" ? version.assetId : null,
+				assetName: typeof version.assetName == "string" ? version.assetName : null,
+				assetDescription: assetDescriptionText as RichTextValue | null,
+				period: typeof version.period == "number" ? version.period : null,
+				installment: typeof version.installment == "number" ? version.installment : null,
+				downPayment: typeof version.downPayment == "number" ? version.downPayment : null,
+				plafond: typeof version.plafond == "number" ? version.plafond : null,
+				vendor: typeof version.vendor == "string" ? version.vendor : null,
+				remarks: remarksText as RichTextValue | null,
+				otherText1: typeof version.otherText1 == "string" ? version.otherText1 : null,
+				otherText2: typeof version.otherText2 == "string" ? version.otherText2 : null,
+				otherNumber1: typeof version.otherNumber1 == "number" ? version.otherNumber1 : null,
+				otherNumber2: typeof version.otherNumber2 == "number" ? version.otherNumber2 : null,
+				otherDate1: typeof version.otherDate1 == "string" ? version.otherDate1 : null,
+				otherDate2: typeof version.otherDate2 == "string" ? version.otherDate2 : null,
+				others: version.others as JsonValue | null,
+				createdBy,
+				updatedBy,
+				deletedBy,
+				createdAt,
+				updatedAt,
+				deletedAt,
+				requestType: getCreditApplicationRequestType(deletedAt, createdAt, updatedAt),
+				status: getCreditApplicationHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
+				reviewedAt,
+				reviewedBy,
+				reviewApproved: version.reviewApproved ?? null,
+				reviewComment: version.reviewComment as ReviewCommentValue | null
 			};
 		});
 
-	const snapshots = snapshotsMaybe.filter((snapshot): snapshot is CreditApplicationHistorySnapshot => snapshot != null);
-
-	const entries: CreditApplicationRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
-		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
-
-		const changes: CreditApplicationRequestHistoryChangeItem[] = creditApplicationRequestHistoryColumns.map(column => {
-			const previousValue = previousSnapshot?.values[column] ?? "-";
-			const nextValue = snapshot.values[column];
-			return {
-				column,
-				label: creditApplicationRequestHistoryColumnLabelMap[column],
-				previousValue,
-				nextValue,
-				changed: previousValue != nextValue
-			};
-		});
-
-		return {
-			versionId: snapshot.versionId,
-			changedAt: snapshot.changedAt,
-			changes,
-			changedCount: changes.filter(change => change.changed).length
-		};
-	});
+	const entries = snapshotsMaybe.filter((snapshot): snapshot is CreditApplicationRequestHistoryEntry => snapshot != null);
 
 	return {
 		requestId: creditApplicationId,
-		entries
+		entries,
+		relations
 	};
 }
 
@@ -1758,16 +1519,16 @@ export async function upsertCreditApplicationRequestAction(input: UpsertCreditAp
 	const smsNumber = normalizeOptionalTextValue(input.smsNumber);
 	const collateralRegistryName = normalizeOptionalTextValue(input.collateralRegistryName);
 	const collateralName = normalizeOptionalTextValue(input.collateralName);
-	const collateralDescription = normalizeOptionalTextValue(input.collateralDescription);
+	const collateralDescription = input.collateralDescription;
 	const assetId = normalizeOptionalTextValue(input.assetId);
 	const assetName = normalizeOptionalTextValue(input.assetName);
-	const assetDescription = normalizeOptionalTextValue(input.assetDescription);
+	const assetDescription = input.assetDescription;
 	const period = normalizeCreditApplicationNumberValue(input.period);
 	const installment = normalizeCreditApplicationNumberValue(input.installment);
 	const downPayment = normalizeCreditApplicationNumberValue(input.downPayment);
 	const plafond = normalizeCreditApplicationNumberValue(input.plafond);
 	const vendor = normalizeOptionalTextValue(input.vendor);
-	const remarks = normalizeOptionalTextValue(input.remarks);
+	const remarks = input.remarks;
 	const otherText1 = normalizeOptionalTextValue(input.otherText1);
 	const otherText2 = normalizeOptionalTextValue(input.otherText2);
 	const otherNumber1 = normalizeCreditApplicationNumberValue(input.otherNumber1);
@@ -1795,16 +1556,16 @@ export async function upsertCreditApplicationRequestAction(input: UpsertCreditAp
 		smsNumber,
 		collateralRegistryName,
 		collateralName,
-		collateralDescription: plainTextToRichText(collateralDescription) as any,
+		collateralDescription: collateralDescription,
 		assetId,
 		assetName,
-		assetDescription: plainTextToRichText(assetDescription) as any,
+		assetDescription: assetDescription,
 		period,
 		installment,
 		downPayment,
 		plafond,
 		vendor,
-		remarks: plainTextToRichText(remarks) as any,
+		remarks: remarks,
 		otherText1,
 		otherText2,
 		otherNumber1,
@@ -1999,9 +1760,9 @@ export async function cancelCreditApplicationRequestAction(creditApplicationId: 
 	const approvedAddresses = normalizeCreditApplicationMenuValues(approvedVersion.addresses);
 	const approvedPhoneNumbers = normalizeCreditApplicationMenuValues(approvedVersion.phoneNumbers);
 	const approvedWhatsappNumber = normalizeOptionalTextValue(approvedVersion.whatsappNumber);
-	const approvedCollateralDescription = richTextToPlainText(approvedVersion.collateralDescription);
-	const approvedAssetDescription = richTextToPlainText(approvedVersion.assetDescription);
-	const approvedRemarks = richTextToPlainText(approvedVersion.remarks);
+	const approvedCollateralDescription = approvedVersion.collateralDescription;
+	const approvedAssetDescription = approvedVersion.assetDescription;
+	const approvedRemarks = approvedVersion.remarks;
 
 	await payload.update({
 		user,
@@ -2019,16 +1780,16 @@ export async function cancelCreditApplicationRequestAction(creditApplicationId: 
 			smsNumber: normalizeOptionalTextValue(approvedVersion.smsNumber),
 			collateralRegistryName: normalizeOptionalTextValue(approvedVersion.collateralRegistryName),
 			collateralName: normalizeOptionalTextValue(approvedVersion.collateralName),
-			collateralDescription: plainTextToRichText(approvedCollateralDescription) as any,
+			collateralDescription: approvedCollateralDescription,
 			assetId: normalizeOptionalTextValue(approvedVersion.assetId),
 			assetName: normalizeOptionalTextValue(approvedVersion.assetName),
-			assetDescription: plainTextToRichText(approvedAssetDescription) as any,
+			assetDescription: approvedAssetDescription,
 			period: normalizeCreditApplicationNumberValue(approvedVersion.period),
 			installment: normalizeCreditApplicationNumberValue(approvedVersion.installment),
 			downPayment: normalizeCreditApplicationNumberValue(approvedVersion.downPayment),
 			plafond: normalizeCreditApplicationNumberValue(approvedVersion.plafond),
 			vendor: normalizeOptionalTextValue(approvedVersion.vendor),
-			remarks: plainTextToRichText(approvedRemarks) as any,
+			remarks: approvedRemarks,
 			otherText1: normalizeOptionalTextValue(approvedVersion.otherText1),
 			otherText2: normalizeOptionalTextValue(approvedVersion.otherText2),
 			otherNumber1: normalizeCreditApplicationNumberValue(approvedVersion.otherNumber1),
@@ -2214,183 +1975,35 @@ export async function getCreditApplicationRequestReviewDiffAction(creditApplicat
 
 	const approvedVersion = approvedVersions.docs[0]?.version;
 
-	const requestType: CreditApplicationRequestReviewDiffOutput["requestType"] =
-		creditApplication.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
-	const approvedCollateralDescription = richTextToPlainText(approvedVersion?.collateralDescription);
-	const requestedCollateralDescription = richTextToPlainText(creditApplication.collateralDescription);
-	const approvedAssetDescription = richTextToPlainText(approvedVersion?.assetDescription);
-	const requestedAssetDescription = richTextToPlainText(creditApplication.assetDescription);
-	const approvedRemarks = richTextToPlainText(approvedVersion?.remarks);
-	const requestedRemarks = richTextToPlainText(creditApplication.remarks);
-
-	const comparisonItems = [
-		{
-			field: "name",
-			label: "Applicant Name",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.name),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.name)
-		},
-		{
-			field: "email",
-			label: "Email",
-			previousValue: formatReviewCreditApplicationLevelValue(approvedVersion?.email),
-			requestedValue: formatReviewCreditApplicationLevelValue(creditApplication.email)
-		},
-		{
-			field: "addresses",
-			label: "Addresses",
-			previousValue: formatReviewCreditApplicationMenusValue(approvedVersion?.addresses),
-			requestedValue: formatReviewCreditApplicationMenusValue(creditApplication.addresses)
-		},
-		{
-			field: "phoneNumbers",
-			label: "Phone Numbers",
-			previousValue: formatReviewCreditApplicationMenusValue(approvedVersion?.phoneNumbers),
-			requestedValue: formatReviewCreditApplicationMenusValue(creditApplication.phoneNumbers)
-		},
-		{
-			field: "whatsappNumber",
-			label: "Whatsapp Number",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.whatsappNumber),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.whatsappNumber)
-		},
-		{
-			field: "smsNumber",
-			label: "SMS Number",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.smsNumber),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.smsNumber)
-		},
-		{
-			field: "collateralRegistryName",
-			label: "Collateral Registry Name",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.collateralRegistryName),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.collateralRegistryName)
-		},
-		{
-			field: "collateralName",
-			label: "Collateral Name",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.collateralName),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.collateralName)
-		},
-		{
-			field: "collateralDescription",
-			label: "Collateral Description",
-			previousValue: approvedCollateralDescription.length > 0 ? approvedCollateralDescription : "-",
-			requestedValue: requestedCollateralDescription.length > 0 ? requestedCollateralDescription : "-"
-		},
-		{
-			field: "assetId",
-			label: "Asset ID",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.assetId),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.assetId)
-		},
-		{
-			field: "assetName",
-			label: "Asset Name",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.assetName),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.assetName)
-		},
-		{
-			field: "assetDescription",
-			label: "Asset Description",
-			previousValue: approvedAssetDescription.length > 0 ? approvedAssetDescription : "-",
-			requestedValue: requestedAssetDescription.length > 0 ? requestedAssetDescription : "-"
-		},
-		{
-			field: "period",
-			label: "Period",
-			previousValue: formatReviewNumberValue(approvedVersion?.period),
-			requestedValue: formatReviewNumberValue(creditApplication.period)
-		},
-		{
-			field: "installment",
-			label: "Installment",
-			previousValue: formatReviewNumberValue(approvedVersion?.installment),
-			requestedValue: formatReviewNumberValue(creditApplication.installment)
-		},
-		{
-			field: "downPayment",
-			label: "Down Payment",
-			previousValue: formatReviewNumberValue(approvedVersion?.downPayment),
-			requestedValue: formatReviewNumberValue(creditApplication.downPayment)
-		},
-		{
-			field: "plafond",
-			label: "Plafond",
-			previousValue: formatReviewNumberValue(approvedVersion?.plafond),
-			requestedValue: formatReviewNumberValue(creditApplication.plafond)
-		},
-		{
-			field: "vendor",
-			label: "Vendor",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.vendor),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.vendor)
-		},
-		{
-			field: "remarks",
-			label: "Remarks",
-			previousValue: approvedRemarks.length > 0 ? approvedRemarks : "-",
-			requestedValue: requestedRemarks.length > 0 ? requestedRemarks : "-"
-		},
-		{
-			field: "otherText1",
-			label: "Other Text 1",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.otherText1),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.otherText1)
-		},
-		{
-			field: "otherText2",
-			label: "Other Text 2",
-			previousValue: formatReviewOptionalTextValue(approvedVersion?.otherText2),
-			requestedValue: formatReviewOptionalTextValue(creditApplication.otherText2)
-		},
-		{
-			field: "otherNumber1",
-			label: "Other Number 1",
-			previousValue: formatReviewNumberValue(approvedVersion?.otherNumber1),
-			requestedValue: formatReviewNumberValue(creditApplication.otherNumber1)
-		},
-		{
-			field: "otherNumber2",
-			label: "Other Number 2",
-			previousValue: formatReviewNumberValue(approvedVersion?.otherNumber2),
-			requestedValue: formatReviewNumberValue(creditApplication.otherNumber2)
-		},
-		{
-			field: "otherDate1",
-			label: "Other Date 1",
-			previousValue: formatReviewDateValue(typeof approvedVersion?.otherDate1 == "string" ? approvedVersion.otherDate1 : null),
-			requestedValue: formatReviewDateValue(typeof creditApplication.otherDate1 == "string" ? creditApplication.otherDate1 : null)
-		},
-		{
-			field: "otherDate2",
-			label: "Other Date 2",
-			previousValue: formatReviewDateValue(typeof approvedVersion?.otherDate2 == "string" ? approvedVersion.otherDate2 : null),
-			requestedValue: formatReviewDateValue(typeof creditApplication.otherDate2 == "string" ? creditApplication.otherDate2 : null)
-		},
-		{
-			field: "others",
-			label: "Others",
-			previousValue: formatReviewJsonValue(approvedVersion?.others),
-			requestedValue: formatReviewJsonValue(creditApplication.others)
-		},
-		{
-			field: "deletedAt",
-			label: "Deleted At",
-			previousValue: formatReviewDateValue(approvedVersion?.deletedAt ?? null),
-			requestedValue: formatReviewDateValue(creditApplication.deletedAt)
-		}
-	] satisfies Array<Omit<CreditApplicationRequestReviewDiffItem, "changed">>;
-
-	const items: CreditApplicationRequestReviewDiffItem[] = comparisonItems.map(item => ({
-		...item,
-		changed: item.previousValue != item.requestedValue
-	}));
-
 	return {
 		requestId: creditApplicationId,
-		requestType,
-		items,
-		changedCount: items.filter(item => item.changed).length
+		requestType: creditApplication.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		name: [approvedVersion?.name ?? creditApplication.name, creditApplication.name],
+		email: [approvedVersion?.email ?? creditApplication.email, creditApplication.email],
+		addresses: [approvedVersion?.addresses ?? creditApplication.addresses, creditApplication.addresses],
+		phoneNumbers: [approvedVersion?.phoneNumbers ?? creditApplication.phoneNumbers, creditApplication.phoneNumbers],
+		whatsappNumber: [approvedVersion?.whatsappNumber ?? creditApplication.whatsappNumber, creditApplication.whatsappNumber],
+		smsNumber: [approvedVersion?.smsNumber ?? creditApplication.smsNumber, creditApplication.smsNumber],
+		collateralRegistryName: [approvedVersion?.collateralRegistryName ?? creditApplication.collateralRegistryName, creditApplication.collateralRegistryName],
+		collateralName: [approvedVersion?.collateralName ?? creditApplication.collateralName, creditApplication.collateralName],
+		collateralDescription: [approvedVersion?.collateralDescription ?? creditApplication.collateralDescription, creditApplication.collateralDescription],
+		assetId: [approvedVersion?.assetId ?? creditApplication.assetId, creditApplication.assetId],
+		assetName: [approvedVersion?.assetName ?? creditApplication.assetName, creditApplication.assetName],
+		assetDescription: [approvedVersion?.assetDescription ?? creditApplication.assetDescription, creditApplication.assetDescription],
+		period: [approvedVersion?.period ?? creditApplication.period, creditApplication.period],
+		installment: [approvedVersion?.installment ?? creditApplication.installment, creditApplication.installment],
+		downPayment: [approvedVersion?.downPayment ?? creditApplication.downPayment, creditApplication.downPayment],
+		plafond: [approvedVersion?.plafond ?? creditApplication.plafond, creditApplication.plafond],
+		vendor: [approvedVersion?.vendor ?? creditApplication.vendor, creditApplication.vendor],
+		remarks: [approvedVersion?.remarks ?? creditApplication.remarks, creditApplication.remarks],
+		otherText1: [approvedVersion?.otherText1 ?? creditApplication.otherText1, creditApplication.otherText1],
+		otherText2: [approvedVersion?.otherText2 ?? creditApplication.otherText2, creditApplication.otherText2],
+		otherNumber1: [approvedVersion?.otherNumber1 ?? creditApplication.otherNumber1, creditApplication.otherNumber1],
+		otherNumber2: [approvedVersion?.otherNumber2 ?? creditApplication.otherNumber2, creditApplication.otherNumber2],
+		otherDate1: [approvedVersion?.otherDate1 ?? creditApplication.otherDate1, creditApplication.otherDate1],
+		otherDate2: [approvedVersion?.otherDate2 ?? creditApplication.otherDate2, creditApplication.otherDate2],
+		others: [approvedVersion?.others ?? creditApplication.others, creditApplication.others],
+		deletedAt: [approvedVersion?.deletedAt ?? creditApplication.deletedAt, creditApplication.deletedAt],
+		relations: {}
 	};
 }

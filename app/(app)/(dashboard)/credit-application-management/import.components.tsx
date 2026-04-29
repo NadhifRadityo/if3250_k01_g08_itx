@@ -26,10 +26,11 @@ import {
 } from "lucide-react";
 
 import cn from "@/utils/cn";
-import type { ReviewCommentRichText } from "@/utils/reviewCommentRichText";
+import { createEmptyReviewComment, type ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
 import { ReviewCommentInput } from "@/components/ReviewCommentInput";
+import { ReviewCommentPreview } from "@/components/ReviewCommentInput";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Badge } from "@/components/radix/Badge";
@@ -48,13 +49,12 @@ import { Input } from "@/components/radix/Input";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
-import { Textarea } from "@/components/radix/Textarea";
 import importTemplateLogo from "@/app/_static/favicons/logo.png";
 
+import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as importActions from "./import.actions";
 import { RELATION_FILTER_QUERY_PARAM } from "./layout.components";
-import { uploadGenericRichtextImage } from "../../editor-x.actions";
 
 export const PAGE_SIZE = 20;
 
@@ -67,7 +67,6 @@ export type FilterInput = importActions.CreditApplicationImportFilterInput;
 export type queryCreditApplicationImportsOutput = Awaited<ReturnType<typeof importActions.queryCreditApplicationImportViewerAction>>;
 export type CreditApplicationImportTableRow = queryCreditApplicationImportsOutput["docs"][number];
 export type CreditApplicationImportPreviewOutput = Awaited<ReturnType<typeof importActions.parseCreditApplicationImportPreviewAction>>;
-export type CreditApplicationImportRelationColumn = importActions.CreditApplicationImportRelationColumn;
 export type ActionError = {
 	title: string;
 	message: string;
@@ -89,8 +88,8 @@ export type CreditApplicationImportTableColumnId = "id" |
 	"filename" |
 	"filesize" |
 	"mimeType" |
-	"descriptionText" |
-	"reviewCommentText" |
+	"description" |
+	"reviewComment" |
 	"createdBy" |
 	"updatedBy" |
 	"deletedBy" |
@@ -116,7 +115,7 @@ export type CreditApplicationImportFormState = {
 	filename: string;
 	filesize: number;
 	fileUrl: string | null;
-	description: string;
+	description: ReviewCommentRichText;
 };
 
 export type FilterValueType = "text" | "date" | "select" | "boolean";
@@ -193,8 +192,8 @@ export const creditApplicationImportTableColumns: CreditApplicationImportTableCo
 	{ id: "filename", label: "Filename", sortField: "filename", cellClassName: "font-medium" },
 	{ id: "filesize", label: "Size", sortField: "filesize" },
 	{ id: "mimeType", label: "MIME Type", sortField: "mimeType", cellClassName: "max-w-[260px] overflow-hidden text-ellipsis whitespace-nowrap" },
-	{ id: "descriptionText", label: "Description", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
-	{ id: "reviewCommentText", label: "Review Comment", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ id: "description", label: "Description", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ id: "reviewComment", label: "Review Comment", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ id: "createdBy", label: "Created By" },
 	{ id: "updatedBy", label: "Updated By" },
 	{ id: "deletedBy", label: "Deleted By" },
@@ -376,13 +375,13 @@ function getCreditApplicationImportDrawerValueClassName(columnId: string): strin
 		return "text-xs font-mono";
 	if(columnId == "filename")
 		return "text-sm font-medium";
-	if(columnId == "descriptionText" || columnId == "reviewCommentText")
+	if(columnId == "description" || columnId == "reviewComment")
 		return "text-sm leading-relaxed whitespace-pre-wrap";
 	return "text-sm";
 }
 
 export const defaultCreditApplicationImportColumnOrder: CreditApplicationImportTableColumnId[] = creditApplicationImportTableColumns.map(column => column.id);
-export const defaultCreditApplicationImportVisibleColumns: CreditApplicationImportTableColumnId[] = ["filename", "filesize", "status", "updatedAt", "reviewCommentText"];
+export const defaultCreditApplicationImportVisibleColumns: CreditApplicationImportTableColumnId[] = ["filename", "filesize", "status", "updatedAt", "reviewComment"];
 export const defaultCreditApplicationImportHiddenColumns: CreditApplicationImportTableColumnId[] = defaultCreditApplicationImportColumnOrder.filter(columnId => !defaultCreditApplicationImportVisibleColumns.includes(columnId));
 
 export const creditApplicationImportTemplateColumns: CreditApplicationImportTemplateColumn[] = [
@@ -516,13 +515,6 @@ function formatCreditApplicationImportPreviewCellValue(
 	return JSON.stringify(value, null, 2);
 }
 
-export const creditApplicationImportRelationColumnSet = new Set<CreditApplicationImportRelationColumn>([
-	"reviewedBy",
-	"createdBy",
-	"updatedBy",
-	"deletedBy"
-]);
-
 const creditApplicationImportNonEligibleColumnSet = new Set<string>([
 	"status",
 	"reviewApproved",
@@ -597,16 +589,6 @@ export function reorderColumns(order: CreditApplicationImportTableColumnId[], so
 	return nextOrder;
 }
 
-function getCreditApplicationImportRelationSummaryLabel(column: CreditApplicationImportRelationColumn): string {
-	if(column == "reviewedBy")
-		return "Reviewed By";
-	if(column == "createdBy")
-		return "Created By";
-	if(column == "updatedBy")
-		return "Updated By";
-	return "Deleted By";
-}
-
 export type CreditApplicationImportRelationNavigation = {
 	getHrefBase: (managementKey: "user-management" | "credit-application-management" | "team-management") => string | null;
 	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
@@ -626,25 +608,28 @@ export type CreditApplicationImportRelationNavigation = {
 
 function renderCreditApplicationImportUserRelationValue({
 	column,
-	value,
+	relation,
 	relationId,
-	relationNavigation,
-	stagedUserIdByUserId
+	relationNavigation
 }: {
-	column: CreditApplicationImportRelationColumn;
-	value: string;
+	column: string;
+	relation: { name: string, email: string, stagedUserId: string | null } | null;
 	relationId: string | null;
 	relationNavigation?: CreditApplicationImportRelationNavigation;
-	stagedUserIdByUserId?: Record<string, string>;
 }): ReactNode {
-	const normalizedValue = value.trim();
-	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
+	const value = relation?.name ?? relation?.email ?? "-";
+	if(relationId == null || value.trim().length == 0 || value == "-")
 		return value;
 
-	const summaryLabel = getCreditApplicationImportRelationSummaryLabel(column);
+	const summaryLabel = {
+		"reviewedBy": "Reviewed By",
+		"createdBy": "Created By",
+		"updatedBy": "Updated By",
+		"deletedBy": "Deleted By"
+	}[column];
 	const hrefBase = relationNavigation?.getHrefBase("user-management");
 	if(hrefBase != null && relationNavigation != null) {
-		const stagedUserId = stagedUserIdByUserId?.[relationId] ?? null;
+		const stagedUserId = relation?.stagedUserId ?? null;
 		if(stagedUserId == null || stagedUserId.trim().length == 0)
 			return value;
 
@@ -749,7 +734,7 @@ function CreditApplicationImportFileBox({
 		if(parsePreviewQuery.isError)
 			return parsePreviewQuery.error instanceof Error ? parsePreviewQuery.error.message : "Unable to parse import file.";
 		if(parsePreviewQuery.data != null)
-			return `${parsePreviewQuery.data.rowCount} imported row(s)`;
+			return `${parsePreviewQuery.data.rowCount} parsed row(s)`;
 		if(canDownload)
 			return "Alt+Click to download";
 		return "Preview unavailable";
@@ -898,16 +883,16 @@ export function CreditApplicationImportRequestDetailsDrawer({
 				return renderDetailColumnValue(columnId, formatFileSize(data.row.filesize));
 			case "mimeType":
 				return renderDetailColumnValue(columnId, formatTextValue(data.row.mimeType));
-			case "descriptionText":
-				return renderDetailColumnValue(columnId, formatTextValue(data.row.descriptionText));
-			case "reviewCommentText":
-				return renderDetailColumnValue(columnId, formatTextValue(data.row.reviewCommentText));
+			case "description":
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.description ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
+			case "reviewComment":
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.reviewComment ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			case "createdBy":
-				return renderDetailColumnValue(columnId, renderCreditApplicationImportUserRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderCreditApplicationImportUserRelationValue({ column: "createdBy", relation: data.row.createdBy == null ? null : data.relations[`users:${data.row.createdBy}`] ?? null, relationId: data.row.createdBy, relationNavigation }));
 			case "updatedBy":
-				return renderDetailColumnValue(columnId, renderCreditApplicationImportUserRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderCreditApplicationImportUserRelationValue({ column: "updatedBy", relation: data.row.updatedBy == null ? null : data.relations[`users:${data.row.updatedBy}`] ?? null, relationId: data.row.updatedBy, relationNavigation }));
 			case "deletedBy":
-				return renderDetailColumnValue(columnId, renderCreditApplicationImportUserRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderCreditApplicationImportUserRelationValue({ column: "deletedBy", relation: data.row.deletedBy == null ? null : data.relations[`users:${data.row.deletedBy}`] ?? null, relationId: data.row.deletedBy, relationNavigation }));
 			case "createdAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
 			case "updatedAt":
@@ -921,7 +906,7 @@ export function CreditApplicationImportRequestDetailsDrawer({
 			case "reviewedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
 			case "reviewedBy":
-				return renderDetailColumnValue(columnId, renderCreditApplicationImportUserRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderCreditApplicationImportUserRelationValue({ column: "reviewedBy", relation: data.row.reviewedBy == null ? null : data.relations[`users:${data.row.reviewedBy}`] ?? null, relationId: data.row.reviewedBy, relationNavigation }));
 			case "reviewApproved":
 				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
 			default:
@@ -1192,9 +1177,9 @@ export function CreditApplicationImportRequestFormDrawer({
 					</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
-					<div className="grid gap-3 pb-4">
+					<div className="grid gap-3 pb-4 sm:grid-cols-2">
 						{!isEditMode ? (
-							<div className="bg-muted/40 space-y-2 rounded-lg border p-3">
+							<div className="bg-muted/40 space-y-2 sm:col-span-2 rounded-lg border p-3">
 								<p className="text-sm font-medium">Need a starter workbook?</p>
 								<p className="text-muted-foreground text-xs">Download the XLSX template with every supported column, built-in validation rules, and the same layout used by the importer.</p>
 								<Button
@@ -1210,7 +1195,7 @@ export function CreditApplicationImportRequestFormDrawer({
 							</div>
 						) : null}
 
-						<div className="space-y-2">
+						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Excel File</label>
 							<Input
 								type="file"
@@ -1230,28 +1215,24 @@ export function CreditApplicationImportRequestFormDrawer({
 						</div>
 
 						{resolvedFileName.trim().length > 0 ? (
-							<CreditApplicationImportFileBox
-								fileName={resolvedFileName}
-								fileSize={resolvedFileSize}
-								href={resolvedFileHref}
-								importId={formState.importId}
-								file={formState.file}
-							/>
+							<div className="space-y-2 sm:col-span-2">
+								<CreditApplicationImportFileBox
+									fileName={resolvedFileName}
+									fileSize={resolvedFileSize}
+									href={resolvedFileHref}
+									importId={formState.importId}
+									file={formState.file}
+								/>
+							</div>
 						) : null}
 
-						<div className="space-y-2">
+						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Description</label>
-							<Textarea
-								value={formState.description}
-								onChange={event => onFormStateChange(previous => ({ ...previous, description: event.target.value }))}
-								rows={8}
-								placeholder="Optional import description"
-								disabled={isMutating}
-							/>
+							<ReviewCommentInput serializedState={formState.description} onSerializedStateChange={value => onFormStateChange(previous => ({ ...previous, description: value as ReviewCommentRichText }))} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 
 						{formError != null ? (
-							<Alert variant="destructive">
+							<Alert variant="destructive" className="sm:col-span-2">
 								<CircleAlertIcon />
 								<AlertTitle>{formError.title}</AlertTitle>
 								<AlertDescription>{formError.message}</AlertDescription>
@@ -1305,33 +1286,37 @@ export function CreditApplicationImportRequestReviewDrawer({
 					<DrawerDescription>Review the selected import request before making a decision. Approval parses the uploaded file again and creates credit applications from its rows.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
-					<div className="grid gap-3 pb-4">
+					<div className="grid gap-3 pb-4 sm:grid-cols-2">
 						{row == null ? (
-							<p className="text-muted-foreground text-sm">No import request selected.</p>
+							<p className="text-muted-foreground text-sm sm:col-span-2">No import request selected.</p>
 						) : (
 							<>
-								<CreditApplicationImportFileBox fileName={row.filename} fileSize={row.filesize} href={row.fileUrl} importId={row.id} />
-								<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+								<div className="space-y-2 sm:col-span-2">
+									<CreditApplicationImportFileBox fileName={row.filename} fileSize={row.filesize} href={row.fileUrl} importId={row.id} />
+								</div>
+								<div className="sm:col-span-2 bg-muted/30 rounded-lg border p-3 text-sm">
 									<p>
 										<span className="font-medium">Current Status:</span>{" "}
 										{reviewStatus != null ? <Badge variant={reviewStatus.variant}>{reviewStatus.label}</Badge> : "-"}
 									</p>
 									<p className="text-muted-foreground mt-1">Description can no longer be modified after this review action.</p>
 								</div>
-								<div className="space-y-1 rounded-lg border p-3">
+								<div className="space-y-1 sm:col-span-2 rounded-lg border p-3">
 									<p className="text-muted-foreground text-xs font-medium">Description</p>
-									<p className={cn("wrap-break-word", getCreditApplicationImportDrawerValueClassName("descriptionText"))}>{formatTextValue(row.descriptionText)}</p>
+									<div className={cn("wrap-break-word", getCreditApplicationImportDrawerValueClassName("description"))}>
+										<ReviewCommentPreview serializedState={row.description ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />
+									</div>
 								</div>
 							</>
 						)}
 
-						<div className="space-y-2">
+						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Review Comment (optional)</label>
-							<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
+							<ReviewCommentInput serializedState={reviewComment} onSerializedStateChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 
 						{reviewError != null ? (
-							<Alert variant="destructive">
+							<Alert variant="destructive" className="sm:col-span-2">
 								<CircleAlertIcon />
 								<AlertTitle>{reviewError.title}</AlertTitle>
 								<AlertDescription>{reviewError.message}</AlertDescription>
@@ -1752,14 +1737,12 @@ export function CreditApplicationImportActiveFiltersSummary({ items }: CreditApp
 }
 
 type useCreditApplicationImportCellRendererOptions = {
-	relationValuesByRowId: Record<string, importActions.CreditApplicationImportRelationValues>;
-	isRelationLoading: boolean;
+	relations: importActions.CreditApplicationImportRelationValues;
 	relationNavigation?: CreditApplicationImportRelationNavigation;
 };
 
-export function useCreditApplicationImportCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation }: useCreditApplicationImportCellRendererOptions) {
+export function useCreditApplicationImportCellRenderer({ relations, relationNavigation }: useCreditApplicationImportCellRendererOptions) {
 	return useCallback((columnId: CreditApplicationImportTableColumnId, row: CreditApplicationImportTableRow) => {
-		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "id":
 				return row.id;
@@ -1769,22 +1752,16 @@ export function useCreditApplicationImportCellRenderer({ relationValuesByRowId, 
 				return formatFileSize(row.filesize);
 			case "mimeType":
 				return formatTextValue(row.mimeType);
-			case "descriptionText":
-				return formatTextValue(row.descriptionText);
-			case "reviewCommentText":
-				return formatTextValue(row.reviewCommentText);
+			case "description":
+				return <ReviewCommentPreview serializedState={row.description ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
+			case "reviewComment":
+				return <ReviewCommentPreview serializedState={row.reviewComment ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			case "createdBy":
-				if(isRelationLoading && resolvedValues.createdBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderCreditApplicationImportUserRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationId: row.createdById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderCreditApplicationImportUserRelationValue({ column: "createdBy", relation: row.createdBy == null ? null : relations[`users:${row.createdBy}`] ?? null, relationId: row.createdBy, relationNavigation });
 			case "updatedBy":
-				if(isRelationLoading && resolvedValues.updatedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderCreditApplicationImportUserRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderCreditApplicationImportUserRelationValue({ column: "updatedBy", relation: row.updatedBy == null ? null : relations[`users:${row.updatedBy}`] ?? null, relationId: row.updatedBy, relationNavigation });
 			case "deletedBy":
-				if(isRelationLoading && resolvedValues.deletedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderCreditApplicationImportUserRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderCreditApplicationImportUserRelationValue({ column: "deletedBy", relation: row.deletedBy == null ? null : relations[`users:${row.deletedBy}`] ?? null, relationId: row.deletedBy, relationNavigation });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1798,15 +1775,13 @@ export function useCreditApplicationImportCellRenderer({ relationValuesByRowId, 
 			case "reviewedAt":
 				return formatDateTime(row.reviewedAt);
 			case "reviewedBy":
-				if(isRelationLoading && resolvedValues.reviewedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderCreditApplicationImportUserRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderCreditApplicationImportUserRelationValue({ column: "reviewedBy", relation: row.reviewedBy == null ? null : relations[`users:${row.reviewedBy}`] ?? null, relationId: row.reviewedBy, relationNavigation });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, relationNavigation, relationValuesByRowId]);
+	}, [relationNavigation, relations]);
 }
 
 export function useCreditApplicationImportColumnPreferences() {
@@ -1999,48 +1974,6 @@ export function useCreditApplicationImportManagementQueryState({
 		sortTokens,
 		getSortDirection,
 		toggleSortField
-	};
-}
-
-type useCreditApplicationImportRelationsOptions = {
-	docs: CreditApplicationImportTableRow[];
-	visibleColumns: CreditApplicationImportTableColumnConfig[];
-};
-
-export function useCreditApplicationImportRelations({ docs, visibleColumns }: useCreditApplicationImportRelationsOptions) {
-	const visibleRelationColumns = useMemo(() => (
-		visibleColumns
-			.map(column => column.id)
-			.filter((columnId): columnId is CreditApplicationImportRelationColumn => creditApplicationImportRelationColumnSet.has(columnId as CreditApplicationImportRelationColumn))
-	), [visibleColumns]);
-
-	const relationRows = useMemo(() => docs.map(row => ({
-		id: row.id,
-		reviewedById: row.reviewedById,
-		createdById: row.createdById,
-		updatedById: row.updatedById,
-		deletedById: row.deletedById
-	})), [docs]);
-
-	const relationsQuery = useQuery({
-		queryKey: ["credit-application-management", "imports", "relations", { rows: relationRows, columns: visibleRelationColumns }],
-		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => importActions.resolveCreditApplicationImportRelationColumnsAction({
-			rows: relationRows,
-			columns: visibleRelationColumns
-		}),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const relationValuesByRowId = useMemo(() => Object.fromEntries(
-		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	), [relationsQuery.data]);
-	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
-
-	return {
-		relationValuesByRowId,
-		isRelationLoading
 	};
 }
 
@@ -2480,11 +2413,12 @@ export const defaultCreditApplicationImportFormState: CreditApplicationImportFor
 	filename: "",
 	filesize: 0,
 	fileUrl: null,
-	description: ""
+	description: createEmptyReviewComment()
 };
 
 export const emptyQueryData: importActions.QueryCreditApplicationImportsOutput = {
 	docs: [],
+	relations: {},
 	totalDocs: 0,
 	page: 1,
 	hasNextPage: false,

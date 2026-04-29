@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
+import type { RelationUser } from "@/utils/requestRelationValues";
 import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import type { SatsifactionSurvey } from "@/payload-types";
 
@@ -22,20 +23,15 @@ const sortableFields = new Set<SurveyManagementSortField>([
 	"updatedAt",
 	"deletedAt",
 	"title",
-	"descriptionText",
-	"contentText",
 	"reviewedAt",
 	"reviewedBy",
-	"reviewApproved",
-	"requestType",
-	"status",
-	"reviewCommentText"
+	"reviewApproved"
 ]);
 const filterableColumns = new Set<SurveyManagementFilterColumn>([
 	"id",
 	"title",
-	"descriptionText",
-	"contentText",
+	"description",
+	"content",
 	"createdAt",
 	"createdBy",
 	"updatedAt",
@@ -75,6 +71,7 @@ const dateFilterColumns = new Set<SurveyManagementFilterColumn>([
 ]);
 const booleanFilterColumns = new Set<SurveyManagementFilterColumn>(["reviewApproved"]);
 
+type RichTextValue = NonNullable<SatsifactionSurvey["description"]>;
 type ReviewCommentValue = NonNullable<SatsifactionSurvey["reviewComment"]>;
 const defaultReviewComment: ReviewCommentValue = createEmptyReviewComment();
 
@@ -84,19 +81,14 @@ export type SurveyManagementSortField = "createdAt" |
 	"updatedAt" |
 	"deletedAt" |
 	"title" |
-	"descriptionText" |
-	"contentText" |
 	"reviewedAt" |
 	"reviewedBy" |
-	"reviewApproved" |
-	"requestType" |
-	"status" |
-	"reviewCommentText";
+	"reviewApproved";
 export type SurveyManagementSortToken = `${"+" | "-"}${SurveyManagementSortField}`;
 export type SurveyManagementFilterColumn = "title" |
 	"id" |
-	"descriptionText" |
-	"contentText" |
+	"description" |
+	"content" |
 	"createdAt" |
 	"createdBy" |
 	"updatedAt" |
@@ -129,40 +121,23 @@ export type SurveyManagementFilterInput = {
 export type SurveyTableRow = {
 	id: string;
 	title: string;
-	descriptionText: string;
-	contentText: string;
+	description: RichTextValue | null;
+	content: any;
 	isSoftDeleted: boolean;
-	createdById: string | null;
-	updatedById: string | null;
-	deletedById: string | null;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
 	reviewedAt: string | null;
-	reviewedById: string | null;
+	reviewedBy: string | null;
 	reviewApproved: boolean | null;
-	reviewCommentText: string;
+	reviewComment: ReviewCommentValue | null;
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type SurveyRelationColumn = "reviewedBy" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy";
-
-export type ResolveSurveyRelationColumnsInput = {
-	rows: Array<Pick<SurveyTableRow, "id" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
-	columns: SurveyRelationColumn[];
-};
-
-export type SurveyRelationValues = Partial<Record<SurveyRelationColumn, string>> & {
-	stagedUserIdByUserId?: Record<string, string>;
-};
-
-export type ResolveSurveyRelationColumnsOutput = Array<{
-	id: string;
-	values: SurveyRelationValues;
-}>;
+export type SurveyRelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 export type QuerySurveysInput = {
 	keyword: string;
@@ -177,6 +152,7 @@ export type QuerySurveysInput = {
 
 export type QuerySurveysOutput = {
 	docs: SurveyTableRow[];
+	relations: SurveyRelationValues;
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
@@ -197,7 +173,7 @@ export type SurveyFilterIdOption = {
 export type UpsertSurveyRequestInput = {
 	surveyId?: string;
 	title: string;
-	description: string;
+	description: RichTextValue;
 	content: string;
 };
 
@@ -207,62 +183,45 @@ export type ReviewSurveyRequestInput = {
 	reviewComment: ReviewCommentValue;
 };
 
-export type SurveyRequestReviewDiffItem = {
-	field: "title" | "descriptionText" | "contentText" | "deletedAt";
-	label: string;
-	previousValue: string;
-	requestedValue: string;
-	changed: boolean;
-};
-
 export type SurveyRequestReviewDiffOutput = {
 	requestId: string;
 	requestType: "Create" | "Update" | "Delete";
-	items: SurveyRequestReviewDiffItem[];
-	changedCount: number;
+	title: [string, string];
+	description: [RichTextValue | null, RichTextValue | null];
+	content: [any, any];
+	deletedAt: [string | null, string | null];
+	relations: SurveyRelationValues;
 };
 
 export type SurveyRequestDetailsOutput = {
 	row: SurveyTableRow;
-	relationValues: SurveyRelationValues;
-	relationReferences: Partial<Record<SurveyRelationColumn, Array<{ type: "user", id: string, label: string }>>>;
-};
-
-export type SurveyRequestHistoryColumn = "id" |
-	"title" |
-	"descriptionText" |
-	"contentText" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy" |
-	"createdAt" |
-	"updatedAt" |
-	"deletedAt" |
-	"requestType" |
-	"status" |
-	"reviewedAt" |
-	"reviewedBy" |
-	"reviewApproved" |
-	"reviewCommentText";
-
-export type SurveyRequestHistoryChangeItem = {
-	column: SurveyRequestHistoryColumn;
-	label: string;
-	previousValue: string;
-	nextValue: string;
-	changed: boolean;
+	relations: SurveyRelationValues;
 };
 
 export type SurveyRequestHistoryEntry = {
 	versionId: string;
-	changedAt: string | null;
-	changes: SurveyRequestHistoryChangeItem[];
-	changedCount: number;
+	id: string;
+	title: string | null;
+	description: RichTextValue | null;
+	content: any;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+	deletedAt: string | null;
+	requestType: "Create" | "Update" | "Delete";
+	status: string;
+	reviewedAt: string | null;
+	reviewedBy: string | null;
+	reviewApproved: boolean | null;
+	reviewComment: ReviewCommentValue | null;
 };
 
 export type SurveyRequestHistoryOutput = {
 	requestId: string;
 	entries: SurveyRequestHistoryEntry[];
+	relations: SurveyRelationValues;
 };
 
 type SortFieldKey = SurveyManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
@@ -383,104 +342,11 @@ function normalizeFilterCombinator(filterCombinator: SurveyManagementFilterCombi
 	return filterCombinator == "or" ? "or" : "and";
 }
 
-function richTextToPlainText(value: unknown): string {
-	if(value == null || typeof value != "object") return "";
-	const nodes: unknown[] = [];
-	const collectNodes = (node: unknown) => {
-		if(node == null || typeof node != "object") return;
-		nodes.push(node);
-		if("children" in node && Array.isArray(node.children))
-			node.children.forEach(collectNodes);
-	};
-	collectNodes((value as { root?: unknown }).root);
-	return nodes
-		.filter((node): node is { text: string } => node != null && typeof node == "object" && "text" in node && typeof node.text == "string")
-		.map(node => node.text)
-		.join(" ")
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
-function plainTextToRichText(value: string | null | undefined): NonNullable<SatsifactionSurvey["description"]> {
-	const text = (value ?? "").trim();
-	if(text.length == 0) {
-		return {
-			root: {
-				type: "root",
-				version: 1,
-				format: "",
-				indent: 0,
-				direction: null,
-				children: [
-					{
-						type: "paragraph",
-						version: 1,
-						format: "",
-						indent: 0,
-						direction: null,
-						children: []
-					}
-				]
-			}
-		};
-	}
-	return {
-		root: {
-			type: "root",
-			version: 1,
-			format: "",
-			indent: 0,
-			direction: null,
-			children: [
-				{
-					type: "paragraph",
-					version: 1,
-					format: "",
-					indent: 0,
-					direction: null,
-					children: [
-						{
-							type: "text",
-							version: 1,
-							text,
-							format: 0,
-							detail: 0,
-							mode: "normal",
-							style: ""
-						}
-					]
-				}
-			]
-		}
-	};
-}
-
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string") return value;
 	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
 		return value.id;
 	return null;
-}
-
-function formatReviewDateValue(value: string | null | undefined): string {
-	if(value == null)
-		return "-";
-	const date = new Date(value);
-	if(Number.isNaN(date.getTime()))
-		return "-";
-	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
-}
-
-function contentToText(value: unknown): string {
-	if(value == null)
-		return "";
-	if(typeof value == "string")
-		return value.trim();
-	try {
-		return JSON.stringify(value, null, 2);
-	} catch{
-		return String(value);
-	}
 }
 
 function parseContentInput(value: string): JsonValue {
@@ -522,44 +388,6 @@ async function hasSurveyRequestHistoryAccess(payload: Awaited<ReturnType<typeof 
 	const surveyMenus = await resolveUserMenus(payload, user);
 	return surveyMenus.includes(surveyHistoryRequiredMenu);
 }
-
-const surveyRequestHistoryColumns = [
-	"id",
-	"title",
-	"descriptionText",
-	"contentText",
-	"createdBy",
-	"updatedBy",
-	"deletedBy",
-	"createdAt",
-	"updatedAt",
-	"deletedAt",
-	"requestType",
-	"status",
-	"reviewedAt",
-	"reviewedBy",
-	"reviewApproved",
-	"reviewCommentText"
-] as const satisfies SurveyRequestHistoryColumn[];
-
-const surveyRequestHistoryColumnLabelMap: Record<SurveyRequestHistoryColumn, string> = {
-	id: "ID",
-	title: "Title",
-	descriptionText: "Description",
-	contentText: "Content",
-	createdBy: "Created By",
-	updatedBy: "Updated By",
-	deletedBy: "Deleted By",
-	createdAt: "Created At",
-	updatedAt: "Updated At",
-	deletedAt: "Deleted At",
-	requestType: "Request",
-	status: "Status",
-	reviewedAt: "Reviewed At",
-	reviewedBy: "Reviewed By",
-	reviewApproved: "Review Approved",
-	reviewCommentText: "Review Comment"
-};
 
 function getSurveyRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
 	if(deletedAt != null)
@@ -709,10 +537,6 @@ function toPayloadSort(sort: SurveyManagementSortToken[]): string {
 		let path: string;
 		if(field == "reviewedBy")
 			path = "reviewedBy.name";
-		else if(field == "requestType")
-			path = "deletedAt";
-		else if(field == "status" || field == "reviewCommentText" || field == "descriptionText" || field == "contentText")
-			path = "reviewedAt";
 		else
 			path = field == "title" ? "title" : field;
 		return `${direction}${path}`;
@@ -802,7 +626,7 @@ function toPayloadFilterWhere(filters: SurveyManagementFilterInput[]): Where | n
 
 			return {
 				where: {
-					[(filter.column == "descriptionText" ? "description" : filter.column == "contentText" ? "content" : filter.column)]: {
+					[filter.column]: {
 						[operatorMap[filter.operator]]: filter.value
 					}
 				},
@@ -888,37 +712,56 @@ export async function querySurveysAction({ keyword, sort, filters, filterCombina
 	});
 
 	const mappedRows: SurveyTableRow[] = surveyFindResult.docs.map(doc => {
-		const createdById = getRelationshipId(doc.createdBy);
-		const updatedById = getRelationshipId(doc.updatedBy);
-		const deletedById = getRelationshipId(doc.deletedBy);
-		const reviewedById = getRelationshipId(doc.reviewedBy);
-		const descriptionText = richTextToPlainText(doc.description);
-		const contentText = contentToText(doc.content);
-		const reviewCommentText = richTextToPlainText(doc.reviewComment);
+		const createdBy = getRelationshipId(doc.createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
 		const requestType = doc.deletedAt != null ? "Delete" : doc.createdAt == doc.updatedAt ? "Create" : "Update";
 
 		return {
 			id: String(doc.id),
 			title: doc.title,
-			descriptionText,
-			contentText,
+			description: doc.description ?? null,
+			content: doc.content,
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
-			createdById,
-			updatedById,
-			deletedById,
+			createdBy,
+			updatedBy,
+			deletedBy,
 			createdAt: doc.createdAt,
 			updatedAt: doc.updatedAt,
 			deletedAt: doc.deletedAt ?? null,
 			reviewedAt: doc.reviewedAt ?? null,
-			reviewedById,
+			reviewedBy,
 			reviewApproved: doc.reviewApproved ?? null,
-			reviewCommentText,
+			reviewComment: doc.reviewComment ?? null,
 			requestType
 		};
 	});
 
+	const userIds = new Set<string>();
+	for(const doc of surveyFindResult.docs) {
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
+		if(reviewedBy != null)
+			userIds.add(reviewedBy);
+		const createdBy = getRelationshipId(doc.createdBy);
+		if(createdBy != null)
+			userIds.add(createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		if(updatedBy != null)
+			userIds.add(updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		if(deletedBy != null)
+			userIds.add(deletedBy);
+	}
+
+	const usersById = await findUsersByIds(payload, user, [...userIds]);
+	const relations: SurveyRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
+
 	return {
 		docs: mappedRows,
+		relations,
 		totalDocs: surveyFindResult.totalDocs,
 		page: surveyFindResult.page ?? pageNumber,
 		hasNextPage: surveyFindResult.hasNextPage,
@@ -948,68 +791,6 @@ export async function querySurveysApproverAction(input: QuerySurveysSharedInput)
 		...input,
 		mode: "approver",
 		includeSoftDeleted: false
-	});
-}
-
-export async function resolveSurveyRelationColumnsAction({ rows, columns }: ResolveSurveyRelationColumnsInput): Promise<ResolveSurveyRelationColumnsOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	if(rows.length == 0 || columns.length == 0)
-		return [];
-
-	const requestedColumns = [...new Set(columns)];
-
-	const userIds = new Set<string>();
-	for(const row of rows) {
-		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
-			userIds.add(row.reviewedById);
-		if(requestedColumns.includes("createdBy") && row.createdById != null)
-			userIds.add(row.createdById);
-		if(requestedColumns.includes("updatedBy") && row.updatedById != null)
-			userIds.add(row.updatedById);
-		if(requestedColumns.includes("deletedBy") && row.deletedById != null)
-			userIds.add(row.deletedById);
-	}
-
-	const usersById = await findUsersByIds(payload, user, [...userIds]);
-
-	return rows.map(row => {
-		const values: SurveyRelationValues = {};
-
-		if(requestedColumns.includes("reviewedBy"))
-			values.reviewedBy = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("createdBy"))
-			values.createdBy = row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("updatedBy"))
-			values.updatedBy = row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("deletedBy"))
-			values.deletedBy = row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-";
-
-		const relationUserIds = new Set<string>();
-		if(row.reviewedById != null)
-			relationUserIds.add(row.reviewedById);
-		if(row.createdById != null)
-			relationUserIds.add(row.createdById);
-		if(row.updatedById != null)
-			relationUserIds.add(row.updatedById);
-		if(row.deletedById != null)
-			relationUserIds.add(row.deletedById);
-
-		const stagedUserIdByUserId = Object.fromEntries(
-			[...relationUserIds]
-				.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-				.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-		);
-		if(Object.keys(stagedUserIdByUserId).length > 0)
-			values.stagedUserIdByUserId = stagedUserIdByUserId;
-
-		return {
-			id: row.id,
-			values
-		};
 	});
 }
 
@@ -1045,72 +826,49 @@ export async function getSurveyRequestDetailsAction(surveyId: string): Promise<S
 		}
 	});
 
-	const createdById = getRelationshipId(survey.createdBy);
-	const updatedById = getRelationshipId(survey.updatedBy);
-	const deletedById = getRelationshipId(survey.deletedBy);
-	const reviewedById = getRelationshipId(survey.reviewedBy);
-	const descriptionText = richTextToPlainText(survey.description);
-	const contentText = contentToText(survey.content);
-	const reviewCommentText = richTextToPlainText(survey.reviewComment);
+	const createdBy = getRelationshipId(survey.createdBy);
+	const updatedBy = getRelationshipId(survey.updatedBy);
+	const deletedBy = getRelationshipId(survey.deletedBy);
+	const reviewedBy = getRelationshipId(survey.reviewedBy);
 	const requestType = survey.deletedAt != null ? "Delete" : survey.createdAt == survey.updatedAt ? "Create" : "Update";
 
 	const row: SurveyTableRow = {
 		id: String(survey.id),
 		title: survey.title,
-		descriptionText,
-		contentText,
+		description: survey.description ?? null,
+		content: survey.content,
 		isSoftDeleted: survey.deletedAt != null && survey._status == "published",
-		createdById,
-		updatedById,
-		deletedById,
+		createdBy,
+		updatedBy,
+		deletedBy,
 		createdAt: survey.createdAt,
 		updatedAt: survey.updatedAt,
 		deletedAt: survey.deletedAt ?? null,
 		reviewedAt: survey.reviewedAt ?? null,
-		reviewedById,
+		reviewedBy,
 		reviewApproved: survey.reviewApproved ?? null,
-		reviewCommentText,
+		reviewComment: survey.reviewComment ?? null,
 		requestType
 	};
 
 	const relationUserIds = new Set<string>();
-	if(row.reviewedById != null)
-		relationUserIds.add(row.reviewedById);
-	if(row.createdById != null)
-		relationUserIds.add(row.createdById);
-	if(row.updatedById != null)
-		relationUserIds.add(row.updatedById);
-	if(row.deletedById != null)
-		relationUserIds.add(row.deletedById);
+	if(row.reviewedBy != null)
+		relationUserIds.add(row.reviewedBy);
+	if(row.createdBy != null)
+		relationUserIds.add(row.createdBy);
+	if(row.updatedBy != null)
+		relationUserIds.add(row.updatedBy);
+	if(row.deletedBy != null)
+		relationUserIds.add(row.deletedBy);
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
-
-	const relationValues: SurveyRelationValues = {
-		reviewedBy: row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-",
-		createdBy: row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-",
-		updatedBy: row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-",
-		deletedBy: row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-"
-	};
-
-	const stagedUserIdByUserId = Object.fromEntries(
-		[...relationUserIds]
-			.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-			.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-	);
-	if(Object.keys(stagedUserIdByUserId).length > 0)
-		relationValues.stagedUserIdByUserId = stagedUserIdByUserId;
-
-	const relationReferences: SurveyRequestDetailsOutput["relationReferences"] = {
-		reviewedBy: row.reviewedById != null ? [{ type: "user", id: row.reviewedById, label: usersById.get(row.reviewedById)?.name ?? "User" }] : [],
-		createdBy: row.createdById != null ? [{ type: "user", id: row.createdById, label: usersById.get(row.createdById)?.name ?? "User" }] : [],
-		updatedBy: row.updatedById != null ? [{ type: "user", id: row.updatedById, label: usersById.get(row.updatedById)?.name ?? "User" }] : [],
-		deletedBy: row.deletedById != null ? [{ type: "user", id: row.deletedById, label: usersById.get(row.deletedById)?.name ?? "User" }] : []
-	};
+	const relations: SurveyRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
 
 	return {
 		row,
-		relationValues,
-		relationReferences
+		relations
 	};
 }
 
@@ -1172,7 +930,7 @@ export async function getSurveyRequestHistoryAction(surveyId: string): Promise<S
 			id?: string | number;
 			title?: string;
 			description?: unknown;
-			content?: unknown;
+			content?: any;
 			createdBy?: unknown;
 			updatedBy?: unknown;
 			deletedBy?: unknown;
@@ -1194,42 +952,36 @@ export async function getSurveyRequestHistoryAction(surveyId: string): Promise<S
 		if(version == null)
 			continue;
 
-		const createdById = getRelationshipId(version.createdBy);
-		const updatedById = getRelationshipId(version.updatedBy);
-		const deletedById = getRelationshipId(version.deletedBy);
-		const reviewedById = getRelationshipId(version.reviewedBy);
+		const createdBy = getRelationshipId(version.createdBy);
+		const updatedBy = getRelationshipId(version.updatedBy);
+		const deletedBy = getRelationshipId(version.deletedBy);
+		const reviewedBy = getRelationshipId(version.reviewedBy);
 
-		if(createdById != null)
-			relationUserIds.add(createdById);
-		if(updatedById != null)
-			relationUserIds.add(updatedById);
-		if(deletedById != null)
-			relationUserIds.add(deletedById);
-		if(reviewedById != null)
-			relationUserIds.add(reviewedById);
+		if(createdBy != null)
+			relationUserIds.add(createdBy);
+		if(updatedBy != null)
+			relationUserIds.add(updatedBy);
+		if(deletedBy != null)
+			relationUserIds.add(deletedBy);
+		if(reviewedBy != null)
+			relationUserIds.add(reviewedBy);
 	}
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
-
-	type SurveyHistorySnapshot = {
-		versionId: string;
-		changedAt: string | null;
-		values: Record<SurveyRequestHistoryColumn, string>;
-	};
+	const relations: SurveyRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
 
 	const snapshotsMaybe = historyDocs
-		.map<SurveyHistorySnapshot | null>(historyDoc => {
+		.map<SurveyRequestHistoryEntry | null>(historyDoc => {
 			const version = historyDoc.version;
 			if(version == null)
 				return null;
 
-			const createdById = getRelationshipId(version.createdBy);
-			const updatedById = getRelationshipId(version.updatedBy);
-			const deletedById = getRelationshipId(version.deletedBy);
-			const reviewedById = getRelationshipId(version.reviewedBy);
-			const descriptionText = richTextToPlainText(version.description);
-			const contentText = contentToText(version.content);
-			const reviewCommentText = richTextToPlainText(version.reviewComment);
+			const createdBy = getRelationshipId(version.createdBy);
+			const updatedBy = getRelationshipId(version.updatedBy);
+			const deletedBy = getRelationshipId(version.deletedBy);
+			const reviewedBy = getRelationshipId(version.reviewedBy);
 
 			const createdAt = version.createdAt ?? null;
 			const updatedAt = version.updatedAt ?? null;
@@ -1238,56 +990,31 @@ export async function getSurveyRequestHistoryAction(surveyId: string): Promise<S
 
 			return {
 				versionId: String(version.id ?? historyDoc.id ?? surveyId),
-				changedAt: historyDoc.updatedAt ?? updatedAt,
-				values: {
-					id: String(version.id ?? surveyId),
-					title: (version.title ?? "-").trim().length > 0 ? version.title ?? "-" : "-",
-					descriptionText: descriptionText.length > 0 ? descriptionText : "-",
-					contentText: contentText.length > 0 ? contentText : "-",
-					createdBy: createdById != null ? (usersById.get(createdById)?.name ?? "-") : "-",
-					updatedBy: updatedById != null ? (usersById.get(updatedById)?.name ?? "-") : "-",
-					deletedBy: deletedById != null ? (usersById.get(deletedById)?.name ?? "-") : "-",
-					createdAt: formatReviewDateValue(createdAt),
-					updatedAt: formatReviewDateValue(updatedAt),
-					deletedAt: formatReviewDateValue(deletedAt),
-					requestType: getSurveyRequestType(deletedAt, createdAt, updatedAt),
-					status: getSurveyHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
-					reviewedAt: formatReviewDateValue(reviewedAt),
-					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
-					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
-					reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
-				}
+				id: String(version.id ?? surveyId),
+				title: version.title ?? null,
+				description: version.description as RichTextValue | null,
+				content: version.content,
+				createdBy,
+				updatedBy,
+				deletedBy,
+				createdAt,
+				updatedAt,
+				deletedAt,
+				requestType: getSurveyRequestType(deletedAt, createdAt, updatedAt),
+				status: getSurveyHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
+				reviewedAt,
+				reviewedBy,
+				reviewApproved: version.reviewApproved ?? null,
+				reviewComment: version.reviewComment as ReviewCommentValue | null
 			};
 		});
 
-	const snapshots = snapshotsMaybe.filter((snapshot): snapshot is SurveyHistorySnapshot => snapshot != null);
-
-	const entries: SurveyRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
-		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
-
-		const changes: SurveyRequestHistoryChangeItem[] = surveyRequestHistoryColumns.map(column => {
-			const previousValue = previousSnapshot?.values[column] ?? "-";
-			const nextValue = snapshot.values[column];
-			return {
-				column,
-				label: surveyRequestHistoryColumnLabelMap[column],
-				previousValue,
-				nextValue,
-				changed: previousValue != nextValue
-			};
-		});
-
-		return {
-			versionId: snapshot.versionId,
-			changedAt: snapshot.changedAt,
-			changes,
-			changedCount: changes.filter(change => change.changed).length
-		};
-	});
+	const entries = snapshotsMaybe.filter((snapshot): snapshot is SurveyRequestHistoryEntry => snapshot != null);
 
 	return {
 		requestId: surveyId,
-		entries
+		entries,
+		relations
 	};
 }
 
@@ -1298,7 +1025,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 	if(user == null) return unauthorized();
 
 	const title = input.title.trim();
-	const description = input.description.trim();
+	const description = input.description;
 	const content = parseContentInput(input.content);
 
 	if(title.length == 0)
@@ -1312,7 +1039,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 			data: {
 				_status: "draft",
 				title,
-				description: plainTextToRichText(description) as any,
+				description: description,
 				content,
 				deletedAt: null,
 				deletedBy: null,
@@ -1343,7 +1070,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 		data: {
 			_status: "draft",
 			title,
-			description: plainTextToRichText(description) as any,
+			description: description,
 			content,
 			deletedAt: null,
 			deletedBy: null,
@@ -1472,7 +1199,7 @@ export async function cancelSurveyRequestAction(surveyId: string) {
 		data: {
 			_status: "published",
 			title: approvedVersion.title,
-			description: (approvedVersion.description ?? plainTextToRichText("")) as any,
+			description: approvedVersion.description ?? null,
 			content: approvedVersion.content ?? { slides: [] },
 			deletedAt: approvedVersion.deletedAt ?? null,
 			deletedBy: approvedDeletedBy,
@@ -1626,45 +1353,13 @@ export async function getSurveyRequestReviewDiffAction(surveyId: string): Promis
 
 	const approvedVersion = approvedVersions.docs[0]?.version;
 
-	const requestType: SurveyRequestReviewDiffOutput["requestType"] =
-		survey.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
-
-	const comparisonItems = [
-		{
-			field: "title",
-			label: "Title",
-			previousValue: approvedVersion?.title ?? "-",
-			requestedValue: survey.title
-		},
-		{
-			field: "descriptionText",
-			label: "Description",
-			previousValue: richTextToPlainText(approvedVersion?.description),
-			requestedValue: richTextToPlainText(survey.description)
-		},
-		{
-			field: "contentText",
-			label: "Content",
-			previousValue: contentToText(approvedVersion?.content),
-			requestedValue: contentToText(survey.content)
-		},
-		{
-			field: "deletedAt",
-			label: "Deleted At",
-			previousValue: formatReviewDateValue(approvedVersion?.deletedAt ?? null),
-			requestedValue: formatReviewDateValue(survey.deletedAt)
-		}
-	] satisfies Array<Omit<SurveyRequestReviewDiffItem, "changed">>;
-
-	const items: SurveyRequestReviewDiffItem[] = comparisonItems.map(item => ({
-		...item,
-		changed: item.previousValue != item.requestedValue
-	}));
-
 	return {
 		requestId: surveyId,
-		requestType,
-		items,
-		changedCount: items.filter(item => item.changed).length
-	};
+		requestType: survey.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		title: [approvedVersion?.title ?? "", survey.title],
+		description: [approvedVersion?.description ?? null, survey.description],
+		content: [approvedVersion?.content ?? null, survey.content],
+		deletedAt: [approvedVersion?.deletedAt ?? null, survey.deletedAt],
+		relations: {}
+	} as unknown as SurveyRequestReviewDiffOutput;
 }

@@ -9,7 +9,7 @@ import cn from "@/utils/cn";
 import type { ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
-import { ReviewCommentInput } from "@/components/ReviewCommentInput";
+import { ReviewCommentInput, ReviewCommentPreview } from "@/components/ReviewCommentInput";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -23,9 +23,9 @@ import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 
-import { EntrySummaryDrawer, useEntrySummaryDrawer, consumePendingRelationFilterNavigation } from "../relation-navigation.components";
-import * as userActions from "./layout.actions";
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
+import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
+import * as userActions from "./layout.actions";
 
 export const PAGE_SIZE = 20;
 
@@ -38,7 +38,6 @@ export type FilterInput = userActions.UserManagementFilterInput;
 export type QueryStagedUsersOutput = Awaited<ReturnType<typeof userActions.queryStagedUsersAction>>;
 export type StagedUserTableRow = QueryStagedUsersOutput["docs"][number];
 export type UserManagementTabMode = "viewer" | Parameters<typeof userActions.queryStagedUsersAction>[0]["mode"];
-export type UserRelationColumn = userActions.UserRelationColumn;
 export type RoleOption = Awaited<ReturnType<typeof userActions.searchUserRoleOptionsAction>>[number];
 export type SupervisorOption = Awaited<ReturnType<typeof userActions.searchUserSupervisorUserOptionsAction>>[number];
 export type UserRequestReviewDiff = Awaited<ReturnType<typeof userActions.getStagedUserRequestReviewDiffAction>>;
@@ -103,7 +102,7 @@ export type UserTableColumnId = "id" |
 	"reviewedAt" |
 	"reviewedBy" |
 	"reviewApproved" |
-	"reviewCommentText";
+	"reviewComment";
 
 export type UserTableColumnConfig = {
 	id: UserTableColumnId;
@@ -118,8 +117,8 @@ export type FormState = {
 	email: string;
 	name: string;
 	employeeId: string;
-	roleId: string;
-	supervisorId: string;
+	role: string;
+	supervisor: string;
 	initialPassword: string;
 };
 
@@ -132,6 +131,7 @@ export type FilterSummaryItem = {
 
 export const emptyQueryResult: QueryStagedUsersOutput = {
 	docs: [],
+	relations: {},
 	totalDocs: 0,
 	page: 1,
 	hasNextPage: false,
@@ -142,8 +142,8 @@ export const defaultFormState: FormState = {
 	email: "",
 	name: "",
 	employeeId: "",
-	roleId: "",
-	supervisorId: "",
+	role: "",
+	supervisor: "",
 	initialPassword: ""
 };
 
@@ -169,12 +169,12 @@ export const userTableColumns: UserTableColumnConfig[] = [
 	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
 	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
 	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
-	{ id: "requestType", label: "Request", sortField: "requestType" },
-	{ id: "status", label: "Status", sortField: "status" },
+	{ id: "requestType", label: "Request" },
+	{ id: "status", label: "Status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
 	{ id: "reviewedBy", label: "Reviewed By", sortField: "reviewedBy" },
 	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
-	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
+	{ id: "reviewComment", label: "Review Comment", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
 function getUserDrawerValueClassName(columnId: string): string {
@@ -182,20 +182,14 @@ function getUserDrawerValueClassName(columnId: string): string {
 		return "text-xs font-mono";
 	if(columnId == "name")
 		return "text-sm font-medium";
+	if(columnId == "reviewComment")
+		return "text-sm leading-relaxed";
 	return "text-sm";
 }
 
 export const defaultUserColumnOrder: UserTableColumnId[] = userTableColumns.map(column => column.id);
-export const defaultUserVisibleColumns: UserTableColumnId[] = ["name", "email", "employeeId", "role", "requestType", "status", "updatedAt", "reviewCommentText"];
+export const defaultUserVisibleColumns: UserTableColumnId[] = ["name", "email", "employeeId", "role", "requestType", "status", "updatedAt", "reviewComment"];
 export const defaultUserHiddenColumns: UserTableColumnId[] = defaultUserColumnOrder.filter(columnId => !defaultUserVisibleColumns.includes(columnId));
-
-export const userRelationColumnSet = new Set<UserRelationColumn>([
-	"supervisor",
-	"reviewedBy",
-	"createdBy",
-	"updatedBy",
-	"deletedBy"
-]);
 
 const userNonEligibleColumnSet = new Set<string>([
 	"actions",
@@ -877,7 +871,7 @@ export function UserRequestFormDrawer({
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Role</label>
 							<SearchableSelect
-								value={formState.roleId}
+								value={formState.role}
 								onValueChange={onRoleChange}
 								options={[]}
 								onSearch={onSearchRoles}
@@ -888,7 +882,7 @@ export function UserRequestFormDrawer({
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Supervisor</label>
 							<SearchableSelect
-								value={formState.supervisorId}
+								value={formState.supervisor}
 								onValueChange={onSupervisorChange}
 								options={[]}
 								onSearch={onSearchSupervisors}
@@ -937,6 +931,7 @@ type UserRequestReviewDrawerProps = {
 	onReject: () => void;
 	isMutating: boolean;
 	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
+	relationNavigation?: UserRelationNavigation;
 };
 
 export function UserRequestReviewDrawer({
@@ -950,43 +945,11 @@ export function UserRequestReviewDrawer({
 	onApprove,
 	onReject,
 	isMutating,
-	onOpenRequestChanges
+	onOpenRequestChanges,
+	relationNavigation
 }: UserRequestReviewDrawerProps) {
-	const entrySummary = useEntrySummaryDrawer();
-
-	const renderReferenceValue = (
-		value: string,
-		references: Array<{ type: "user" | "role", id: string, label: string }> | undefined,
-		sectionLabel: string,
-		valueClassName: string
-	) => {
-		if(references == null || references.length == 0)
-			return <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>{value}</div>;
-
-		return (
-			<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>
-				<div className="flex flex-wrap gap-1.5">
-					{references.map(reference => (
-						<Button
-							key={`${reference.type}-${reference.id}-${sectionLabel}`}
-							type="button"
-							variant="link"
-							size="sm"
-							onClick={() => entrySummary.openSummary({
-								type: reference.type,
-								id: reference.id,
-								fallbackTitle: reference.label,
-								fallbackDescription: sectionLabel
-							})}
-							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word select-auto"
-						>
-							{reference.label}
-						</Button>
-					))}
-				</div>
-			</div>
-		);
-	};
+	const diff = reviewDrawerState?.diff;
+	const changedFields = diff == null ? [] : userRequestReviewDiffFields.filter(field => JSON.stringify(diff[field][0]) != JSON.stringify(diff[field][1]));
 
 	return (
 		<>
@@ -1003,14 +966,14 @@ export function UserRequestReviewDrawer({
 								{reviewDrawerState?.row != null ? renderRequestTypeTrigger({
 									row: {
 										...reviewDrawerState.row,
-										requestType: reviewDrawerState.diff?.requestType ?? reviewDrawerState.row.requestType
+										requestType: diff?.requestType ?? reviewDrawerState.row.requestType
 									},
 									onOpenRequestChanges,
 									className: "align-baseline"
 								}) : "-"}
 							</p>
 							<p className="text-muted-foreground">
-								{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
+								{diff != null ? `${changedFields.length} changed field(s)` : "Loading differences..."}
 							</p>
 						</div>
 
@@ -1020,28 +983,36 @@ export function UserRequestReviewDrawer({
 								<Skeleton className="h-20 w-full" />
 								<Skeleton className="h-20 w-full" />
 							</div>
-						) : reviewDrawerState?.diff == null ? (
+						) : diff == null ? (
 							<p className="text-muted-foreground text-sm">No diff is available for this request.</p>
 						) : (
 							<div className="space-y-2">
-								{reviewDrawerState.diff.items.map(item => (
-									<div key={item.field} className="space-y-2 rounded-lg border p-3">
-										<div className="flex items-center justify-between gap-2">
-											<p className="text-sm font-medium">{item.label}</p>
-											<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
-										</div>
-										<div className="grid gap-2 sm:grid-cols-2">
-											<div className="space-y-1">
-												<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-												{renderReferenceValue(item.previousValue, item.previousReferences, `User ${item.label} (last approved)`, getUserDrawerValueClassName(item.field))}
+								{userRequestReviewDiffFields.map(field => {
+									const [previousValue, requestedValue] = diff[field];
+									const changed = JSON.stringify(previousValue) != JSON.stringify(requestedValue);
+									return (
+										<div key={field} className="space-y-2 rounded-lg border p-3">
+											<div className="flex items-center justify-between gap-2">
+												<p className="text-sm font-medium">{userRequestReviewDiffFieldLabelMap[field]}</p>
+												<Badge variant={changed ? "default" : "secondary"}>{changed ? "Changed" : "Unchanged"}</Badge>
 											</div>
-											<div className="space-y-1">
-												<p className="text-muted-foreground text-xs font-medium">Requested</p>
-												{renderReferenceValue(item.requestedValue, item.requestedReferences, `User ${item.label} (requested)`, getUserDrawerValueClassName(item.field))}
+											<div className="grid gap-2 sm:grid-cols-2">
+												<div className="space-y-1">
+													<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+													<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
+														{renderUserRequestReviewDiffValue(field, previousValue, diff.relations, relationNavigation)}
+													</div>
+												</div>
+												<div className="space-y-1">
+													<p className="text-muted-foreground text-xs font-medium">Requested</p>
+													<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
+														{renderUserRequestReviewDiffValue(field, requestedValue, diff.relations, relationNavigation)}
+													</div>
+												</div>
 											</div>
 										</div>
-									</div>
-								))}
+									);
+								})}
 							</div>
 						)}
 
@@ -1055,7 +1026,7 @@ export function UserRequestReviewDrawer({
 
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Review Comment (optional)</label>
-							<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
+							<ReviewCommentInput serializedState={reviewComment} onSerializedStateChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:justify-end">
@@ -1066,13 +1037,6 @@ export function UserRequestReviewDrawer({
 				</DrawerContent>
 			</Drawer>
 
-			<EntrySummaryDrawer
-				isOpen={entrySummary.isOpen}
-				onOpenChange={entrySummary.onOpenChange}
-				isLoading={entrySummary.isLoading}
-				errorMessage={entrySummary.errorMessage}
-				summary={entrySummary.summary}
-			/>
 		</>
 	);
 }
@@ -1081,14 +1045,15 @@ type UserRequestChangePreviewDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	row: StagedUserTableRow | null;
+	relationNavigation?: UserRelationNavigation;
 };
 
 export function UserRequestChangePreviewDrawer({
 	open,
 	onOpenChange,
-	row
+	row,
+	relationNavigation
 }: UserRequestChangePreviewDrawerProps) {
-	const entrySummary = useEntrySummaryDrawer();
 	const diffQuery = useQuery({
 		queryKey: ["user-management", "request-change-preview", row?.id ?? null],
 		enabled: open && row != null,
@@ -1096,40 +1061,8 @@ export function UserRequestChangePreviewDrawer({
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-
-	const renderReferenceValue = (
-		value: string,
-		references: Array<{ type: "user" | "role", id: string, label: string }> | undefined,
-		sectionLabel: string,
-		valueClassName: string
-	) => {
-		if(references == null || references.length == 0)
-			return <div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>{value}</div>;
-
-		return (
-			<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", valueClassName)}>
-				<div className="flex flex-wrap gap-1.5">
-					{references.map(reference => (
-						<Button
-							key={`${reference.type}-${reference.id}-${sectionLabel}`}
-							type="button"
-							variant="link"
-							size="sm"
-							onClick={() => entrySummary.openSummary({
-								type: reference.type,
-								id: reference.id,
-								fallbackTitle: reference.label,
-								fallbackDescription: sectionLabel
-							})}
-							className="h-auto px-0 py-0 text-left whitespace-normal wrap-break-word select-auto"
-						>
-							{reference.label}
-						</Button>
-					))}
-				</div>
-			</div>
-		);
-	};
+	const diff = diffQuery.data;
+	const changedFields = diff == null ? [] : userRequestReviewDiffFields.filter(field => JSON.stringify(diff[field][0]) != JSON.stringify(diff[field][1]));
 
 	return (
 		<>
@@ -1141,8 +1074,8 @@ export function UserRequestChangePreviewDrawer({
 					</DrawerHeader>
 					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
-							<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
-							<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+							<p><span className="font-medium">Request Type:</span> {diff?.requestType ?? row?.requestType ?? "-"}</p>
+							<p className="text-muted-foreground">{diff != null ? `${changedFields.length} changed field(s)` : "Loading differences..."}</p>
 						</div>
 
 						{row == null ? (
@@ -1153,7 +1086,7 @@ export function UserRequestChangePreviewDrawer({
 								<Skeleton className="h-20 w-full" />
 								<Skeleton className="h-20 w-full" />
 							</div>
-						) : diffQuery.isError || diffQuery.data == null ? (
+						) : diffQuery.isError || diff == null ? (
 							<Alert variant="destructive">
 								<CircleAlertIcon />
 								<AlertTitle>Error</AlertTitle>
@@ -1161,24 +1094,32 @@ export function UserRequestChangePreviewDrawer({
 							</Alert>
 						) : (
 							<div className="space-y-2">
-								{diffQuery.data.items.map(item => (
-									<div key={item.field} className="space-y-2 rounded-lg border p-3">
-										<div className="flex items-center justify-between gap-2">
-											<p className="text-sm font-medium">{item.label}</p>
-											<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
-										</div>
-										<div className="grid gap-2 sm:grid-cols-2">
-											<div className="space-y-1">
-												<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-												{renderReferenceValue(item.previousValue, item.previousReferences, `User ${item.label} (last approved)`, getUserDrawerValueClassName(item.field))}
+								{userRequestReviewDiffFields.map(field => {
+									const [previousValue, requestedValue] = diff[field];
+									const changed = JSON.stringify(previousValue) != JSON.stringify(requestedValue);
+									return (
+										<div key={field} className="space-y-2 rounded-lg border p-3">
+											<div className="flex items-center justify-between gap-2">
+												<p className="text-sm font-medium">{userRequestReviewDiffFieldLabelMap[field]}</p>
+												<Badge variant={changed ? "default" : "secondary"}>{changed ? "Changed" : "Unchanged"}</Badge>
 											</div>
-											<div className="space-y-1">
-												<p className="text-muted-foreground text-xs font-medium">Requested</p>
-												{renderReferenceValue(item.requestedValue, item.requestedReferences, `User ${item.label} (requested)`, getUserDrawerValueClassName(item.field))}
+											<div className="grid gap-2 sm:grid-cols-2">
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+											<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
+														{renderUserRequestReviewDiffValue(field, previousValue, diff.relations, relationNavigation)}
+											</div>
+										</div>
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Requested</p>
+											<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
+														{renderUserRequestReviewDiffValue(field, requestedValue, diff.relations, relationNavigation)}
 											</div>
 										</div>
 									</div>
-								))}
+								</div>
+									);
+								})}
 							</div>
 						)}
 					</div>
@@ -1188,13 +1129,6 @@ export function UserRequestChangePreviewDrawer({
 				</DrawerContent>
 			</Drawer>
 
-			<EntrySummaryDrawer
-				isOpen={entrySummary.isOpen}
-				onOpenChange={entrySummary.onOpenChange}
-				isLoading={entrySummary.isLoading}
-				errorMessage={entrySummary.errorMessage}
-				summary={entrySummary.summary}
-			/>
 		</>
 	);
 }
@@ -1334,32 +1268,33 @@ type UserRelationNavigation = {
 };
 
 function renderUserRelationValue({
-	value,
+	relation,
 	relationId,
 	filterColumn,
 	relationType,
 	relationLabel,
 	relationNavigation,
-	stagedUserIdByUserId
+	fallbackValue
 }: {
-	value: string;
+	relation: { name: string, email?: string, stagedUserId?: string | null } | null;
 	relationId: string | null;
 	filterColumn: FilterColumn;
 	relationType: "user" | "role";
 	relationLabel: string;
 	relationNavigation?: UserRelationNavigation;
-	stagedUserIdByUserId?: Record<string, string>;
+	fallbackValue?: string;
 }): ReactNode {
-	const normalizedValue = value.trim();
+	const displayValue = relation?.name ?? relation?.email ?? fallbackValue ?? "-";
+	const normalizedValue = displayValue.trim();
 	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
-		return value;
+		return displayValue;
 
 	const targetManagementKey = relationType == "role" ? "role-management" : "user-management";
 	const hrefBase = relationNavigation?.getHrefBase(targetManagementKey);
 	if(hrefBase != null && relationNavigation != null) {
-		const relationFilterId = relationType == "role" ? relationId : stagedUserIdByUserId?.[relationId] ?? null;
+		const relationFilterId = relationType == "role" ? relationId : relation?.stagedUserId ?? null;
 		if(relationFilterId == null || relationFilterId.trim().length == 0)
-			return value;
+			return displayValue;
 
 		const filters: FilterInput[] = [{ column: "id", operator: "equals", value: relationFilterId }];
 		const searchParams = new URLSearchParams();
@@ -1375,7 +1310,7 @@ function renderUserRelationValue({
 						relationNavigation.onOpenSummary({
 							type: relationType,
 							id: relationId,
-							fallbackTitle: value,
+							fallbackTitle: displayValue,
 							fallbackDescription: relationLabel
 						});
 						return;
@@ -1389,13 +1324,13 @@ function renderUserRelationValue({
 				}}
 				className="text-primary underline underline-offset-2 hover:opacity-80"
 			>
-				{value}
+				{displayValue}
 			</Link>
 		);
 	}
 
 	if(relationNavigation == null)
-		return value;
+		return displayValue;
 
 	return (
 		<Button
@@ -1404,14 +1339,208 @@ function renderUserRelationValue({
 			onClick={() => relationNavigation.onOpenSummary({
 				type: relationType,
 				id: relationId,
-				fallbackTitle: value,
+				fallbackTitle: displayValue,
 				fallbackDescription: relationLabel
 			})}
 			className="h-auto p-0 text-primary select-auto"
 		>
-			{value}
+			{displayValue}
 		</Button>
 	);
+}
+
+type UserRequestHistoryEntry = UserRequestHistory["entries"][number];
+type UserRequestHistoryField = Exclude<keyof UserRequestHistoryEntry, "versionId">;
+type UserRequestHistoryRelationValues = UserRequestHistory["relations"];
+type UserRequestReviewDiffField = Exclude<keyof UserRequestReviewDiff, "requestId" | "requestType" | "relations">;
+
+const userRequestReviewDiffFields: UserRequestReviewDiffField[] = [
+	"email",
+	"name",
+	"employeeId",
+	"role",
+	"supervisor",
+	"deletedAt",
+	"initialPassword"
+];
+
+const userRequestReviewDiffFieldLabelMap: Record<UserRequestReviewDiffField, string> = {
+	email: "Email",
+	name: "Name",
+	employeeId: "Employee ID",
+	role: "Role",
+	supervisor: "Supervisor",
+	deletedAt: "Deleted At",
+	initialPassword: "Initial Password"
+};
+
+const userRequestHistoryFields: UserRequestHistoryField[] = [
+	"id",
+	"name",
+	"email",
+	"employeeId",
+	"role",
+	"supervisor",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"requestType",
+	"status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewComment"
+];
+
+const userRequestHistoryFieldLabelMap: Record<UserRequestHistoryField, string> = {
+	id: "ID",
+	name: "Name",
+	email: "Email",
+	employeeId: "Employee ID",
+	role: "Role",
+	supervisor: "Supervisor",
+	createdBy: "Created By",
+	updatedBy: "Updated By",
+	deletedBy: "Deleted By",
+	createdAt: "Created At",
+	updatedAt: "Updated At",
+	deletedAt: "Deleted At",
+	requestType: "Request",
+	status: "Status",
+	reviewedAt: "Reviewed At",
+	reviewedBy: "Reviewed By",
+	reviewApproved: "Review Approved",
+	reviewComment: "Review Comment"
+};
+
+function renderUserRequestHistoryValue(
+	field: UserRequestHistoryField,
+	value: any,
+	relations: UserRequestHistoryRelationValues,
+	relationNavigation?: UserRelationNavigation
+) {
+	switch(field) {
+		case "reviewComment":
+			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
+		case "reviewApproved":
+			return value == null ? "-" : value as boolean ? "True" : "False";
+		case "status": {
+			if(value == null || String(value).length == 0)
+				return "-";
+			const normalizedStatus = String(value).toLowerCase();
+			if(normalizedStatus == "pending")
+				return <Badge variant="secondary">Pending</Badge>;
+			if(normalizedStatus == "approved")
+				return <Badge variant="default">Approved</Badge>;
+			if(normalizedStatus == "rejected")
+				return <Badge variant="destructive">Rejected</Badge>;
+			return <Badge variant="outline">{String(value)}</Badge>;
+		}
+		case "createdAt":
+		case "updatedAt":
+		case "deletedAt":
+		case "reviewedAt":
+			return formatDateTime(value);
+		case "role":
+			return renderUserRelationValue({
+				relation: value == null ? null : relations[`roles:${value}`] ?? null,
+				relationId: value ?? null,
+				filterColumn: "role",
+				relationType: "role",
+				relationLabel: "Role entry",
+				relationNavigation,
+				fallbackValue: value == null ? "-" : String(value)
+			});
+		case "supervisor":
+			return renderUserRelationValue({
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value ?? null,
+				filterColumn: "supervisor",
+				relationType: "user",
+				relationLabel: "Supervisor user",
+				relationNavigation,
+				fallbackValue: value == null ? "-" : String(value)
+			});
+		case "createdBy":
+			return renderUserRelationValue({
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value ?? null,
+				filterColumn: "createdBy",
+				relationType: "user",
+				relationLabel: "Created by user",
+				relationNavigation,
+				fallbackValue: value == null ? "-" : String(value)
+			});
+		case "updatedBy":
+			return renderUserRelationValue({
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value ?? null,
+				filterColumn: "updatedBy",
+				relationType: "user",
+				relationLabel: "Updated by user",
+				relationNavigation,
+				fallbackValue: value == null ? "-" : String(value)
+			});
+		case "deletedBy":
+			return renderUserRelationValue({
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value ?? null,
+				filterColumn: "deletedBy",
+				relationType: "user",
+				relationLabel: "Deleted by user",
+				relationNavigation,
+				fallbackValue: value == null ? "-" : String(value)
+			});
+		case "reviewedBy":
+			return renderUserRelationValue({
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value ?? null,
+				filterColumn: "reviewedBy",
+				relationType: "user",
+				relationLabel: "Reviewed by user",
+				relationNavigation,
+				fallbackValue: value == null ? "-" : String(value)
+			});
+		default:
+			return value == null || String(value).length == 0 ? "-" : String(value);
+	}
+}
+
+function renderUserRequestReviewDiffValue(
+	field: UserRequestReviewDiffField,
+	value: string | null,
+	relations: UserRequestReviewDiff["relations"],
+	relationNavigation?: UserRelationNavigation
+) {
+	switch(field) {
+		case "role":
+			return renderUserRelationValue({
+				relation: value == null ? null : relations[`roles:${value}`] ?? null,
+				relationId: value,
+				filterColumn: "role",
+				relationType: "role",
+				relationLabel: "Role entry",
+				relationNavigation,
+				fallbackValue: value ?? "-"
+			});
+		case "supervisor":
+			return renderUserRelationValue({
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value,
+				filterColumn: "supervisor",
+				relationType: "user",
+				relationLabel: "Supervisor user",
+				relationNavigation,
+				fallbackValue: value ?? "-"
+			});
+		case "deletedAt":
+			return formatDateTime(value);
+		default:
+			return value == null || value.length == 0 ? "-" : value;
+	}
 }
 
 export function UserRequestDetailsDrawer({
@@ -1472,15 +1601,15 @@ export function UserRequestDetailsDrawer({
 			case "employeeId":
 				return renderDetailColumnValue(columnId, data.row.employeeId);
 			case "role":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.row.roleName, relationId: data.row.roleId, filterColumn: "role", relationType: "role", relationLabel: "Role entry", relationNavigation }));
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.role == null ? null : data.relations[`roles:${data.row.role}`] ?? null, relationId: data.row.role, filterColumn: "role", relationType: "role", relationLabel: "Role entry", relationNavigation, fallbackValue: data.row.role ?? "-" }));
 			case "supervisor":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.supervisor ?? "-", relationId: data.row.supervisorId, filterColumn: "supervisor", relationType: "user", relationLabel: "Supervisor user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.supervisor == null ? null : data.relations[`users:${data.row.supervisor}`] ?? null, relationId: data.row.supervisor, filterColumn: "supervisor", relationType: "user", relationLabel: "Supervisor user", relationNavigation }));
 			case "createdBy":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, filterColumn: "createdBy", relationType: "user", relationLabel: "Created by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.createdBy == null ? null : data.relations[`users:${data.row.createdBy}`] ?? null, relationId: data.row.createdBy, filterColumn: "createdBy", relationType: "user", relationLabel: "Created by user", relationNavigation }));
 			case "updatedBy":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, filterColumn: "updatedBy", relationType: "user", relationLabel: "Updated by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.updatedBy == null ? null : data.relations[`users:${data.row.updatedBy}`] ?? null, relationId: data.row.updatedBy, filterColumn: "updatedBy", relationType: "user", relationLabel: "Updated by user", relationNavigation }));
 			case "deletedBy":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, filterColumn: "deletedBy", relationType: "user", relationLabel: "Deleted by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.deletedBy == null ? null : data.relations[`users:${data.row.deletedBy}`] ?? null, relationId: data.row.deletedBy, filterColumn: "deletedBy", relationType: "user", relationLabel: "Deleted by user", relationNavigation }));
 			case "createdAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
 			case "updatedAt":
@@ -1496,11 +1625,11 @@ export function UserRequestDetailsDrawer({
 			case "reviewedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
 			case "reviewedBy":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.reviewedBy == null ? null : data.relations[`users:${data.row.reviewedBy}`] ?? null, relationId: data.row.reviewedBy, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation }));
 			case "reviewApproved":
 				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
-			case "reviewCommentText":
-				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			case "reviewComment":
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.reviewComment ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			default:
 				return renderDetailColumnValue(columnId, "-");
 		}
@@ -1584,23 +1713,41 @@ export function UserRequestDetailsDrawer({
 						) : historyQuery.data.entries.length == 0 ? (
 							<p className="text-muted-foreground text-sm">No history entries found for this staged user request.</p>
 						) : (
-							historyQuery.data.entries.map(entry => (
-								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
-									<div className="flex items-center justify-between gap-2">
-										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
-										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+							historyQuery.data.entries.map((entry, entryIndex, historyEntries) => {
+								const previousEntry = historyEntries[entryIndex + 1] ?? null;
+								const changes = userRequestHistoryFields.flatMap(field => {
+									const nextValue = entry[field];
+									const previousValue = previousEntry?.[field] ?? null;
+									if(JSON.stringify(nextValue) == JSON.stringify(previousValue))
+										return [];
+									return [{
+										field,
+										label: userRequestHistoryFieldLabelMap[field],
+										previousValue,
+										nextValue
+									}];
+								});
+
+								return (
+									<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-sm font-semibold">{formatDateTime(entry.updatedAt)}</p>
+											<Badge variant="outline">{changes.length} change(s)</Badge>
+										</div>
+										<div className="space-y-1">
+											{changes.length == 0 ? (
+												<p className="text-muted-foreground text-xs">No field changes detected.</p>
+											) : changes.map(change => (
+												<div key={`${entry.versionId}-${change.field}`} className="space-y-0.5 rounded-md border p-2 text-xs">
+													<div className="font-medium">{change.label}</div>
+													<div className="text-muted-foreground">From: {renderUserRequestHistoryValue(change.field, change.previousValue, historyQuery.data.relations, relationNavigation)}</div>
+													<div>To: {renderUserRequestHistoryValue(change.field, change.nextValue, historyQuery.data.relations, relationNavigation)}</div>
+												</div>
+											))}
+										</div>
 									</div>
-									<div className="space-y-1">
-										{entry.changes.map(change => (
-											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed ? "border-primary/30 bg-primary/5" : "opacity-70")}>
-												<p className="font-medium">{change.label}</p>
-												<p className="text-muted-foreground">From: {change.previousValue}</p>
-												<p>To: {change.nextValue}</p>
-											</div>
-										))}
-									</div>
-								</div>
-							))
+								);
+							})
 						)}
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
@@ -1613,15 +1760,13 @@ export function UserRequestDetailsDrawer({
 }
 
 type UseUserCellRendererOptions = {
-	relationValuesByRowId: Record<string, userActions.StagedUserRelationValues>;
-	isRelationLoading: boolean;
+	relations: userActions.StagedUserRelationValues;
 	relationNavigation?: UserRelationNavigation;
 	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
 };
 
-export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseUserCellRendererOptions) {
+export function useUserCellRenderer({ relations, relationNavigation, onOpenRequestChanges }: UseUserCellRendererOptions) {
 	return useCallback((columnId: UserTableColumnId, row: StagedUserTableRow) => {
-		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "id":
 				return row.id;
@@ -1632,23 +1777,15 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "employeeId":
 				return row.employeeId;
 			case "role":
-				return renderUserRelationValue({ value: row.roleName, relationId: row.roleId, filterColumn: "role", relationType: "role", relationLabel: "Role entry", relationNavigation });
+				return renderUserRelationValue({ relation: row.role == null ? null : relations[`roles:${row.role}`] ?? null, relationId: row.role, filterColumn: "role", relationType: "role", relationLabel: "Role entry", relationNavigation, fallbackValue: row.role ?? "-" });
 			case "supervisor":
-				if(isRelationLoading && resolvedValues.supervisor == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue({ value: resolvedValues.supervisor ?? "-", relationId: row.supervisorId, filterColumn: "supervisor", relationType: "user", relationLabel: "Supervisor user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderUserRelationValue({ relation: row.supervisor == null ? null : relations[`users:${row.supervisor}`] ?? null, relationId: row.supervisor, filterColumn: "supervisor", relationType: "user", relationLabel: "Supervisor user", relationNavigation });
 			case "createdBy":
-				if(isRelationLoading && resolvedValues.createdBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue({ value: resolvedValues.createdBy ?? "-", relationId: row.createdById, filterColumn: "createdBy", relationType: "user", relationLabel: "Created by user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderUserRelationValue({ relation: row.createdBy == null ? null : relations[`users:${row.createdBy}`] ?? null, relationId: row.createdBy, filterColumn: "createdBy", relationType: "user", relationLabel: "Created by user", relationNavigation });
 			case "updatedBy":
-				if(isRelationLoading && resolvedValues.updatedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue({ value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, filterColumn: "updatedBy", relationType: "user", relationLabel: "Updated by user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderUserRelationValue({ relation: row.updatedBy == null ? null : relations[`users:${row.updatedBy}`] ?? null, relationId: row.updatedBy, filterColumn: "updatedBy", relationType: "user", relationLabel: "Updated by user", relationNavigation });
 			case "deletedBy":
-				if(isRelationLoading && resolvedValues.deletedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue({ value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, filterColumn: "deletedBy", relationType: "user", relationLabel: "Deleted by user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderUserRelationValue({ relation: row.deletedBy == null ? null : relations[`users:${row.deletedBy}`] ?? null, relationId: row.deletedBy, filterColumn: "deletedBy", relationType: "user", relationLabel: "Deleted by user", relationNavigation });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1664,17 +1801,15 @@ export function useUserCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedAt":
 				return formatDateTime(row.reviewedAt);
 			case "reviewedBy":
-				if(isRelationLoading && resolvedValues.reviewedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderUserRelationValue({ value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderUserRelationValue({ relation: row.reviewedBy == null ? null : relations[`users:${row.reviewedBy}`] ?? null, relationId: row.reviewedBy, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
-			case "reviewCommentText":
-				return row.reviewCommentText.length > 0 ? row.reviewCommentText : "-";
+			case "reviewComment":
+				return <ReviewCommentPreview serializedState={row.reviewComment ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, onOpenRequestChanges, relationNavigation, relationValuesByRowId]);
+	}, [onOpenRequestChanges, relationNavigation, relations]);
 }
 
 export function useUserColumnPreferences() {
@@ -1887,49 +2022,6 @@ export function useUserManagementQueryState({
 		sortTokens,
 		getSortDirection,
 		toggleSortField
-	};
-}
-
-type UseUserRelationsOptions = {
-	docs: StagedUserTableRow[];
-	visibleColumns: UserTableColumnConfig[];
-};
-
-export function useUserRelations({ docs, visibleColumns }: UseUserRelationsOptions) {
-	const visibleRelationColumns = useMemo(() => (
-		visibleColumns
-			.map(column => column.id)
-			.filter((columnId): columnId is UserRelationColumn => userRelationColumnSet.has(columnId as UserRelationColumn))
-	), [visibleColumns]);
-
-	const relationRows = useMemo(() => docs.map(row => ({
-		id: row.id,
-		supervisorId: row.supervisorId,
-		reviewedById: row.reviewedById,
-		createdById: row.createdById,
-		updatedById: row.updatedById,
-		deletedById: row.deletedById
-	})), [docs]);
-
-	const relationsQuery = useQuery({
-		queryKey: ["user-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
-		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => userActions.resolveStagedUserRelationColumnsAction({
-			rows: relationRows,
-			columns: visibleRelationColumns
-		}),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const relationValuesByRowId = useMemo(() => Object.fromEntries(
-		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	), [relationsQuery.data]);
-	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
-
-	return {
-		relationValuesByRowId,
-		isRelationLoading
 	};
 }
 

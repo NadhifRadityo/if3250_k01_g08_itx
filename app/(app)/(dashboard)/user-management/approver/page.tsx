@@ -24,7 +24,6 @@ import { useUserCellRenderer } from "../layout.components";
 import { useUserColumnPreferences } from "../layout.components";
 import { useUserFilterColumnConfig } from "../layout.components";
 import { useUserManagementQueryState } from "../layout.components";
-import { useUserRelations } from "../layout.components";
 import { useUserRequestFilters } from "../layout.components";
 import { useUserRequestsQuery } from "../layout.components";
 import {
@@ -64,16 +63,8 @@ export default function UserManagementApproverPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted: false
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useUserRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderUserCell = useUserCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -256,6 +247,11 @@ export default function UserManagementApproverPage() {
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}
 				onOpenRequestChanges={setRequestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<UserRequestChangePreviewDrawer
@@ -265,6 +261,11 @@ export default function UserManagementApproverPage() {
 						setRequestChangeRow(null);
 				}}
 				row={requestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />

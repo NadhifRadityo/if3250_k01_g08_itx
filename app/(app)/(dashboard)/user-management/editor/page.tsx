@@ -26,7 +26,6 @@ import { useUserCellRenderer } from "../layout.components";
 import { useUserColumnPreferences } from "../layout.components";
 import { useUserFilterColumnConfig } from "../layout.components";
 import { useUserManagementQueryState } from "../layout.components";
-import { useUserRelations } from "../layout.components";
 import { useUserRequestFilters } from "../layout.components";
 import { useUserRequestsQuery } from "../layout.components";
 import {
@@ -76,16 +75,8 @@ export default function UserManagementEditorPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useUserRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderUserCell = useUserCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -139,8 +130,8 @@ export default function UserManagementEditorPage() {
 			email: row.email,
 			name: row.name,
 			employeeId: row.employeeId,
-			roleId: row.roleId ?? "",
-			supervisorId: row.supervisorId ?? "",
+			role: row.role ?? "",
+			supervisor: row.supervisor ?? "",
 			initialPassword: row.initialPassword
 		});
 		setIsFormOpen(true);
@@ -154,7 +145,7 @@ export default function UserManagementEditorPage() {
 			return setFormError({ title: "ValidationError", message: "Name is required." });
 		if(formState.employeeId.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Employee ID is required." });
-		if(formState.roleId.trim().length == 0)
+		if(formState.role.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Role is required." });
 		if(formState.stagedUserId == null && formState.initialPassword.trim().length < 8)
 			return setFormError({ title: "ValidationError", message: "Initial password is required for new requests and must be at least 8 characters." });
@@ -164,8 +155,8 @@ export default function UserManagementEditorPage() {
 				email: formState.email,
 				name: formState.name,
 				employeeId: formState.employeeId,
-				roleId: formState.roleId,
-				supervisorId: formState.supervisorId.length > 0 ? formState.supervisorId : null,
+				role: formState.role,
+				supervisor: formState.supervisor.length > 0 ? formState.supervisor : null,
 				initialPassword: formState.initialPassword
 			});
 			setIsFormOpen(false);
@@ -345,6 +336,11 @@ export default function UserManagementEditorPage() {
 						setRequestChangeRow(null);
 				}}
 				row={requestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<UserRequestFormDrawer
@@ -362,8 +358,8 @@ export default function UserManagementEditorPage() {
 				onEmailChange={value => setFormState(previous => ({ ...previous, email: value }))}
 				onNameChange={value => setFormState(previous => ({ ...previous, name: value }))}
 				onEmployeeIdChange={value => setFormState(previous => ({ ...previous, employeeId: value }))}
-				onRoleChange={value => setFormState(previous => ({ ...previous, roleId: value }))}
-				onSupervisorChange={value => setFormState(previous => ({ ...previous, supervisorId: value }))}
+				onRoleChange={value => setFormState(previous => ({ ...previous, role: value }))}
+				onSupervisorChange={value => setFormState(previous => ({ ...previous, supervisor: value }))}
 				onInitialPasswordChange={value => setFormState(previous => ({ ...previous, initialPassword: value }))}
 				onSubmit={submitForm}
 			/>

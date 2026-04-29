@@ -6,10 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, ArrowUpIcon, HistoryIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
-import type { ReviewCommentRichText } from "@/utils/reviewCommentRichText";
+import { createEmptyReviewComment, type ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
 import { ReviewCommentInput } from "@/components/ReviewCommentInput";
+import { ReviewCommentPreview } from "@/components/ReviewCommentInput";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -24,9 +25,9 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 import { Textarea } from "@/components/radix/Textarea";
 
+import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as surveyActions from "./layout.actions";
-import { uploadGenericRichtextImage } from "../../editor-x.actions";
 
 export const PAGE_SIZE = 20;
 
@@ -39,7 +40,6 @@ export type FilterInput = surveyActions.SurveyManagementFilterInput;
 export type QuerySurveysOutput = Awaited<ReturnType<typeof surveyActions.querySurveysAction>>;
 export type SurveyTableRow = QuerySurveysOutput["docs"][number];
 export type SurveyManagementTabMode = "viewer" | Parameters<typeof surveyActions.querySurveysAction>[0]["mode"];
-export type SurveyRelationColumn = surveyActions.SurveyRelationColumn;
 export type SurveyRequestReviewDiff = Awaited<ReturnType<typeof surveyActions.getSurveyRequestReviewDiffAction>>;
 export type SurveyRequestHistory = Awaited<ReturnType<typeof surveyActions.getSurveyRequestHistoryAction>>;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
@@ -87,8 +87,8 @@ export type FilterCondition = {
 
 export type SurveyTableColumnId = "title" |
 	"id" |
-	"descriptionText" |
-	"contentText" |
+	"description" |
+	"content" |
 	"createdBy" |
 	"updatedBy" |
 	"deletedBy" |
@@ -100,7 +100,7 @@ export type SurveyTableColumnId = "title" |
 	"reviewedAt" |
 	"reviewedBy" |
 	"reviewApproved" |
-	"reviewCommentText";
+	"reviewComment";
 
 export type SurveyTableColumnConfig = {
 	id: SurveyTableColumnId;
@@ -113,7 +113,7 @@ export type SurveyTableColumnConfig = {
 export type FormState = {
 	surveyId?: string;
 	title: string;
-	description: string;
+	description: ReviewCommentRichText;
 	content: string;
 };
 
@@ -132,6 +132,7 @@ export const reviewStatusOptions: Array<{ value: string, label: string }> = [
 
 export const emptyQueryResult: QuerySurveysOutput = {
 	docs: [],
+	relations: {},
 	totalDocs: 0,
 	page: 1,
 	hasNextPage: false,
@@ -140,7 +141,7 @@ export const emptyQueryResult: QuerySurveysOutput = {
 
 export const defaultFormState: FormState = {
 	title: "",
-	description: "",
+	description: createEmptyReviewComment(),
 	content: "{\n  \"slides\": []\n}"
 };
 
@@ -150,20 +151,20 @@ export const RELATION_FILTER_QUERY_PARAM = "relationFilters";
 export const surveyTableColumns: SurveyTableColumnConfig[] = [
 	{ id: "id", label: "ID", sortField: "id", cellClassName: "font-mono text-xs" },
 	{ id: "title", label: "Title", sortField: "title", cellClassName: "font-medium" },
-	{ id: "descriptionText", label: "Description", sortField: "descriptionText", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
-	{ id: "contentText", label: "Content", sortField: "contentText", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs" },
+	{ id: "description", label: "Description", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ id: "content", label: "Content", cellClassName: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap font-mono text-xs" },
 	{ id: "createdBy", label: "Created By" },
 	{ id: "updatedBy", label: "Updated By" },
 	{ id: "deletedBy", label: "Deleted By" },
 	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
 	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
 	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
-	{ id: "requestType", label: "Request", sortField: "requestType" },
-	{ id: "status", label: "Status", sortField: "status" },
+	{ id: "requestType", label: "Request" },
+	{ id: "status", label: "Status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
 	{ id: "reviewedBy", label: "Reviewed By", sortField: "reviewedBy" },
 	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
-	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
+	{ id: "reviewComment", label: "Review Comment", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
 function getSurveyDrawerValueClassName(columnId: string): string {
@@ -171,21 +172,16 @@ function getSurveyDrawerValueClassName(columnId: string): string {
 		return "text-xs font-mono";
 	if(columnId == "title")
 		return "text-sm font-medium";
-	if(columnId == "contentText")
+	if(columnId == "content")
 		return "text-xs font-mono";
+	if(columnId == "reviewComment")
+		return "text-sm leading-relaxed";
 	return "text-sm";
 }
 
 export const defaultSurveyColumnOrder: SurveyTableColumnId[] = surveyTableColumns.map(column => column.id);
-export const defaultSurveyVisibleColumns: SurveyTableColumnId[] = ["title", "descriptionText", "requestType", "status", "updatedAt", "reviewCommentText"];
+export const defaultSurveyVisibleColumns: SurveyTableColumnId[] = ["title", "description", "requestType", "status", "updatedAt", "reviewComment"];
 export const defaultSurveyHiddenColumns: SurveyTableColumnId[] = defaultSurveyColumnOrder.filter(columnId => !defaultSurveyVisibleColumns.includes(columnId));
-
-export const surveyRelationColumnSet = new Set<SurveyRelationColumn>([
-	"reviewedBy",
-	"createdBy",
-	"updatedBy",
-	"deletedBy"
-]);
 
 const surveyNonEligibleColumnSet = new Set<string>([
 	"actions",
@@ -219,8 +215,8 @@ export const filterOperatorOptions: Array<{ value: FilterOperator, label: string
 export const surveyFilterColumns: FilterColumnOption[] = [
 	{ value: "id", label: "ID", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "title", label: "Title", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter survey title" },
-	{ value: "descriptionText", label: "Description", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter description text" },
-	{ value: "contentText", label: "Content", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter content text" },
+	{ value: "description", label: "Description", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter description text" },
+	{ value: "content", label: "Content", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter content text" },
 	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
@@ -797,7 +793,7 @@ type SurveyRequestFormDrawerProps = {
 	formError: { title: string, message: string } | null;
 	isMutating: boolean;
 	onTitleChange: (value: string) => void;
-	onDescriptionChange: (value: string) => void;
+	onDescriptionChange: (value: ReviewCommentRichText) => void;
 	onContentChange: (value: string) => void;
 	onSubmit: () => void;
 };
@@ -828,12 +824,7 @@ export function SurveyRequestFormDrawer({
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Description</label>
-							<Textarea
-								value={formState.description}
-								onChange={event => onDescriptionChange(event.target.value)}
-								placeholder="Short survey description"
-								className="min-h-28"
-							/>
+							<ReviewCommentInput serializedState={formState.description} onSerializedStateChange={value => onDescriptionChange(value as ReviewCommentRichText)} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">
@@ -880,6 +871,45 @@ type SurveyRequestReviewDrawerProps = {
 	onOpenRequestChanges?: (row: SurveyTableRow) => void;
 };
 
+type SurveyRequestReviewDiffField = keyof Omit<SurveyRequestReviewDiff, "requestId" | "requestType" | "relations">;
+type SurveyRequestReviewDiffEntry = {
+	field: SurveyRequestReviewDiffField;
+	label: string;
+	previousValue: ReactNode;
+	requestedValue: ReactNode;
+	previousRaw: unknown;
+	requestedRaw: unknown;
+};
+
+function renderSurveyRequestReviewDiffValue(field: SurveyRequestReviewDiffField, value: any): ReactNode {
+	switch(field) {
+		case "description":
+			return <ReviewCommentPreview serializedState={value} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />;
+		case "content":
+			return JSON.stringify(value);
+		case "deletedAt":
+			return formatDateTime(value);
+		default:
+			return value == null || String(value).length == 0 ? "-" : String(value);
+	}
+}
+
+function buildSurveyRequestReviewDiffEntries(diff: SurveyRequestReviewDiff): SurveyRequestReviewDiffEntry[] {
+	return [
+		["title", "Title", diff.title[0], diff.title[1]],
+		["description", "Description", diff.description[0], diff.description[1]],
+		["content", "Content", diff.content[0], diff.content[1]],
+		["deletedAt", "Deleted At", diff.deletedAt[0], diff.deletedAt[1]]
+	].map(([field, label, previousRaw, requestedRaw]) => ({
+		field,
+		label,
+		previousRaw,
+		requestedRaw,
+		previousValue: renderSurveyRequestReviewDiffValue(field, previousRaw),
+		requestedValue: renderSurveyRequestReviewDiffValue(field, requestedRaw)
+	}));
+}
+
 export function SurveyRequestReviewDrawer({
 	open,
 	onOpenChange,
@@ -893,6 +923,9 @@ export function SurveyRequestReviewDrawer({
 	isMutating,
 	onOpenRequestChanges
 }: SurveyRequestReviewDrawerProps) {
+	const diffEntries = reviewDrawerState?.diff == null ? [] : buildSurveyRequestReviewDiffEntries(reviewDrawerState.diff);
+	const changedCount = diffEntries.filter(entry => JSON.stringify(entry.previousRaw) != JSON.stringify(entry.requestedRaw)).length;
+
 	return (
 		<Drawer
 			open={open}
@@ -920,7 +953,7 @@ export function SurveyRequestReviewDrawer({
 							}) : "-"}
 						</p>
 						<p className="text-muted-foreground">
-							{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
+							{reviewDrawerState?.diff != null ? `${changedCount} changed field(s)` : "Loading differences..."}
 						</p>
 					</div>
 
@@ -934,11 +967,11 @@ export function SurveyRequestReviewDrawer({
 						<p className="text-muted-foreground text-sm">No diff is available for this request.</p>
 					) : (
 						<div className="space-y-2">
-							{reviewDrawerState.diff.items.map(item => (
+							{diffEntries.map(item => (
 								<div key={item.field} className="space-y-2 rounded-lg border p-3">
 									<div className="flex items-center justify-between gap-2">
 										<p className="text-sm font-medium">{item.label}</p>
-										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+										<Badge variant={JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "default" : "secondary"}>{JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "Changed" : "Unchanged"}</Badge>
 									</div>
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
@@ -965,7 +998,7 @@ export function SurveyRequestReviewDrawer({
 
 					<div className="space-y-2">
 						<label className="text-sm font-medium">Review Comment (optional)</label>
-						<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
+						<ReviewCommentInput serializedState={reviewComment} onSerializedStateChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 					</div>
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
@@ -996,6 +1029,9 @@ export function SurveyRequestChangePreviewDrawer({
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
+	const diff = diffQuery.data;
+	const diffEntries = diff == null ? [] : buildSurveyRequestReviewDiffEntries(diff);
+	const changedCount = diffEntries.filter(entry => JSON.stringify(entry.previousRaw) != JSON.stringify(entry.requestedRaw)).length;
 
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -1006,8 +1042,8 @@ export function SurveyRequestChangePreviewDrawer({
 				</DrawerHeader>
 				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
-						<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
-						<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+						<p><span className="font-medium">Request Type:</span> {diff?.requestType ?? row?.requestType ?? "-"}</p>
+						<p className="text-muted-foreground">{diff != null ? `${changedCount} changed field(s)` : "Loading differences..."}</p>
 					</div>
 
 					{row == null ? (
@@ -1018,7 +1054,7 @@ export function SurveyRequestChangePreviewDrawer({
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 						</div>
-					) : diffQuery.isError || diffQuery.data == null ? (
+					) : diffQuery.isError || diff == null ? (
 						<Alert variant="destructive">
 							<CircleAlertIcon />
 							<AlertTitle>Error</AlertTitle>
@@ -1026,11 +1062,11 @@ export function SurveyRequestChangePreviewDrawer({
 						</Alert>
 					) : (
 						<div className="space-y-2">
-							{diffQuery.data.items.map(item => (
+							{diffEntries.map(item => (
 								<div key={item.field} className="space-y-2 rounded-lg border p-3">
 									<div className="flex items-center justify-between gap-2">
 										<p className="text-sm font-medium">{item.label}</p>
-										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+										<Badge variant={JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "default" : "secondary"}>{JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "Changed" : "Unchanged"}</Badge>
 									</div>
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
@@ -1163,6 +1199,95 @@ export function SurveyRequestsTable({
 	);
 }
 
+type SurveyRequestHistoryEntry = surveyActions.SurveyRequestHistoryOutput["entries"][number];
+type SurveyRequestHistoryField = Exclude<keyof SurveyRequestHistoryEntry, "versionId">;
+
+const surveyRequestHistoryFields: SurveyRequestHistoryField[] = [
+	"id",
+	"title",
+	"description",
+	"content",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"requestType",
+	"status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewComment"
+];
+
+const surveyRequestHistoryFieldLabelMap: Record<SurveyRequestHistoryField, string> = {
+	id: "ID",
+	title: "Title",
+	description: "Description",
+	content: "Content",
+	createdBy: "Created By",
+	updatedBy: "Updated By",
+	deletedBy: "Deleted By",
+	createdAt: "Created At",
+	updatedAt: "Updated At",
+	deletedAt: "Deleted At",
+	requestType: "Request",
+	status: "Status",
+	reviewedAt: "Reviewed At",
+	reviewedBy: "Reviewed By",
+	reviewApproved: "Review Approved",
+	reviewComment: "Review Comment"
+};
+
+function renderSurveyRequestHistoryValue(
+	field: SurveyRequestHistoryField,
+	value: any,
+	relations: surveyActions.SurveyRelationValues = {},
+	relationNavigation?: SurveyRelationNavigation
+) {
+	switch(field) {
+		case "reviewComment":
+			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
+		case "description":
+			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
+		case "content":
+			return JSON.stringify(value);
+		case "reviewApproved":
+			return value == null ? "-" : value as boolean ? "True" : "False";
+		case "status": {
+			if(value == null || String(value).length == 0)
+				return "-";
+			const normalizedStatus = String(value).toLowerCase();
+			if(normalizedStatus == "pending")
+				return <Badge variant="secondary">Pending</Badge>;
+			if(normalizedStatus == "approved")
+				return <Badge variant="default">Approved</Badge>;
+			if(normalizedStatus == "rejected")
+				return <Badge variant="destructive">Rejected</Badge>;
+			return <Badge variant="outline">{String(value)}</Badge>;
+		}
+		case "createdBy":
+		case "updatedBy":
+		case "deletedBy":
+		case "reviewedBy":
+			return renderSurveyUserRelationValue({
+				column: field,
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value ?? null,
+				relationNavigation,
+				fallbackValue: value == null ? "-" : String(value)
+			});
+		case "createdAt":
+		case "updatedAt":
+		case "deletedAt":
+		case "reviewedAt":
+			return formatDateTime(value);
+		default:
+			return value == null || String(value).length == 0 ? "-" : String(value);
+	}
+}
+
 type SurveyRequestDetailsDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -1189,39 +1314,35 @@ type SurveyRelationNavigation = {
 	}) => void;
 };
 
-function getSurveyRelationSummaryLabel(column: SurveyRelationColumn): string {
-	if(column == "reviewedBy")
-		return "Reviewed By";
-	if(column == "createdBy")
-		return "Created By";
-	if(column == "updatedBy")
-		return "Updated By";
-	return "Deleted By";
-}
-
 function renderSurveyUserRelationValue({
 	column,
-	value,
+	relation,
 	relationId,
 	relationNavigation,
-	stagedUserIdByUserId
+	fallbackValue
 }: {
-	column: SurveyRelationColumn;
-	value: string;
+	column: string;
+	relation: { name: string, email?: string, stagedUserId?: string | null } | null;
 	relationId: string | null;
 	relationNavigation?: SurveyRelationNavigation;
-	stagedUserIdByUserId?: Record<string, string>;
+	fallbackValue?: string;
 }): ReactNode {
-	const normalizedValue = value.trim();
+	const displayValue = relation?.name ?? relation?.email ?? fallbackValue ?? "-";
+	const normalizedValue = displayValue.trim();
 	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
-		return value;
+		return displayValue;
 
-	const summaryLabel = getSurveyRelationSummaryLabel(column);
+	const summaryLabel = {
+		"reviewedBy": "Reviewed By",
+		"createdBy": "Created By",
+		"updatedBy": "Updated By",
+		"deletedBy": "Deleted By"
+	}[column];
 	const hrefBase = relationNavigation?.getHrefBase("user-management");
 	if(hrefBase != null && relationNavigation != null) {
-		const stagedUserId = stagedUserIdByUserId?.[relationId] ?? null;
+		const stagedUserId = relation?.stagedUserId ?? null;
 		if(stagedUserId == null || stagedUserId.trim().length == 0)
-			return value;
+			return displayValue;
 
 		const relationFilters = [{ column: "id", operator: "equals", value: stagedUserId }];
 		const searchParams = new URLSearchParams();
@@ -1237,7 +1358,7 @@ function renderSurveyUserRelationValue({
 						relationNavigation.onOpenSummary({
 							type: "user",
 							id: relationId,
-							fallbackTitle: value,
+							fallbackTitle: displayValue,
 							fallbackDescription: `${summaryLabel} user`
 						});
 						return;
@@ -1251,13 +1372,13 @@ function renderSurveyUserRelationValue({
 				}}
 				className="text-primary underline underline-offset-2 hover:opacity-80"
 			>
-				{value}
+				{displayValue}
 			</Link>
 		);
 	}
 
 	if(relationNavigation == null)
-		return value;
+		return displayValue;
 
 	return (
 		<Button
@@ -1266,12 +1387,12 @@ function renderSurveyUserRelationValue({
 			onClick={() => relationNavigation.onOpenSummary({
 				type: "user",
 				id: relationId,
-				fallbackTitle: value,
+				fallbackTitle: displayValue,
 				fallbackDescription: `${summaryLabel} user`
 			})}
 			className="h-auto p-0 text-primary select-auto"
 		>
-			{value}
+			{displayValue}
 		</Button>
 	);
 }
@@ -1329,16 +1450,16 @@ export function SurveyRequestDetailsDrawer({
 				return renderDetailColumnValue(columnId, data.row.id);
 			case "title":
 				return renderDetailColumnValue(columnId, data.row.title);
-			case "descriptionText":
-				return renderDetailColumnValue(columnId, data.row.descriptionText.length > 0 ? data.row.descriptionText : "-");
-			case "contentText":
-				return renderDetailColumnValue(columnId, data.row.contentText.length > 0 ? data.row.contentText : "-");
+			case "description":
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.description ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
+			case "content":
+				return renderDetailColumnValue(columnId, JSON.stringify(data.row.content));
 			case "createdBy":
-				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "createdBy", relation: data.row.createdBy == null ? null : data.relations[`users:${data.row.createdBy}`] ?? null, relationId: data.row.createdBy, relationNavigation, fallbackValue: data.row.createdBy ?? "-" }));
 			case "updatedBy":
-				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "updatedBy", relation: data.row.updatedBy == null ? null : data.relations[`users:${data.row.updatedBy}`] ?? null, relationId: data.row.updatedBy, relationNavigation, fallbackValue: data.row.updatedBy ?? "-" }));
 			case "deletedBy":
-				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "deletedBy", relation: data.row.deletedBy == null ? null : data.relations[`users:${data.row.deletedBy}`] ?? null, relationId: data.row.deletedBy, relationNavigation, fallbackValue: data.row.deletedBy ?? "-" }));
 			case "createdAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
 			case "updatedAt":
@@ -1354,11 +1475,11 @@ export function SurveyRequestDetailsDrawer({
 			case "reviewedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
 			case "reviewedBy":
-				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "reviewedBy", relation: data.row.reviewedBy == null ? null : data.relations[`users:${data.row.reviewedBy}`] ?? null, relationId: data.row.reviewedBy, relationNavigation, fallbackValue: data.row.reviewedBy ?? "-" }));
 			case "reviewApproved":
 				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
-			case "reviewCommentText":
-				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			case "reviewComment":
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.reviewComment ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			default:
 				return renderDetailColumnValue(columnId, "-");
 		}
@@ -1442,23 +1563,41 @@ export function SurveyRequestDetailsDrawer({
 						) : historyQuery.data.entries.length == 0 ? (
 							<p className="text-muted-foreground text-sm">No history entries found for this survey request.</p>
 						) : (
-							historyQuery.data.entries.map(entry => (
-								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
-									<div className="flex items-center justify-between gap-2">
-										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
-										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+							historyQuery.data.entries.map((entry, entryIndex, historyEntries) => {
+								const previousEntry = historyEntries[entryIndex + 1] ?? null;
+								const changes = surveyRequestHistoryFields.flatMap(field => {
+									const nextValue = entry[field];
+									const previousValue = previousEntry?.[field] ?? null;
+									if(JSON.stringify(nextValue) == JSON.stringify(previousValue))
+										return [];
+									return [{
+										field,
+										label: surveyRequestHistoryFieldLabelMap[field],
+										previousValue,
+										nextValue
+									}];
+								});
+
+								return (
+									<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-sm font-semibold">{formatDateTime(entry.updatedAt)}</p>
+											<Badge variant="outline">{changes.length} change(s)</Badge>
+										</div>
+										<div className="space-y-1">
+											{changes.length == 0 ? (
+												<p className="text-muted-foreground text-xs">No field changes detected.</p>
+											) : changes.map(change => (
+												<div key={`${entry.versionId}-${change.field}`} className="space-y-0.5 rounded-md border p-2 text-xs">
+													<div className="font-medium">{change.label}</div>
+													<div className="text-muted-foreground">From: {renderSurveyRequestHistoryValue(change.field, change.previousValue, historyQuery.data.relations, relationNavigation)}</div>
+													<div>To: {renderSurveyRequestHistoryValue(change.field, change.nextValue, historyQuery.data.relations, relationNavigation)}</div>
+												</div>
+											))}
+										</div>
 									</div>
-									<div className="space-y-1">
-										{entry.changes.map(change => (
-											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed ? "border-primary/30 bg-primary/5" : "opacity-70")}>
-												<p className="font-medium">{change.label}</p>
-												<p className="text-muted-foreground">From: {change.previousValue}</p>
-												<p>To: {change.nextValue}</p>
-											</div>
-										))}
-									</div>
-								</div>
-							))
+								);
+							})
 						)}
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
@@ -1471,36 +1610,28 @@ export function SurveyRequestDetailsDrawer({
 }
 
 type UseSurveyCellRendererOptions = {
-	relationValuesByRowId: Record<string, surveyActions.SurveyRelationValues>;
-	isRelationLoading: boolean;
+	relations: surveyActions.SurveyRelationValues;
 	relationNavigation?: SurveyRelationNavigation;
 	onOpenRequestChanges?: (row: SurveyTableRow) => void;
 };
 
-export function useSurveyCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseSurveyCellRendererOptions) {
+export function useSurveyCellRenderer({ relations, relationNavigation, onOpenRequestChanges }: UseSurveyCellRendererOptions) {
 	return useCallback((columnId: SurveyTableColumnId, row: SurveyTableRow) => {
-		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "id":
 				return row.id;
 			case "title":
 				return row.title;
-			case "descriptionText":
-				return row.descriptionText.length > 0 ? row.descriptionText : "-";
-			case "contentText":
-				return row.contentText.length > 0 ? row.contentText : "-";
+			case "description":
+				return <ReviewCommentPreview serializedState={row.description ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
+			case "content":
+				return JSON.stringify(row.content);
 			case "createdBy":
-				if(isRelationLoading && resolvedValues.createdBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderSurveyUserRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationId: row.createdById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderSurveyUserRelationValue({ column: "createdBy", relation: row.createdBy == null ? null : relations[`users:${row.createdBy}`] ?? null, relationId: row.createdBy, relationNavigation, fallbackValue: row.createdBy ?? "-" });
 			case "updatedBy":
-				if(isRelationLoading && resolvedValues.updatedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderSurveyUserRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderSurveyUserRelationValue({ column: "updatedBy", relation: row.updatedBy == null ? null : relations[`users:${row.updatedBy}`] ?? null, relationId: row.updatedBy, relationNavigation, fallbackValue: row.updatedBy ?? "-" });
 			case "deletedBy":
-				if(isRelationLoading && resolvedValues.deletedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderSurveyUserRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderSurveyUserRelationValue({ column: "deletedBy", relation: row.deletedBy == null ? null : relations[`users:${row.deletedBy}`] ?? null, relationId: row.deletedBy, relationNavigation, fallbackValue: row.deletedBy ?? "-" });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1516,17 +1647,15 @@ export function useSurveyCellRenderer({ relationValuesByRowId, isRelationLoading
 			case "reviewedAt":
 				return formatDateTime(row.reviewedAt);
 			case "reviewedBy":
-				if(isRelationLoading && resolvedValues.reviewedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderSurveyUserRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderSurveyUserRelationValue({ column: "reviewedBy", relation: row.reviewedBy == null ? null : relations[`users:${row.reviewedBy}`] ?? null, relationId: row.reviewedBy, relationNavigation, fallbackValue: row.reviewedBy ?? "-" });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
-			case "reviewCommentText":
-				return row.reviewCommentText.length > 0 ? row.reviewCommentText : "-";
+			case "reviewComment":
+				return <ReviewCommentPreview serializedState={row.reviewComment ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, onOpenRequestChanges, relationValuesByRowId, relationNavigation]);
+	}, [onOpenRequestChanges, relationNavigation, relations]);
 }
 
 export function useSurveyColumnPreferences() {
@@ -1719,48 +1848,6 @@ export function useSurveyManagementQueryState({
 		sortTokens,
 		getSortDirection,
 		toggleSortField
-	};
-}
-
-type UseSurveyRelationsOptions = {
-	docs: SurveyTableRow[];
-	visibleColumns: SurveyTableColumnConfig[];
-};
-
-export function useSurveyRelations({ docs, visibleColumns }: UseSurveyRelationsOptions) {
-	const visibleRelationColumns = useMemo(() => (
-		visibleColumns
-			.map(column => column.id)
-			.filter((columnId): columnId is SurveyRelationColumn => surveyRelationColumnSet.has(columnId as SurveyRelationColumn))
-	), [visibleColumns]);
-
-	const relationRows = useMemo(() => docs.map(row => ({
-		id: row.id,
-		reviewedById: row.reviewedById,
-		createdById: row.createdById,
-		updatedById: row.updatedById,
-		deletedById: row.deletedById
-	})), [docs]);
-
-	const relationsQuery = useQuery({
-		queryKey: ["survey-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
-		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => surveyActions.resolveSurveyRelationColumnsAction({
-			rows: relationRows,
-			columns: visibleRelationColumns
-		}),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const relationValuesByRowId = useMemo(() => Object.fromEntries(
-		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	), [relationsQuery.data]);
-	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
-
-	return {
-		relationValuesByRowId,
-		isRelationLoading
 	};
 }
 

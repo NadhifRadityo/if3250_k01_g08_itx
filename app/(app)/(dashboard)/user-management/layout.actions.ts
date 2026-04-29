@@ -6,6 +6,7 @@ import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
+import type { RelationRole, RelationUser, RequestDiffPair } from "@/utils/requestRelationValues";
 import type { Role, User, StagedUser } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -24,10 +25,7 @@ const sortableFields = new Set<UserManagementSortField>([
 	"supervisor",
 	"reviewedAt",
 	"reviewedBy",
-	"reviewApproved",
-	"requestType",
-	"status",
-	"reviewCommentText"
+	"reviewApproved"
 ]);
 const filterableColumns = new Set<UserManagementFilterColumn>([
 	"id",
@@ -93,10 +91,7 @@ export type UserManagementSortField = "createdAt" |
 	"supervisor" |
 	"reviewedAt" |
 	"reviewedBy" |
-	"reviewApproved" |
-	"requestType" |
-	"status" |
-	"reviewCommentText";
+	"reviewApproved";
 export type UserManagementSortToken = `${"+" | "-"}${UserManagementSortField}`;
 export type UserManagementFilterColumn = "name" |
 	"id" |
@@ -139,46 +134,28 @@ export type StagedUserTableRow = {
 	email: string;
 	name: string;
 	employeeId: string;
-	roleId: string | null;
-	roleName: string;
-	supervisorId: string | null;
+	role: string | null;
+	supervisor: string | null;
 	isSoftDeleted: boolean;
 	initialPassword: string;
-	createdById: string | null;
-	updatedById: string | null;
-	deletedById: string | null;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
 	reviewedAt: string | null;
-	reviewedById: string | null;
+	reviewedBy: string | null;
 	reviewApproved: boolean | null;
-	reviewCommentText: string;
+	reviewComment: ReviewCommentValue | null;
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type UserRelationColumn = "supervisor" |
-	"reviewedBy" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy";
-
-export type ResolveStagedUserRelationColumnsInput = {
-	rows: Array<Pick<StagedUserTableRow, "id" | "supervisorId" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
-	columns: UserRelationColumn[];
-};
-
-export type StagedUserRelationValues = Partial<Record<UserRelationColumn, string>> & {
-	stagedUserIdByUserId?: Record<string, string>;
-};
-
-export type ResolveStagedUserRelationColumnsOutput = Array<{
-	id: string;
-	values: StagedUserRelationValues;
-}>;
+export type StagedUserRelationValues = Partial<Record<`users:${string}`, RelationUser>> & Partial<Record<`roles:${string}`, RelationRole>>;
 
 export type QueryStagedUsersOutput = {
 	docs: StagedUserTableRow[];
+	relations: StagedUserRelationValues;
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
@@ -220,8 +197,8 @@ export type UpsertStagedUserRequestInput = {
 	email: string;
 	name: string;
 	employeeId: string;
-	roleId: string;
-	supervisorId?: string | null;
+	role: string;
+	supervisor?: string | null;
 	initialPassword: string;
 };
 
@@ -233,64 +210,54 @@ export type ReviewStagedUserRequestInput = {
 
 export type UserRequestReviewDiffItem = {
 	field: "email" | "name" | "employeeId" | "role" | "supervisor" | "deletedAt" | "initialPassword";
-	label: string;
-	previousValue: string;
-	requestedValue: string;
-	changed: boolean;
-	previousReferences?: Array<{ type: "user" | "role", id: string, label: string }>;
-	requestedReferences?: Array<{ type: "user" | "role", id: string, label: string }>;
+	previousValue: string | null | boolean;
+	requestedValue: string | null | boolean;
 };
 
 export type UserRequestReviewDiffOutput = {
 	requestId: string;
 	requestType: "Create" | "Update" | "Delete";
-	items: UserRequestReviewDiffItem[];
-	changedCount: number;
+	email: RequestDiffPair<string | null>;
+	name: RequestDiffPair<string | null>;
+	employeeId: RequestDiffPair<string | null>;
+	role: RequestDiffPair<string | null>;
+	supervisor: RequestDiffPair<string | null>;
+	deletedAt: RequestDiffPair<string | null>;
+	initialPassword: RequestDiffPair<string | null>;
+	relations: StagedUserRelationValues;
 };
 
 export type UserRequestDetailsOutput = {
 	row: StagedUserTableRow;
-	relationValues: StagedUserRelationValues;
-	relationReferences: Partial<Record<"role" | UserRelationColumn, Array<{ type: "user" | "role", id: string, label: string }>>>;
-};
-
-export type UserRequestHistoryColumn = "id" |
-	"name" |
-	"email" |
-	"employeeId" |
-	"role" |
-	"supervisor" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy" |
-	"createdAt" |
-	"updatedAt" |
-	"deletedAt" |
-	"requestType" |
-	"status" |
-	"reviewedAt" |
-	"reviewedBy" |
-	"reviewApproved" |
-	"reviewCommentText";
-
-export type UserRequestHistoryChangeItem = {
-	column: UserRequestHistoryColumn;
-	label: string;
-	previousValue: string;
-	nextValue: string;
-	changed: boolean;
+	relations: StagedUserRelationValues;
 };
 
 export type UserRequestHistoryEntry = {
 	versionId: string;
-	changedAt: string | null;
-	changes: UserRequestHistoryChangeItem[];
-	changedCount: number;
+	id: string;
+	name: string | null;
+	email: string | null;
+	employeeId: string | null;
+	role: string | null;
+	supervisor: string | null;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+	deletedAt: string | null;
+	requestType: "Create" | "Update" | "Delete";
+	status: string;
+	reviewedAt: string | null;
+	reviewedBy: string | null;
+	reviewApproved: boolean | null;
+	reviewComment: ReviewCommentValue | null;
 };
 
 export type UserRequestHistoryOutput = {
 	requestId: string;
 	entries: UserRequestHistoryEntry[];
+	relations: StagedUserRelationValues;
 };
 
 type SortFieldKey = UserManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
@@ -416,24 +383,6 @@ function normalizeFilterCombinator(filterCombinator: UserManagementFilterCombina
 	return filterCombinator == "or" ? "or" : "and";
 }
 
-function richTextToPlainText(value: unknown): string {
-	if(value == null || typeof value != "object") return "";
-	const nodes: unknown[] = [];
-	const collectNodes = (node: unknown) => {
-		if(node == null || typeof node != "object") return;
-		nodes.push(node);
-		if("children" in node && Array.isArray(node.children))
-			node.children.forEach(collectNodes);
-	};
-	collectNodes((value as { root?: unknown }).root);
-	return nodes
-		.filter((node): node is { text: string } => node != null && typeof node == "object" && "text" in node && typeof node.text == "string")
-		.map(node => node.text)
-		.join(" ")
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string") return value;
 	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
@@ -503,48 +452,6 @@ function formatReviewPasswordPresence(value: string | null | undefined): string 
 	return "Set";
 }
 
-const userRequestHistoryColumns = [
-	"id",
-	"name",
-	"email",
-	"employeeId",
-	"role",
-	"supervisor",
-	"createdBy",
-	"updatedBy",
-	"deletedBy",
-	"createdAt",
-	"updatedAt",
-	"deletedAt",
-	"requestType",
-	"status",
-	"reviewedAt",
-	"reviewedBy",
-	"reviewApproved",
-	"reviewCommentText"
-] as const satisfies UserRequestHistoryColumn[];
-
-const userRequestHistoryColumnLabelMap: Record<UserRequestHistoryColumn, string> = {
-	id: "ID",
-	name: "Name",
-	email: "Email",
-	employeeId: "Employee ID",
-	role: "Role",
-	supervisor: "Supervisor",
-	createdBy: "Created By",
-	updatedBy: "Updated By",
-	deletedBy: "Deleted By",
-	createdAt: "Created At",
-	updatedAt: "Updated At",
-	deletedAt: "Deleted At",
-	requestType: "Request",
-	status: "Status",
-	reviewedAt: "Reviewed At",
-	reviewedBy: "Reviewed By",
-	reviewApproved: "Review Approved",
-	reviewCommentText: "Review Comment"
-};
-
 function getUserRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
 	if(deletedAt != null)
 		return "Delete";
@@ -561,7 +468,7 @@ function getUserHistoryStatusLabel(reviewedAt: string | null | undefined, review
 	return "Rejected";
 }
 
-async function findUsersByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, { name: string, email: string, stagedUserId: string | null }>> {
+async function findUsersByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, RelationUser>> {
 	if(ids.length == 0)
 		return new Map();
 
@@ -584,7 +491,7 @@ async function findUsersByIds(payload: Payload, user: User, ids: string[]): Prom
 		}
 	});
 
-	const map = new Map<string, { name: string, email: string, stagedUserId: string | null }>();
+	const map = new Map<string, RelationUser>();
 	for(const doc of usersResult.docs) {
 		map.set(String(doc.id), {
 			name: doc.name,
@@ -596,7 +503,7 @@ async function findUsersByIds(payload: Payload, user: User, ids: string[]): Prom
 	return map;
 }
 
-async function findRolesByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, string>> {
+async function findRolesByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, RelationRole>> {
 	if(ids.length == 0)
 		return new Map();
 
@@ -618,9 +525,9 @@ async function findRolesByIds(payload: Payload, user: User, ids: string[]): Prom
 		}
 	});
 
-	const map = new Map<string, string>();
+	const map = new Map<string, RelationRole>();
 	for(const doc of rolesResult.docs)
-		map.set(String(doc.id), doc.name);
+		map.set(String(doc.id), { name: doc.name });
 
 	return map;
 }
@@ -722,12 +629,6 @@ function toPayloadSort(sort: UserManagementSortToken[]): string {
 		switch(field) {
 			case "role":
 				return `${direction}role.name`;
-			case "requestType":
-				return `${direction}deletedAt`;
-			case "status":
-				return `${direction}reviewedAt`;
-			case "reviewCommentText":
-				return `${direction}reviewedAt`;
 			case "supervisor":
 				return `${direction}supervisor.name`;
 			case "reviewedBy":
@@ -1001,8 +902,8 @@ export async function searchUserSupervisorUserOptionsAction(keyword: string, sel
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const supervisorRoleIds = await findActiveSupervisorRoleIds(payload, user);
-	if(supervisorRoleIds.length == 0)
+	const supervisorRoles = await findActiveSupervisorRoleIds(payload, user);
+	if(supervisorRoles.length == 0)
 		return [];
 
 	const keywordFilters = buildUserKeywordFilters(keyword);
@@ -1025,7 +926,7 @@ export async function searchUserSupervisorUserOptionsAction(keyword: string, sel
 		sort: "name",
 		where: {
 			and: [
-				{ role: { in: supervisorRoleIds } },
+				{ role: { in: supervisorRoles } },
 				...(searchWhere != null ? [searchWhere] : [])
 			]
 		},
@@ -1105,16 +1006,25 @@ export async function queryStagedUsersAction({ keyword, sort, filters, filterCom
 	const roleIds = [...new Set(stagedFindResult.docs
 		.map(doc => getRelationshipId(doc.role))
 		.filter((value): value is string => value != null))];
-	const roleNamesById = await findRolesByIds(payload, user, roleIds);
+	const userIds = [...new Set(stagedFindResult.docs.flatMap(doc => [
+		getRelationshipId(doc.supervisor),
+		getRelationshipId(doc.reviewedBy),
+		getRelationshipId(doc.createdBy),
+		getRelationshipId(doc.updatedBy),
+		getRelationshipId(doc.deletedBy)
+	].filter((value): value is string => value != null)))];
+	const [rolesById, usersById] = await Promise.all([
+		findRolesByIds(payload, user, roleIds),
+		findUsersByIds(payload, user, userIds)
+	]);
 
 	const mappedRows: StagedUserTableRow[] = stagedFindResult.docs.map(doc => {
-		const roleId = getRelationshipId(doc.role);
-		const supervisorId = getRelationshipId(doc.supervisor);
-		const reviewedById = getRelationshipId(doc.reviewedBy);
-		const createdById = getRelationshipId(doc.createdBy);
-		const updatedById = getRelationshipId(doc.updatedBy);
-		const deletedById = getRelationshipId(doc.deletedBy);
-		const reviewCommentText = richTextToPlainText(doc.reviewComment);
+		const role = getRelationshipId(doc.role);
+		const supervisor = getRelationshipId(doc.supervisor);
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
+		const createdBy = getRelationshipId(doc.createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
 		const requestType = getUserRequestType(doc.deletedAt ?? null, doc.createdAt, doc.updatedAt);
 		return {
 			id: String(doc.id),
@@ -1122,27 +1032,34 @@ export async function queryStagedUsersAction({ keyword, sort, filters, filterCom
 			email: doc.email,
 			name: doc.name,
 			employeeId: doc.employeeId,
-			roleId,
-			roleName: roleId != null ? (roleNamesById.get(roleId) ?? roleId) : "-",
-			supervisorId,
+			role,
+			supervisor,
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
 			initialPassword: doc.initialPassword ?? "",
-			createdById,
-			updatedById,
-			deletedById,
+			createdBy,
+			updatedBy,
+			deletedBy,
 			createdAt: doc.createdAt,
 			updatedAt: doc.updatedAt,
 			deletedAt: doc.deletedAt ?? null,
 			reviewedAt: doc.reviewedAt ?? null,
-			reviewedById,
+			reviewedBy,
 			reviewApproved: doc.reviewApproved ?? null,
-			reviewCommentText,
+			reviewComment: doc.reviewComment ?? null,
 			requestType
 		};
 	});
 
 	return {
 		docs: mappedRows,
+		relations: (() => {
+			const relations: StagedUserRelationValues = {};
+			for(const [roleId, role] of rolesById)
+				relations[`roles:${roleId}`] = role;
+			for(const [userId, relationUser] of usersById)
+				relations[`users:${userId}`] = relationUser;
+			return relations;
+		})(),
 		totalDocs: stagedFindResult.totalDocs,
 		page: stagedFindResult.page ?? pageNumber,
 		hasNextPage: stagedFindResult.hasNextPage,
@@ -1172,73 +1089,6 @@ export async function queryStagedUsersApproverAction(input: QueryStagedUsersShar
 		...input,
 		mode: "approver",
 		includeSoftDeleted: false
-	});
-}
-
-export async function resolveStagedUserRelationColumnsAction({ rows, columns }: ResolveStagedUserRelationColumnsInput): Promise<ResolveStagedUserRelationColumnsOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	if(rows.length == 0 || columns.length == 0)
-		return [];
-
-	const requestedColumns = [...new Set(columns)];
-	const userIds = new Set<string>();
-	for(const row of rows) {
-		if(requestedColumns.includes("supervisor") && row.supervisorId != null)
-			userIds.add(row.supervisorId);
-		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
-			userIds.add(row.reviewedById);
-		if(requestedColumns.includes("createdBy") && row.createdById != null)
-			userIds.add(row.createdById);
-		if(requestedColumns.includes("updatedBy") && row.updatedById != null)
-			userIds.add(row.updatedById);
-		if(requestedColumns.includes("deletedBy") && row.deletedById != null)
-			userIds.add(row.deletedById);
-	}
-
-	const usersById = await findUsersByIds(payload, user, [...userIds]);
-
-	return rows.map(row => {
-		const values: StagedUserRelationValues = {};
-
-		if(requestedColumns.includes("supervisor"))
-			values.supervisor = row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-";
-		if(requestedColumns.includes("reviewedBy"))
-			values.reviewedBy = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("createdBy"))
-			values.createdBy = row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("updatedBy"))
-			values.updatedBy = row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("deletedBy"))
-			values.deletedBy = row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-";
-
-		const relationUserIds = new Set<string>();
-		if(row.supervisorId != null)
-			relationUserIds.add(row.supervisorId);
-		if(row.reviewedById != null)
-			relationUserIds.add(row.reviewedById);
-		if(row.createdById != null)
-			relationUserIds.add(row.createdById);
-		if(row.updatedById != null)
-			relationUserIds.add(row.updatedById);
-		if(row.deletedById != null)
-			relationUserIds.add(row.deletedById);
-
-		const stagedUserIdByUserId = Object.fromEntries(
-			[...relationUserIds]
-				.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-				.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-		);
-		if(Object.keys(stagedUserIdByUserId).length > 0)
-			values.stagedUserIdByUserId = stagedUserIdByUserId;
-
-		return {
-			id: row.id,
-			values
-		};
 	});
 }
 
@@ -1278,15 +1128,13 @@ export async function getStagedUserRequestDetailsAction(stagedUserId: string): P
 	});
 
 	const linkedUserIdByStagedId = await queryLinkedUsersByStagedIds(payload, user, [String(stagedUser.id)]);
-	const roleId = getRelationshipId(stagedUser.role);
-	const roleNamesById = await findRolesByIds(payload, user, roleId != null ? [roleId] : []);
+	const role = getRelationshipId(stagedUser.role);
 
-	const supervisorId = getRelationshipId(stagedUser.supervisor);
-	const reviewedById = getRelationshipId(stagedUser.reviewedBy);
-	const createdById = getRelationshipId(stagedUser.createdBy);
-	const updatedById = getRelationshipId(stagedUser.updatedBy);
-	const deletedById = getRelationshipId(stagedUser.deletedBy);
-	const reviewCommentText = richTextToPlainText(stagedUser.reviewComment);
+	const supervisor = getRelationshipId(stagedUser.supervisor);
+	const reviewedBy = getRelationshipId(stagedUser.reviewedBy);
+	const createdBy = getRelationshipId(stagedUser.createdBy);
+	const updatedBy = getRelationshipId(stagedUser.updatedBy);
+	const deletedBy = getRelationshipId(stagedUser.deletedBy);
 	const requestType = getUserRequestType(stagedUser.deletedAt ?? null, stagedUser.createdAt, stagedUser.updatedAt);
 
 	const row: StagedUserTableRow = {
@@ -1295,67 +1143,53 @@ export async function getStagedUserRequestDetailsAction(stagedUserId: string): P
 		email: stagedUser.email,
 		name: stagedUser.name,
 		employeeId: stagedUser.employeeId,
-		roleId,
-		roleName: roleId != null ? (roleNamesById.get(roleId) ?? roleId) : "-",
-		supervisorId,
+		role: role,
+		supervisor: supervisor,
 		isSoftDeleted: stagedUser.deletedAt != null && stagedUser._status == "published",
 		initialPassword: stagedUser.initialPassword ?? "",
-		createdById,
-		updatedById,
-		deletedById,
+		createdBy,
+		updatedBy,
+		deletedBy,
 		createdAt: stagedUser.createdAt,
 		updatedAt: stagedUser.updatedAt,
 		deletedAt: stagedUser.deletedAt ?? null,
 		reviewedAt: stagedUser.reviewedAt ?? null,
-		reviewedById,
+		reviewedBy,
 		reviewApproved: stagedUser.reviewApproved ?? null,
-		reviewCommentText,
+		reviewComment: stagedUser.reviewComment ?? null,
 		requestType
 	};
 
 	const relationUserIds = new Set<string>();
-	if(row.supervisorId != null)
-		relationUserIds.add(row.supervisorId);
-	if(row.reviewedById != null)
-		relationUserIds.add(row.reviewedById);
-	if(row.createdById != null)
-		relationUserIds.add(row.createdById);
-	if(row.updatedById != null)
-		relationUserIds.add(row.updatedById);
-	if(row.deletedById != null)
-		relationUserIds.add(row.deletedById);
+	if(row.supervisor != null)
+		relationUserIds.add(row.supervisor);
+	if(row.reviewedBy != null)
+		relationUserIds.add(row.reviewedBy);
+	if(row.createdBy != null)
+		relationUserIds.add(row.createdBy);
+	if(row.updatedBy != null)
+		relationUserIds.add(row.updatedBy);
+	if(row.deletedBy != null)
+		relationUserIds.add(row.deletedBy);
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+	const rolesById = await findRolesByIds(payload, user, row.role != null ? [row.role] : []);
 
-	const relationValues: StagedUserRelationValues = {
-		supervisor: row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-",
-		reviewedBy: row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-",
-		createdBy: row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-",
-		updatedBy: row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-",
-		deletedBy: row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-"
-	};
-
-	const stagedUserIdByUserId = Object.fromEntries(
-		[...relationUserIds]
-			.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-			.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-	);
-	if(Object.keys(stagedUserIdByUserId).length > 0)
-		relationValues.stagedUserIdByUserId = stagedUserIdByUserId;
-
-	const relationReferences: UserRequestDetailsOutput["relationReferences"] = {
-		role: row.roleId != null ? [{ type: "role", id: row.roleId, label: roleNamesById.get(row.roleId) ?? "Role" }] : [],
-		supervisor: row.supervisorId != null ? [{ type: "user", id: row.supervisorId, label: usersById.get(row.supervisorId)?.name ?? "User" }] : [],
-		reviewedBy: row.reviewedById != null ? [{ type: "user", id: row.reviewedById, label: usersById.get(row.reviewedById)?.name ?? "User" }] : [],
-		createdBy: row.createdById != null ? [{ type: "user", id: row.createdById, label: usersById.get(row.createdById)?.name ?? "User" }] : [],
-		updatedBy: row.updatedById != null ? [{ type: "user", id: row.updatedById, label: usersById.get(row.updatedById)?.name ?? "User" }] : [],
-		deletedBy: row.deletedById != null ? [{ type: "user", id: row.deletedById, label: usersById.get(row.deletedById)?.name ?? "User" }] : []
-	};
+	const relations: StagedUserRelationValues = {};
+	if(row.role != null) {
+		const role = rolesById.get(row.role);
+		if(role != null)
+			relations[`roles:${row.role}`] = role;
+	}
+	for(const relationUserId of relationUserIds) {
+		const relation = usersById.get(relationUserId);
+		if(relation != null)
+			relations[`users:${relationUserId}`] = relation;
+	}
 
 	return {
 		row,
-		relationValues,
-		relationReferences
+		relations
 	};
 }
 
@@ -1431,7 +1265,7 @@ export async function getStagedUserRequestHistoryAction(stagedUserId: string): P
 			reviewedAt?: string | null;
 			reviewedBy?: unknown;
 			reviewApproved?: boolean | null;
-			reviewComment?: unknown;
+			reviewComment?: ReviewCommentValue | null;
 		};
 	};
 
@@ -1444,109 +1278,73 @@ export async function getStagedUserRequestHistoryAction(stagedUserId: string): P
 		if(version == null)
 			continue;
 
-		const roleId = getRelationshipId(version.role);
-		const supervisorId = getRelationshipId(version.supervisor);
-		const createdById = getRelationshipId(version.createdBy);
-		const updatedById = getRelationshipId(version.updatedBy);
-		const deletedById = getRelationshipId(version.deletedBy);
-		const reviewedById = getRelationshipId(version.reviewedBy);
+		const role = getRelationshipId(version.role);
+		const supervisor = getRelationshipId(version.supervisor);
+		const createdBy = getRelationshipId(version.createdBy);
+		const updatedBy = getRelationshipId(version.updatedBy);
+		const deletedBy = getRelationshipId(version.deletedBy);
+		const reviewedBy = getRelationshipId(version.reviewedBy);
 
-		if(roleId != null)
-			roleIds.add(roleId);
-		if(supervisorId != null)
-			relationUserIds.add(supervisorId);
-		if(createdById != null)
-			relationUserIds.add(createdById);
-		if(updatedById != null)
-			relationUserIds.add(updatedById);
-		if(deletedById != null)
-			relationUserIds.add(deletedById);
-		if(reviewedById != null)
-			relationUserIds.add(reviewedById);
+		if(role != null)
+			roleIds.add(role);
+		if(supervisor != null)
+			relationUserIds.add(supervisor);
+		if(createdBy != null)
+			relationUserIds.add(createdBy);
+		if(updatedBy != null)
+			relationUserIds.add(updatedBy);
+		if(deletedBy != null)
+			relationUserIds.add(deletedBy);
+		if(reviewedBy != null)
+			relationUserIds.add(reviewedBy);
 	}
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
 	const roleNamesById = await findRolesByIds(payload, user, [...roleIds]);
 
-	type UserHistorySnapshot = {
-		versionId: string;
-		changedAt: string | null;
-		values: Record<UserRequestHistoryColumn, string>;
-	};
-
-	const snapshotsMaybe = historyDocs
-		.map<UserHistorySnapshot | null>(historyDoc => {
-			const version = historyDoc.version;
-			if(version == null)
-				return null;
-
-			const roleId = getRelationshipId(version.role);
-			const supervisorId = getRelationshipId(version.supervisor);
-			const createdById = getRelationshipId(version.createdBy);
-			const updatedById = getRelationshipId(version.updatedBy);
-			const deletedById = getRelationshipId(version.deletedBy);
-			const reviewedById = getRelationshipId(version.reviewedBy);
-			const reviewCommentText = richTextToPlainText(version.reviewComment);
-
-			const createdAt = version.createdAt ?? null;
-			const updatedAt = version.updatedAt ?? null;
-			const deletedAt = version.deletedAt ?? null;
-			const reviewedAt = version.reviewedAt ?? null;
-
-			return {
-				versionId: String(version.id ?? historyDoc.id ?? stagedUserId),
-				changedAt: historyDoc.updatedAt ?? updatedAt,
-				values: {
-					id: String(version.id ?? stagedUserId),
-					name: (version.name ?? "-").trim().length > 0 ? version.name ?? "-" : "-",
-					email: (version.email ?? "-").trim().length > 0 ? version.email ?? "-" : "-",
-					employeeId: (version.employeeId ?? "-").trim().length > 0 ? version.employeeId ?? "-" : "-",
-					role: roleId != null ? (roleNamesById.get(roleId) ?? roleId) : "-",
-					supervisor: supervisorId != null ? (usersById.get(supervisorId)?.name ?? "-") : "-",
-					createdBy: createdById != null ? (usersById.get(createdById)?.name ?? "-") : "-",
-					updatedBy: updatedById != null ? (usersById.get(updatedById)?.name ?? "-") : "-",
-					deletedBy: deletedById != null ? (usersById.get(deletedById)?.name ?? "-") : "-",
-					createdAt: formatReviewDateValue(createdAt),
-					updatedAt: formatReviewDateValue(updatedAt),
-					deletedAt: formatReviewDateValue(deletedAt),
-					requestType: getUserRequestType(deletedAt, createdAt, updatedAt),
-					status: getUserHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
-					reviewedAt: formatReviewDateValue(reviewedAt),
-					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
-					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
-					reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
-				}
-			};
-		});
-
-	const snapshots = snapshotsMaybe.filter(snapshot => snapshot != null);
-
-	const entries: UserRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
-		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
-
-		const changes: UserRequestHistoryChangeItem[] = userRequestHistoryColumns.map(column => {
-			const previousValue = previousSnapshot?.values[column] ?? "-";
-			const nextValue = snapshot.values[column];
-			return {
-				column,
-				label: userRequestHistoryColumnLabelMap[column],
-				previousValue,
-				nextValue,
-				changed: previousValue != nextValue
-			};
-		});
-
-		return {
-			versionId: snapshot.versionId,
-			changedAt: snapshot.changedAt,
-			changes,
-			changedCount: changes.filter(change => change.changed).length
-		};
-	});
+	const relations: StagedUserRelationValues = {};
+	for(const [userId, relationUser] of usersById)
+		relations[`users:${userId}`] = relationUser;
+	for(const [roleId, role] of roleNamesById)
+		relations[`roles:${roleId}`] = role;
 
 	return {
 		requestId: stagedUserId,
-		entries
+		entries: historyDocs.flatMap(historyDoc => {
+			const version = historyDoc.version;
+			if(version == null)
+				return [];
+
+			const role = getRelationshipId(version.role);
+			const supervisor = getRelationshipId(version.supervisor);
+			const createdBy = getRelationshipId(version.createdBy);
+			const updatedBy = getRelationshipId(version.updatedBy);
+			const deletedBy = getRelationshipId(version.deletedBy);
+			const reviewedBy = getRelationshipId(version.reviewedBy);
+
+			return [{
+				versionId: String(version.id ?? historyDoc.id ?? stagedUserId),
+				id: String(version.id ?? stagedUserId),
+				name: version.name ?? null,
+				email: version.email ?? null,
+				employeeId: version.employeeId ?? null,
+				role,
+				supervisor,
+				createdBy,
+				updatedBy,
+				deletedBy,
+				createdAt: version.createdAt ?? null,
+				updatedAt: version.updatedAt ?? null,
+				deletedAt: version.deletedAt ?? null,
+				requestType: getUserRequestType(version.deletedAt ?? null, version.createdAt ?? null, version.updatedAt ?? null),
+				status: getUserHistoryStatusLabel(version.reviewedAt ?? null, version.reviewApproved ?? null),
+				reviewedAt: version.reviewedAt ?? null,
+				reviewedBy,
+				reviewApproved: version.reviewApproved ?? null,
+				reviewComment: version.reviewComment as ReviewCommentValue | null
+			}];
+		}),
+		relations
 	};
 }
 
@@ -1559,8 +1357,8 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 	const email = input.email.trim();
 	const name = input.name.trim();
 	const employeeId = input.employeeId.trim();
-	const roleId = input.roleId.trim();
-	const supervisorId = (input.supervisorId ?? "").trim();
+	const role = input.role.trim();
+	const supervisor = (input.supervisor ?? "").trim();
 	const initialPassword = input.initialPassword.trim();
 
 	if(email.length == 0)
@@ -1569,7 +1367,7 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 		throw new Error("Name is required.");
 	if(employeeId.length == 0)
 		throw new Error("Employee ID is required.");
-	if(roleId.length == 0)
+	if(role.length == 0)
 		throw new Error("Role is required.");
 	if(initialPassword.length > 0 && initialPassword.length < 8)
 		throw new Error("Initial password must be at least 8 characters.");
@@ -1578,7 +1376,7 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 		collection: "roles",
 		user,
 		overrideAccess: false,
-		id: roleId,
+		id: role,
 		depth: 0
 	});
 
@@ -1595,8 +1393,8 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 				email,
 				name,
 				employeeId,
-				role: roleId,
-				supervisor: supervisorId.length > 0 ? supervisorId : null,
+				role: role,
+				supervisor: supervisor.length > 0 ? supervisor : null,
 				initialPassword,
 				deletedAt: null,
 				deletedBy: null,
@@ -1638,8 +1436,8 @@ export async function upsertStagedUserRequestAction(input: UpsertStagedUserReque
 			email,
 			name,
 			employeeId,
-			role: roleId,
-			supervisor: supervisorId.length > 0 ? supervisorId : null,
+			role: role,
+			supervisor: supervisor.length > 0 ? supervisor : null,
 			initialPassword: nextInitialPassword.length > 0 ? nextInitialPassword : null,
 			deletedAt: null,
 			deletedBy: null,
@@ -1760,7 +1558,7 @@ export async function cancelStagedUserRequestAction(stagedUserId: string) {
 		return { stagedUserId, softDeleted: true };
 	}
 
-	const approvedSupervisorId = getRelationshipId(approvedVersion.supervisor);
+	const approvedSupervisor = getRelationshipId(approvedVersion.supervisor);
 	const approvedDeletedBy = getRelationshipId(approvedVersion.deletedBy);
 	const approvedReviewedBy = getRelationshipId(approvedVersion.reviewedBy);
 
@@ -1776,7 +1574,7 @@ export async function cancelStagedUserRequestAction(stagedUserId: string) {
 			name: approvedVersion.name,
 			employeeId: approvedVersion.employeeId,
 			role: approvedVersion.role,
-			supervisor: approvedSupervisorId,
+			supervisor: approvedSupervisor,
 			initialPassword: approvedVersion.initialPassword ?? null,
 			deletedAt: approvedVersion.deletedAt ?? null,
 			deletedBy: approvedDeletedBy,
@@ -1889,17 +1687,17 @@ export async function reviewStagedUserRequestAction({ stagedUserId, decision, re
 			});
 		}
 	} else {
-		const roleId = getRelationshipId(stagedUser.role);
-		if(roleId == null)
+		const role = getRelationshipId(stagedUser.role);
+		if(role == null)
 			throw new Error("Cannot approve request without a valid role.");
 
-		const supervisorId = getRelationshipId(stagedUser.supervisor);
+		const supervisor = getRelationshipId(stagedUser.supervisor);
 		const upsertData = {
 			email: stagedUser.email,
 			name: stagedUser.name,
 			employeeId: stagedUser.employeeId,
-			role: roleId,
-			supervisor: supervisorId,
+			role: role,
+			supervisor: supervisor,
 			deletedAt: null,
 			deletedBy: null,
 			stagedUser: stagedUser.id
@@ -1999,77 +1797,35 @@ export async function getStagedUserRequestReviewDiffAction(stagedUserId: string)
 	});
 
 	const approvedVersion = approvedVersions.docs[0]?.version;
-	const approvedSupervisorId = approvedVersion != null ? getRelationshipId(approvedVersion.supervisor) : null;
-	const requestedSupervisorId = getRelationshipId(stagedUser.supervisor);
-	const approvedRoleId = approvedVersion != null ? getRelationshipId(approvedVersion.role) : null;
-	const requestedRoleId = getRelationshipId(stagedUser.role);
+	const approvedSupervisor = approvedVersion != null ? getRelationshipId(approvedVersion.supervisor) : null;
+	const requestedSupervisor = getRelationshipId(stagedUser.supervisor);
+	const approvedRole = approvedVersion != null ? getRelationshipId(approvedVersion.role) : null;
+	const requestedRole = getRelationshipId(stagedUser.role);
 
-	const userIds = [approvedSupervisorId, requestedSupervisorId].filter((value): value is string => value != null);
+	const userIds = [approvedSupervisor, requestedSupervisor].filter((value): value is string => value != null);
 	const usersById = await findUsersByIds(payload, user, [...new Set(userIds)]);
-	const roleIds = [approvedRoleId, requestedRoleId].filter((value): value is string => value != null);
+	const roleIds = [approvedRole, requestedRole].filter((value): value is string => value != null);
 	const roleNamesById = await findRolesByIds(payload, user, [...new Set(roleIds)]);
+
+	const relations: StagedUserRelationValues = {};
+	for(const [roleId, role] of roleNamesById)
+		relations[`roles:${roleId}`] = role;
+	for(const [userId, relationUser] of usersById)
+		relations[`users:${userId}`] = relationUser;
 
 	const requestType: UserRequestReviewDiffOutput["requestType"] =
 		stagedUser.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
 
-	const baseItems: Array<Omit<UserRequestReviewDiffItem, "changed">> = [
-		{
-			field: "email",
-			label: "Email",
-			previousValue: approvedVersion?.email ?? "-",
-			requestedValue: stagedUser.email
-		},
-		{
-			field: "name",
-			label: "Name",
-			previousValue: approvedVersion?.name ?? "-",
-			requestedValue: stagedUser.name
-		},
-		{
-			field: "employeeId",
-			label: "Employee ID",
-			previousValue: approvedVersion?.employeeId ?? "-",
-			requestedValue: stagedUser.employeeId
-		},
-		{
-			field: "role",
-			label: "Role",
-			previousValue: formatReviewRoleValue(approvedRoleId != null ? (roleNamesById.get(approvedRoleId) ?? approvedRoleId) : null),
-			requestedValue: formatReviewRoleValue(requestedRoleId != null ? (roleNamesById.get(requestedRoleId) ?? requestedRoleId) : null),
-			previousReferences: approvedRoleId != null ? [{ type: "role", id: approvedRoleId, label: roleNamesById.get(approvedRoleId) ?? "Role" }] : [],
-			requestedReferences: requestedRoleId != null ? [{ type: "role", id: requestedRoleId, label: roleNamesById.get(requestedRoleId) ?? "Role" }] : []
-		},
-		{
-			field: "supervisor",
-			label: "Supervisor",
-			previousValue: approvedSupervisorId != null ? (usersById.get(approvedSupervisorId)?.name ?? "-") : "-",
-			requestedValue: requestedSupervisorId != null ? (usersById.get(requestedSupervisorId)?.name ?? "-") : "-",
-			previousReferences: approvedSupervisorId != null ? [{ type: "user", id: approvedSupervisorId, label: usersById.get(approvedSupervisorId)?.name ?? "User" }] : [],
-			requestedReferences: requestedSupervisorId != null ? [{ type: "user", id: requestedSupervisorId, label: usersById.get(requestedSupervisorId)?.name ?? "User" }] : []
-		},
-		{
-			field: "deletedAt",
-			label: "Deleted At",
-			previousValue: formatReviewDateValue(approvedVersion?.deletedAt ?? null),
-			requestedValue: formatReviewDateValue(stagedUser.deletedAt)
-		},
-		{
-			field: "initialPassword",
-			label: "Initial Password",
-			previousValue: formatReviewPasswordPresence(approvedVersion?.initialPassword ?? null),
-			requestedValue: formatReviewPasswordPresence(stagedUser.initialPassword)
-		}
-	];
-
-	const items: UserRequestReviewDiffItem[] = baseItems.map(item => ({
-		...item,
-		changed: item.previousValue != item.requestedValue
-	}));
-
 	return {
 		requestId: stagedUserId,
 		requestType,
-		items,
-		changedCount: items.filter(item => item.changed).length
+		email: [approvedVersion?.email ?? null, stagedUser.email ?? null],
+		name: [approvedVersion?.name ?? null, stagedUser.name ?? null],
+		employeeId: [approvedVersion?.employeeId ?? null, stagedUser.employeeId ?? null],
+		role: [approvedRole, requestedRole],
+		supervisor: [approvedSupervisor, requestedSupervisor],
+		deletedAt: [approvedVersion?.deletedAt ?? null, stagedUser.deletedAt ?? null],
+		initialPassword: [approvedVersion?.initialPassword ?? null, stagedUser.initialPassword ?? null],
+		relations
 	};
 }

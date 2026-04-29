@@ -37,5 +37,11 @@ export const GenericRichtextUploads = (): CollectionConfig => ({
 			}
 		]
 	},
-	fields: []
+	fields: [
+		{
+			name: "altText",
+			label: "Alt Text",
+			type: "text"
+		}
+	]
 });

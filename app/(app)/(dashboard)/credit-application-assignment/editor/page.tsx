@@ -27,7 +27,6 @@ import { useCreditApplicationAssignmentCellRenderer } from "../layout.components
 import { useCreditApplicationAssignmentColumnPreferences } from "../layout.components";
 import { useCreditApplicationAssignmentFilterColumnConfig } from "../layout.components";
 import { useCreditApplicationAssignmentManagementQueryState } from "../layout.components";
-import { useCreditApplicationAssignmentRelations } from "../layout.components";
 import { useCreditApplicationAssignmentRequestFilters } from "../layout.components";
 import { useCreditApplicationAssignmentRequestsQuery } from "../layout.components";
 import {
@@ -76,16 +75,8 @@ export default function CreditApplicationAssignmentEditorPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useCreditApplicationAssignmentRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderAssignmentCell = useCreditApplicationAssignmentCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -136,23 +127,23 @@ export default function CreditApplicationAssignmentEditorPage() {
 		setFormError(null);
 		setFormState({
 			assignmentId: row.id,
-			creditApplicationId: row.creditApplicationId ?? "",
-			officerId: row.officerId ?? ""
+			creditApplication: row.creditApplication ?? "",
+			officer: row.officer ?? ""
 		});
 		setIsFormOpen(true);
 	};
 
 	const submitForm = () => {
 		setFormError(null);
-		if(formState.creditApplicationId.trim().length == 0)
+		if(formState.creditApplication.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Credit application is required." });
-		if(formState.officerId.trim().length == 0)
+		if(formState.officer.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Officer is required." });
 		runMutation(async () => {
 			await creditApplicationAssignmentActions.upsertCreditApplicationAssignmentRequestAction({
 				assignmentId: formState.assignmentId,
-				creditApplicationId: formState.creditApplicationId,
-				officerId: formState.officerId
+				creditApplication: formState.creditApplication,
+				officer: formState.officer
 			});
 			setIsFormOpen(false);
 		}, {
@@ -331,6 +322,11 @@ export default function CreditApplicationAssignmentEditorPage() {
 						setRequestChangeRow(null);
 				}}
 				row={requestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<CreditApplicationAssignmentRequestFormDrawer
@@ -345,8 +341,8 @@ export default function CreditApplicationAssignmentEditorPage() {
 				onSearchCreditApplications={searchCreditApplicationOptions}
 				onSearchOfficers={searchOfficerOptions}
 				isMutating={isMutating}
-				onCreditApplicationChange={value => setFormState(previous => ({ ...previous, creditApplicationId: value }))}
-				onOfficerChange={value => setFormState(previous => ({ ...previous, officerId: value }))}
+				onCreditApplicationChange={value => setFormState(previous => ({ ...previous, creditApplication: value }))}
+				onOfficerChange={value => setFormState(previous => ({ ...previous, officer: value }))}
 				onSubmit={submitForm}
 			/>
 

@@ -10,6 +10,7 @@ import { Switch } from "@/components/radix/Switch";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
 import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import * as creditApplicationActions from "../layout.actions";
 import { CreditApplicationActiveFiltersSummary } from "../layout.components";
 import { CreditApplicationColumnConfigCard } from "../layout.components";
@@ -26,7 +27,6 @@ import { useCreditApplicationCellRenderer } from "../layout.components";
 import { useCreditApplicationColumnPreferences } from "../layout.components";
 import { useCreditApplicationFilterColumnConfig } from "../layout.components";
 import { useCreditApplicationManagementQueryState } from "../layout.components";
-import { useCreditApplicationRelations } from "../layout.components";
 import { useCreditApplicationRequestFilters } from "../layout.components";
 import { useCreditApplicationRequestsQuery } from "../layout.components";
 import {
@@ -91,16 +91,8 @@ export default function CreditApplicationManagementEditorPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useCreditApplicationRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderCreditApplicationCell = useCreditApplicationCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -159,16 +151,16 @@ export default function CreditApplicationManagementEditorPage() {
 			smsNumber: row.smsNumber,
 			collateralRegistryName: row.collateralRegistryName,
 			collateralName: row.collateralName,
-			collateralDescription: row.collateralDescription,
+			collateralDescription: row.collateralDescription ?? createEmptyReviewComment(),
 			assetId: row.assetId,
 			assetName: row.assetName,
-			assetDescription: row.assetDescription,
+			assetDescription: row.assetDescription ?? createEmptyReviewComment(),
 			period: row.period == null ? "" : String(row.period),
 			installment: row.installment == null ? "" : String(row.installment),
 			downPayment: row.downPayment == null ? "" : String(row.downPayment),
 			plafond: row.plafond == null ? "" : String(row.plafond),
 			vendor: row.vendor,
-			remarks: row.remarks,
+			remarks: row.remarks ?? createEmptyReviewComment(),
 			otherText1: row.otherText1,
 			otherText2: row.otherText2,
 			otherNumber1: row.otherNumber1 == null ? "" : String(row.otherNumber1),

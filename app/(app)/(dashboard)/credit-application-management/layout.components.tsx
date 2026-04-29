@@ -6,10 +6,11 @@ import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, ArrowUpIcon, HistoryIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
-import type { ReviewCommentRichText } from "@/utils/reviewCommentRichText";
+import { createEmptyReviewComment, type ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
 import { ReviewCommentInput } from "@/components/ReviewCommentInput";
+import { ReviewCommentPreview } from "@/components/ReviewCommentInput";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -39,7 +40,6 @@ export type FilterInput = creditApplicationActions.CreditApplicationManagementFi
 export type queryCreditApplicationsOutput = Awaited<ReturnType<typeof creditApplicationActions.queryCreditApplicationsAction>>;
 export type CreditApplicationTableRow = queryCreditApplicationsOutput["docs"][number];
 export type CreditApplicationManagementTabMode = "viewer" | Parameters<typeof creditApplicationActions.queryCreditApplicationsAction>[0]["mode"];
-export type CreditApplicationRelationColumn = creditApplicationActions.CreditApplicationRelationColumn;
 export type CreditApplicationRequestReviewDiff = Awaited<ReturnType<typeof creditApplicationActions.getCreditApplicationRequestReviewDiffAction>>;
 export type CreditApplicationRequestHistory = Awaited<ReturnType<typeof creditApplicationActions.getCreditApplicationRequestHistoryAction>>;
 export type FilterValueType = "text" | "date" | "select" | "boolean";
@@ -122,7 +122,7 @@ export type CreditApplicationTableColumnId = "name" |
 	"reviewedAt" |
 	"reviewedBy" |
 	"reviewApproved" |
-	"reviewCommentText";
+	"reviewComment";
 
 export type CreditApplicationTableColumnConfig = {
 	id: CreditApplicationTableColumnId;
@@ -142,16 +142,16 @@ export type FormState = {
 	smsNumber: string;
 	collateralRegistryName: string;
 	collateralName: string;
-	collateralDescription: string;
+	collateralDescription: ReviewCommentRichText;
 	assetId: string;
 	assetName: string;
-	assetDescription: string;
+	assetDescription: ReviewCommentRichText;
 	period: string;
 	installment: string;
 	downPayment: string;
 	plafond: string;
 	vendor: string;
-	remarks: string;
+	remarks: ReviewCommentRichText;
 	otherText1: string;
 	otherText2: string;
 	otherNumber1: string;
@@ -176,6 +176,7 @@ export const reviewStatusOptions: Array<{ value: string, label: string }> = [
 
 export const emptyQueryResult: queryCreditApplicationsOutput = {
 	docs: [],
+	relations: {},
 	totalDocs: 0,
 	page: 1,
 	hasNextPage: false,
@@ -191,16 +192,16 @@ export const defaultFormState: FormState = {
 	smsNumber: "",
 	collateralRegistryName: "",
 	collateralName: "",
-	collateralDescription: "",
+	collateralDescription: createEmptyReviewComment(),
 	assetId: "",
 	assetName: "",
-	assetDescription: "",
+	assetDescription: createEmptyReviewComment(),
 	period: "",
 	installment: "",
 	downPayment: "",
 	plafond: "",
 	vendor: "",
-	remarks: "",
+	remarks: createEmptyReviewComment(),
 	otherText1: "",
 	otherText2: "",
 	otherNumber1: "",
@@ -246,12 +247,12 @@ export const creditApplicationTableColumns: CreditApplicationTableColumnConfig[]
 	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
 	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
 	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
-	{ id: "requestType", label: "Request", sortField: "requestType" },
-	{ id: "status", label: "Status", sortField: "status" },
+	{ id: "requestType", label: "Request" },
+	{ id: "status", label: "Status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
 	{ id: "reviewedBy", label: "Reviewed By", sortField: "reviewedBy" },
 	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
-	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
+	{ id: "reviewComment", label: "Review Comment", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
 function getCreditApplicationDrawerValueClassName(columnId: string): string {
@@ -261,21 +262,14 @@ function getCreditApplicationDrawerValueClassName(columnId: string): string {
 		return "text-sm font-medium";
 	if(columnId == "others")
 		return "text-xs font-mono";
-	if(columnId == "addresses" || columnId == "phoneNumbers" || columnId == "collateralDescription" || columnId == "assetDescription" || columnId == "remarks" || columnId == "reviewCommentText")
+	if(columnId == "addresses" || columnId == "phoneNumbers" || columnId == "collateralDescription" || columnId == "assetDescription" || columnId == "remarks" || columnId == "reviewComment")
 		return "text-sm leading-relaxed";
 	return "text-sm";
 }
 
 export const defaultCreditApplicationColumnOrder: CreditApplicationTableColumnId[] = creditApplicationTableColumns.map(column => column.id);
-export const defaultCreditApplicationVisibleColumns: CreditApplicationTableColumnId[] = ["name", "email", "addresses", "phoneNumbers", "whatsappNumber", "assetName", "vendor", "requestType", "status", "updatedAt", "reviewCommentText"];
+export const defaultCreditApplicationVisibleColumns: CreditApplicationTableColumnId[] = ["name", "email", "addresses", "phoneNumbers", "whatsappNumber", "assetName", "vendor", "requestType", "status", "updatedAt", "reviewComment"];
 export const defaultCreditApplicationHiddenColumns: CreditApplicationTableColumnId[] = defaultCreditApplicationColumnOrder.filter(columnId => !defaultCreditApplicationVisibleColumns.includes(columnId));
-
-export const creditApplicationRelationColumnSet = new Set<CreditApplicationRelationColumn>([
-	"reviewedBy",
-	"createdBy",
-	"updatedBy",
-	"deletedBy"
-]);
 
 const creditApplicationNonEligibleColumnSet = new Set<string>([
 	"actions",
@@ -1059,7 +1053,7 @@ export function CreditApplicationRequestFormDrawer({
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Collateral Description</label>
-							<Textarea value={formState.collateralDescription} onChange={event => updateField("collateralDescription", event.target.value)} rows={3} />
+							<ReviewCommentInput serializedState={formState.collateralDescription} onSerializedStateChange={value => updateField("collateralDescription", value as ReviewCommentRichText)} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Asset ID</label>
@@ -1071,7 +1065,7 @@ export function CreditApplicationRequestFormDrawer({
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Asset Description</label>
-							<Textarea value={formState.assetDescription} onChange={event => updateField("assetDescription", event.target.value)} rows={3} />
+							<ReviewCommentInput serializedState={formState.assetDescription} onSerializedStateChange={value => updateField("assetDescription", value as ReviewCommentRichText)} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Period</label>
@@ -1095,7 +1089,7 @@ export function CreditApplicationRequestFormDrawer({
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Remarks</label>
-							<Textarea value={formState.remarks} onChange={event => updateField("remarks", event.target.value)} rows={3} />
+							<ReviewCommentInput serializedState={formState.remarks} onSerializedStateChange={value => updateField("remarks", value as ReviewCommentRichText)} onImageUpload={uploadGenericRichtextImage} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Text 1</label>
@@ -1175,6 +1169,9 @@ export function CreditApplicationRequestReviewDrawer({
 	isMutating,
 	onOpenRequestChanges
 }: CreditApplicationRequestReviewDrawerProps) {
+	const diff = reviewDrawerState?.diff;
+	const diffEntries = diff == null ? [] : buildCreditApplicationRequestDiffEntries(diff);
+	const changedCount = diffEntries.filter(entry => JSON.stringify(entry.previousRaw) != JSON.stringify(entry.requestedRaw)).length;
 	return (
 		<Drawer
 			open={open}
@@ -1201,9 +1198,7 @@ export function CreditApplicationRequestReviewDrawer({
 								className: "align-baseline"
 							}) : "-"}
 						</p>
-						<p className="text-muted-foreground">
-							{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
-						</p>
+						<p className="text-muted-foreground">{diff != null ? `${changedCount} changed field(s)` : "Loading differences..."}</p>
 					</div>
 
 					{isReviewDiffLoading ? (
@@ -1212,15 +1207,15 @@ export function CreditApplicationRequestReviewDrawer({
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 						</div>
-					) : reviewDrawerState?.diff == null ? (
+					) : diff == null ? (
 						<p className="text-muted-foreground text-sm">No diff is available for this request.</p>
 					) : (
 						<div className="space-y-2">
-							{reviewDrawerState.diff.items.map(item => (
+							{diffEntries.map(item => (
 								<div key={item.field} className="space-y-2 rounded-lg border p-3">
 									<div className="flex items-center justify-between gap-2">
 										<p className="text-sm font-medium">{item.label}</p>
-										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+										<Badge variant={JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "default" : "secondary"}>{JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "Changed" : "Unchanged"}</Badge>
 									</div>
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
@@ -1247,13 +1242,13 @@ export function CreditApplicationRequestReviewDrawer({
 
 					<div className="space-y-2">
 						<label className="text-sm font-medium">Review Comment (optional)</label>
-						<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
+						<ReviewCommentInput serializedState={reviewComment} onSerializedStateChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 					</div>
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || reviewDrawerState?.diff == null}>Approve</Button>
-					<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || reviewDrawerState?.diff == null}>Reject</Button>
+					<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || diff == null}>Approve</Button>
+					<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || diff == null}>Reject</Button>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
@@ -1278,6 +1273,9 @@ export function CreditApplicationRequestChangePreviewDrawer({
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
+	const diff = diffQuery.data;
+	const diffEntries = diff == null ? [] : buildCreditApplicationRequestDiffEntries(diff);
+	const changedCount = diffEntries.filter(entry => JSON.stringify(entry.previousRaw) != JSON.stringify(entry.requestedRaw)).length;
 
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -1288,8 +1286,8 @@ export function CreditApplicationRequestChangePreviewDrawer({
 				</DrawerHeader>
 				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
-						<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
-						<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+						<p><span className="font-medium">Request Type:</span> {diff?.requestType ?? row?.requestType ?? "-"}</p>
+						<p className="text-muted-foreground">{diff != null ? `${changedCount} changed field(s)` : "Loading differences..."}</p>
 					</div>
 
 					{row == null ? (
@@ -1300,7 +1298,7 @@ export function CreditApplicationRequestChangePreviewDrawer({
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 						</div>
-					) : diffQuery.isError || diffQuery.data == null ? (
+					) : diffQuery.isError || diff == null ? (
 						<Alert variant="destructive">
 							<CircleAlertIcon />
 							<AlertTitle>Error</AlertTitle>
@@ -1308,11 +1306,11 @@ export function CreditApplicationRequestChangePreviewDrawer({
 						</Alert>
 					) : (
 						<div className="space-y-2">
-							{diffQuery.data.items.map(item => (
+							{diffEntries.map(item => (
 								<div key={item.field} className="space-y-2 rounded-lg border p-3">
 									<div className="flex items-center justify-between gap-2">
 										<p className="text-sm font-medium">{item.label}</p>
-										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+										<Badge variant={JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "default" : "secondary"}>{JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "Changed" : "Unchanged"}</Badge>
 									</div>
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
@@ -1445,6 +1443,208 @@ export function CreditApplicationRequestsTable({
 	);
 }
 
+type CreditApplicationRequestHistoryEntry = creditApplicationActions.CreditApplicationRequestHistoryOutput["entries"][number];
+type CreditApplicationRequestHistoryField = Exclude<keyof CreditApplicationRequestHistoryEntry, "versionId">;
+
+const creditApplicationRequestHistoryFields: CreditApplicationRequestHistoryField[] = [
+	"id",
+	"name",
+	"email",
+	"addresses",
+	"phoneNumbers",
+	"whatsappNumber",
+	"smsNumber",
+	"collateralRegistryName",
+	"collateralName",
+	"collateralDescription",
+	"assetId",
+	"assetName",
+	"assetDescription",
+	"period",
+	"installment",
+	"downPayment",
+	"plafond",
+	"vendor",
+	"remarks",
+	"otherText1",
+	"otherText2",
+	"otherNumber1",
+	"otherNumber2",
+	"otherDate1",
+	"otherDate2",
+	"others",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"requestType",
+	"status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewComment"
+];
+
+const creditApplicationRequestHistoryFieldLabelMap: Record<CreditApplicationRequestHistoryField, string> = {
+	id: "ID",
+	name: "Name",
+	email: "Email",
+	addresses: "Addresses",
+	phoneNumbers: "Phone Numbers",
+	whatsappNumber: "Whatsapp Number",
+	smsNumber: "SMS Number",
+	collateralRegistryName: "Collateral Registry Name",
+	collateralName: "Collateral Name",
+	collateralDescription: "Collateral Description",
+	assetId: "Asset ID",
+	assetName: "Asset Name",
+	assetDescription: "Asset Description",
+	period: "Period",
+	installment: "Installment",
+	downPayment: "Down Payment",
+	plafond: "Plafond",
+	vendor: "Vendor",
+	remarks: "Remarks",
+	otherText1: "Other Text 1",
+	otherText2: "Other Text 2",
+	otherNumber1: "Other Number 1",
+	otherNumber2: "Other Number 2",
+	otherDate1: "Other Date 1",
+	otherDate2: "Other Date 2",
+	others: "Others",
+	createdBy: "Created By",
+	updatedBy: "Updated By",
+	deletedBy: "Deleted By",
+	createdAt: "Created At",
+	updatedAt: "Updated At",
+	deletedAt: "Deleted At",
+	requestType: "Request",
+	status: "Status",
+	reviewedAt: "Reviewed At",
+	reviewedBy: "Reviewed By",
+	reviewApproved: "Review Approved",
+	reviewComment: "Review Comment"
+};
+
+function renderCreditApplicationRequestHistoryValue(
+	field: CreditApplicationRequestHistoryField,
+	value: any,
+	relations: creditApplicationActions.CreditApplicationRelationValues = {},
+	relationNavigation?: CreditApplicationRelationNavigation
+) {
+	switch(field) {
+		case "reviewComment":
+			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
+		case "collateralDescription":
+		case "assetDescription":
+		case "remarks":
+			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
+		case "createdBy":
+		case "updatedBy":
+		case "deletedBy":
+		case "reviewedBy":
+			return renderCreditApplicationUserRelationValue({
+				column: field,
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value ?? null,
+				relationNavigation
+			});
+		case "reviewApproved":
+			return value == null ? "-" : value as boolean ? "True" : "False";
+		case "status": {
+			if(value == null || String(value).length == 0)
+				return "-";
+			const normalizedStatus = String(value).toLowerCase();
+			if(normalizedStatus == "pending")
+				return <Badge variant="secondary">Pending</Badge>;
+			if(normalizedStatus == "approved")
+				return <Badge variant="default">Approved</Badge>;
+			if(normalizedStatus == "rejected")
+				return <Badge variant="destructive">Rejected</Badge>;
+			return <Badge variant="outline">{String(value)}</Badge>;
+		}
+		case "createdAt":
+		case "updatedAt":
+		case "deletedAt":
+		case "reviewedAt":
+		case "otherDate1":
+		case "otherDate2":
+			return formatDateTime(value);
+		case "others":
+			return JSON.stringify(value);
+		default:
+			return value == null || String(value).length == 0 ? "-" : String(value);
+	}
+}
+
+function renderCreditApplicationRequestDiffValue(field: keyof Omit<CreditApplicationRequestReviewDiff, "requestId" | "requestType" | "relations">, value: any): ReactNode {
+	switch(field) {
+		case "collateralDescription":
+		case "assetDescription":
+		case "remarks":
+			return <ReviewCommentPreview serializedState={value} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />;
+		case "addresses":
+		case "phoneNumbers":
+			return Array.isArray(value) ? (value.length == 0 ? "-" : value.join(", ")) : renderCreditApplicationRequestHistoryValue(field, value);
+		case "otherDate1":
+		case "otherDate2":
+		case "deletedAt":
+			return formatDateTime(value);
+		default:
+			return renderCreditApplicationRequestHistoryValue(field, value);
+	}
+}
+
+type CreditApplicationRequestDiffEntry = {
+	field: keyof Omit<CreditApplicationRequestReviewDiff, "requestId" | "requestType" | "relations">;
+	label: string;
+	previousValue: ReactNode;
+	requestedValue: ReactNode;
+	previousRaw: unknown;
+	requestedRaw: unknown;
+};
+
+function buildCreditApplicationRequestDiffEntries(diff: CreditApplicationRequestReviewDiff): CreditApplicationRequestDiffEntry[] {
+	const entries: Array<readonly [CreditApplicationRequestDiffEntry["field"], string, unknown, unknown]> = [
+		["name", "Applicant Name", diff.name[0], diff.name[1]],
+		["email", "Email", diff.email[0], diff.email[1]],
+		["addresses", "Addresses", diff.addresses[0], diff.addresses[1]],
+		["phoneNumbers", "Phone Numbers", diff.phoneNumbers[0], diff.phoneNumbers[1]],
+		["whatsappNumber", "Whatsapp Number", diff.whatsappNumber[0], diff.whatsappNumber[1]],
+		["smsNumber", "SMS Number", diff.smsNumber[0], diff.smsNumber[1]],
+		["collateralRegistryName", "Collateral Registry Name", diff.collateralRegistryName[0], diff.collateralRegistryName[1]],
+		["collateralName", "Collateral Name", diff.collateralName[0], diff.collateralName[1]],
+		["collateralDescription", "Collateral Description", diff.collateralDescription[0], diff.collateralDescription[1]],
+		["assetId", "Asset ID", diff.assetId[0], diff.assetId[1]],
+		["assetName", "Asset Name", diff.assetName[0], diff.assetName[1]],
+		["assetDescription", "Asset Description", diff.assetDescription[0], diff.assetDescription[1]],
+		["period", "Period", diff.period[0], diff.period[1]],
+		["installment", "Installment", diff.installment[0], diff.installment[1]],
+		["downPayment", "Down Payment", diff.downPayment[0], diff.downPayment[1]],
+		["plafond", "Plafond", diff.plafond[0], diff.plafond[1]],
+		["vendor", "Vendor", diff.vendor[0], diff.vendor[1]],
+		["remarks", "Remarks", diff.remarks[0], diff.remarks[1]],
+		["otherText1", "Other Text 1", diff.otherText1[0], diff.otherText1[1]],
+		["otherText2", "Other Text 2", diff.otherText2[0], diff.otherText2[1]],
+		["otherNumber1", "Other Number 1", diff.otherNumber1[0], diff.otherNumber1[1]],
+		["otherNumber2", "Other Number 2", diff.otherNumber2[0], diff.otherNumber2[1]],
+		["otherDate1", "Other Date 1", diff.otherDate1[0], diff.otherDate1[1]],
+		["otherDate2", "Other Date 2", diff.otherDate2[0], diff.otherDate2[1]],
+		["others", "Others", diff.others[0], diff.others[1]],
+		["deletedAt", "Deleted At", diff.deletedAt[0], diff.deletedAt[1]]
+	];
+	return entries.map(([field, label, previousRaw, requestedRaw]) => ({
+		field,
+		label,
+		previousRaw,
+		requestedRaw,
+		previousValue: renderCreditApplicationRequestDiffValue(field, previousRaw),
+		requestedValue: renderCreditApplicationRequestDiffValue(field, requestedRaw)
+	}));
+}
+
 type CreditApplicationRequestDetailsDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
@@ -1471,37 +1671,30 @@ type CreditApplicationRelationNavigation = {
 	}) => void;
 };
 
-function getCreditApplicationRelationSummaryLabel(column: CreditApplicationRelationColumn): string {
-	if(column == "reviewedBy")
-		return "Reviewed By";
-	if(column == "createdBy")
-		return "Created By";
-	if(column == "updatedBy")
-		return "Updated By";
-	return "Deleted By";
-}
-
 function renderCreditApplicationUserRelationValue({
 	column,
-	value,
+	relation,
 	relationId,
-	relationNavigation,
-	stagedUserIdByUserId
+	relationNavigation
 }: {
-	column: CreditApplicationRelationColumn;
-	value: string;
+	column: string;
+	relation: { name: string, email: string, stagedUserId: string | null } | null;
 	relationId: string | null;
 	relationNavigation?: CreditApplicationRelationNavigation;
-	stagedUserIdByUserId?: Record<string, string>;
 }): ReactNode {
-	const normalizedValue = value.trim();
-	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
+	const value = relation?.name ?? relation?.email ?? "-";
+	if(relationId == null || value.trim().length == 0 || value == "-")
 		return value;
 
-	const summaryLabel = getCreditApplicationRelationSummaryLabel(column);
+	const summaryLabel = {
+		"reviewedBy": "Reviewed By",
+		"createdBy": "Created By",
+		"updatedBy": "Updated By",
+		"deletedBy": "Deleted By"
+	}[column];
 	const hrefBase = relationNavigation?.getHrefBase("user-management");
 	if(hrefBase != null && relationNavigation != null) {
-		const stagedUserId = stagedUserIdByUserId?.[relationId] ?? null;
+		const stagedUserId = relation?.stagedUserId ?? null;
 		if(stagedUserId == null || stagedUserId.trim().length == 0)
 			return value;
 
@@ -1626,13 +1819,13 @@ export function CreditApplicationRequestDetailsDrawer({
 			case "collateralName":
 				return renderDetailColumnValue(columnId, formatTextValue(data.row.collateralName));
 			case "collateralDescription":
-				return renderDetailColumnValue(columnId, formatTextValue(data.row.collateralDescription));
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.collateralDescription ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			case "assetId":
 				return renderDetailColumnValue(columnId, formatTextValue(data.row.assetId));
 			case "assetName":
 				return renderDetailColumnValue(columnId, formatTextValue(data.row.assetName));
 			case "assetDescription":
-				return renderDetailColumnValue(columnId, formatTextValue(data.row.assetDescription));
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.assetDescription ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			case "period":
 				return renderDetailColumnValue(columnId, formatNumberValue(data.row.period));
 			case "installment":
@@ -1644,7 +1837,7 @@ export function CreditApplicationRequestDetailsDrawer({
 			case "vendor":
 				return renderDetailColumnValue(columnId, formatTextValue(data.row.vendor));
 			case "remarks":
-				return renderDetailColumnValue(columnId, formatTextValue(data.row.remarks));
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.remarks ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			case "otherText1":
 				return renderDetailColumnValue(columnId, formatTextValue(data.row.otherText1));
 			case "otherText2":
@@ -1660,11 +1853,11 @@ export function CreditApplicationRequestDetailsDrawer({
 			case "others":
 				return renderDetailColumnValue(columnId, formatTextValue(data.row.others));
 			case "createdBy":
-				return renderDetailColumnValue(columnId, renderCreditApplicationUserRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderCreditApplicationUserRelationValue({ column: "createdBy", relation: data.row.createdBy == null ? null : data.relations[`users:${data.row.createdBy}`] ?? null, relationId: data.row.createdBy, relationNavigation }));
 			case "updatedBy":
-				return renderDetailColumnValue(columnId, renderCreditApplicationUserRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderCreditApplicationUserRelationValue({ column: "updatedBy", relation: data.row.updatedBy == null ? null : data.relations[`users:${data.row.updatedBy}`] ?? null, relationId: data.row.updatedBy, relationNavigation }));
 			case "deletedBy":
-				return renderDetailColumnValue(columnId, renderCreditApplicationUserRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderCreditApplicationUserRelationValue({ column: "deletedBy", relation: data.row.deletedBy == null ? null : data.relations[`users:${data.row.deletedBy}`] ?? null, relationId: data.row.deletedBy, relationNavigation }));
 			case "createdAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
 			case "updatedAt":
@@ -1680,11 +1873,11 @@ export function CreditApplicationRequestDetailsDrawer({
 			case "reviewedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
 			case "reviewedBy":
-				return renderDetailColumnValue(columnId, renderCreditApplicationUserRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderCreditApplicationUserRelationValue({ column: "reviewedBy", relation: data.row.reviewedBy == null ? null : data.relations[`users:${data.row.reviewedBy}`] ?? null, relationId: data.row.reviewedBy, relationNavigation }));
 			case "reviewApproved":
 				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
-			case "reviewCommentText":
-				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			case "reviewComment":
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.reviewComment ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			default:
 				return renderDetailColumnValue(columnId, "-");
 		}
@@ -1768,23 +1961,41 @@ export function CreditApplicationRequestDetailsDrawer({
 						) : historyQuery.data.entries.length == 0 ? (
 							<p className="text-muted-foreground text-sm">No history entries found for this Credit Application request.</p>
 						) : (
-							historyQuery.data.entries.map(entry => (
-								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
-									<div className="flex items-center justify-between gap-2">
-										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
-										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+							historyQuery.data.entries.map((entry, entryIndex, historyEntries) => {
+								const previousEntry = historyEntries[entryIndex + 1] ?? null;
+								const changes = creditApplicationRequestHistoryFields.flatMap(field => {
+									const nextValue = entry[field];
+									const previousValue = previousEntry?.[field] ?? null;
+									if(JSON.stringify(nextValue) == JSON.stringify(previousValue))
+										return [];
+									return [{
+										field,
+										label: creditApplicationRequestHistoryFieldLabelMap[field],
+										previousValue,
+										nextValue
+									}];
+								});
+
+								return (
+									<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-sm font-semibold">{formatDateTime(entry.updatedAt)}</p>
+											<Badge variant="outline">{changes.length} change(s)</Badge>
+										</div>
+										<div className="space-y-1">
+											{changes.length == 0 ? (
+												<p className="text-muted-foreground text-xs">No field changes detected.</p>
+											) : changes.map(change => (
+												<div key={`${entry.versionId}-${change.field}`} className="space-y-0.5 rounded-md border p-2 text-xs">
+													<div className="font-medium">{change.label}</div>
+													<div className="text-muted-foreground">From: {renderCreditApplicationRequestHistoryValue(change.field, change.previousValue, historyQuery.data.relations, relationNavigation)}</div>
+													<div>To: {renderCreditApplicationRequestHistoryValue(change.field, change.nextValue, historyQuery.data.relations, relationNavigation)}</div>
+												</div>
+											))}
+										</div>
 									</div>
-									<div className="space-y-1">
-										{entry.changes.map(change => (
-											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed ? "border-primary/30 bg-primary/5" : "opacity-70")}>
-												<p className="font-medium">{change.label}</p>
-												<p className="text-muted-foreground">From: {change.previousValue}</p>
-												<p>To: {change.nextValue}</p>
-											</div>
-										))}
-									</div>
-								</div>
-							))
+								);
+							})
 						)}
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
@@ -1797,15 +2008,13 @@ export function CreditApplicationRequestDetailsDrawer({
 }
 
 type useCreditApplicationCellRendererOptions = {
-	relationValuesByRowId: Record<string, creditApplicationActions.CreditApplicationRelationValues>;
-	isRelationLoading: boolean;
+	relations: creditApplicationActions.CreditApplicationRelationValues;
 	relationNavigation?: CreditApplicationRelationNavigation;
 	onOpenRequestChanges?: (row: CreditApplicationTableRow) => void;
 };
 
-export function useCreditApplicationCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: useCreditApplicationCellRendererOptions) {
+export function useCreditApplicationCellRenderer({ relations, relationNavigation, onOpenRequestChanges }: useCreditApplicationCellRendererOptions) {
 	return useCallback((columnId: CreditApplicationTableColumnId, row: CreditApplicationTableRow) => {
-		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "id":
 				return row.id;
@@ -1826,13 +2035,13 @@ export function useCreditApplicationCellRenderer({ relationValuesByRowId, isRela
 			case "collateralName":
 				return formatTextValue(row.collateralName);
 			case "collateralDescription":
-				return formatTextValue(row.collateralDescription);
+				return <ReviewCommentPreview serializedState={row.collateralDescription ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			case "assetId":
 				return formatTextValue(row.assetId);
 			case "assetName":
 				return formatTextValue(row.assetName);
 			case "assetDescription":
-				return formatTextValue(row.assetDescription);
+				return <ReviewCommentPreview serializedState={row.assetDescription ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			case "period":
 				return formatNumberValue(row.period);
 			case "installment":
@@ -1844,7 +2053,7 @@ export function useCreditApplicationCellRenderer({ relationValuesByRowId, isRela
 			case "vendor":
 				return formatTextValue(row.vendor);
 			case "remarks":
-				return formatTextValue(row.remarks);
+				return <ReviewCommentPreview serializedState={row.remarks ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			case "otherText1":
 				return formatTextValue(row.otherText1);
 			case "otherText2":
@@ -1860,17 +2069,11 @@ export function useCreditApplicationCellRenderer({ relationValuesByRowId, isRela
 			case "others":
 				return formatTextValue(row.others);
 			case "createdBy":
-				if(isRelationLoading && resolvedValues.createdBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderCreditApplicationUserRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationId: row.createdById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderCreditApplicationUserRelationValue({ column: "createdBy", relation: row.createdBy == null ? null : relations[`users:${row.createdBy}`] ?? null, relationId: row.createdBy, relationNavigation });
 			case "updatedBy":
-				if(isRelationLoading && resolvedValues.updatedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderCreditApplicationUserRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderCreditApplicationUserRelationValue({ column: "updatedBy", relation: row.updatedBy == null ? null : relations[`users:${row.updatedBy}`] ?? null, relationId: row.updatedBy, relationNavigation });
 			case "deletedBy":
-				if(isRelationLoading && resolvedValues.deletedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderCreditApplicationUserRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderCreditApplicationUserRelationValue({ column: "deletedBy", relation: row.deletedBy == null ? null : relations[`users:${row.deletedBy}`] ?? null, relationId: row.deletedBy, relationNavigation });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1886,17 +2089,15 @@ export function useCreditApplicationCellRenderer({ relationValuesByRowId, isRela
 			case "reviewedAt":
 				return formatDateTime(row.reviewedAt);
 			case "reviewedBy":
-				if(isRelationLoading && resolvedValues.reviewedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderCreditApplicationUserRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderCreditApplicationUserRelationValue({ column: "reviewedBy", relation: row.reviewedBy == null ? null : relations[`users:${row.reviewedBy}`] ?? null, relationId: row.reviewedBy, relationNavigation });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
-			case "reviewCommentText":
-				return row.reviewCommentText.length > 0 ? row.reviewCommentText : "-";
+			case "reviewComment":
+				return <ReviewCommentPreview serializedState={row.reviewComment ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, onOpenRequestChanges, relationValuesByRowId, relationNavigation]);
+	}, [onOpenRequestChanges, relationNavigation, relations]);
 }
 
 export function useCreditApplicationColumnPreferences() {
@@ -2089,48 +2290,6 @@ export function useCreditApplicationManagementQueryState({
 		sortTokens,
 		getSortDirection,
 		toggleSortField
-	};
-}
-
-type useCreditApplicationRelationsOptions = {
-	docs: CreditApplicationTableRow[];
-	visibleColumns: CreditApplicationTableColumnConfig[];
-};
-
-export function useCreditApplicationRelations({ docs, visibleColumns }: useCreditApplicationRelationsOptions) {
-	const visibleRelationColumns = useMemo(() => (
-		visibleColumns
-			.map(column => column.id)
-			.filter((columnId): columnId is CreditApplicationRelationColumn => creditApplicationRelationColumnSet.has(columnId as CreditApplicationRelationColumn))
-	), [visibleColumns]);
-
-	const relationRows = useMemo(() => docs.map(row => ({
-		id: row.id,
-		reviewedById: row.reviewedById,
-		createdById: row.createdById,
-		updatedById: row.updatedById,
-		deletedById: row.deletedById
-	})), [docs]);
-
-	const relationsQuery = useQuery({
-		queryKey: ["credit-application-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
-		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => creditApplicationActions.resolveCreditApplicationRelationColumnsAction({
-			rows: relationRows,
-			columns: visibleRelationColumns
-		}),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const relationValuesByRowId = useMemo(() => Object.fromEntries(
-		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	), [relationsQuery.data]);
-	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
-
-	return {
-		relationValuesByRowId,
-		isRelationLoading
 	};
 }
 

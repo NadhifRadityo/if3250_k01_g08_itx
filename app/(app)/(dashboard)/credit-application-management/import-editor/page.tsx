@@ -13,7 +13,6 @@ import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relati
 import * as importActions from "../import.actions";
 import {
 	resolveActionError,
-	useCreditApplicationImportRelations,
 	CreditApplicationImportRequestsTable,
 	useCreditApplicationImportCellRenderer,
 	CreditApplicationImportColumnConfigCard,
@@ -65,17 +64,8 @@ export default function CreditApplicationImportEditorPage() {
 		includeSoftDeleted
 	});
 
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useCreditApplicationImportRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
-
 	const renderCreditApplicationImportCell = useCreditApplicationImportCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
@@ -130,7 +120,7 @@ export default function CreditApplicationImportEditorPage() {
 			filename: row.filename,
 			filesize: row.filesize,
 			fileUrl: row.fileUrl,
-			description: row.descriptionText
+			description: row.description
 		});
 		setFormOpen(true);
 	};

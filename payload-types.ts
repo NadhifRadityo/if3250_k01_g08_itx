@@ -163,6 +163,7 @@ export interface UserAuthOperations {
  */
 export interface GenericRichtextUpload {
   id: string;
+  altText?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -980,6 +981,7 @@ export interface PayloadMigration {
  * via the `definition` "generic-richtext-uploads_select".
  */
 export interface GenericRichtextUploadsSelect<T extends boolean = true> {
+  altText?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;

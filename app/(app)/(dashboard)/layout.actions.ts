@@ -47,7 +47,7 @@ export type DashboardViewerEditorTarget = {
 
 export type DashboardViewerEditorTargetMap = Record<DashboardManagementKey, DashboardViewerEditorTarget>;
 
-export type DashboardEntrySummaryType = "user" | "role" | "team";
+export type DashboardEntrySummaryType = "user" | "role" | "team" | "credit-application";
 
 export type DashboardEntrySummary = {
 	type: DashboardEntrySummaryType;
@@ -142,10 +142,10 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 	hasImportApprover: boolean;
 	canView: boolean;
 } {
-	const hasViewer = menus.has(`${key}-viewer` as DashboardRoleMenu);
-	const hasAuditor = menus.has(`${key}-auditor` as DashboardRoleMenu);
-	const hasEditor = menus.has(`${key}-editor` as DashboardRoleMenu);
-	const hasApprover = menus.has(`${key}-approver` as DashboardRoleMenu);
+	const hasViewer = menus.has(`${key}-viewer`);
+	const hasAuditor = menus.has(`${key}-auditor`);
+	const hasEditor = menus.has(`${key}-editor`);
+	const hasApprover = menus.has(`${key}-approver`);
 	const hasImportViewer = key == "credit-application-management" && menus.has("credit-application-management-import-viewer");
 	const hasImportEditor = key == "credit-application-management" && menus.has("credit-application-management-import-editor");
 	const hasImportApprover = key == "credit-application-management" && menus.has("credit-application-management-import-approver");
@@ -299,8 +299,8 @@ function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: Dash
 
 function resolveViewerEditorTarget(menus: DashboardRoleMenu[], key: DashboardManagementKey): DashboardViewerEditorTarget {
 	const menuSet = new Set(menus);
-	const hasViewer = menuSet.has(`${key}-viewer` as DashboardRoleMenu) || menuSet.has(`${key}-auditor` as DashboardRoleMenu);
-	const hasEditor = menuSet.has(`${key}-editor` as DashboardRoleMenu);
+	const hasViewer = menuSet.has(`${key}-viewer`) || menuSet.has(`${key}-auditor`);
+	const hasEditor = menuSet.has(`${key}-editor`);
 	const viewerHref = hasViewer ? `/${key}/viewer` : null;
 	const editorHref = hasEditor ? `/${key}/editor` : null;
 
@@ -538,8 +538,8 @@ export async function getDashboardEntrySummaryAction({
 		});
 
 		const roleId = getRelationshipId(userDoc.role);
-		const supervisorId = getRelationshipId(userDoc.supervisor);
-		const relatedUsers = await findUsersByIds(payload, user, [supervisorId].filter((value): value is string => value != null));
+		const supervisor = getRelationshipId(userDoc.supervisor);
+		const relatedUsers = await findUsersByIds(payload, user, [supervisor].filter((value): value is string => value != null));
 		const roleName = roleId != null ? (await payload.findByID({
 			collection: "roles",
 			id: roleId,
@@ -558,7 +558,7 @@ export async function getDashboardEntrySummaryAction({
 			meta: [
 				{ label: "Employee ID", value: userDoc.employeeId },
 				{ label: "Role", value: roleName },
-				{ label: "Supervisor", value: supervisorId != null ? (relatedUsers.get(supervisorId)?.name ?? "-") : "-" },
+				{ label: "Supervisor", value: supervisor != null ? (relatedUsers.get(supervisor)?.name ?? "-") : "-" },
 				{ label: "Deleted At", value: formatSummaryDateLabel(userDoc.deletedAt) }
 			]
 		};
@@ -594,6 +594,39 @@ export async function getDashboardEntrySummaryAction({
 		};
 	}
 
+	if(type == "credit-application") {
+		const creditApplicationDoc = await payload.findByID({
+			collection: "credit-applications",
+			id: normalizedId,
+			user,
+			overrideAccess: false,
+			trash: true,
+			depth: 0,
+			select: {
+				name: true,
+				email: true,
+				_status: true,
+				deletedAt: true
+			}
+		});
+
+		const creditApplicationName = String(creditApplicationDoc.name ?? "").trim();
+		const creditApplicationEmail = String(creditApplicationDoc.email ?? "").trim();
+		const creditApplicationStatus = String(creditApplicationDoc._status ?? "").trim();
+
+		return {
+			type,
+			id: String(creditApplicationDoc.id),
+			title: creditApplicationName.length > 0 ? creditApplicationName : (creditApplicationEmail.length > 0 ? creditApplicationEmail : `Credit Application ${creditApplicationDoc.id}`),
+			description: creditApplicationEmail.length > 0 ? creditApplicationEmail : "Credit application entry",
+			meta: [
+				{ label: "Email", value: creditApplicationEmail.length > 0 ? creditApplicationEmail : "-" },
+				{ label: "Status", value: creditApplicationStatus.length > 0 ? creditApplicationStatus : "-" },
+				{ label: "Deleted At", value: formatSummaryDateLabel(creditApplicationDoc.deletedAt) }
+			]
+		};
+	}
+
 	const teamDoc = await payload.findByID({
 		collection: "teams",
 		id: normalizedId,
@@ -609,14 +642,14 @@ export async function getDashboardEntrySummaryAction({
 		}
 	});
 
-	const supervisorId = getRelationshipId(teamDoc.supervisor);
-	const officerIds = getRelationshipIds(teamDoc.officers);
+	const supervisor = getRelationshipId(teamDoc.supervisor);
+	const officers = getRelationshipIds(teamDoc.officers);
 	const usersById = await findUsersByIds(payload, user, [...new Set([
-		...officerIds,
-		...([supervisorId].filter((value): value is string => value != null))
+		...officers,
+		...([supervisor].filter((value): value is string => value != null))
 	])]);
 
-	const officerNames = officerIds.map(officerId => usersById.get(officerId)?.name ?? "-");
+	const officerNames = officers.map(officer => usersById.get(officer)?.name ?? "-");
 
 	return {
 		type,
@@ -624,7 +657,7 @@ export async function getDashboardEntrySummaryAction({
 		title: teamDoc.name,
 		description: "Team entry",
 		meta: [
-			{ label: "Supervisor", value: supervisorId != null ? (usersById.get(supervisorId)?.name ?? "-") : "-" },
+			{ label: "Supervisor", value: supervisor != null ? (usersById.get(supervisor)?.name ?? "-") : "-" },
 			{ label: "Officers", value: officerNames.length > 0 ? officerNames.join(", ") : "-" },
 			{ label: "Deleted At", value: formatSummaryDateLabel(teamDoc.deletedAt) }
 		]

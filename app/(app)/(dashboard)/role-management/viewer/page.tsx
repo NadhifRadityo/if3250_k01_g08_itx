@@ -19,7 +19,6 @@ import { useRoleCellRenderer } from "../layout.components";
 import { useRoleColumnPreferences } from "../layout.components";
 import { useRoleFilterColumnConfig } from "../layout.components";
 import { useRoleManagementQueryState } from "../layout.components";
-import { useRoleRelations } from "../layout.components";
 import { useRoleRequestFilters } from "../layout.components";
 import { useRoleRequestsQuery } from "../layout.components";
 import { type RoleTableRow } from "../layout.components";
@@ -49,16 +48,8 @@ export default function RoleManagementViewerPage() {
 		includeSoftDeleted: false
 	});
 
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useRoleRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderRoleCell = useRoleCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,

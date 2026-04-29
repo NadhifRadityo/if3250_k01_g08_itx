@@ -6,6 +6,7 @@ import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
+import type { RelationCreditApplication, RelationUser, RequestDiffPair } from "@/utils/requestRelationValues";
 import type { User, CreditApplicationAssignment } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -26,10 +27,7 @@ const sortableFields = new Set<CreditApplicationAssignmentSortField>([
 	"officer",
 	"reviewedAt",
 	"reviewedBy",
-	"reviewApproved",
-	"requestType",
-	"status",
-	"reviewCommentText"
+	"reviewApproved"
 ]);
 const filterableColumns = new Set<CreditApplicationAssignmentFilterColumn>([
 	"id",
@@ -88,10 +86,7 @@ export type CreditApplicationAssignmentSortField = "createdAt" |
 	"officer" |
 	"reviewedAt" |
 	"reviewedBy" |
-	"reviewApproved" |
-	"requestType" |
-	"status" |
-	"reviewCommentText";
+	"reviewApproved";
 export type CreditApplicationAssignmentSortToken = `${"+" | "-"}${CreditApplicationAssignmentSortField}`;
 export type CreditApplicationAssignmentFilterColumn = "id" |
 	"creditApplication" |
@@ -127,42 +122,25 @@ export type CreditApplicationAssignmentFilterInput = {
 
 export type CreditApplicationAssignmentTableRow = {
 	id: string;
-	creditApplicationId: string | null;
-	officerId: string | null;
+	creditApplication: string | null;
+	officer: string | null;
 	isSoftDeleted: boolean;
-	createdById: string | null;
-	updatedById: string | null;
-	deletedById: string | null;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
 	reviewedAt: string | null;
-	reviewedById: string | null;
+	reviewedBy: string | null;
 	reviewApproved: boolean | null;
-	reviewCommentText: string;
+	reviewComment: ReviewCommentValue | null;
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type CreditApplicationAssignmentRelationColumn = "creditApplication" |
-	"officer" |
-	"reviewedBy" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy";
-
-export type ResolveCreditApplicationAssignmentRelationColumnsInput = {
-	rows: Array<Pick<CreditApplicationAssignmentTableRow, "id" | "creditApplicationId" | "officerId" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
-	columns: CreditApplicationAssignmentRelationColumn[];
-};
-
-export type CreditApplicationAssignmentRelationValues = Partial<Record<CreditApplicationAssignmentRelationColumn, string>> & {
-	stagedUserIdByUserId?: Record<string, string>;
-};
-
-export type ResolveCreditApplicationAssignmentRelationColumnsOutput = Array<{
-	id: string;
-	values: CreditApplicationAssignmentRelationValues;
-}>;
+export type CreditApplicationAssignmentRelationValues =
+	Partial<Record<`users:${string}`, RelationUser>> &
+	Partial<Record<`credit-applications:${string}`, RelationCreditApplication>>;
 
 export type QueryCreditApplicationAssignmentsInput = {
 	keyword: string;
@@ -177,6 +155,7 @@ export type QueryCreditApplicationAssignmentsInput = {
 
 export type QueryCreditApplicationAssignmentsOutput = {
 	docs: CreditApplicationAssignmentTableRow[];
+	relations: CreditApplicationAssignmentRelationValues;
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
@@ -207,8 +186,8 @@ export type CreditApplicationAssignmentFilterIdOption = {
 
 export type UpsertCreditApplicationAssignmentRequestInput = {
 	assignmentId?: string;
-	creditApplicationId: string;
-	officerId: string;
+	creditApplication: string;
+	officer: string;
 };
 
 export type ReviewCreditApplicationAssignmentRequestInput = {
@@ -217,60 +196,43 @@ export type ReviewCreditApplicationAssignmentRequestInput = {
 	reviewComment: ReviewCommentValue;
 };
 
-export type CreditApplicationAssignmentRequestReviewDiffItem = {
-	field: "creditApplication" | "officer" | "deletedAt";
-	label: string;
-	previousValue: string;
-	requestedValue: string;
-	changed: boolean;
-};
-
 export type CreditApplicationAssignmentRequestReviewDiffOutput = {
 	requestId: string;
 	requestType: "Create" | "Update" | "Delete";
-	items: CreditApplicationAssignmentRequestReviewDiffItem[];
-	changedCount: number;
+	creditApplication: RequestDiffPair<string | null>;
+	officer: RequestDiffPair<string | null>;
+	deletedAt: RequestDiffPair<string | null>;
+	relations: CreditApplicationAssignmentRelationValues;
 };
 
 export type CreditApplicationAssignmentRequestDetailsOutput = {
 	row: CreditApplicationAssignmentTableRow;
-	relationValues: CreditApplicationAssignmentRelationValues;
-};
-
-export type CreditApplicationAssignmentRequestHistoryColumn = "id" |
-	"creditApplication" |
-	"officer" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy" |
-	"createdAt" |
-	"updatedAt" |
-	"deletedAt" |
-	"requestType" |
-	"status" |
-	"reviewedAt" |
-	"reviewedBy" |
-	"reviewApproved" |
-	"reviewCommentText";
-
-export type CreditApplicationAssignmentRequestHistoryChangeItem = {
-	column: CreditApplicationAssignmentRequestHistoryColumn;
-	label: string;
-	previousValue: string;
-	nextValue: string;
-	changed: boolean;
+	relations: CreditApplicationAssignmentRelationValues;
 };
 
 export type CreditApplicationAssignmentRequestHistoryEntry = {
 	versionId: string;
-	changedAt: string | null;
-	changes: CreditApplicationAssignmentRequestHistoryChangeItem[];
-	changedCount: number;
+	id: string;
+	creditApplication: string | null;
+	officer: string | null;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+	deletedAt: string | null;
+	requestType: "Create" | "Update" | "Delete";
+	status: string;
+	reviewedAt: string | null;
+	reviewedBy: string | null;
+	reviewApproved: boolean | null;
+	reviewComment: ReviewCommentValue | null;
 };
 
 export type CreditApplicationAssignmentRequestHistoryOutput = {
 	requestId: string;
 	entries: CreditApplicationAssignmentRequestHistoryEntry[];
+	relations: CreditApplicationAssignmentRelationValues;
 };
 
 function clampPageSize(limit: number): number {
@@ -403,26 +365,6 @@ function normalizeFilterCombinator(
 	return filterCombinator == "or" ? "or" : "and";
 }
 
-function richTextToPlainText(value: unknown): string {
-	if(value == null || typeof value != "object")
-		return "";
-	const nodes: unknown[] = [];
-	const collectNodes = (node: unknown) => {
-		if(node == null || typeof node != "object")
-			return;
-		nodes.push(node);
-		if("children" in node && Array.isArray(node.children))
-			node.children.forEach(collectNodes);
-	};
-	collectNodes((value as { root?: unknown }).root);
-	return nodes
-		.filter((node): node is { text: string } => node != null && typeof node == "object" && "text" in node && typeof node.text == "string")
-		.map(node => node.text)
-		.join(" ")
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string")
 		return value;
@@ -470,15 +412,6 @@ async function resolveUserRoleMenus(payload: Payload, user: User): Promise<strin
 async function hasCreditApplicationAssignmentRequestHistoryAccess(payload: Payload, user: User): Promise<boolean> {
 	const roleMenus = await resolveUserRoleMenus(payload, user);
 	return roleMenus.includes(creditApplicationAssignmentHistoryRequiredMenu);
-}
-
-function formatReviewDateValue(value: string | null | undefined): string {
-	if(value == null)
-		return "-";
-	const date = new Date(value);
-	if(Number.isNaN(date.getTime()))
-		return "-";
-	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
 function getCreditApplicationAssignmentRequestType(
@@ -588,32 +521,6 @@ async function findCreditApplicationsByIds(
 	}
 
 	return map;
-}
-
-function formatCreditApplicationLabel(value: { name: string, email: string } | null | undefined, fallbackId?: string | null): string {
-	if(value == null) {
-		const normalizedFallback = normalizeOptionalTextValue(fallbackId);
-		return normalizedFallback.length > 0 ? normalizedFallback : "-";
-	}
-	if(value.name.length > 0)
-		return value.name;
-	if(value.email.length > 0)
-		return value.email;
-	const normalizedFallback = normalizeOptionalTextValue(fallbackId);
-	return normalizedFallback.length > 0 ? normalizedFallback : "-";
-}
-
-function formatUserLabel(value: { name: string, email: string } | null | undefined, fallbackId?: string | null): string {
-	if(value == null) {
-		const normalizedFallback = normalizeOptionalTextValue(fallbackId);
-		return normalizedFallback.length > 0 ? normalizedFallback : "-";
-	}
-	if(value.name.length > 0)
-		return value.name;
-	if(value.email.length > 0)
-		return value.email;
-	const normalizedFallback = normalizeOptionalTextValue(fallbackId);
-	return normalizedFallback.length > 0 ? normalizedFallback : "-";
 }
 
 async function ensureOfficerUser(payload: Payload, user: User, officerId: string): Promise<void> {
@@ -841,10 +748,6 @@ function toPayloadSort(sort: CreditApplicationAssignmentSortToken[]): string {
 			path = "creditApplication.name";
 		else if(field == "officer" || field == "reviewedBy")
 			path = `${field}.name`;
-		else if(field == "requestType")
-			path = "deletedAt";
-		else if(field == "status" || field == "reviewCommentText")
-			path = "reviewedAt";
 		else
 			path = field;
 		return `${direction}${path}`;
@@ -1042,24 +945,46 @@ export async function queryCreditApplicationAssignmentsAction({
 
 	const mappedRows: CreditApplicationAssignmentTableRow[] = assignmentsResult.docs.map(doc => ({
 		id: String(doc.id),
-		creditApplicationId: getRelationshipId(doc.creditApplication),
-		officerId: getRelationshipId(doc.officer),
+		creditApplication: getRelationshipId(doc.creditApplication),
+		officer: getRelationshipId(doc.officer),
 		isSoftDeleted: doc.deletedAt != null && doc._status == "published",
-		createdById: getRelationshipId(doc.createdBy),
-		updatedById: getRelationshipId(doc.updatedBy),
-		deletedById: getRelationshipId(doc.deletedBy),
+		createdBy: getRelationshipId(doc.createdBy),
+		updatedBy: getRelationshipId(doc.updatedBy),
+		deletedBy: getRelationshipId(doc.deletedBy),
 		createdAt: doc.createdAt,
 		updatedAt: doc.updatedAt,
 		deletedAt: doc.deletedAt ?? null,
 		reviewedAt: doc.reviewedAt ?? null,
-		reviewedById: getRelationshipId(doc.reviewedBy),
+		reviewedBy: getRelationshipId(doc.reviewedBy),
 		reviewApproved: doc.reviewApproved ?? null,
-		reviewCommentText: richTextToPlainText(doc.reviewComment),
+		reviewComment: doc.reviewComment ?? null,
 		requestType: getCreditApplicationAssignmentRequestType(doc.deletedAt ?? null, doc.createdAt, doc.updatedAt)
 	}));
 
+	const userIds = [...new Set(assignmentsResult.docs.flatMap(doc => [
+		getRelationshipId(doc.officer),
+		getRelationshipId(doc.reviewedBy),
+		getRelationshipId(doc.createdBy),
+		getRelationshipId(doc.updatedBy),
+		getRelationshipId(doc.deletedBy)
+	].filter((value): value is string => value != null)))];
+	const creditApplicationIds = [...new Set(assignmentsResult.docs
+		.map(doc => getRelationshipId(doc.creditApplication))
+		.filter((value): value is string => value != null))];
+	const [usersById, creditApplicationsById] = await Promise.all([
+		findUsersByIds(payload, user, userIds),
+		findCreditApplicationsByIds(payload, user, creditApplicationIds)
+	]);
+
+	const relations: CreditApplicationAssignmentRelationValues = {};
+	for(const [userId, relationUser] of usersById)
+		relations[`users:${userId}`] = relationUser;
+	for(const [creditApplicationId, relation] of creditApplicationsById)
+		relations[`credit-applications:${creditApplicationId}`] = relation;
+
 	return {
 		docs: mappedRows,
+		relations,
 		totalDocs: assignmentsResult.totalDocs,
 		page: assignmentsResult.page ?? pageNumber,
 		hasNextPage: assignmentsResult.hasNextPage,
@@ -1095,84 +1020,6 @@ export async function queryCreditApplicationAssignmentsApproverAction(
 		...input,
 		mode: "approver",
 		includeSoftDeleted: false
-	});
-}
-
-export async function resolveCreditApplicationAssignmentRelationColumnsAction({
-	rows,
-	columns
-}: ResolveCreditApplicationAssignmentRelationColumnsInput): Promise<ResolveCreditApplicationAssignmentRelationColumnsOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	if(rows.length == 0 || columns.length == 0)
-		return [];
-
-	const requestedColumns = [...new Set(columns)];
-
-	const userIds = new Set<string>();
-	const creditApplicationIds = new Set<string>();
-	for(const row of rows) {
-		if(requestedColumns.includes("creditApplication") && row.creditApplicationId != null)
-			creditApplicationIds.add(row.creditApplicationId);
-		if(requestedColumns.includes("officer") && row.officerId != null)
-			userIds.add(row.officerId);
-		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
-			userIds.add(row.reviewedById);
-		if(requestedColumns.includes("createdBy") && row.createdById != null)
-			userIds.add(row.createdById);
-		if(requestedColumns.includes("updatedBy") && row.updatedById != null)
-			userIds.add(row.updatedById);
-		if(requestedColumns.includes("deletedBy") && row.deletedById != null)
-			userIds.add(row.deletedById);
-	}
-
-	const usersById = await findUsersByIds(payload, user, [...userIds]);
-	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, [...creditApplicationIds]);
-
-	return rows.map(row => {
-		const values: CreditApplicationAssignmentRelationValues = {};
-
-		if(requestedColumns.includes("creditApplication"))
-			values.creditApplication = row.creditApplicationId != null ? formatCreditApplicationLabel(creditApplicationsById.get(row.creditApplicationId), row.creditApplicationId) : "-";
-		if(requestedColumns.includes("officer"))
-			values.officer = row.officerId != null ? formatUserLabel(usersById.get(row.officerId), row.officerId) : "-";
-		if(requestedColumns.includes("reviewedBy"))
-			values.reviewedBy = row.reviewedById != null ? formatUserLabel(usersById.get(row.reviewedById), row.reviewedById) : "-";
-		if(requestedColumns.includes("createdBy"))
-			values.createdBy = row.createdById != null ? formatUserLabel(usersById.get(row.createdById), row.createdById) : "-";
-		if(requestedColumns.includes("updatedBy"))
-			values.updatedBy = row.updatedById != null ? formatUserLabel(usersById.get(row.updatedById), row.updatedById) : "-";
-		if(requestedColumns.includes("deletedBy"))
-			values.deletedBy = row.deletedById != null ? formatUserLabel(usersById.get(row.deletedById), row.deletedById) : "-";
-
-		const relationUserIds = new Set<string>();
-		if(row.officerId != null)
-			relationUserIds.add(row.officerId);
-		if(row.reviewedById != null)
-			relationUserIds.add(row.reviewedById);
-		if(row.createdById != null)
-			relationUserIds.add(row.createdById);
-		if(row.updatedById != null)
-			relationUserIds.add(row.updatedById);
-		if(row.deletedById != null)
-			relationUserIds.add(row.deletedById);
-
-		const stagedUserIdByUserId = Object.fromEntries(
-			[...relationUserIds]
-				.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-				.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-		);
-		if(Object.keys(stagedUserIdByUserId).length > 0)
-			values.stagedUserIdByUserId = stagedUserIdByUserId;
-
-		return {
-			id: row.id,
-			values
-		};
 	});
 }
 
@@ -1212,30 +1059,74 @@ export async function getCreditApplicationAssignmentRequestDetailsAction(
 
 	const row: CreditApplicationAssignmentTableRow = {
 		id: String(assignment.id),
-		creditApplicationId: getRelationshipId(assignment.creditApplication),
-		officerId: getRelationshipId(assignment.officer),
+		creditApplication: getRelationshipId(assignment.creditApplication),
+		officer: getRelationshipId(assignment.officer),
 		isSoftDeleted: assignment.deletedAt != null && assignment._status == "published",
-		createdById: getRelationshipId(assignment.createdBy),
-		updatedById: getRelationshipId(assignment.updatedBy),
-		deletedById: getRelationshipId(assignment.deletedBy),
+		createdBy: getRelationshipId(assignment.createdBy),
+		updatedBy: getRelationshipId(assignment.updatedBy),
+		deletedBy: getRelationshipId(assignment.deletedBy),
 		createdAt: assignment.createdAt,
 		updatedAt: assignment.updatedAt,
 		deletedAt: assignment.deletedAt ?? null,
 		reviewedAt: assignment.reviewedAt ?? null,
-		reviewedById: getRelationshipId(assignment.reviewedBy),
+		reviewedBy: getRelationshipId(assignment.reviewedBy),
 		reviewApproved: assignment.reviewApproved ?? null,
-		reviewCommentText: richTextToPlainText(assignment.reviewComment),
+		reviewComment: assignment.reviewComment ?? null,
 		requestType: getCreditApplicationAssignmentRequestType(assignment.deletedAt ?? null, assignment.createdAt, assignment.updatedAt)
 	};
 
-	const relationValues = (await resolveCreditApplicationAssignmentRelationColumnsAction({
-		rows: [row],
-		columns: ["creditApplication", "officer", "createdBy", "updatedBy", "deletedBy", "reviewedBy"]
-	}))[0]?.values ?? {};
+	const relationUserIds = new Set<string>();
+	const creditApplicationIds = new Set<string>();
+	if(row.creditApplication != null)
+		creditApplicationIds.add(row.creditApplication);
+	if(row.officer != null)
+		relationUserIds.add(row.officer);
+	if(row.createdBy != null)
+		relationUserIds.add(row.createdBy);
+	if(row.updatedBy != null)
+		relationUserIds.add(row.updatedBy);
+	if(row.deletedBy != null)
+		relationUserIds.add(row.deletedBy);
+	if(row.reviewedBy != null)
+		relationUserIds.add(row.reviewedBy);
+
+	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, [...creditApplicationIds]);
+	const relations: CreditApplicationAssignmentRelationValues = {};
+	if(row.creditApplication != null) {
+		const relation = creditApplicationsById.get(row.creditApplication);
+		if(relation != null)
+			relations[`credit-applications:${row.creditApplication}`] = relation;
+	}
+	if(row.officer != null) {
+		const relation = usersById.get(row.officer);
+		if(relation != null)
+			relations[`users:${row.officer}`] = relation;
+	}
+	if(row.createdBy != null) {
+		const relation = usersById.get(row.createdBy);
+		if(relation != null)
+			relations[`users:${row.createdBy}`] = relation;
+	}
+	if(row.updatedBy != null) {
+		const relation = usersById.get(row.updatedBy);
+		if(relation != null)
+			relations[`users:${row.updatedBy}`] = relation;
+	}
+	if(row.deletedBy != null) {
+		const relation = usersById.get(row.deletedBy);
+		if(relation != null)
+			relations[`users:${row.deletedBy}`] = relation;
+	}
+	if(row.reviewedBy != null) {
+		const relation = usersById.get(row.reviewedBy);
+		if(relation != null)
+			relations[`users:${row.reviewedBy}`] = relation;
+	}
 
 	return {
 		row,
-		relationValues
+		relations
 	};
 }
 
@@ -1248,42 +1139,6 @@ export async function canAccessCreditApplicationAssignmentRequestHistoryAction()
 
 	return hasCreditApplicationAssignmentRequestHistoryAccess(payload, user);
 }
-
-const creditApplicationAssignmentRequestHistoryColumns = [
-	"id",
-	"creditApplication",
-	"officer",
-	"createdBy",
-	"updatedBy",
-	"deletedBy",
-	"createdAt",
-	"updatedAt",
-	"deletedAt",
-	"requestType",
-	"status",
-	"reviewedAt",
-	"reviewedBy",
-	"reviewApproved",
-	"reviewCommentText"
-] as const satisfies CreditApplicationAssignmentRequestHistoryColumn[];
-
-const creditApplicationAssignmentRequestHistoryColumnLabelMap: Record<CreditApplicationAssignmentRequestHistoryColumn, string> = {
-	id: "ID",
-	creditApplication: "Credit Application",
-	officer: "Officer",
-	createdBy: "Created By",
-	updatedBy: "Updated By",
-	deletedBy: "Deleted By",
-	createdAt: "Created At",
-	updatedAt: "Updated At",
-	deletedAt: "Deleted At",
-	requestType: "Request",
-	status: "Status",
-	reviewedAt: "Reviewed At",
-	reviewedBy: "Reviewed By",
-	reviewApproved: "Review Approved",
-	reviewCommentText: "Review Comment"
-};
 
 export async function getCreditApplicationAssignmentRequestHistoryAction(
 	assignmentId: string
@@ -1358,48 +1213,35 @@ export async function getCreditApplicationAssignmentRequestHistoryAction(
 		if(version == null)
 			continue;
 
-		const creditApplicationId = getRelationshipId(version.creditApplication);
-		const officerId = getRelationshipId(version.officer);
-		const createdById = getRelationshipId(version.createdBy);
-		const updatedById = getRelationshipId(version.updatedBy);
-		const deletedById = getRelationshipId(version.deletedBy);
-		const reviewedById = getRelationshipId(version.reviewedBy);
+		const creditApplication = getRelationshipId(version.creditApplication);
+		const officer = getRelationshipId(version.officer);
+		const createdBy = getRelationshipId(version.createdBy);
+		const updatedBy = getRelationshipId(version.updatedBy);
+		const deletedBy = getRelationshipId(version.deletedBy);
+		const reviewedBy = getRelationshipId(version.reviewedBy);
 
-		if(creditApplicationId != null)
-			creditApplicationIds.add(creditApplicationId);
-		if(officerId != null)
-			userIds.add(officerId);
-		if(createdById != null)
-			userIds.add(createdById);
-		if(updatedById != null)
-			userIds.add(updatedById);
-		if(deletedById != null)
-			userIds.add(deletedById);
-		if(reviewedById != null)
-			userIds.add(reviewedById);
+		if(creditApplication != null)
+			creditApplicationIds.add(creditApplication);
+		if(officer != null)
+			userIds.add(officer);
+		if(createdBy != null)
+			userIds.add(createdBy);
+		if(updatedBy != null)
+			userIds.add(updatedBy);
+		if(deletedBy != null)
+			userIds.add(deletedBy);
+		if(reviewedBy != null)
+			userIds.add(reviewedBy);
 	}
 
 	const usersById = await findUsersByIds(payload, user, [...userIds]);
 	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, [...creditApplicationIds]);
 
-	type CreditApplicationAssignmentHistorySnapshot = {
-		versionId: string;
-		changedAt: string | null;
-		values: Record<CreditApplicationAssignmentRequestHistoryColumn, string>;
-	};
-
-	const snapshotsMaybe = historyDocs.map<CreditApplicationAssignmentHistorySnapshot | null>(historyDoc => {
+	const snapshotsMaybe = historyDocs.map<CreditApplicationAssignmentRequestHistoryEntry | null>(historyDoc => {
 		const version = historyDoc.version;
 		if(version == null)
 			return null;
 
-		const creditApplicationId = getRelationshipId(version.creditApplication);
-		const officerId = getRelationshipId(version.officer);
-		const createdById = getRelationshipId(version.createdBy);
-		const updatedById = getRelationshipId(version.updatedBy);
-		const deletedById = getRelationshipId(version.deletedBy);
-		const reviewedById = getRelationshipId(version.reviewedBy);
-		const reviewCommentText = richTextToPlainText(version.reviewComment);
 		const createdAt = version.createdAt ?? null;
 		const updatedAt = version.updatedAt ?? null;
 		const deletedAt = version.deletedAt ?? null;
@@ -1407,55 +1249,35 @@ export async function getCreditApplicationAssignmentRequestHistoryAction(
 
 		return {
 			versionId: String(version.id ?? historyDoc.id ?? assignmentId),
-			changedAt: historyDoc.updatedAt ?? updatedAt,
-			values: {
-				id: String(version.id ?? assignmentId),
-				creditApplication: creditApplicationId != null ? formatCreditApplicationLabel(creditApplicationsById.get(creditApplicationId), creditApplicationId) : "-",
-				officer: officerId != null ? formatUserLabel(usersById.get(officerId), officerId) : "-",
-				createdBy: createdById != null ? formatUserLabel(usersById.get(createdById), createdById) : "-",
-				updatedBy: updatedById != null ? formatUserLabel(usersById.get(updatedById), updatedById) : "-",
-				deletedBy: deletedById != null ? formatUserLabel(usersById.get(deletedById), deletedById) : "-",
-				createdAt: formatReviewDateValue(createdAt),
-				updatedAt: formatReviewDateValue(updatedAt),
-				deletedAt: formatReviewDateValue(deletedAt),
-				requestType: getCreditApplicationAssignmentRequestType(deletedAt, createdAt, updatedAt),
-				status: getCreditApplicationAssignmentHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
-				reviewedAt: formatReviewDateValue(reviewedAt),
-				reviewedBy: reviewedById != null ? formatUserLabel(usersById.get(reviewedById), reviewedById) : "-",
-				reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
-				reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
-			}
+			id: String(version.id ?? assignmentId),
+			creditApplication: getRelationshipId(version.creditApplication),
+			officer: getRelationshipId(version.officer),
+			createdBy: getRelationshipId(version.createdBy),
+			updatedBy: getRelationshipId(version.updatedBy),
+			deletedBy: getRelationshipId(version.deletedBy),
+			createdAt,
+			updatedAt,
+			deletedAt,
+			requestType: getCreditApplicationAssignmentRequestType(deletedAt, createdAt, updatedAt),
+			status: getCreditApplicationAssignmentHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
+			reviewedAt,
+			reviewedBy: getRelationshipId(version.reviewedBy),
+			reviewApproved: version.reviewApproved ?? null,
+			reviewComment: version.reviewComment as ReviewCommentValue | null
 		};
 	});
 
-	const snapshots = snapshotsMaybe.filter((snapshot): snapshot is CreditApplicationAssignmentHistorySnapshot => snapshot != null);
-
-	const entries: CreditApplicationAssignmentRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
-		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
-
-		const changes: CreditApplicationAssignmentRequestHistoryChangeItem[] = creditApplicationAssignmentRequestHistoryColumns.map(column => {
-			const previousValue = previousSnapshot?.values[column] ?? "-";
-			const nextValue = snapshot.values[column];
-			return {
-				column,
-				label: creditApplicationAssignmentRequestHistoryColumnLabelMap[column],
-				previousValue,
-				nextValue,
-				changed: previousValue != nextValue
-			};
-		});
-
-		return {
-			versionId: snapshot.versionId,
-			changedAt: snapshot.changedAt,
-			changes,
-			changedCount: changes.filter(change => change.changed).length
-		};
-	});
+	const entries = snapshotsMaybe.filter((snapshot): snapshot is CreditApplicationAssignmentRequestHistoryEntry => snapshot != null);
+	const relations: CreditApplicationAssignmentRelationValues = {};
+	for(const [creditApplicationId, relation] of creditApplicationsById)
+		relations[`credit-applications:${creditApplicationId}`] = relation;
+	for(const [userId, relation] of usersById)
+		relations[`users:${userId}`] = relation;
 
 	return {
 		requestId: assignmentId,
-		entries
+		entries,
+		relations
 	};
 }
 
@@ -1468,21 +1290,21 @@ export async function upsertCreditApplicationAssignmentRequestAction(
 	if(user == null)
 		return unauthorized();
 
-	const creditApplicationId = input.creditApplicationId.trim();
-	const officerId = input.officerId.trim();
+	const creditApplicationId = input.creditApplication.trim();
+	const officer = input.officer.trim();
 
 	if(creditApplicationId.length == 0)
 		throw new Error("Credit application is required.");
-	if(officerId.length == 0)
+	if(officer.length == 0)
 		throw new Error("Officer is required.");
 
 	await ensureCreditApplicationExists(payload, user, creditApplicationId);
-	await ensureOfficerUser(payload, user, officerId);
+	await ensureOfficerUser(payload, user, officer);
 
 	const requestData = {
 		_status: "draft" as const,
 		creditApplication: creditApplicationId,
-		officer: officerId,
+		officer: officer,
 		deletedAt: null,
 		deletedBy: null,
 		reviewedAt: null,
@@ -1629,11 +1451,11 @@ export async function cancelCreditApplicationAssignmentRequestAction(assignmentI
 		return { assignmentId, softDeleted: true };
 	}
 
-	const approvedCreditApplicationId = getRelationshipId(approvedVersion.creditApplication);
-	const approvedOfficerId = getRelationshipId(approvedVersion.officer);
-	if(approvedCreditApplicationId == null)
+	const approvedCreditApplication = getRelationshipId(approvedVersion.creditApplication);
+	const approvedOfficer = getRelationshipId(approvedVersion.officer);
+	if(approvedCreditApplication == null)
 		throw new Error("Cannot restore approved assignment without a credit application.");
-	if(approvedOfficerId == null)
+	if(approvedOfficer == null)
 		throw new Error("Cannot restore approved assignment without an officer.");
 
 	await payload.update({
@@ -1644,8 +1466,8 @@ export async function cancelCreditApplicationAssignmentRequestAction(assignmentI
 		trash: true,
 		data: {
 			_status: "published",
-			creditApplication: approvedCreditApplicationId,
-			officer: approvedOfficerId,
+			creditApplication: approvedCreditApplication,
+			officer: approvedOfficer,
 			deletedAt: approvedVersion.deletedAt ?? null,
 			deletedBy: getRelationshipId(approvedVersion.deletedBy),
 			reviewedAt: approvedVersion.reviewedAt ?? null,
@@ -1806,51 +1628,50 @@ export async function getCreditApplicationAssignmentRequestReviewDiffAction(
 	});
 
 	const approvedVersion = approvedVersions.docs[0]?.version;
-	const approvedCreditApplicationId = getRelationshipId(approvedVersion?.creditApplication);
-	const requestedCreditApplicationId = getRelationshipId(assignment.creditApplication);
-	const approvedOfficerId = getRelationshipId(approvedVersion?.officer);
-	const requestedOfficerId = getRelationshipId(assignment.officer);
+	const approvedCreditApplication = getRelationshipId(approvedVersion?.creditApplication);
+	const requestedCreditApplication = getRelationshipId(assignment.creditApplication);
+	const approvedOfficer = getRelationshipId(approvedVersion?.officer);
+	const requestedOfficer = getRelationshipId(assignment.officer);
 
 	const usersById = await findUsersByIds(payload, user, [
-		...new Set([approvedOfficerId, requestedOfficerId].filter((value): value is string => value != null))
+		...new Set([approvedOfficer, requestedOfficer].filter((value): value is string => value != null))
 	]);
 	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, [
-		...new Set([approvedCreditApplicationId, requestedCreditApplicationId].filter((value): value is string => value != null))
+		...new Set([approvedCreditApplication, requestedCreditApplication].filter((value): value is string => value != null))
 	]);
 
 	const requestType: CreditApplicationAssignmentRequestReviewDiffOutput["requestType"] =
 		assignment.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
 
-	const comparisonItems: Array<Omit<CreditApplicationAssignmentRequestReviewDiffItem, "changed">> = [
-		{
-			field: "creditApplication",
-			label: "Credit Application",
-			previousValue: approvedCreditApplicationId != null ? formatCreditApplicationLabel(creditApplicationsById.get(approvedCreditApplicationId), approvedCreditApplicationId) : "-",
-			requestedValue: requestedCreditApplicationId != null ? formatCreditApplicationLabel(creditApplicationsById.get(requestedCreditApplicationId), requestedCreditApplicationId) : "-"
-		},
-		{
-			field: "officer",
-			label: "Officer",
-			previousValue: approvedOfficerId != null ? formatUserLabel(usersById.get(approvedOfficerId), approvedOfficerId) : "-",
-			requestedValue: requestedOfficerId != null ? formatUserLabel(usersById.get(requestedOfficerId), requestedOfficerId) : "-"
-		},
-		{
-			field: "deletedAt",
-			label: "Deleted At",
-			previousValue: formatReviewDateValue(approvedVersion?.deletedAt ?? null),
-			requestedValue: formatReviewDateValue(assignment.deletedAt ?? null)
-		}
-	];
-
-	const items: CreditApplicationAssignmentRequestReviewDiffItem[] = comparisonItems.map(item => ({
-		...item,
-		changed: item.previousValue != item.requestedValue
-	}));
-
 	return {
 		requestId: assignmentId,
 		requestType,
-		items,
-		changedCount: items.filter(item => item.changed).length
+		creditApplication: [approvedCreditApplication, requestedCreditApplication],
+		officer: [approvedOfficer, requestedOfficer],
+		deletedAt: [approvedVersion?.deletedAt ?? null, assignment.deletedAt ?? null],
+		relations: (() => {
+			const relations: CreditApplicationAssignmentRelationValues = {};
+			if(approvedCreditApplication != null) {
+				const relation = creditApplicationsById.get(approvedCreditApplication);
+				if(relation != null)
+					relations[`credit-applications:${approvedCreditApplication}`] = relation;
+			}
+			if(requestedCreditApplication != null) {
+				const relation = creditApplicationsById.get(requestedCreditApplication);
+				if(relation != null)
+					relations[`credit-applications:${requestedCreditApplication}`] = relation;
+			}
+			if(approvedOfficer != null) {
+				const relation = usersById.get(approvedOfficer);
+				if(relation != null)
+					relations[`users:${approvedOfficer}`] = relation;
+			}
+			if(requestedOfficer != null) {
+				const relation = usersById.get(requestedOfficer);
+				if(relation != null)
+					relations[`users:${requestedOfficer}`] = relation;
+			}
+			return relations;
+		})()
 	};
 }

@@ -9,7 +9,7 @@ import cn from "@/utils/cn";
 import type { ReviewCommentRichText } from "@/utils/reviewCommentRichText";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Link } from "@/components/Link";
-import { ReviewCommentInput } from "@/components/ReviewCommentInput";
+import { ReviewCommentInput, ReviewCommentPreview } from "@/components/ReviewCommentInput";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -23,9 +23,9 @@ import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 
+import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as roleActions from "./layout.actions";
-import { uploadGenericRichtextImage } from "../../editor-x.actions";
 
 export const PAGE_SIZE = 20;
 
@@ -38,7 +38,6 @@ export type FilterInput = roleActions.RoleManagementFilterInput;
 export type QueryRolesOutput = Awaited<ReturnType<typeof roleActions.queryRolesAction>>;
 export type RoleTableRow = QueryRolesOutput["docs"][number];
 export type RoleManagementTabMode = "viewer" | Parameters<typeof roleActions.queryRolesAction>[0]["mode"];
-export type RoleRelationColumn = roleActions.RoleRelationColumn;
 export type RoleRequestReviewDiff = Awaited<ReturnType<typeof roleActions.getRoleRequestReviewDiffAction>>;
 export type RoleRequestHistory = Awaited<ReturnType<typeof roleActions.getRoleRequestHistoryAction>>;
 export type RoleLevel = roleActions.RoleLevel;
@@ -101,7 +100,7 @@ export type RoleTableColumnId = "name" |
 	"reviewedAt" |
 	"reviewedBy" |
 	"reviewApproved" |
-	"reviewCommentText";
+	"reviewComment";
 
 export type RoleTableColumnConfig = {
 	id: RoleTableColumnId;
@@ -112,7 +111,7 @@ export type RoleTableColumnConfig = {
 };
 
 export type FormState = {
-	roleId?: string;
+	role?: string;
 	name: string;
 	level: RoleLevel;
 	menus: RoleMenu[];
@@ -174,6 +173,7 @@ export const reviewStatusOptions: Array<{ value: string, label: string }> = [
 
 export const emptyQueryResult: QueryRolesOutput = {
 	docs: [],
+	relations: {},
 	totalDocs: 0,
 	page: 1,
 	hasNextPage: false,
@@ -200,12 +200,12 @@ export const roleTableColumns: RoleTableColumnConfig[] = [
 	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
 	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
 	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
-	{ id: "requestType", label: "Request", sortField: "requestType" },
-	{ id: "status", label: "Status", sortField: "status" },
+	{ id: "requestType", label: "Request" },
+	{ id: "status", label: "Status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
 	{ id: "reviewedBy", label: "Reviewed By", sortField: "reviewedBy" },
 	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
-	{ id: "reviewCommentText", label: "Review Comment", sortField: "reviewCommentText", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
+	{ id: "reviewComment", label: "Review Comment", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ];
 
 function getRoleDrawerValueClassName(columnId: string): string {
@@ -213,19 +213,14 @@ function getRoleDrawerValueClassName(columnId: string): string {
 		return "text-xs font-mono";
 	if(columnId == "name")
 		return "text-sm font-medium";
+	if(columnId == "reviewComment")
+		return "text-sm leading-relaxed";
 	return "text-sm";
 }
 
 export const defaultRoleColumnOrder: RoleTableColumnId[] = roleTableColumns.map(column => column.id);
-export const defaultRoleVisibleColumns: RoleTableColumnId[] = ["name", "level", "menus", "requestType", "status", "updatedAt", "reviewCommentText"];
+export const defaultRoleVisibleColumns: RoleTableColumnId[] = ["name", "level", "menus", "requestType", "status", "updatedAt", "reviewComment"];
 export const defaultRoleHiddenColumns: RoleTableColumnId[] = defaultRoleColumnOrder.filter(columnId => !defaultRoleVisibleColumns.includes(columnId));
-
-export const roleRelationColumnSet = new Set<RoleRelationColumn>([
-	"reviewedBy",
-	"createdBy",
-	"updatedBy",
-	"deletedBy"
-]);
 
 const roleNonEligibleColumnSet = new Set<string>([
 	"actions",
@@ -859,7 +854,7 @@ export function RoleRequestFormDrawer({
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>{formState.roleId == null ? "Add Role" : "Edit Role"}</DrawerTitle>
+					<DrawerTitle>{formState.role == null ? "Add Role" : "Edit Role"}</DrawerTitle>
 					<DrawerDescription>Changes in editor mode create pending role requests that require approver review before publication.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
@@ -950,6 +945,42 @@ export function RoleRequestReviewDrawer({
 	isMutating,
 	onOpenRequestChanges
 }: RoleRequestReviewDrawerProps) {
+	const diff = reviewDrawerState?.diff;
+	const diffEntries = diff == null ? [] : [
+		{
+			field: "name" as const,
+			label: "Role Name",
+			previousRaw: diff.name[0],
+			requestedRaw: diff.name[1],
+			previousValue: diff.name[0] ?? "-",
+			requestedValue: diff.name[1] ?? "-"
+		},
+		{
+			field: "level" as const,
+			label: "Level",
+			previousRaw: diff.level[0],
+			requestedRaw: diff.level[1],
+			previousValue: roleLevelOptions.find(option => option.value == diff.level[0])?.label ?? diff.level[0],
+			requestedValue: roleLevelOptions.find(option => option.value == diff.level[1])?.label ?? diff.level[1]
+		},
+		{
+			field: "menus" as const,
+			label: "Menus",
+			previousRaw: diff.menus[0],
+			requestedRaw: diff.menus[1],
+			previousValue: diff.menus[0].length == 0 ? "-" : diff.menus[0].map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu).join(", "),
+			requestedValue: diff.menus[1].length == 0 ? "-" : diff.menus[1].map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu).join(", ")
+		},
+		{
+			field: "deletedAt" as const,
+			label: "Deleted At",
+			previousRaw: diff.deletedAt[0],
+			requestedRaw: diff.deletedAt[1],
+			previousValue: formatDateTime(diff.deletedAt[0]),
+			requestedValue: formatDateTime(diff.deletedAt[1])
+		}
+	];
+
 	return (
 		<Drawer
 			open={open}
@@ -976,9 +1007,7 @@ export function RoleRequestReviewDrawer({
 								className: "align-baseline"
 							}) : "-"}
 						</p>
-						<p className="text-muted-foreground">
-							{reviewDrawerState?.diff != null ? `${reviewDrawerState.diff.changedCount} changed field(s)` : "Loading differences..."}
-						</p>
+						<p className="text-muted-foreground">{diff != null ? `${diffEntries.filter(item => JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw)).length} changed field(s)` : "Loading differences..."}</p>
 					</div>
 
 					{isReviewDiffLoading ? (
@@ -987,15 +1016,15 @@ export function RoleRequestReviewDrawer({
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 						</div>
-					) : reviewDrawerState?.diff == null ? (
+					) : diff == null ? (
 						<p className="text-muted-foreground text-sm">No diff is available for this request.</p>
 					) : (
 						<div className="space-y-2">
-							{reviewDrawerState.diff.items.map(item => (
+							{diffEntries.map(item => (
 								<div key={item.field} className="space-y-2 rounded-lg border p-3">
 									<div className="flex items-center justify-between gap-2">
 										<p className="text-sm font-medium">{item.label}</p>
-										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+										<Badge variant={JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "default" : "secondary"}>{JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "Changed" : "Unchanged"}</Badge>
 									</div>
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
@@ -1022,7 +1051,7 @@ export function RoleRequestReviewDrawer({
 
 					<div className="space-y-2">
 						<label className="text-sm font-medium">Review Comment (optional)</label>
-						<ReviewCommentInput value={reviewComment} onChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
+						<ReviewCommentInput serializedState={reviewComment} onSerializedStateChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
 					</div>
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
@@ -1053,6 +1082,41 @@ export function RoleRequestChangePreviewDrawer({
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
+	const diff = diffQuery.data;
+	const diffEntries = diff == null ? [] : [
+		{
+			field: "name" as const,
+			label: "Role Name",
+			previousRaw: diff.name[0],
+			requestedRaw: diff.name[1],
+			previousValue: diff.name[0] ?? "-",
+			requestedValue: diff.name[1] ?? "-"
+		},
+		{
+			field: "level" as const,
+			label: "Level",
+			previousRaw: diff.level[0],
+			requestedRaw: diff.level[1],
+			previousValue: roleLevelOptions.find(option => option.value == diff.level[0])?.label ?? diff.level[0],
+			requestedValue: roleLevelOptions.find(option => option.value == diff.level[1])?.label ?? diff.level[1]
+		},
+		{
+			field: "menus" as const,
+			label: "Menus",
+			previousRaw: diff.menus[0],
+			requestedRaw: diff.menus[1],
+			previousValue: diff.menus[0].length == 0 ? "-" : diff.menus[0].map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu).join(", "),
+			requestedValue: diff.menus[1].length == 0 ? "-" : diff.menus[1].map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu).join(", ")
+		},
+		{
+			field: "deletedAt" as const,
+			label: "Deleted At",
+			previousRaw: diff.deletedAt[0],
+			requestedRaw: diff.deletedAt[1],
+			previousValue: formatDateTime(diff.deletedAt[0]),
+			requestedValue: formatDateTime(diff.deletedAt[1])
+		}
+	];
 
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -1064,7 +1128,7 @@ export function RoleRequestChangePreviewDrawer({
 				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
 						<p><span className="font-medium">Request Type:</span> {diffQuery.data?.requestType ?? row?.requestType ?? "-"}</p>
-						<p className="text-muted-foreground">{diffQuery.data != null ? `${diffQuery.data.changedCount} changed field(s)` : "Loading differences..."}</p>
+						<p className="text-muted-foreground">{diff != null ? `${diffEntries.filter(item => JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw)).length} changed field(s)` : "Loading differences..."}</p>
 					</div>
 
 					{row == null ? (
@@ -1075,7 +1139,7 @@ export function RoleRequestChangePreviewDrawer({
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 						</div>
-					) : diffQuery.isError || diffQuery.data == null ? (
+					) : diffQuery.isError || diff == null ? (
 						<Alert variant="destructive">
 							<CircleAlertIcon />
 							<AlertTitle>Error</AlertTitle>
@@ -1083,11 +1147,11 @@ export function RoleRequestChangePreviewDrawer({
 						</Alert>
 					) : (
 						<div className="space-y-2">
-							{diffQuery.data.items.map(item => (
+							{diffEntries.map(item => (
 								<div key={item.field} className="space-y-2 rounded-lg border p-3">
 									<div className="flex items-center justify-between gap-2">
 										<p className="text-sm font-medium">{item.label}</p>
-										<Badge variant={item.changed ? "default" : "secondary"}>{item.changed ? "Changed" : "Unchanged"}</Badge>
+										<Badge variant={JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "default" : "secondary"}>{JSON.stringify(item.previousRaw) != JSON.stringify(item.requestedRaw) ? "Changed" : "Unchanged"}</Badge>
 									</div>
 									<div className="grid gap-2 sm:grid-cols-2">
 										<div className="space-y-1">
@@ -1246,39 +1310,35 @@ type RoleRelationNavigation = {
 	}) => void;
 };
 
-function getRoleRelationSummaryLabel(column: RoleRelationColumn): string {
-	if(column == "reviewedBy")
-		return "Reviewed By";
-	if(column == "createdBy")
-		return "Created By";
-	if(column == "updatedBy")
-		return "Updated By";
-	return "Deleted By";
-}
-
 function renderRoleUserRelationValue({
 	column,
-	value,
+	relation,
 	relationId,
 	relationNavigation,
-	stagedUserIdByUserId
+	fallbackValue
 }: {
-	column: RoleRelationColumn;
-	value: string;
+	column: string;
+	relation: { name: string, email?: string, stagedUserId?: string | null } | null;
 	relationId: string | null;
 	relationNavigation?: RoleRelationNavigation;
-	stagedUserIdByUserId?: Record<string, string>;
+	fallbackValue?: string;
 }): ReactNode {
-	const normalizedValue = value.trim();
+	const displayValue = relation?.name ?? relation?.email ?? fallbackValue ?? "-";
+	const normalizedValue = displayValue.trim();
 	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
-		return value;
+		return displayValue;
 
-	const summaryLabel = getRoleRelationSummaryLabel(column);
+	const summaryLabel = {
+		"reviewedBy": "Reviewed By",
+		"createdBy": "Created By",
+		"updatedBy": "Updated By",
+		"deletedBy": "Deleted By"
+	};
 	const hrefBase = relationNavigation?.getHrefBase("user-management");
 	if(hrefBase != null && relationNavigation != null) {
-		const stagedUserId = stagedUserIdByUserId?.[relationId] ?? null;
+		const stagedUserId = relation?.stagedUserId ?? null;
 		if(stagedUserId == null || stagedUserId.trim().length == 0)
-			return value;
+			return displayValue;
 
 		const relationFilters = [{ column: "id", operator: "equals", value: stagedUserId }];
 		const searchParams = new URLSearchParams();
@@ -1294,7 +1354,7 @@ function renderRoleUserRelationValue({
 						relationNavigation.onOpenSummary({
 							type: "user",
 							id: relationId,
-							fallbackTitle: value,
+							fallbackTitle: displayValue,
 							fallbackDescription: `${summaryLabel} user`
 						});
 						return;
@@ -1308,13 +1368,13 @@ function renderRoleUserRelationValue({
 				}}
 				className="text-primary underline underline-offset-2 hover:opacity-80"
 			>
-				{value}
+				{displayValue}
 			</Link>
 		);
 	}
 
 	if(relationNavigation == null)
-		return value;
+		return displayValue;
 
 	return (
 		<Button
@@ -1323,14 +1383,103 @@ function renderRoleUserRelationValue({
 			onClick={() => relationNavigation.onOpenSummary({
 				type: "user",
 				id: relationId,
-				fallbackTitle: value,
+				fallbackTitle: displayValue,
 				fallbackDescription: `${summaryLabel} user`
 			})}
 			className="h-auto p-0 text-primary select-auto"
 		>
-			{value}
+			{displayValue}
 		</Button>
 	);
+}
+
+type RoleRequestHistoryEntry = RoleRequestHistory["entries"][number];
+type RoleRequestHistoryField = Exclude<keyof RoleRequestHistoryEntry, "versionId">;
+
+const roleRequestHistoryFields: RoleRequestHistoryField[] = [
+	"id",
+	"name",
+	"level",
+	"menus",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"requestType",
+	"status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewComment"
+];
+
+const roleRequestHistoryFieldLabelMap: Record<RoleRequestHistoryField, string> = {
+	id: "ID",
+	name: "Name",
+	level: "Level",
+	menus: "Menus",
+	createdBy: "Created By",
+	updatedBy: "Updated By",
+	deletedBy: "Deleted By",
+	createdAt: "Created At",
+	updatedAt: "Updated At",
+	deletedAt: "Deleted At",
+	requestType: "Request",
+	status: "Status",
+	reviewedAt: "Reviewed At",
+	reviewedBy: "Reviewed By",
+	reviewApproved: "Review Approved",
+	reviewComment: "Review Comment"
+};
+
+function renderRoleRequestHistoryValue(
+	field: RoleRequestHistoryField,
+	value: any,
+	relations: roleActions.RoleRelationValues = {},
+	relationNavigation?: RoleRelationNavigation
+) {
+	switch(field) {
+		case "reviewComment":
+			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
+		case "reviewApproved":
+			return value == null ? "-" : value as boolean ? "True" : "False";
+		case "status": {
+			if(value == null || String(value).length == 0)
+				return "-";
+			const normalizedStatus = String(value).toLowerCase();
+			if(normalizedStatus == "pending")
+				return <Badge variant="secondary">Pending</Badge>;
+			if(normalizedStatus == "approved")
+				return <Badge variant="default">Approved</Badge>;
+			if(normalizedStatus == "rejected")
+				return <Badge variant="destructive">Rejected</Badge>;
+			return <Badge variant="outline">{String(value)}</Badge>;
+		}
+		case "createdBy":
+		case "updatedBy":
+		case "deletedBy":
+		case "reviewedBy":
+			return renderRoleUserRelationValue({
+				column: field,
+				relation: value == null ? null : relations[`users:${value}`] ?? null,
+				relationId: value ?? null,
+				relationNavigation,
+				fallbackValue: value == null ? "-" : String(value)
+			});
+		case "createdAt":
+		case "updatedAt":
+		case "deletedAt":
+		case "reviewedAt":
+			return formatDateTime(value);
+		case "menus":
+			return value == null || value.length == 0 ? "-" : value.map(menu => roleMenuOptions.find(option => option.value == menu)?.label ?? menu).join(", ");
+		case "level":
+			return value == null ? "-" : roleLevelOptions.find(option => option.value == value)?.label ?? value;
+		default:
+			return value == null || String(value).length == 0 ? "-" : String(value);
+	}
 }
 
 export function RoleRequestDetailsDrawer({
@@ -1393,11 +1542,11 @@ export function RoleRequestDetailsDrawer({
 				return renderDetailColumnValue(columnId, labels.length > 0 ? labels.join(", ") : "-");
 			}
 			case "createdBy":
-				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "createdBy", value: data.relationValues.createdBy ?? "-", relationId: data.row.createdById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "createdBy", relation: data.row.createdBy == null ? null : data.relations[`users:${data.row.createdBy}`] ?? null, relationId: data.row.createdBy, relationNavigation, fallbackValue: data.row.createdBy ?? "-" }));
 			case "updatedBy":
-				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "updatedBy", value: data.relationValues.updatedBy ?? "-", relationId: data.row.updatedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "updatedBy", relation: data.row.updatedBy == null ? null : data.relations[`users:${data.row.updatedBy}`] ?? null, relationId: data.row.updatedBy, relationNavigation, fallbackValue: data.row.updatedBy ?? "-" }));
 			case "deletedBy":
-				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "deletedBy", value: data.relationValues.deletedBy ?? "-", relationId: data.row.deletedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "deletedBy", relation: data.row.deletedBy == null ? null : data.relations[`users:${data.row.deletedBy}`] ?? null, relationId: data.row.deletedBy, relationNavigation, fallbackValue: data.row.deletedBy ?? "-" }));
 			case "createdAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
 			case "updatedAt":
@@ -1413,11 +1562,11 @@ export function RoleRequestDetailsDrawer({
 			case "reviewedAt":
 				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
 			case "reviewedBy":
-				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "reviewedBy", value: data.relationValues.reviewedBy ?? "-", relationId: data.row.reviewedById, relationNavigation, stagedUserIdByUserId: data.relationValues.stagedUserIdByUserId }));
+				return renderDetailColumnValue(columnId, renderRoleUserRelationValue({ column: "reviewedBy", relation: data.row.reviewedBy == null ? null : data.relations[`users:${data.row.reviewedBy}`] ?? null, relationId: data.row.reviewedBy, relationNavigation, fallbackValue: data.row.reviewedBy ?? "-" }));
 			case "reviewApproved":
 				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
-			case "reviewCommentText":
-				return renderDetailColumnValue(columnId, data.row.reviewCommentText.length > 0 ? data.row.reviewCommentText : "-");
+			case "reviewComment":
+				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.reviewComment ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			default:
 				return renderDetailColumnValue(columnId, "-");
 		}
@@ -1501,23 +1650,41 @@ export function RoleRequestDetailsDrawer({
 						) : historyQuery.data.entries.length == 0 ? (
 							<p className="text-muted-foreground text-sm">No history entries found for this role request.</p>
 						) : (
-							historyQuery.data.entries.map(entry => (
-								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
-									<div className="flex items-center justify-between gap-2">
-										<p className="text-sm font-semibold">{formatDateTime(entry.changedAt)}</p>
-										<Badge variant="outline">{entry.changedCount} change(s)</Badge>
+							historyQuery.data.entries.map((entry, entryIndex, historyEntries) => {
+								const previousEntry = historyEntries[entryIndex + 1] ?? null;
+								const changes = roleRequestHistoryFields.flatMap(field => {
+									const nextValue = entry[field];
+									const previousValue = previousEntry?.[field] ?? null;
+									if(JSON.stringify(nextValue) == JSON.stringify(previousValue))
+										return [];
+									return [{
+										field,
+										label: roleRequestHistoryFieldLabelMap[field],
+										previousValue,
+										nextValue
+									}];
+								});
+
+								return (
+									<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+										<div className="flex items-center justify-between gap-2">
+											<p className="text-sm font-semibold">{formatDateTime(entry.updatedAt)}</p>
+											<Badge variant="outline">{changes.length} change(s)</Badge>
+										</div>
+										<div className="space-y-1">
+											{changes.length == 0 ? (
+												<p className="text-muted-foreground text-xs">No field changes detected.</p>
+											) : changes.map(change => (
+												<div key={`${entry.versionId}-${change.field}`} className="space-y-0.5 rounded-md border p-2 text-xs">
+													<div className="font-medium">{change.label}</div>
+													<div className="text-muted-foreground">From: {renderRoleRequestHistoryValue(change.field, change.previousValue, historyQuery.data.relations, relationNavigation)}</div>
+													<div>To: {renderRoleRequestHistoryValue(change.field, change.nextValue, historyQuery.data.relations, relationNavigation)}</div>
+												</div>
+											))}
+										</div>
 									</div>
-									<div className="space-y-1">
-										{entry.changes.map(change => (
-											<div key={`${entry.versionId}-${change.column}`} className={cn("space-y-0.5 rounded-md border p-2 text-xs", change.changed ? "border-primary/30 bg-primary/5" : "opacity-70")}>
-												<p className="font-medium">{change.label}</p>
-												<p className="text-muted-foreground">From: {change.previousValue}</p>
-												<p>To: {change.nextValue}</p>
-											</div>
-										))}
-									</div>
-								</div>
-							))
+								);
+							})
 						)}
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
@@ -1530,15 +1697,13 @@ export function RoleRequestDetailsDrawer({
 }
 
 type UseRoleCellRendererOptions = {
-	relationValuesByRowId: Record<string, roleActions.RoleRelationValues>;
-	isRelationLoading: boolean;
+	relations: roleActions.RoleRelationValues;
 	relationNavigation?: RoleRelationNavigation;
 	onOpenRequestChanges?: (row: RoleTableRow) => void;
 };
 
-export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, relationNavigation, onOpenRequestChanges }: UseRoleCellRendererOptions) {
+export function useRoleCellRenderer({ relations, relationNavigation, onOpenRequestChanges }: UseRoleCellRendererOptions) {
 	return useCallback((columnId: RoleTableColumnId, row: RoleTableRow) => {
-		const resolvedValues = relationValuesByRowId[row.id] ?? {};
 		switch(columnId) {
 			case "id":
 				return row.id;
@@ -1553,17 +1718,11 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 				return labels.join(", ");
 			}
 			case "createdBy":
-				if(isRelationLoading && resolvedValues.createdBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderRoleUserRelationValue({ column: "createdBy", value: resolvedValues.createdBy ?? "-", relationId: row.createdById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderRoleUserRelationValue({ column: "createdBy", relation: row.createdBy == null ? null : relations[`users:${row.createdBy}`] ?? null, relationId: row.createdBy, relationNavigation, fallbackValue: row.createdBy ?? "-" });
 			case "updatedBy":
-				if(isRelationLoading && resolvedValues.updatedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderRoleUserRelationValue({ column: "updatedBy", value: resolvedValues.updatedBy ?? "-", relationId: row.updatedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderRoleUserRelationValue({ column: "updatedBy", relation: row.updatedBy == null ? null : relations[`users:${row.updatedBy}`] ?? null, relationId: row.updatedBy, relationNavigation, fallbackValue: row.updatedBy ?? "-" });
 			case "deletedBy":
-				if(isRelationLoading && resolvedValues.deletedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderRoleUserRelationValue({ column: "deletedBy", value: resolvedValues.deletedBy ?? "-", relationId: row.deletedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderRoleUserRelationValue({ column: "deletedBy", relation: row.deletedBy == null ? null : relations[`users:${row.deletedBy}`] ?? null, relationId: row.deletedBy, relationNavigation, fallbackValue: row.deletedBy ?? "-" });
 			case "createdAt":
 				return formatDateTime(row.createdAt);
 			case "updatedAt":
@@ -1579,17 +1738,15 @@ export function useRoleCellRenderer({ relationValuesByRowId, isRelationLoading, 
 			case "reviewedAt":
 				return formatDateTime(row.reviewedAt);
 			case "reviewedBy":
-				if(isRelationLoading && resolvedValues.reviewedBy == null)
-					return <Skeleton className="h-4 w-28" />;
-				return renderRoleUserRelationValue({ column: "reviewedBy", value: resolvedValues.reviewedBy ?? "-", relationId: row.reviewedById, relationNavigation, stagedUserIdByUserId: resolvedValues.stagedUserIdByUserId });
+				return renderRoleUserRelationValue({ column: "reviewedBy", relation: row.reviewedBy == null ? null : relations[`users:${row.reviewedBy}`] ?? null, relationId: row.reviewedBy, relationNavigation, fallbackValue: row.reviewedBy ?? "-" });
 			case "reviewApproved":
 				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
-			case "reviewCommentText":
-				return row.reviewCommentText.length > 0 ? row.reviewCommentText : "-";
+			case "reviewComment":
+				return <ReviewCommentPreview serializedState={row.reviewComment ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			default:
 				return "-";
 		}
-	}, [isRelationLoading, onOpenRequestChanges, relationValuesByRowId, relationNavigation]);
+	}, [onOpenRequestChanges, relationNavigation, relations]);
 }
 
 export function useRoleColumnPreferences() {
@@ -1782,48 +1939,6 @@ export function useRoleManagementQueryState({
 		sortTokens,
 		getSortDirection,
 		toggleSortField
-	};
-}
-
-type UseRoleRelationsOptions = {
-	docs: RoleTableRow[];
-	visibleColumns: RoleTableColumnConfig[];
-};
-
-export function useRoleRelations({ docs, visibleColumns }: UseRoleRelationsOptions) {
-	const visibleRelationColumns = useMemo(() => (
-		visibleColumns
-			.map(column => column.id)
-			.filter((columnId): columnId is RoleRelationColumn => roleRelationColumnSet.has(columnId as RoleRelationColumn))
-	), [visibleColumns]);
-
-	const relationRows = useMemo(() => docs.map(row => ({
-		id: row.id,
-		reviewedById: row.reviewedById,
-		createdById: row.createdById,
-		updatedById: row.updatedById,
-		deletedById: row.deletedById
-	})), [docs]);
-
-	const relationsQuery = useQuery({
-		queryKey: ["role-management", "relations", { rows: relationRows, columns: visibleRelationColumns }],
-		enabled: relationRows.length > 0 && visibleRelationColumns.length > 0,
-		queryFn: () => roleActions.resolveRoleRelationColumnsAction({
-			rows: relationRows,
-			columns: visibleRelationColumns
-		}),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const relationValuesByRowId = useMemo(() => Object.fromEntries(
-		(relationsQuery.data ?? []).map(item => [item.id, item.values])
-	), [relationsQuery.data]);
-	const isRelationLoading = relationsQuery.isPending || relationsQuery.isFetching;
-
-	return {
-		relationValuesByRowId,
-		isRelationLoading
 	};
 }
 

@@ -15,7 +15,7 @@ import { TabIndentationPlugin } from "@lexical/react/LexicalTabIndentationPlugin
 import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { RichTextExtension } from "@lexical/rich-text";
 import { TableNode, TableRowNode, TableCellNode } from "@lexical/table";
-import { LexicalEditor, configExtension, defineExtension, KEY_DOWN_COMMAND, COMMAND_PRIORITY_HIGH, type EditorState, type SerializedEditorState } from "lexical";
+import { LexicalEditor, configExtension, defineExtension, KEY_DOWN_COMMAND, COMMAND_PRIORITY_HIGH, type EditorState, type SerializedEditorState, $getRoot } from "lexical";
 
 import cn from "@/utils/cn";
 import useIsMobile from "@/utils/useIsMobile";
@@ -106,16 +106,16 @@ import { TooltipProvider } from "./radix/Tooltip";
 
 export const ReviewCommentInput = ({
 	initialEditorState,
-	editorSerializedState,
-	onSerializedChange,
+	serializedState,
+	onSerializedStateChange,
 	onImageUpload,
 	placeholder = "Provide a review comment",
 	className,
 	children
 }: {
 	initialEditorState?: EditorState;
-	editorSerializedState?: SerializedEditorState;
-	onSerializedChange?: (editorSerializedState: SerializedEditorState) => void;
+	serializedState?: SerializedEditorState;
+	onSerializedStateChange?: (editorSerializedState: SerializedEditorState) => void;
 	onImageUpload: (formData: FormData) => Promise<UploadedImage>;
 	placeholder?: string;
 	className?: string;
@@ -196,8 +196,8 @@ export const ReviewCommentInput = ({
 		],
 		$initialEditorState(editor) {
 			editorRef.current = editor;
-			if(editorSerializedState != null)
-				editor.setEditorState(editor.parseEditorState(editorSerializedState));
+			if(serializedState != null)
+				editor.setEditorState(editor.parseEditorState(serializedState));
 			else if(initialEditorState != null)
 				editor.setEditorState(initialEditorState);
 			editor.registerCommand(
@@ -218,17 +218,24 @@ export const ReviewCommentInput = ({
 		theme: editorTheme
 	}), []);
 
-	const editorSerializedStateString = useMemo(() => JSON.stringify(editorSerializedState), [editorSerializedState]);
-	const lastEditorSerializedStateString = useRef(editorSerializedStateString);
+	const serializedStateString = useMemo(() => JSON.stringify(serializedState), [serializedState]);
+	const lastSerializedStateString = useRef(serializedStateString);
 	useEffect(() => {
 		const editor = editorRef.current;
 		if(editor == null)
 			return;
-		if(editorSerializedStateString == lastEditorSerializedStateString.current)
+		if(serializedStateString == lastSerializedStateString.current)
 			return;
-		lastEditorSerializedStateString.current = editorSerializedStateString;
-		editor.setEditorState(editor.parseEditorState(editorSerializedStateString));
-	}, [editorSerializedState]);
+		lastSerializedStateString.current = serializedStateString;
+		const serializedState = JSON.parse(serializedStateString ?? "null");
+		if(serializedState != null)
+			editor.setEditorState(editor.parseEditorState(serializedState));
+		else {
+			editor.update(() => {
+				$getRoot().clear();
+			});
+		}
+	}, [serializedState]);
 
 	useEffect(() => {
 		if(floatingAnchorElem == null)
@@ -406,10 +413,155 @@ export const ReviewCommentInput = ({
 						ignoreSelectionChange={true}
 						onChange={editorState => {
 							const editorSerializedState = editorState.toJSON();
-							lastEditorSerializedStateString.current = JSON.stringify(editorSerializedState);
-							onSerializedChange?.(editorSerializedState);
+							lastSerializedStateString.current = JSON.stringify(editorSerializedState);
+							onSerializedStateChange?.(editorSerializedState);
 						}}
 					/>
+					{children}
+				</TooltipProvider>
+			</LexicalExtensionComposer>
+		</div>
+	);
+};
+
+export const ReviewCommentPreview = ({
+	initialEditorState,
+	serializedState,
+	placeholder = "No review comment provided",
+	className,
+	contentClassName,
+	placeholderClassName,
+	children
+}: {
+	initialEditorState?: EditorState;
+	serializedState?: SerializedEditorState;
+	placeholder?: string;
+	className?: string;
+	contentClassName?: string;
+	placeholderClassName?: string;
+	children?: React.ReactNode;
+}) => {
+	const editorRef = useRef<LexicalEditor>(null);
+	const AppExtension = useMemo(() => defineExtension({
+		dependencies: [
+			RichTextExtension,
+			AutoFocusExtension,
+			HistoryExtension,
+			configExtension(LinkExtension, {
+				validateUrl,
+				attributes: { rel: "noopener noreferrer", target: "_blank" }
+			}),
+			configExtension(AutoLinkExtension, {
+				matchers: [
+					createLinkMatcherWithRegExp(
+						/((https?:\/\/(www\.)?)|(www\.))[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)(?<![-.+():%])/,
+						text => text.startsWith("http") ? text : `https://${text}`
+					),
+					createLinkMatcherWithRegExp(
+						/(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))/,
+						text => `mailto:${text}`
+					),
+					createLinkMatcherWithRegExp(
+						/\b(\+?\d{1,3}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?){2,4}\d{2,4}\b/,
+						text => `tel:${text.replace(/[^\d+]/g, "")}`
+					)
+				]
+			}),
+			configExtension(ClickableLinkExtension, { newTab: true }),
+			configExtension(MaxLengthExtension, { disabled: false, maxLength: 8000 }),
+			configExtension(MarkdownShortcutsExtension, {
+				transformers: [
+					TABLE, HR, IMAGE, EMOJI, TWEET, CHECK_LIST,
+					...ELEMENT_TRANSFORMERS,
+					...MULTILINE_ELEMENT_TRANSFORMERS,
+					...TEXT_FORMAT_TRANSFORMERS,
+					...TEXT_MATCH_TRANSFORMERS
+				]
+			}),
+			ClearEditorExtension,
+			EmojisExtension,
+			DecoratorTextExtension,
+			configExtension(ListExtension, { shouldPreserveNumbering: false }),
+			CheckListExtension,
+			HorizontalRuleExtension,
+			ImagesExtension,
+			DateTimeExtension
+		],
+		name: "review-comment-input",
+		namespace: "review-comment-input",
+		nodes: [
+			OverflowNode,
+			EmojiNode,
+			MentionNode,
+			AutocompleteNode,
+			SpecialTextNode,
+			CodeNode,
+			CodeHighlightNode,
+			TableNode,
+			TableCellNode,
+			TableRowNode,
+			LayoutContainerNode,
+			LayoutItemNode,
+			TweetNode,
+			YouTubeNode
+		],
+		$initialEditorState(editor) {
+			editorRef.current = editor;
+			if(serializedState != null)
+				editor.setEditorState(editor.parseEditorState(serializedState));
+			else if(initialEditorState != null)
+				editor.setEditorState(initialEditorState);
+			editor.setEditable(false);
+			editor.registerCommand(
+				KEY_DOWN_COMMAND,
+				event => {
+					if(event.ctrlKey || event.metaKey) {
+						const key = event.key.toLowerCase();
+						if(["b", "i", "u", "k"].includes(key)) {
+							event.stopPropagation();
+							return false;
+						}
+					}
+					return false;
+				},
+				COMMAND_PRIORITY_HIGH
+			);
+		},
+		theme: editorTheme
+	}), []);
+
+	const serializedStateString = useMemo(() => JSON.stringify(serializedState), [serializedState]);
+	const lastSerializedStateString = useRef(serializedStateString);
+	useEffect(() => {
+		const editor = editorRef.current;
+		if(editor == null)
+			return;
+		if(serializedStateString == lastSerializedStateString.current)
+			return;
+		lastSerializedStateString.current = serializedStateString;
+		const serializedState = JSON.parse(serializedStateString ?? "null");
+		if(serializedState != null)
+			editor.setEditorState(editor.parseEditorState(serializedState));
+		else {
+			editor.update(() => {
+				$getRoot().clear();
+			});
+		}
+	}, [serializedState]);
+
+	return (
+		<div className={cn("bg-background overflow-hidden rounded-lg border shadow w-full", className)}>
+			<LexicalExtensionComposer extension={AppExtension} contentEditable={null}>
+				<TooltipProvider>
+					<div className="relative">
+						<div className="">
+							<ContentEditable
+								placeholder={placeholder}
+								className={cn("min-h-32 max-h-[calc(100svh-280px)]", contentClassName)}
+								placeholderClassName={cn("max-w-full", placeholderClassName)}
+							/>
+						</div>
+					</div>
 					{children}
 				</TooltipProvider>
 			</LexicalExtensionComposer>

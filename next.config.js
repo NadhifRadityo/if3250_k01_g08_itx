@@ -7,7 +7,10 @@ export default withPlugins([
 ], phase => ({
 	cacheComponents: true,
 	experimental: {
-		authInterrupts: true
+		authInterrupts: true,
+		serverActions: {
+			bodySizeLimit: "10mb"
+		}
 	},
 	env: {
 		BUILD_PHASE: phase

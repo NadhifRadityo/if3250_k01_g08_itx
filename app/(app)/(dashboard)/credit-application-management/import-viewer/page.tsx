@@ -9,7 +9,6 @@ import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardMana
 import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
 import * as importActions from "../import.actions";
 import {
-	useCreditApplicationImportRelations,
 	CreditApplicationImportRequestsTable,
 	useCreditApplicationImportCellRenderer,
 	CreditApplicationImportColumnConfigCard,
@@ -45,20 +44,12 @@ export default function CreditApplicationImportViewerPage() {
 		debouncedKeyword: queryState.debouncedKeyword,
 		sortTokens: queryState.sortTokens,
 		appliedFilters: filters.appliedFilters,
-		isFilterStateReady: filters.isFilterStateReady
-	});
-
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useCreditApplicationImportRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
+		isFilterStateReady: filters.isFilterStateReady,
+		includeSoftDeleted: false
 	});
 
 	const renderCreditApplicationImportCell = useCreditApplicationImportCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,

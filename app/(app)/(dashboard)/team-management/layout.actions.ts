@@ -6,6 +6,7 @@ import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
 import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
+import type { RelationUser } from "@/utils/requestRelationValues";
 import type { Team } from "@/payload-types";
 
 const MAX_PAGE_SIZE = 20;
@@ -21,10 +22,7 @@ const sortableFields = new Set<TeamManagementSortField>([
 	"officers",
 	"reviewedAt",
 	"reviewedBy",
-	"reviewApproved",
-	"requestType",
-	"status",
-	"reviewCommentText"
+	"reviewApproved"
 ]);
 const filterableColumns = new Set<TeamManagementFilterColumn>([
 	"id",
@@ -87,10 +85,7 @@ export type TeamManagementSortField =
 	"officers" |
 	"reviewedAt" |
 	"reviewedBy" |
-	"reviewApproved" |
-	"requestType" |
-	"status" |
-	"reviewCommentText";
+	"reviewApproved";
 export type TeamManagementSortToken = `${"+" | "-"}${TeamManagementSortField}`;
 export type TeamManagementFilterColumn =
 	"id" |
@@ -130,43 +125,23 @@ export type TeamManagementFilterInput = {
 export type TeamTableRow = {
 	id: string;
 	name: string;
-	supervisorId: string | null;
+	supervisor: string | null;
 	isSoftDeleted: boolean;
-	officerIds: string[];
-	createdById: string | null;
-	updatedById: string | null;
-	deletedById: string | null;
+	officers: string[];
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
 	reviewedAt: string | null;
-	reviewedById: string | null;
+	reviewedBy: string | null;
 	reviewApproved: boolean | null;
-	reviewCommentText: string;
+	reviewComment: ReviewCommentValue | null;
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type TeamRelationColumn =
-	"supervisor" |
-	"officers" |
-	"reviewedBy" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy";
-
-export type ResolveTeamRelationColumnsInput = {
-	rows: Array<Pick<TeamTableRow, "id" | "supervisorId" | "officerIds" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
-	columns: TeamRelationColumn[];
-};
-
-export type TeamRelationValues = Partial<Record<TeamRelationColumn, string>> & {
-	stagedUserIdByUserId?: Record<string, string>;
-};
-
-export type ResolveTeamRelationColumnsOutput = Array<{
-	id: string;
-	values: TeamRelationValues;
-}>;
+export type TeamRelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 export type QueryTeamsInput = {
 	keyword: string;
@@ -181,6 +156,7 @@ export type QueryTeamsInput = {
 
 export type QueryTeamsOutput = {
 	docs: TeamTableRow[];
+	relations: TeamRelationValues;
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
@@ -212,8 +188,8 @@ type TeamUserOption = {
 export type UpsertTeamRequestInput = {
 	teamId?: string;
 	name: string;
-	supervisorId: string;
-	officerIds: string[];
+	supervisor: string;
+	officers: string[];
 };
 
 export type ReviewTeamRequestInput = {
@@ -222,64 +198,45 @@ export type ReviewTeamRequestInput = {
 	reviewComment: ReviewCommentValue;
 };
 
-export type TeamRequestReviewDiffItem = {
-	field: "name" | "supervisor" | "officers" | "deletedAt";
-	label: string;
-	previousValue: string;
-	requestedValue: string;
-	changed: boolean;
-	previousReferences?: Array<{ type: "user", id: string, label: string }>;
-	requestedReferences?: Array<{ type: "user", id: string, label: string }>;
-};
-
 export type TeamRequestReviewDiffOutput = {
 	requestId: string;
 	requestType: "Create" | "Update" | "Delete";
-	items: TeamRequestReviewDiffItem[];
-	changedCount: number;
+	name: [string, string];
+	supervisor: [string | null, string | null];
+	officers: [string[], string[]];
+	deletedAt: [string | null, string | null];
+	relations: TeamRelationValues;
 };
 
 export type TeamRequestDetailsOutput = {
 	row: TeamTableRow;
-	relationValues: TeamRelationValues;
-	relationReferences: Partial<Record<TeamRelationColumn, Array<{ type: "user", id: string, label: string }>>>;
-};
-
-export type TeamRequestHistoryColumn = "id" |
-	"name" |
-	"supervisor" |
-	"officers" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy" |
-	"createdAt" |
-	"updatedAt" |
-	"deletedAt" |
-	"requestType" |
-	"status" |
-	"reviewedAt" |
-	"reviewedBy" |
-	"reviewApproved" |
-	"reviewCommentText";
-
-export type TeamRequestHistoryChangeItem = {
-	column: TeamRequestHistoryColumn;
-	label: string;
-	previousValue: string;
-	nextValue: string;
-	changed: boolean;
+	relations: TeamRelationValues;
 };
 
 export type TeamRequestHistoryEntry = {
 	versionId: string;
-	changedAt: string | null;
-	changes: TeamRequestHistoryChangeItem[];
-	changedCount: number;
+	id: string;
+	name: string | null;
+	supervisor: string | null;
+	officers: string[] | null;
+	createdBy: string | null;
+	updatedBy: string | null;
+	deletedBy: string | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+	deletedAt: string | null;
+	requestType: "Create" | "Update" | "Delete";
+	status: string;
+	reviewedAt: string | null;
+	reviewedBy: string | null;
+	reviewApproved: boolean | null;
+	reviewComment: ReviewCommentValue | null;
 };
 
 export type TeamRequestHistoryOutput = {
 	requestId: string;
 	entries: TeamRequestHistoryEntry[];
+	relations: TeamRelationValues;
 };
 
 type SortFieldKey = TeamManagementSortToken extends `${"+" | "-"}${infer T}` ? T : never;
@@ -399,24 +356,6 @@ function normalizeFilterCombinator(filterCombinator: TeamManagementFilterCombina
 	return filterCombinator == "or" ? "or" : "and";
 }
 
-function richTextToPlainText(value: unknown): string {
-	if(value == null || typeof value != "object") return "";
-	const nodes: unknown[] = [];
-	const collectNodes = (node: unknown) => {
-		if(node == null || typeof node != "object") return;
-		nodes.push(node);
-		if("children" in node && Array.isArray(node.children))
-			node.children.forEach(collectNodes);
-	};
-	collectNodes((value as { root?: unknown }).root);
-	return nodes
-		.filter((node): node is { text: string } => node != null && typeof node == "object" && "text" in node && typeof node.text == "string")
-		.map(node => node.text)
-		.join(" ")
-		.replace(/\s+/g, " ")
-		.trim();
-}
-
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string") return value;
 	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
@@ -465,15 +404,6 @@ async function hasTeamRequestHistoryAccess(payload: Awaited<ReturnType<typeof ge
 	return roleMenus.includes(teamHistoryRequiredMenu);
 }
 
-function formatReviewDateValue(value: string | null | undefined): string {
-	if(value == null)
-		return "-";
-	const date = new Date(value);
-	if(Number.isNaN(date.getTime()))
-		return "-";
-	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
-}
-
 function getRelationshipIds(value: unknown): string[] {
 	if(!Array.isArray(value))
 		return [];
@@ -481,50 +411,6 @@ function getRelationshipIds(value: unknown): string[] {
 		.map(getRelationshipId)
 		.filter((id): id is string => id != null);
 }
-
-function formatReviewUserList(ids: string[], usersById: Map<string, { name: string, email: string }>): string {
-	if(ids.length == 0)
-		return "-";
-	return ids.map(id => usersById.get(id)?.name ?? "-").join(", ");
-}
-
-const teamRequestHistoryColumns = [
-	"id",
-	"name",
-	"supervisor",
-	"officers",
-	"createdBy",
-	"updatedBy",
-	"deletedBy",
-	"createdAt",
-	"updatedAt",
-	"deletedAt",
-	"requestType",
-	"status",
-	"reviewedAt",
-	"reviewedBy",
-	"reviewApproved",
-	"reviewCommentText"
-] as const satisfies TeamRequestHistoryColumn[];
-
-const teamRequestHistoryColumnLabelMap: Record<TeamRequestHistoryColumn, string> = {
-	id: "ID",
-	name: "Name",
-	supervisor: "Supervisor",
-	officers: "Officers",
-	createdBy: "Created By",
-	updatedBy: "Updated By",
-	deletedBy: "Deleted By",
-	createdAt: "Created At",
-	updatedAt: "Updated At",
-	deletedAt: "Deleted At",
-	requestType: "Request",
-	status: "Status",
-	reviewedAt: "Reviewed At",
-	reviewedBy: "Reviewed By",
-	reviewApproved: "Review Approved",
-	reviewCommentText: "Review Comment"
-};
 
 function getTeamRequestType(deletedAt: string | null | undefined, createdAt: string | null | undefined, updatedAt: string | null | undefined): "Create" | "Update" | "Delete" {
 	if(deletedAt != null)
@@ -584,9 +470,7 @@ function toPayloadSort(sort: TeamManagementSortToken[]): string {
 		const path = field == "supervisor" ? "supervisor.name" :
 			field == "officers" ? "officers.name" :
 				field == "reviewedBy" ? "reviewedBy.name" :
-					field == "requestType" ? "deletedAt" :
-						field == "status" || field == "reviewCommentText" ? "reviewedAt" :
-							field;
+					field;
 		return `${direction}${path}`;
 	}).join(",");
 }
@@ -941,37 +825,64 @@ export async function queryTeamsAction({ keyword, sort, filters, filterCombinato
 	});
 
 	const mappedRows: TeamTableRow[] = teamFindResult.docs.map(doc => {
-		const supervisorId = getRelationshipId(doc.supervisor);
-		const officers = Array.isArray(doc.officers) ? doc.officers : [];
-		const officerIds = officers.map(getRelationshipId).filter((id): id is string => id != null);
-		const createdById = getRelationshipId(doc.createdBy);
-		const updatedById = getRelationshipId(doc.updatedBy);
-		const deletedById = getRelationshipId(doc.deletedBy);
-		const reviewedById = getRelationshipId(doc.reviewedBy);
-		const reviewCommentText = richTextToPlainText(doc.reviewComment);
+		const supervisor = getRelationshipId(doc.supervisor);
+		const officers = doc.officers.map(getRelationshipId).filter((id): id is string => id != null);
+		const createdBy = getRelationshipId(doc.createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
 		const requestType = doc.deletedAt != null ? "Delete" : doc.createdAt == doc.updatedAt ? "Create" : "Update";
 		return {
 			id: String(doc.id),
 			name: doc.name,
-			supervisorId,
+			supervisor,
 			isSoftDeleted: doc.deletedAt != null && doc._status == "published",
-			officerIds,
-			createdById,
-			updatedById,
-			deletedById,
+			officers,
+			createdBy,
+			updatedBy,
+			deletedBy,
 			createdAt: doc.createdAt,
 			updatedAt: doc.updatedAt,
 			deletedAt: doc.deletedAt ?? null,
 			reviewedAt: doc.reviewedAt ?? null,
-			reviewedById,
+			reviewedBy,
 			reviewApproved: doc.reviewApproved ?? null,
-			reviewCommentText,
+			reviewComment: doc.reviewComment ?? null,
 			requestType
 		};
 	});
 
+	const userIds = new Set<string>();
+	for(const doc of teamFindResult.docs) {
+		const supervisor = getRelationshipId(doc.supervisor);
+		if(supervisor != null)
+			userIds.add(supervisor);
+		for(const officer of doc.officers.map(getRelationshipId)) {
+			if(officer != null)
+				userIds.add(officer);
+		}
+		const createdBy = getRelationshipId(doc.createdBy);
+		if(createdBy != null)
+			userIds.add(createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		if(updatedBy != null)
+			userIds.add(updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		if(deletedBy != null)
+			userIds.add(deletedBy);
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
+		if(reviewedBy != null)
+			userIds.add(reviewedBy);
+	}
+
+	const usersById = await findUsersByIds(payload, user, [...userIds]);
+	const relations: TeamRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
+
 	return {
 		docs: mappedRows,
+		relations,
 		totalDocs: teamFindResult.totalDocs,
 		page: teamFindResult.page ?? pageNumber,
 		hasNextPage: teamFindResult.hasNextPage,
@@ -1001,84 +912,6 @@ export async function queryTeamsApproverAction(input: QueryTeamsSharedInput): Pr
 		...input,
 		mode: "approver",
 		includeSoftDeleted: false
-	});
-}
-
-export async function resolveTeamRelationColumnsAction({ rows, columns }: ResolveTeamRelationColumnsInput): Promise<ResolveTeamRelationColumnsOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	if(rows.length == 0 || columns.length == 0)
-		return [];
-
-	const requestedColumns = [...new Set(columns)];
-	const shouldFetchSupervisor = requestedColumns.includes("supervisor");
-	const shouldFetchOfficer = requestedColumns.includes("officers");
-
-	const userIds = new Set<string>();
-	for(const row of rows) {
-		if(shouldFetchSupervisor && row.supervisorId != null)
-			userIds.add(row.supervisorId);
-		if(shouldFetchOfficer) {
-			for(const officerId of row.officerIds)
-				userIds.add(officerId);
-		}
-		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
-			userIds.add(row.reviewedById);
-		if(requestedColumns.includes("createdBy") && row.createdById != null)
-			userIds.add(row.createdById);
-		if(requestedColumns.includes("updatedBy") && row.updatedById != null)
-			userIds.add(row.updatedById);
-		if(requestedColumns.includes("deletedBy") && row.deletedById != null)
-			userIds.add(row.deletedById);
-	}
-
-	const usersById = await findUsersByIds(payload, user, [...userIds]);
-
-	return rows.map(row => {
-		const values: TeamRelationValues = {};
-
-		if(requestedColumns.includes("supervisor"))
-			values.supervisor = row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-";
-		if(requestedColumns.includes("officers"))
-			values.officers = row.officerIds.length > 0 ? row.officerIds.map(officerId => usersById.get(officerId)?.name ?? "-").join(", ") : "-";
-		if(requestedColumns.includes("reviewedBy"))
-			values.reviewedBy = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("createdBy"))
-			values.createdBy = row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("updatedBy"))
-			values.updatedBy = row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("deletedBy"))
-			values.deletedBy = row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-";
-
-		const relationUserIds = new Set<string>();
-		if(row.supervisorId != null)
-			relationUserIds.add(row.supervisorId);
-		for(const officerId of row.officerIds)
-			relationUserIds.add(officerId);
-		if(row.reviewedById != null)
-			relationUserIds.add(row.reviewedById);
-		if(row.createdById != null)
-			relationUserIds.add(row.createdById);
-		if(row.updatedById != null)
-			relationUserIds.add(row.updatedById);
-		if(row.deletedById != null)
-			relationUserIds.add(row.deletedById);
-
-		const stagedUserIdByUserId = Object.fromEntries(
-			[...relationUserIds]
-				.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-				.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-		);
-		if(Object.keys(stagedUserIdByUserId).length > 0)
-			values.stagedUserIdByUserId = stagedUserIdByUserId;
-
-		return {
-			id: row.id,
-			values
-		};
 	});
 }
 
@@ -1114,84 +947,59 @@ export async function getTeamRequestDetailsAction(teamId: string): Promise<TeamR
 		}
 	});
 
-	const supervisorId = getRelationshipId(team.supervisor);
-	const officerIds = getRelationshipIds(team.officers);
-	const createdById = getRelationshipId(team.createdBy);
-	const updatedById = getRelationshipId(team.updatedBy);
-	const deletedById = getRelationshipId(team.deletedBy);
-	const reviewedById = getRelationshipId(team.reviewedBy);
-	const reviewCommentText = richTextToPlainText(team.reviewComment);
+	const supervisor = getRelationshipId(team.supervisor);
+	const officers = getRelationshipIds(team.officers);
+	const createdBy = getRelationshipId(team.createdBy);
+	const updatedBy = getRelationshipId(team.updatedBy);
+	const deletedBy = getRelationshipId(team.deletedBy);
+	const reviewedBy = getRelationshipId(team.reviewedBy);
 	const requestType = team.deletedAt != null ? "Delete" : team.createdAt == team.updatedAt ? "Create" : "Update";
 
 	const row: TeamTableRow = {
 		id: String(team.id),
 		name: team.name,
-		supervisorId,
+		supervisor: supervisor,
 		isSoftDeleted: team.deletedAt != null && team._status == "published",
-		officerIds,
-		createdById,
-		updatedById,
-		deletedById,
+		officers: officers,
+		createdBy,
+		updatedBy,
+		deletedBy,
 		createdAt: team.createdAt,
 		updatedAt: team.updatedAt,
 		deletedAt: team.deletedAt ?? null,
 		reviewedAt: team.reviewedAt ?? null,
-		reviewedById,
+		reviewedBy,
 		reviewApproved: team.reviewApproved ?? null,
-		reviewCommentText,
+		reviewComment: team.reviewComment ?? null,
 		requestType
 	};
 
 	const relationUserIds = new Set<string>();
-	if(row.supervisorId != null)
-		relationUserIds.add(row.supervisorId);
-	for(const officerId of row.officerIds)
-		relationUserIds.add(officerId);
-	if(row.reviewedById != null)
-		relationUserIds.add(row.reviewedById);
-	if(row.createdById != null)
-		relationUserIds.add(row.createdById);
-	if(row.updatedById != null)
-		relationUserIds.add(row.updatedById);
-	if(row.deletedById != null)
-		relationUserIds.add(row.deletedById);
+	if(row.supervisor != null)
+		relationUserIds.add(row.supervisor);
+	for(const officer of row.officers)
+		relationUserIds.add(officer);
+	if(row.reviewedBy != null)
+		relationUserIds.add(row.reviewedBy);
+	if(row.createdBy != null)
+		relationUserIds.add(row.createdBy);
+	if(row.updatedBy != null)
+		relationUserIds.add(row.updatedBy);
+	if(row.deletedBy != null)
+		relationUserIds.add(row.deletedBy);
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
 
-	const relationValues: TeamRelationValues = {
-		supervisor: row.supervisorId != null ? (usersById.get(row.supervisorId)?.name ?? "-") : "-",
-		officers: row.officerIds.length > 0 ? row.officerIds.map(officerId => usersById.get(officerId)?.name ?? "-").join(", ") : "-",
-		reviewedBy: row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-",
-		createdBy: row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-",
-		updatedBy: row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-",
-		deletedBy: row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-"
-	};
-
-	const stagedUserIdByUserId = Object.fromEntries(
-		[...relationUserIds]
-			.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-			.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-	);
-	if(Object.keys(stagedUserIdByUserId).length > 0)
-		relationValues.stagedUserIdByUserId = stagedUserIdByUserId;
-
-	const relationReferences: TeamRequestDetailsOutput["relationReferences"] = {
-		supervisor: row.supervisorId != null ? [{ type: "user", id: row.supervisorId, label: usersById.get(row.supervisorId)?.name ?? "User" }] : [],
-		officers: row.officerIds.map(officerId => ({
-			type: "user" as const,
-			id: officerId,
-			label: usersById.get(officerId)?.name ?? "User"
-		})),
-		reviewedBy: row.reviewedById != null ? [{ type: "user", id: row.reviewedById, label: usersById.get(row.reviewedById)?.name ?? "User" }] : [],
-		createdBy: row.createdById != null ? [{ type: "user", id: row.createdById, label: usersById.get(row.createdById)?.name ?? "User" }] : [],
-		updatedBy: row.updatedById != null ? [{ type: "user", id: row.updatedById, label: usersById.get(row.updatedById)?.name ?? "User" }] : [],
-		deletedBy: row.deletedById != null ? [{ type: "user", id: row.deletedById, label: usersById.get(row.deletedById)?.name ?? "User" }] : []
-	};
+	const relations: TeamRelationValues = {};
+	for(const relationUserId of relationUserIds) {
+		const relation = usersById.get(relationUserId);
+		if(relation != null)
+			relations[`users:${relationUserId}`] = relation;
+	}
 
 	return {
 		row,
-		relationValues,
-		relationReferences
+		relations
 	};
 }
 
@@ -1275,106 +1083,73 @@ export async function getTeamRequestHistoryAction(teamId: string): Promise<TeamR
 		if(version == null)
 			continue;
 
-		const supervisorId = getRelationshipId(version.supervisor);
-		const officerIds = getRelationshipIds(version.officers);
-		const createdById = getRelationshipId(version.createdBy);
-		const updatedById = getRelationshipId(version.updatedBy);
-		const deletedById = getRelationshipId(version.deletedBy);
-		const reviewedById = getRelationshipId(version.reviewedBy);
+		const supervisor = getRelationshipId(version.supervisor);
+		const officers = getRelationshipIds(version.officers);
+		const createdBy = getRelationshipId(version.createdBy);
+		const updatedBy = getRelationshipId(version.updatedBy);
+		const deletedBy = getRelationshipId(version.deletedBy);
+		const reviewedBy = getRelationshipId(version.reviewedBy);
 
-		if(supervisorId != null)
-			relationUserIds.add(supervisorId);
-		for(const officerId of officerIds)
-			relationUserIds.add(officerId);
-		if(createdById != null)
-			relationUserIds.add(createdById);
-		if(updatedById != null)
-			relationUserIds.add(updatedById);
-		if(deletedById != null)
-			relationUserIds.add(deletedById);
-		if(reviewedById != null)
-			relationUserIds.add(reviewedById);
+		if(supervisor != null)
+			relationUserIds.add(supervisor);
+		for(const officer of officers)
+			relationUserIds.add(officer);
+		if(createdBy != null)
+			relationUserIds.add(createdBy);
+		if(updatedBy != null)
+			relationUserIds.add(updatedBy);
+		if(deletedBy != null)
+			relationUserIds.add(deletedBy);
+		if(reviewedBy != null)
+			relationUserIds.add(reviewedBy);
 	}
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+	const relations: TeamRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
 
-	type TeamHistorySnapshot = {
-		versionId: string;
-		changedAt: string | null;
-		values: Record<TeamRequestHistoryColumn, string>;
-	};
+	const entries: TeamRequestHistoryEntry[] = historyDocs.flatMap(historyDoc => {
+		const version = historyDoc.version;
+		if(version == null)
+			return [];
 
-	const snapshotsMaybe = historyDocs
-		.map<TeamHistorySnapshot | null>(historyDoc => {
-			const version = historyDoc.version;
-			if(version == null)
-				return null;
+		const supervisor = getRelationshipId(version.supervisor);
+		const officers = getRelationshipIds(version.officers);
+		const createdBy = getRelationshipId(version.createdBy);
+		const updatedBy = getRelationshipId(version.updatedBy);
+		const deletedBy = getRelationshipId(version.deletedBy);
+		const reviewedBy = getRelationshipId(version.reviewedBy);
+		const createdAt = version.createdAt ?? null;
+		const updatedAt = version.updatedAt ?? null;
+		const deletedAt = version.deletedAt ?? null;
+		const reviewedAt = version.reviewedAt ?? null;
 
-			const supervisorId = getRelationshipId(version.supervisor);
-			const officerIds = getRelationshipIds(version.officers);
-			const createdById = getRelationshipId(version.createdBy);
-			const updatedById = getRelationshipId(version.updatedBy);
-			const deletedById = getRelationshipId(version.deletedBy);
-			const reviewedById = getRelationshipId(version.reviewedBy);
-			const reviewCommentText = richTextToPlainText(version.reviewComment);
-
-			const createdAt = version.createdAt ?? null;
-			const updatedAt = version.updatedAt ?? null;
-			const deletedAt = version.deletedAt ?? null;
-			const reviewedAt = version.reviewedAt ?? null;
-
-			return {
-				versionId: String(version.id ?? historyDoc.id ?? teamId),
-				changedAt: historyDoc.updatedAt ?? updatedAt,
-				values: {
-					id: String(version.id ?? teamId),
-					name: (version.name ?? "-").trim().length > 0 ? version.name ?? "-" : "-",
-					supervisor: supervisorId != null ? (usersById.get(supervisorId)?.name ?? "-") : "-",
-					officers: officerIds.length > 0 ? officerIds.map(officerId => usersById.get(officerId)?.name ?? "-").join(", ") : "-",
-					createdBy: createdById != null ? (usersById.get(createdById)?.name ?? "-") : "-",
-					updatedBy: updatedById != null ? (usersById.get(updatedById)?.name ?? "-") : "-",
-					deletedBy: deletedById != null ? (usersById.get(deletedById)?.name ?? "-") : "-",
-					createdAt: formatReviewDateValue(createdAt),
-					updatedAt: formatReviewDateValue(updatedAt),
-					deletedAt: formatReviewDateValue(deletedAt),
-					requestType: getTeamRequestType(deletedAt, createdAt, updatedAt),
-					status: getTeamHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
-					reviewedAt: formatReviewDateValue(reviewedAt),
-					reviewedBy: reviewedById != null ? (usersById.get(reviewedById)?.name ?? "-") : "-",
-					reviewApproved: version.reviewApproved == null ? "-" : version.reviewApproved ? "True" : "False",
-					reviewCommentText: reviewCommentText.length > 0 ? reviewCommentText : "-"
-				}
-			};
-		});
-
-	const snapshots = snapshotsMaybe.filter((snapshot): snapshot is TeamHistorySnapshot => snapshot != null);
-
-	const entries: TeamRequestHistoryEntry[] = snapshots.map((snapshot, snapshotIndex) => {
-		const previousSnapshot = snapshots[snapshotIndex + 1] ?? null;
-
-		const changes: TeamRequestHistoryChangeItem[] = teamRequestHistoryColumns.map(column => {
-			const previousValue = previousSnapshot?.values[column] ?? "-";
-			const nextValue = snapshot.values[column];
-			return {
-				column,
-				label: teamRequestHistoryColumnLabelMap[column],
-				previousValue,
-				nextValue,
-				changed: previousValue != nextValue
-			};
-		});
-
-		return {
-			versionId: snapshot.versionId,
-			changedAt: snapshot.changedAt,
-			changes,
-			changedCount: changes.filter(change => change.changed).length
-		};
+		return [{
+			versionId: String(version.id ?? historyDoc.id ?? teamId),
+			id: String(version.id ?? teamId),
+			name: version.name ?? null,
+			supervisor,
+			officers: officers.length > 0 ? officers : null,
+			createdBy,
+			updatedBy,
+			deletedBy,
+			createdAt,
+			updatedAt,
+			deletedAt,
+			requestType: getTeamRequestType(deletedAt, createdAt, updatedAt),
+			status: getTeamHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
+			reviewedAt,
+			reviewedBy,
+			reviewApproved: version.reviewApproved ?? null,
+			reviewComment: version.reviewComment as ReviewCommentValue | null
+		}];
 	});
 
 	return {
 		requestId: teamId,
-		entries
+		entries,
+		relations
 	};
 }
 
@@ -1385,14 +1160,14 @@ export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
 	if(user == null) return unauthorized();
 
 	const name = input.name.trim();
-	const supervisorId = input.supervisorId.trim();
-	const officerIds = [...new Set(input.officerIds.map(id => id.trim()).filter(id => id.length > 0))];
+	const supervisor = input.supervisor.trim();
+	const officers = [...new Set(input.officers.map(id => id.trim()).filter(id => id.length > 0))];
 
 	if(name.length == 0)
 		throw new Error("Team name is required.");
-	if(supervisorId.length == 0)
+	if(supervisor.length == 0)
 		throw new Error("Supervisor is required.");
-	if(officerIds.length == 0)
+	if(officers.length == 0)
 		throw new Error("At least one officer is required.");
 
 	if(input.teamId == null) {
@@ -1403,8 +1178,8 @@ export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
 			data: {
 				_status: "draft",
 				name,
-				supervisor: supervisorId,
-				officers: officerIds,
+				supervisor: supervisor,
+				officers: officers,
 				deletedAt: null,
 				deletedBy: null,
 				reviewedAt: null,
@@ -1434,8 +1209,8 @@ export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
 		data: {
 			_status: "draft",
 			name,
-			supervisor: supervisorId,
-			officers: officerIds,
+			supervisor: supervisor,
+			officers: officers,
 			deletedAt: null,
 			deletedBy: null,
 			reviewedAt: null,
@@ -1551,9 +1326,8 @@ export async function cancelTeamRequestAction(teamId: string) {
 		return { teamId, softDeleted: true };
 	}
 
-	const approvedSupervisorId = getRelationshipId(approvedVersion.supervisor);
-	const approvedOfficers = Array.isArray(approvedVersion.officers) ? approvedVersion.officers : [];
-	const approvedOfficerIds = approvedOfficers.map(getRelationshipId).filter((id): id is string => id != null);
+	const approvedSupervisor = getRelationshipId(approvedVersion.supervisor);
+	const approvedOfficers = approvedVersion.officers.map(getRelationshipId).filter((id): id is string => id != null);
 	const approvedDeletedBy = getRelationshipId(approvedVersion.deletedBy);
 	const approvedReviewedBy = getRelationshipId(approvedVersion.reviewedBy);
 
@@ -1566,8 +1340,8 @@ export async function cancelTeamRequestAction(teamId: string) {
 		data: {
 			_status: "published",
 			name: approvedVersion.name,
-			supervisor: approvedSupervisorId ?? undefined,
-			officers: approvedOfficerIds,
+			supervisor: approvedSupervisor ?? undefined,
+			officers: approvedOfficers,
 			deletedAt: approvedVersion.deletedAt ?? null,
 			deletedBy: approvedDeletedBy,
 			reviewedAt: approvedVersion.reviewedAt ?? null,
@@ -1719,70 +1493,29 @@ export async function getTeamRequestReviewDiffAction(teamId: string): Promise<Te
 	});
 
 	const approvedVersion = approvedVersions.docs[0]?.version;
-	const approvedSupervisorId = approvedVersion != null ? getRelationshipId(approvedVersion.supervisor) : null;
-	const requestedSupervisorId = getRelationshipId(team.supervisor);
-	const approvedOfficerIds = approvedVersion != null ? getRelationshipIds(approvedVersion.officers) : [];
-	const requestedOfficerIds = getRelationshipIds(team.officers);
+	const approvedSupervisor = approvedVersion != null ? getRelationshipId(approvedVersion.supervisor) : null;
+	const requestedSupervisor = getRelationshipId(team.supervisor);
+	const approvedOfficers = approvedVersion != null ? getRelationshipIds(approvedVersion.officers) : [];
+	const requestedOfficers = getRelationshipIds(team.officers);
 
 	const userIds = [
-		approvedSupervisorId,
-		requestedSupervisorId,
-		...approvedOfficerIds,
-		...requestedOfficerIds
+		approvedSupervisor,
+		requestedSupervisor,
+		...approvedOfficers,
+		...requestedOfficers
 	].filter((id): id is string => id != null);
 	const usersById = await findUsersByIds(payload, user, [...new Set(userIds)]);
-
-	const requestType: TeamRequestReviewDiffOutput["requestType"] =
-		team.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
-
-	const comparisonItems = [
-		{
-			field: "name",
-			label: "Team Name",
-			previousValue: approvedVersion?.name ?? "-",
-			requestedValue: team.name
-		},
-		{
-			field: "supervisor",
-			label: "Supervisor",
-			previousValue: approvedSupervisorId != null ? (usersById.get(approvedSupervisorId)?.name ?? "-") : "-",
-			requestedValue: requestedSupervisorId != null ? (usersById.get(requestedSupervisorId)?.name ?? "-") : "-",
-			previousReferences: approvedSupervisorId != null ? [{ type: "user", id: approvedSupervisorId, label: usersById.get(approvedSupervisorId)?.name ?? "User" }] : [],
-			requestedReferences: requestedSupervisorId != null ? [{ type: "user", id: requestedSupervisorId, label: usersById.get(requestedSupervisorId)?.name ?? "User" }] : []
-		},
-		{
-			field: "officers",
-			label: "Officers",
-			previousValue: formatReviewUserList(approvedOfficerIds, usersById),
-			requestedValue: formatReviewUserList(requestedOfficerIds, usersById),
-			previousReferences: approvedOfficerIds.map(officerId => ({
-				type: "user" as const,
-				id: officerId,
-				label: usersById.get(officerId)?.name ?? "User"
-			})),
-			requestedReferences: requestedOfficerIds.map(officerId => ({
-				type: "user" as const,
-				id: officerId,
-				label: usersById.get(officerId)?.name ?? "User"
-			}))
-		},
-		{
-			field: "deletedAt",
-			label: "Deleted At",
-			previousValue: formatReviewDateValue(approvedVersion?.deletedAt ?? null),
-			requestedValue: formatReviewDateValue(team.deletedAt)
-		}
-	] satisfies Array<Omit<TeamRequestReviewDiffItem, "changed">>;
-
-	const items: TeamRequestReviewDiffItem[] = comparisonItems.map(item => ({
-		...item,
-		changed: item.previousValue != item.requestedValue
-	}));
+	const relations: TeamRelationValues = {};
+	for(const [userId, relationUser] of usersById)
+		relations[`users:${userId}`] = relationUser;
 
 	return {
 		requestId: teamId,
-		requestType,
-		items,
-		changedCount: items.filter(item => item.changed).length
+		requestType: team.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		name: [approvedVersion?.name ?? "", team.name],
+		supervisor: [approvedSupervisor, requestedSupervisor],
+		officers: [approvedOfficers, requestedOfficers],
+		deletedAt: [approvedVersion?.deletedAt ?? null, team.deletedAt ?? null],
+		relations
 	};
 }

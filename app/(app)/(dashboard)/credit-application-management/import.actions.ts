@@ -6,6 +6,7 @@ import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
 import ExcelJS from "@/utils/exceljs";
+import type { RelationUser } from "@/utils/requestRelationValues";
 import { createPlainTextRichText } from "@/utils/reviewCommentRichText";
 import type { CreditApplicationImport } from "@/payload-types";
 
@@ -47,6 +48,7 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const RELATION_SEARCH_LIMIT = 20;
 
+type RichTextValue = NonNullable<CreditApplicationImport["description"]>;
 type CreditApplicationImportReviewCommentValue = NonNullable<CreditApplicationImport["reviewComment"]>;
 type CreditApplicationImportDescriptionValue = NonNullable<CreditApplicationImport["description"]>;
 
@@ -125,11 +127,6 @@ export type CreditApplicationImportFilterInput = {
 	joinWithPrevious?: CreditApplicationImportFilterCombinator;
 };
 
-export type CreditApplicationImportRelationColumn = "reviewedBy" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy";
-
 export type QueryCreditApplicationImportsInput = {
 	keyword?: string;
 	sort?: string[];
@@ -146,37 +143,25 @@ export type CreditApplicationImportTableRow = {
 	mimeType: string;
 	filesize: number;
 	fileUrl: string | null;
-	descriptionText: string;
+	description: RichTextValue | null;
 	status: CreditApplicationImportStatus;
-	createdById: string | null;
-	updatedById: string | null;
+	createdBy: string | null;
+	updatedBy: string | null;
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
-	deletedById: string | null;
+	deletedBy: string | null;
 	reviewedAt: string | null;
-	reviewedById: string | null;
+	reviewedBy: string | null;
 	reviewApproved: boolean | null;
-	reviewCommentText: string;
+	reviewComment: CreditApplicationImportReviewCommentValue | null;
 };
 
-export type ResolveCreditApplicationImportRelationColumnsInput = {
-	rows: Array<Pick<CreditApplicationImportTableRow, "id" | "reviewedById" | "createdById" | "updatedById" | "deletedById">>;
-	columns: CreditApplicationImportRelationColumn[];
-};
-
-export type CreditApplicationImportRelationValues = Partial<Record<CreditApplicationImportRelationColumn, string>> & {
-	stagedUserIdByUserId?: Record<string, string>;
-};
-
-export type ResolveCreditApplicationImportRelationColumnsOutput = Array<{
-	id: string;
-	values: CreditApplicationImportRelationValues;
-}>;
+export type CreditApplicationImportRelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 export type CreditApplicationImportRequestDetailsOutput = {
 	row: CreditApplicationImportTableRow;
-	relationValues: CreditApplicationImportRelationValues;
+	relations: CreditApplicationImportRelationValues;
 };
 
 export type CreditApplicationImportFilterUserOption = {
@@ -193,6 +178,7 @@ export type CreditApplicationImportFilterIdOption = {
 
 export type QueryCreditApplicationImportsOutput = {
 	docs: CreditApplicationImportTableRow[];
+	relations: CreditApplicationImportRelationValues;
 	totalDocs: number;
 	page: number;
 	hasNextPage: boolean;
@@ -217,7 +203,7 @@ export type ReviewCreditApplicationImportInput = {
 
 export type UpdateCreditApplicationImportDescriptionInput = {
 	importId: string;
-	description?: string;
+	description?: RichTextValue;
 };
 
 type AuthContext = {
@@ -322,38 +308,6 @@ async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, u
 
 function plainTextToRichText(value: string): CreditApplicationImportDescriptionValue {
 	return createPlainTextRichText(value);
-}
-
-function richTextToPlainText(value: unknown): string {
-	if(value == null || typeof value != "object")
-		return "";
-
-	const root = (value as { root?: unknown }).root;
-	if(root == null || typeof root != "object")
-		return "";
-
-	const children = (root as { children?: unknown }).children;
-	if(!Array.isArray(children))
-		return "";
-
-	const paragraphLines: string[] = [];
-	for(const child of children) {
-		if(child == null || typeof child != "object")
-			continue;
-		const paragraphChildren = (child as { children?: unknown }).children;
-		if(!Array.isArray(paragraphChildren))
-			continue;
-		const line = paragraphChildren
-			.map(paragraphChild => paragraphChild != null && typeof paragraphChild == "object" ? (paragraphChild as { text?: unknown }).text : null)
-			.filter((text): text is string => typeof text == "string")
-			.join("");
-		paragraphLines.push(line);
-	}
-
-	return paragraphLines
-		.map(line => line.trim())
-		.filter(line => line.length > 0)
-		.join("\n");
 }
 
 function splitMultivalueText(value: string): string[] {
@@ -811,36 +765,58 @@ async function queryCreditApplicationImportsService(
 		}
 	});
 
-	return {
-		docs: result.docs.map(doc => {
-			const descriptionText = richTextToPlainText(doc.description);
-			const createdById = getRelationshipId(doc.createdBy);
-			const updatedById = getRelationshipId(doc.updatedBy);
-			const deletedAt = typeof doc.deletedAt == "string" ? doc.deletedAt : null;
-			const reviewedAt = typeof doc.reviewedAt == "string" ? doc.reviewedAt : null;
-			const reviewApproved = typeof doc.reviewApproved == "boolean" ? doc.reviewApproved : null;
-			const reviewCommentText = richTextToPlainText(doc.reviewComment);
+	const mappedRows = result.docs.map(doc => {
+		const description = doc.description ?? null;
+		const createdBy = getRelationshipId(doc.createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		const deletedAt = typeof doc.deletedAt == "string" ? doc.deletedAt : null;
+		const reviewedAt = typeof doc.reviewedAt == "string" ? doc.reviewedAt : null;
+		const reviewApproved = typeof doc.reviewApproved == "boolean" ? doc.reviewApproved : null;
+		return {
+			id: String(doc.id),
+			filename: typeof doc.filename == "string" ? doc.filename : "(unknown)",
+			mimeType: typeof doc.mimeType == "string" ? doc.mimeType : "application/octet-stream",
+			filesize: typeof doc.filesize == "number" ? doc.filesize : 0,
+			fileUrl: resolveImportDownloadHref(typeof doc.filename == "string" ? doc.filename : null),
+			description,
+			status: resolveImportStatus(reviewedAt, reviewApproved),
+			createdBy,
+			updatedBy,
+			createdAt: doc.createdAt,
+			updatedAt: doc.updatedAt,
+			deletedAt,
+			deletedBy: getRelationshipId(doc.deletedBy),
+			reviewedAt,
+			reviewedBy: getRelationshipId(doc.reviewedBy),
+			reviewApproved: reviewApproved,
+			reviewComment: doc.reviewComment ?? null
+		};
+	});
 
-			return {
-				id: String(doc.id),
-				filename: typeof doc.filename == "string" ? doc.filename : "(unknown)",
-				mimeType: typeof doc.mimeType == "string" ? doc.mimeType : "application/octet-stream",
-				filesize: typeof doc.filesize == "number" ? doc.filesize : 0,
-				fileUrl: resolveImportDownloadHref(typeof doc.filename == "string" ? doc.filename : null),
-				descriptionText,
-				status: resolveImportStatus(reviewedAt, reviewApproved),
-				createdById,
-				updatedById,
-				createdAt: doc.createdAt,
-				updatedAt: doc.updatedAt,
-				deletedAt,
-				deletedById: getRelationshipId(doc.deletedBy),
-				reviewedAt,
-				reviewedById: getRelationshipId(doc.reviewedBy),
-				reviewApproved: reviewApproved,
-				reviewCommentText
-			};
-		}),
+	const userIds = new Set<string>();
+	for(const doc of result.docs) {
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
+		if(reviewedBy != null)
+			userIds.add(reviewedBy);
+		const createdBy = getRelationshipId(doc.createdBy);
+		if(createdBy != null)
+			userIds.add(createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		if(updatedBy != null)
+			userIds.add(updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		if(deletedBy != null)
+			userIds.add(deletedBy);
+	}
+
+	const usersById = await findUsersByIds(context.payload, context.user, [...userIds]);
+	const relations: CreditApplicationImportRelationValues = {};
+	for(const [id, relationUser] of usersById)
+		relations[`users:${id}`] = relationUser;
+
+	return {
+		docs: mappedRows,
+		relations,
 		totalDocs: result.totalDocs,
 		page: result.page ?? page,
 		hasNextPage: result.hasNextPage,
@@ -869,64 +845,6 @@ export async function queryCreditApplicationImportEditorAction(input: QueryCredi
 export async function queryCreditApplicationImportApproverAction(input: QueryCreditApplicationImportsInput): Promise<QueryCreditApplicationImportsOutput> {
 	const context = await getAuthContext();
 	return queryCreditApplicationImportsService(context, input, { pendingOnly: true });
-}
-
-export async function resolveCreditApplicationImportRelationColumnsAction({ rows, columns }: ResolveCreditApplicationImportRelationColumnsInput): Promise<ResolveCreditApplicationImportRelationColumnsOutput> {
-	const context = await getAuthContext();
-
-	if(rows.length == 0 || columns.length == 0)
-		return [];
-
-	const requestedColumns = [...new Set(columns)];
-	const userIds = new Set<string>();
-	for(const row of rows) {
-		if(requestedColumns.includes("reviewedBy") && row.reviewedById != null)
-			userIds.add(row.reviewedById);
-		if(requestedColumns.includes("createdBy") && row.createdById != null)
-			userIds.add(row.createdById);
-		if(requestedColumns.includes("updatedBy") && row.updatedById != null)
-			userIds.add(row.updatedById);
-		if(requestedColumns.includes("deletedBy") && row.deletedById != null)
-			userIds.add(row.deletedById);
-	}
-
-	const usersById = await findUsersByIds(context.payload, context.user, [...userIds]);
-
-	return rows.map(row => {
-		const values: CreditApplicationImportRelationValues = {};
-
-		if(requestedColumns.includes("reviewedBy"))
-			values.reviewedBy = row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("createdBy"))
-			values.createdBy = row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("updatedBy"))
-			values.updatedBy = row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-";
-		if(requestedColumns.includes("deletedBy"))
-			values.deletedBy = row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-";
-
-		const relationUserIds = new Set<string>();
-		if(row.reviewedById != null)
-			relationUserIds.add(row.reviewedById);
-		if(row.createdById != null)
-			relationUserIds.add(row.createdById);
-		if(row.updatedById != null)
-			relationUserIds.add(row.updatedById);
-		if(row.deletedById != null)
-			relationUserIds.add(row.deletedById);
-
-		const stagedUserIdByUserId = Object.fromEntries(
-			[...relationUserIds]
-				.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-				.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-		);
-		if(Object.keys(stagedUserIdByUserId).length > 0)
-			values.stagedUserIdByUserId = stagedUserIdByUserId;
-
-		return {
-			id: row.id,
-			values
-		};
-	});
 }
 
 export async function getCreditApplicationImportRequestDetailsAction(importIdInput: string): Promise<CreditApplicationImportRequestDetailsOutput> {
@@ -962,10 +880,10 @@ export async function getCreditApplicationImportRequestDetailsAction(importIdInp
 		}
 	});
 
-	const createdById = getRelationshipId(doc.createdBy);
-	const updatedById = getRelationshipId(doc.updatedBy);
-	const deletedById = getRelationshipId(doc.deletedBy);
-	const reviewedById = getRelationshipId(doc.reviewedBy);
+	const createdBy = getRelationshipId(doc.createdBy);
+	const updatedBy = getRelationshipId(doc.updatedBy);
+	const deletedBy = getRelationshipId(doc.deletedBy);
+	const reviewedBy = getRelationshipId(doc.reviewedBy);
 	const deletedAt = typeof doc.deletedAt == "string" ? doc.deletedAt : null;
 	const reviewedAt = typeof doc.reviewedAt == "string" ? doc.reviewedAt : null;
 	const reviewApproved = typeof doc.reviewApproved == "boolean" ? doc.reviewApproved : null;
@@ -976,48 +894,55 @@ export async function getCreditApplicationImportRequestDetailsAction(importIdInp
 		mimeType: typeof doc.mimeType == "string" ? doc.mimeType : "application/octet-stream",
 		filesize: typeof doc.filesize == "number" ? doc.filesize : 0,
 		fileUrl: resolveImportDownloadHref(typeof doc.filename == "string" ? doc.filename : null),
-		descriptionText: richTextToPlainText(doc.description),
+		description: doc.description ?? null,
 		status: resolveImportStatus(reviewedAt, reviewApproved),
-		createdById,
-		updatedById,
+		createdBy,
+		updatedBy,
 		createdAt: doc.createdAt,
 		updatedAt: doc.updatedAt,
 		deletedAt,
-		deletedById,
+		deletedBy,
 		reviewedAt,
-		reviewedById,
+		reviewedBy,
 		reviewApproved,
-		reviewCommentText: richTextToPlainText(doc.reviewComment)
+		reviewComment: doc.reviewComment ?? null
 	};
 
 	const relationUserIds = new Set<string>();
-	if(row.reviewedById != null)
-		relationUserIds.add(row.reviewedById);
-	if(row.createdById != null)
-		relationUserIds.add(row.createdById);
-	if(row.updatedById != null)
-		relationUserIds.add(row.updatedById);
-	if(row.deletedById != null)
-		relationUserIds.add(row.deletedById);
+	if(row.reviewedBy != null)
+		relationUserIds.add(row.reviewedBy);
+	if(row.createdBy != null)
+		relationUserIds.add(row.createdBy);
+	if(row.updatedBy != null)
+		relationUserIds.add(row.updatedBy);
+	if(row.deletedBy != null)
+		relationUserIds.add(row.deletedBy);
 	const usersById = await findUsersByIds(context.payload, context.user, [...relationUserIds]);
 
-	const relationValues: CreditApplicationImportRelationValues = {
-		reviewedBy: row.reviewedById != null ? (usersById.get(row.reviewedById)?.name ?? "-") : "-",
-		createdBy: row.createdById != null ? (usersById.get(row.createdById)?.name ?? "-") : "-",
-		updatedBy: row.updatedById != null ? (usersById.get(row.updatedById)?.name ?? "-") : "-",
-		deletedBy: row.deletedById != null ? (usersById.get(row.deletedById)?.name ?? "-") : "-"
-	};
-	const stagedUserIdByUserId = Object.fromEntries(
-		[...relationUserIds]
-			.map(relationUserId => [relationUserId, usersById.get(relationUserId)?.stagedUserId] as const)
-			.filter((entry): entry is [string, string] => typeof entry[1] == "string" && entry[1].trim().length > 0)
-	);
-	if(Object.keys(stagedUserIdByUserId).length > 0)
-		relationValues.stagedUserIdByUserId = stagedUserIdByUserId;
-
+	const relations: CreditApplicationImportRelationValues = {};
+	if(row.reviewedBy != null) {
+		const relation = usersById.get(row.reviewedBy);
+		if(relation != null)
+			relations[`users:${row.reviewedBy}`] = relation;
+	}
+	if(row.createdBy != null) {
+		const relation = usersById.get(row.createdBy);
+		if(relation != null)
+			relations[`users:${row.createdBy}`] = relation;
+	}
+	if(row.updatedBy != null) {
+		const relation = usersById.get(row.updatedBy);
+		if(relation != null)
+			relations[`users:${row.updatedBy}`] = relation;
+	}
+	if(row.deletedBy != null) {
+		const relation = usersById.get(row.deletedBy);
+		if(relation != null)
+			relations[`users:${row.deletedBy}`] = relation;
+	}
 	return {
 		row,
-		relationValues
+		relations
 	};
 }
 
@@ -1118,7 +1043,7 @@ export async function createCreditApplicationImportAction(formData: FormData): P
 	const fileBuffer = await fileValue.arrayBuffer();
 	if(fileBuffer.byteLength == 0)
 		throw new Error("Import file is empty.");
-	const descriptionText = normalizeDescriptionText(typeof formData.get("description") == "string" ? String(formData.get("description")) : undefined);
+	const description = JSON.parse(typeof formData.get("description") == "string" ? String(formData.get("description")) : "null");
 
 	const parsedRows = await parseExcelCreditApplicationImportRows(fileBuffer);
 	const mimeType = resolveUploadedMimeType(fileName, fileValue.type);
@@ -1134,7 +1059,7 @@ export async function createCreditApplicationImportAction(formData: FormData): P
 			mimetype: mimeType
 		},
 		data: {
-			description: plainTextToRichText(descriptionText) as any,
+			description: description,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -1194,14 +1119,14 @@ export async function parseCreditApplicationImportPreviewAction(formData: FormDa
 
 export async function updateCreditApplicationImportDescriptionAction(input: UpdateCreditApplicationImportDescriptionInput): Promise<{
 	importId: string;
-	descriptionText: string;
+	description: RichTextValue | undefined;
 }> {
 	const context = await getAuthContext();
 	const importId = input.importId.trim();
 	if(importId.length == 0)
 		throw new Error("Import id is required.");
 
-	const descriptionText = normalizeDescriptionText(input.description);
+	const description = input.description;
 	const importDoc = await context.payload.findByID({
 		collection: "credit-application-imports",
 		id: importId,
@@ -1222,13 +1147,13 @@ export async function updateCreditApplicationImportDescriptionAction(input: Upda
 		overrideAccess: true,
 		trash: true,
 		data: {
-			description: plainTextToRichText(descriptionText) as any
+			description: description
 		}
 	});
 
 	return {
 		importId,
-		descriptionText
+		description: description
 	};
 }
 
@@ -1381,16 +1306,16 @@ export async function reviewCreditApplicationImportAction(input: ReviewCreditApp
 				smsNumber: row.smsNumber,
 				collateralRegistryName: row.collateralRegistryName,
 				collateralName: row.collateralName,
-				collateralDescription: plainTextToRichText(row.collateralDescription) as any,
+				collateralDescription: plainTextToRichText(row.collateralDescription),
 				assetId: row.assetId,
 				assetName: row.assetName,
-				assetDescription: plainTextToRichText(row.assetDescription) as any,
+				assetDescription: plainTextToRichText(row.assetDescription),
 				period: row.period,
 				installment: row.installment,
 				downPayment: row.downPayment,
 				plafond: row.plafond,
 				vendor: row.vendor,
-				remarks: plainTextToRichText(row.remarks) as any,
+				remarks: plainTextToRichText(row.remarks),
 				otherText1: row.otherText1,
 				otherText2: row.otherText2,
 				otherNumber1: row.otherNumber1,
@@ -1401,7 +1326,7 @@ export async function reviewCreditApplicationImportAction(input: ReviewCreditApp
 				reviewedAt: now,
 				reviewedBy: context.user.id,
 				reviewApproved: true,
-				reviewComment: createPlainTextRichText("Imported from approved Excel document.") as any
+				reviewComment: createPlainTextRichText("Imported from approved Excel document.")
 			}
 		});
 	}

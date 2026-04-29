@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { XIcon, PlusIcon, PencilIcon, Trash2Icon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
@@ -26,7 +27,6 @@ import { useSurveyCellRenderer } from "../layout.components";
 import { useSurveyColumnPreferences } from "../layout.components";
 import { useSurveyFilterColumnConfig } from "../layout.components";
 import { useSurveyManagementQueryState } from "../layout.components";
-import { useSurveyRelations } from "../layout.components";
 import { useSurveyRequestFilters } from "../layout.components";
 import { useSurveyRequestsQuery } from "../layout.components";
 import {
@@ -72,16 +72,8 @@ export default function SurveyManagementEditorPage() {
 		isFilterStateReady: filters.isFilterStateReady,
 		includeSoftDeleted
 	});
-	const {
-		relationValuesByRowId,
-		isRelationLoading
-	} = useSurveyRelations({
-		docs: queryResult.docs,
-		visibleColumns: columnPreferences.visibleColumns
-	});
 	const renderSurveyCell = useSurveyCellRenderer({
-		relationValuesByRowId,
-		isRelationLoading,
+		relations: queryResult.relations,
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
@@ -133,8 +125,8 @@ export default function SurveyManagementEditorPage() {
 		setFormState({
 			surveyId: row.id,
 			title: row.title,
-			description: row.descriptionText,
-			content: row.contentText
+			description: row.description ?? createEmptyReviewComment(),
+			content: typeof row.content == "string" ? row.content : JSON.stringify(row.content ?? null)
 		});
 		setIsFormOpen(true);
 	};
