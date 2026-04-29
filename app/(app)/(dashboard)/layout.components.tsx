@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, type ReactNode, type ChangeEvent } from "react";
 import { usePathname } from "next/navigation";
-import { UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileTextIcon, ShieldCheckIcon, ChevronRightIcon, ChevronsUpDownIcon } from "lucide-react";
+import { SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileCheckIcon, UserCheckIcon, ShieldCheckIcon, ChevronRightIcon, ClipboardListIcon, ChevronsUpDownIcon } from "lucide-react";
 
 import useIsMobile from "@/utils/useIsMobile";
 import { Image } from "@/components/Image";
@@ -14,9 +14,10 @@ import { Button } from "@/components/radix/Button";
 import { Card, CardContent } from "@/components/radix/Card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/radix/Collapsible";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/radix/DropdownMenu";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/radix/HoverCard";
 import { Input } from "@/components/radix/Input";
 import { Separator } from "@/components/radix/Separator";
-import { Sidebar, SidebarMenu, SidebarRail, SidebarGroup, SidebarInset, SidebarFooter, SidebarHeader, SidebarContent, SidebarMenuSub, SidebarTrigger, SidebarMenuItem, SidebarProvider, SidebarGroupLabel, SidebarMenuButton, SidebarMenuSubItem, SidebarMenuSubButton } from "@/components/radix/Sidebar";
+import { Sidebar, useSidebar, SidebarMenu, SidebarRail, SidebarGroup, SidebarInset, SidebarFooter, SidebarHeader, SidebarContent, SidebarMenuSub, SidebarTrigger, SidebarMenuItem, SidebarProvider, SidebarGroupLabel, SidebarMenuButton, SidebarMenuSubItem, SidebarMenuSubButton } from "@/components/radix/Sidebar";
 
 import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
@@ -40,13 +41,13 @@ function getManagementIcon(key: DashboardManagementKey) {
 	if(key == "role-management")
 		return ShieldCheckIcon;
 	if(key == "credit-application-management")
-		return FileTextIcon;
+		return FileCheckIcon;
 	if(key == "credit-application-assignment")
-		return FileTextIcon;
+		return UserCheckIcon;
 	if(key == "survey-management")
-		return FileTextIcon;
+		return ClipboardListIcon;
 	if(key == "satisfaction-survey-management")
-		return FileTextIcon;
+		return SmileIcon;
 	return UsersIcon;
 }
 
@@ -194,6 +195,94 @@ export function DashboardManagementPagination({
 	);
 }
 
+function DashboardMenu({
+	pathname,
+	openSubmenuKeys,
+	setOpenSubmenuKeys,
+	item
+}: {
+	pathname: string;
+	openSubmenuKeys: Partial<Record<DashboardManagementKey, boolean>>;
+	setOpenSubmenuKeys: React.Dispatch<React.SetStateAction<Partial<Record<DashboardManagementKey, boolean>>>>;
+	item: DashboardManagementNavigationItem;
+}) {
+	const { state: sidebarState } = useSidebar();
+	const [lastSidebarState, setLastSidebarState] = useState(sidebarState);
+	useEffect(() => {
+		const handle = setTimeout(() => setLastSidebarState(sidebarState), 500);
+		return () => { clearTimeout(handle); };
+	}, [sidebarState]);
+
+	const Icon = getManagementIcon(item.key);
+	const isActive = isManagementItemActive(pathname, item);
+
+	if(!item.hasSubmenu) {
+		return (
+			<SidebarMenuItem>
+				<SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
+					<Link href={item.defaultHref}>
+						<Icon />
+						<span className="whitespace-nowrap line-clamp-1">{item.label}</span>
+					</Link>
+				</SidebarMenuButton>
+			</SidebarMenuItem>
+		);
+	}
+
+	if(sidebarState == "expanded" || lastSidebarState == "expanded") {
+		return (
+			<Collapsible
+				asChild
+				open={openSubmenuKeys[item.key] ?? false}
+				onOpenChange={open => setOpenSubmenuKeys(previous => ({ ...previous, [item.key]: open }))}
+				className="group/collapsible"
+			>
+				<SidebarMenuItem>
+					<CollapsibleTrigger asChild>
+						<SidebarMenuButton isActive={isActive}>
+							<Icon />
+							<span className="whitespace-nowrap line-clamp-1 text-clip">{item.label}</span>
+							<ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+						</SidebarMenuButton>
+					</CollapsibleTrigger>
+					<CollapsibleContent>
+						<SidebarMenuSub className="py-2">
+							{item.links.map(link => (
+								<SidebarMenuSubItem key={link.href}>
+									<SidebarMenuSubButton asChild isActive={pathname == link.href}>
+										<Link href={link.href}>
+											<span className="whitespace-nowrap line-clamp-1 text-clip">{link.label}</span>
+										</Link>
+									</SidebarMenuSubButton>
+								</SidebarMenuSubItem>
+							))}
+						</SidebarMenuSub>
+					</CollapsibleContent>
+				</SidebarMenuItem>
+			</Collapsible>
+		);
+	}
+	return (
+		<HoverCard openDelay={150} closeDelay={100}>
+			<HoverCardTrigger asChild>
+				<SidebarMenuButton isActive={isActive}>
+					<Icon />
+					<span className="whitespace-nowrap line-clamp-1 text-clip">{item.label}</span>
+					<ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+				</SidebarMenuButton>
+			</HoverCardTrigger>
+			<HoverCardContent side="right" align="start" sideOffset={12} className="w-64 p-2 flex flex-col gap-1 bg-sidebar brightness-150">
+				<p className="p-1 brightness-80 text-xs text-sidebar-foreground">{item.label}</p>
+				{item.links.map(link => (
+					<Link key={link.href} href={link.href} data-active={pathname == link.href} className="brightness-[66.6%] text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground [&>svg]:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground h-7 gap-2 rounded-md px-2 focus-visible:ring-2 data-[size=md]:text-sm data-[size=sm]:text-xs [&>svg]:size-4 flex min-w-0 -translate-x-px items-center overflow-hidden outline-hidden group-data-[collapsible=icon]:hidden disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:shrink-0">
+						<span className="whitespace-nowrap line-clamp-1 text-clip">{link.label}</span>
+					</Link>
+				))}
+			</HoverCardContent>
+		</HoverCard>
+	);
+}
+
 export function DashboardShell({
 	user,
 	managementNavigation,
@@ -233,7 +322,7 @@ export function DashboardShell({
 						<SidebarMenuItem>
 							<SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
 								<Link href="/" className="flex h-18">
-									<Image src={logoEcentrix} alt="eCentrix symbol" className="mt-[1px] h-12 w-12 shrink-0 object-contain group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5" />
+									<Image src={logoEcentrix} alt="eCentrix symbol" className="mt-[1px] h-12 w-12 transition-all duration-150 shrink-0 object-contain scale-100 group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5 group-data-[collapsible=icon]:scale-150" />
 									<div className="flex flex-col gap-2">
 										<span className="text-[15px] text-sidebar-accent-foreground leading-none font-semibold uppercase whitespace-nowrap line-clamp-2 text-clip">
 											PT. Intelix Global<br />Crossing
@@ -251,56 +340,15 @@ export function DashboardShell({
 					<SidebarGroup>
 						<SidebarGroupLabel>Operations</SidebarGroupLabel>
 						<SidebarMenu className="gap-2">
-							{managementNavigation.map(item => {
-								const Icon = getManagementIcon(item.key);
-								const isActive = isManagementItemActive(pathname, item);
-
-								if(!item.hasSubmenu) {
-									return (
-										<SidebarMenuItem key={item.baseHref}>
-											<SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
-												<Link href={item.defaultHref}>
-													<Icon />
-													<span className="whitespace-nowrap line-clamp-1">{item.label}</span>
-												</Link>
-											</SidebarMenuButton>
-										</SidebarMenuItem>
-									);
-								}
-
-								return (
-									<Collapsible
-										key={item.baseHref}
-										asChild
-										open={openSubmenuKeys[item.key] ?? false}
-										onOpenChange={open => setOpenSubmenuKeys(previous => ({ ...previous, [item.key]: open }))}
-										className="group/collapsible"
-									>
-										<SidebarMenuItem>
-											<CollapsibleTrigger asChild>
-												<SidebarMenuButton tooltip={item.label} isActive={isActive}>
-													<Icon />
-													<span className="whitespace-nowrap line-clamp-1 text-clip">{item.label}</span>
-													<ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-												</SidebarMenuButton>
-											</CollapsibleTrigger>
-											<CollapsibleContent>
-												<SidebarMenuSub className="py-2">
-													{item.links.map(link => (
-														<SidebarMenuSubItem key={link.href}>
-															<SidebarMenuSubButton asChild isActive={pathname == link.href}>
-																<Link href={link.href}>
-																	<span className="whitespace-nowrap line-clamp-1 text-clip">{link.label}</span>
-																</Link>
-															</SidebarMenuSubButton>
-														</SidebarMenuSubItem>
-													))}
-												</SidebarMenuSub>
-											</CollapsibleContent>
-										</SidebarMenuItem>
-									</Collapsible>
-								);
-							})}
+							{managementNavigation.map(item => (
+								<DashboardMenu
+									key={item.baseHref}
+									pathname={pathname}
+									openSubmenuKeys={openSubmenuKeys}
+									setOpenSubmenuKeys={setOpenSubmenuKeys}
+									item={item}
+								/>
+							))}
 						</SidebarMenu>
 					</SidebarGroup>
 				</SidebarContent>
