@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 import { Textarea } from "@/components/radix/Textarea";
 
+import { SurveyContentEditorDialog } from "@/components/SurveyContentEditorDialog";
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
 import * as surveyActions from "./layout.actions";
@@ -114,7 +115,7 @@ export type FormState = {
 	surveyId?: string;
 	title: string;
 	description: ReviewCommentRichText;
-	content: string;
+	content: any;
 };
 
 export type FilterSummaryItem = {
@@ -142,7 +143,7 @@ export const emptyQueryResult: QuerySurveysOutput = {
 export const defaultFormState: FormState = {
 	title: "",
 	description: createEmptyReviewComment(),
-	content: "{\n  \"slides\": []\n}"
+	content: null
 };
 
 export const SURVEY_COLUMN_PREFERENCES_KEY = "satisfaction-survey-management-columns-v1";
@@ -794,7 +795,7 @@ type SurveyRequestFormDrawerProps = {
 	isMutating: boolean;
 	onTitleChange: (value: string) => void;
 	onDescriptionChange: (value: ReviewCommentRichText) => void;
-	onContentChange: (value: string) => void;
+	onContentChange: (value: any) => void;
 	onSubmit: () => void;
 };
 
@@ -831,13 +832,15 @@ export function SurveyRequestFormDrawer({
 								<label className="text-sm font-medium">Content JSON</label>
 								<Badge variant="outline">Required</Badge>
 							</div>
-							<Textarea
+							<SurveyContentEditorDialog
+								buttonClassName="w-full"
+								buttonLabel="Open form editor"
+								dialogTitle={formState.surveyId == null ? "Add Satisfaction Survey Content" : "Edit Satisfaction Survey Content"}
+								mode="edit"
+								onValueChange={onContentChange}
 								value={formState.content}
-								onChange={event => onContentChange(event.target.value)}
-								placeholder='{"slides":[]}'
-								className="min-h-72 font-mono text-xs"
 							/>
-							<p className="text-muted-foreground text-xs">Use valid JSON for the survey schema or block content.</p>
+							<p className="text-muted-foreground text-xs">Open the editor dialog to update the satisfaction survey schema content.</p>
 						</div>
 						{formError != null ? (
 							<Alert variant="destructive" className="sm:col-span-2">
@@ -886,7 +889,7 @@ function renderSurveyRequestReviewDiffValue(field: SurveyRequestReviewDiffField,
 		case "description":
 			return <ReviewCommentPreview serializedState={value} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />;
 		case "content":
-			return JSON.stringify(value);
+			return <SurveyContentEditorDialog buttonLabel="View content" dialogTitle="Review request content" mode="readonly" value={value} />;
 		case "deletedAt":
 			return formatDateTime(value);
 		default:
@@ -1252,7 +1255,7 @@ function renderSurveyRequestHistoryValue(
 		case "description":
 			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
 		case "content":
-			return JSON.stringify(value);
+			return <SurveyContentEditorDialog buttonLabel="View content" dialogTitle="Satisfaction survey history content" mode="readonly" value={value} />;
 		case "reviewApproved":
 			return value == null ? "-" : value as boolean ? "True" : "False";
 		case "status": {
@@ -1453,7 +1456,7 @@ export function SurveyRequestDetailsDrawer({
 			case "description":
 				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.description ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
 			case "content":
-				return renderDetailColumnValue(columnId, JSON.stringify(data.row.content));
+				return renderDetailColumnValue(columnId, <SurveyContentEditorDialog buttonLabel="View content" dialogTitle="Satisfaction Survey Request Content" mode="readonly" value={data.row.content} />);
 			case "createdBy":
 				return renderDetailColumnValue(columnId, renderSurveyUserRelationValue({ column: "createdBy", relation: data.row.createdBy == null ? null : data.relations[`users:${data.row.createdBy}`] ?? null, relationId: data.row.createdBy, relationNavigation, fallbackValue: data.row.createdBy ?? "-" }));
 			case "updatedBy":
@@ -1625,7 +1628,7 @@ export function useSurveyCellRenderer({ relations, relationNavigation, onOpenReq
 			case "description":
 				return <ReviewCommentPreview serializedState={row.description ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
 			case "content":
-				return JSON.stringify(row.content);
+				return <SurveyContentEditorDialog buttonClassName="w-full" buttonLabel="View content" dialogTitle="Satisfaction Survey Content" mode="readonly" value={row.content} />;
 			case "createdBy":
 				return renderSurveyUserRelationValue({ column: "createdBy", relation: row.createdBy == null ? null : relations[`users:${row.createdBy}`] ?? null, relationId: row.createdBy, relationNavigation, fallbackValue: row.createdBy ?? "-" });
 			case "updatedBy":

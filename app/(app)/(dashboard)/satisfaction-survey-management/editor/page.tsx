@@ -126,7 +126,7 @@ export default function SurveyManagementEditorPage() {
 			surveyId: row.id,
 			title: row.title,
 			description: row.description ?? createEmptyReviewComment(),
-			content: typeof row.content == "string" ? row.content : JSON.stringify(row.content ?? null)
+			content: row.content
 		});
 		setIsFormOpen(true);
 	};
@@ -135,7 +135,7 @@ export default function SurveyManagementEditorPage() {
 		setFormError(null);
 		if(formState.title.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Satisfaction survey title is required." });
-		if(formState.content.trim().length == 0)
+		if(formState.content == null)
 			return setFormError({ title: "ValidationError", message: "Content JSON is required." });
 		runMutation(async () => {
 			await surveyActions.upsertSurveyRequestAction({

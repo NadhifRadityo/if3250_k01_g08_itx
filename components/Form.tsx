@@ -781,6 +781,70 @@ function resolveBindingValue(binding: JsonBindingToken, context: ResolutionConte
 	}
 }
 
+function getMissingBindingLabel(binding: JsonBindingToken, context: ResolutionContext): string {
+	const { bind } = binding;
+
+	if(bind.source == "field") {
+		const fieldKey = bind.key ?? "";
+		if(fieldKey.trim().length > 0) {
+			for(const slide of context.form.slides) {
+				const field = slide.blocks?.find(block => isFieldBlock(block) && block.name == fieldKey);
+				if(field && isFieldBlock(field)) {
+					const question = resolveText(field.question, context).trim();
+					if(question.length > 0)
+						return question;
+					break;
+				}
+			}
+			return fieldKey;
+		}
+	}
+
+	if(bind.key != null && bind.key.trim().length > 0)
+		return bind.key;
+
+	return bind.source;
+}
+
+function renderResolvableText(value: JsonRenderableText | undefined, context: ResolutionContext): React.ReactNode {
+	const parts = normalizeRenderableParts(value);
+	if(parts.length == 0)
+		return "";
+
+	return parts.map((part, index) => {
+		const binding = asBindingToken(part);
+		if(binding) {
+			const resolvedValue = resolveBindingValue(binding, context);
+			if(binding.bind.source != "constant" && isEmptyValue(resolvedValue)) {
+				return (
+					<span key={index} className="font-mono text-destructive">
+						{getMissingBindingLabel(binding, context)}
+					</span>
+				);
+			}
+
+			return stringifyValue(resolvedValue);
+		}
+
+		return stringifyValue(part);
+	});
+}
+
+function resolveResolvableTextLabel(value: JsonRenderableText | undefined, context: ResolutionContext): string {
+	return normalizeRenderableParts(value)
+		.map(part => {
+			const binding = asBindingToken(part);
+			if(binding) {
+				const resolvedValue = resolveBindingValue(binding, context);
+				if(binding.bind.source != "constant" && isEmptyValue(resolvedValue))
+					return getMissingBindingLabel(binding, context);
+				return stringifyValue(resolvedValue);
+			}
+			return stringifyValue(part);
+		})
+		.join("");
+}
+
 function resolveDynamicValue(value: JsonResolvableValue | undefined, context: ResolutionContext): unknown {
 	if(value == null)
 		return value;
@@ -1505,7 +1569,7 @@ function getProgressState(currentSlide: InternalSlide | null, visibleSlides: Int
 	if(slideOverride.trim().length > 0) {
 		const parsed = parseProgressOverride(slideOverride);
 		return {
-			label: parsed.label,
+			label: resolveResolvableTextLabel(currentSlide.slide.pageProgress, context),
 			percent: parsed.percent ?? 0
 		};
 	}
@@ -1545,7 +1609,7 @@ function resolveChoiceItems(block: JsonChoiceFieldBlock, context: ResolutionCont
 		if(typeof choice == "string")
 			return { label: choice, value: choice };
 
-		const label = resolveText(choice.label, context);
+		const label = resolveResolvableTextLabel(choice.label, context);
 		return {
 			label,
 			value: choice.value ?? label
@@ -1555,7 +1619,7 @@ function resolveChoiceItems(block: JsonChoiceFieldBlock, context: ResolutionCont
 
 function resolvePictureChoiceItems(block: JsonPictureChoiceFieldBlock, context: ResolutionContext): Array<{ image: string, label: string, value: string }> {
 	return block.choices.map(choice => {
-		const label = resolveText(choice.label, context);
+		const label = resolveResolvableTextLabel(choice.label, context);
 		return {
 			image: resolveText(choice.image, context),
 			label,
@@ -1752,7 +1816,7 @@ function getSlideActionLabel(currentSlide: InternalSlide | null, nextSlide: Inte
 		return options.localization.next;
 
 	if(currentSlide.kind == "start") {
-		return resolveText(currentSlide.slide.buttonText, {
+		return resolveResolvableTextLabel(currentSlide.slide.buttonText, {
 			form: { slides: [] },
 			options,
 			slide: currentSlide.slide,
@@ -1761,7 +1825,7 @@ function getSlideActionLabel(currentSlide: InternalSlide | null, nextSlide: Inte
 	}
 
 	if(nextSlide?.kind == "end" || nextSlide == null) {
-		return resolveText(options.submitButtonText, {
+		return resolveResolvableTextLabel(options.submitButtonText, {
 			form: { slides: [] },
 			options,
 			slide: currentSlide.slide,
@@ -1769,7 +1833,7 @@ function getSlideActionLabel(currentSlide: InternalSlide | null, nextSlide: Inte
 		}) || options.localization.submit;
 	}
 
-	return resolveText(currentSlide.slide.buttonText, {
+	return resolveResolvableTextLabel(currentSlide.slide.buttonText, {
 		form: { slides: [] },
 		options,
 		slide: currentSlide.slide,
@@ -1777,15 +1841,15 @@ function getSlideActionLabel(currentSlide: InternalSlide | null, nextSlide: Inte
 	}) || options.localization.next;
 }
 
-function getContentBlockText(block: JsonContentBlock, context: ResolutionContext): string {
+function getContentBlockText(block: JsonContentBlock, context: ResolutionContext): React.ReactNode {
 	if(block.type == "media")
 		return "";
 
 	if("text" in block && block.text != null)
-		return resolveText(block.text, context);
+		return renderResolvableText(block.text, context);
 
 	if("content" in block && block.content != null)
-		return resolveText(block.content, context);
+		return renderResolvableText(block.content, context);
 
 	return "";
 }
@@ -1869,9 +1933,10 @@ function renderResolvedQuestion(
 	context: ResolutionContext,
 	rounded: JsonRoundedMode
 ): React.ReactNode {
-	const question = resolveText(block.question, context);
-	if(question.trim().length == 0)
+	const questionText = resolveResolvableTextLabel(block.question, context);
+	if(questionText.trim().length == 0)
 		return null;
+	const question = renderResolvableText(block.question, context);
 
 	if(block.subfield || block.labelStyle == "classic") {
 		return (
@@ -1891,9 +1956,10 @@ function renderResolvedQuestion(
 }
 
 function renderFieldDescription(block: JsonFieldBlock, context: ResolutionContext): React.ReactNode {
-	const description = resolveText(block.description, context);
-	if(description.trim().length == 0)
+	const descriptionText = resolveResolvableTextLabel(block.description, context);
+	if(descriptionText.trim().length == 0)
 		return null;
+	const description = renderResolvableText(block.description, context);
 
 	return (
 		<FieldDescription className={getDescriptionClass(block)}>
@@ -2658,9 +2724,10 @@ function renderContentBlock(block: JsonContentBlock, context: ResolutionContext,
 	switch(block.type) {
 		case "heading": {
 			const level = block.level ?? 2;
-			const text = resolveText(block.text, context);
-			if(text.trim().length == 0)
+			const textLabel = resolveResolvableTextLabel(block.text, context);
+			if(textLabel.trim().length == 0)
 				return null;
+			const text = renderResolvableText(block.text, context);
 
 			const headingClass = level == 1 ?
 				"font-sans text-4xl leading-tight sm:text-5xl" :
@@ -2695,7 +2762,7 @@ function renderContentBlock(block: JsonContentBlock, context: ResolutionContext,
 					<Separator className="mb-3" />
 					{block.label ? (
 						<p className="text-muted-foreground text-xs uppercase tracking-[0.2em]">
-							{resolveText(block.label, context)}
+							{renderResolvableText(block.label, context)}
 						</p>
 					) : null}
 				</div>
@@ -2703,7 +2770,7 @@ function renderContentBlock(block: JsonContentBlock, context: ResolutionContext,
 		case "media": {
 			const source = resolveText(block.src, context);
 			const mediaUrl = options.sanitize ? sanitizeUrl(source, true) : source;
-			const caption = resolveText(block.caption, context);
+			const captionText = resolveResolvableTextLabel(block.caption, context);
 			const alt = resolveText(block.alt, context);
 
 			return (
@@ -2731,9 +2798,9 @@ function renderContentBlock(block: JsonContentBlock, context: ResolutionContext,
 							</div>
 						)}
 					</div>
-					{caption ? (
+					{captionText ? (
 						<figcaption className="text-muted-foreground bg-muted px-4 py-3 text-sm">
-							{caption}
+							{renderResolvableText(block.caption, context)}
 						</figcaption>
 					) : null}
 				</figure>
@@ -2790,19 +2857,21 @@ function SlideChrome({
 	control: Control<Record<string, unknown>>;
 	options: ResolvedFormOptions;
 }) {
-	const title = resolveText(currentSlide.slide.title, context);
-	const description = resolveText(currentSlide.slide.description, context);
+	const titleText = resolveResolvableTextLabel(currentSlide.slide.title, context);
+	const descriptionText = resolveResolvableTextLabel(currentSlide.slide.description, context);
+	const title = renderResolvableText(currentSlide.slide.title, context);
+	const description = renderResolvableText(currentSlide.slide.description, context);
 
 	return (
 		<div className="space-y-8">
-			{title || description ? (
+			{titleText || descriptionText ? (
 				<div className={cn("space-y-3", currentSlide.kind == "start" || currentSlide.kind == "end" ? "text-center" : "text-left")}>
-					{title ? (
+					{titleText ? (
 						<h1 className="font-sans text-4xl leading-tight text-balance sm:text-5xl">
 							{title}
 						</h1>
 					) : null}
-					{description ? (
+					{descriptionText ? (
 						<p className="text-muted-foreground mx-auto max-w-2xl text-base leading-relaxed sm:text-lg">
 							{description}
 						</p>
@@ -2823,7 +2892,7 @@ function BrandingFooter({
 }) {
 	const footerText = typeof options.footer == "string" && (options.footer == "show" || options.footer == "hide") ?
 		"" :
-		resolveText(options.footer, context);
+		resolveResolvableTextLabel(options.footer, context);
 	const shouldShowBranding = options.formsmdBranding == "show";
 
 	if(!shouldShowBranding && footerText.trim().length == 0)
@@ -3265,7 +3334,7 @@ export function Form({
 											disabled={isPosting}
 											type="submit"
 										>
-											{resolveText(currentSlide.slide.buttonText, resolutionContext) || options.localization.continue}
+											{resolveResolvableTextLabel(currentSlide.slide.buttonText, resolutionContext) || options.localization.continue}
 											<ArrowRightIcon className="size-4" />
 										</Button>
 									) : null}

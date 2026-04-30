@@ -15,7 +15,6 @@
 		"sourceMap": true,
 		"esModuleInterop": true,
 		"resolveJsonModule": true,
-		"downlevelIteration": true,
 		"experimentalDecorators": true,
 		"allowSyntheticDefaultImports": true,
 		"allowJs": true,
@@ -38,7 +37,6 @@
 			"DOM.Iterable"
 		],
 		"jsx": "react-jsx",
-		"baseUrl": "./",
 		"paths": {
 			"@/*": ["./*"],
 			"@payload-config": ["./payload.config.js"]

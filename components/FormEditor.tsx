@@ -56,7 +56,6 @@ import {
 import { Collapsible, CollapsibleContent } from "./radix/Collapsible";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./radix/HoverCard";
 import { Input } from "./radix/Input";
-import { ScrollArea } from "./radix/ScrollArea";
 import {
 	Select,
 	SelectItem,
@@ -70,6 +69,7 @@ import { Textarea } from "./radix/Textarea";
 export type FormEditorProps = {
 	className?: string;
 	defaultValue?: JsonFormDefinition;
+	mode?: "edit" | "readonly";
 	onChange?: (value: JsonFormDefinition) => void;
 	onPreviewPartialSubmit?: (payload: FormSubmitPayload) => Promise<void> | void;
 	onPreviewSubmit?: (payload: FormSubmitPayload) => Promise<void> | void;
@@ -842,29 +842,6 @@ function cloneEditorSlide(slide: EditorSlide): EditorSlide {
 	});
 
 	return normalizeSlide(nextSlide);
-}
-
-function buildPreviewShapeSignature(form: JsonFormDefinition): string {
-	return JSON.stringify({
-		settings: {
-			page: form.settings?.page,
-			restartButton: form.settings?.restartButton,
-			saveState: form.settings?.saveState,
-			slideControls: form.settings?.slideControls,
-			startSlide: form.settings?.startSlide
-		},
-		slides: form.slides.map(slide => ({
-			blockCount: slide.blocks?.length ?? 0,
-			id: slide.id,
-			kind: getSlideKind(slide),
-			post: slide.post,
-			blocks: (slide.blocks ?? []).map(block => ({
-				fieldType: getEditorFieldType(block),
-				name: isFieldBlock(block) ? block.name : undefined,
-				type: block.type
-			}))
-		}))
-	});
 }
 
 function createDefaultBlock(type: JsonFormBlock["type"]): JsonFormBlock {
@@ -2245,12 +2222,12 @@ function SlideCard({
 											onDragOver={event => onBlockHover(event, block.editorId)}
 											onDrop={() => onBlockDrop(block.editorId)}
 										>
-											<BlockCard
-												availableFields={availableFields}
-												block={block}
-												canPaste={canPasteBlock}
-												index={blockIndex}
-												isCollapsed={blockCollapsedMap[block.editorId]}
+												<BlockCard
+													availableFields={availableFields}
+													block={block}
+													canPaste={canPasteBlock}
+													index={blockIndex}
+													isCollapsed={blockCollapsedMap[block.editorId] ?? true}
 												onChange={nextBlock => {
 													onChange({
 														...slide,
@@ -2281,7 +2258,7 @@ function SlideCard({
 													});
 												}}
 												onPaste={clear => onPasteBlock(blockIndex + 1, clear)}
-												onToggleCollapse={() => onToggleBlockCollapse(block.editorId, !blockCollapsedMap[block.editorId])}
+												onToggleCollapse={() => onToggleBlockCollapse(block.editorId, !(blockCollapsedMap[block.editorId] ?? true))}
 												total={slide.blocks.length}
 											/>
 										</div>
@@ -2463,6 +2440,7 @@ function OverviewPanel({
 export function FormEditor({
 	className,
 	defaultValue,
+	mode = "edit",
 	onChange,
 	onPreviewPartialSubmit,
 	onPreviewSubmit,
@@ -2470,18 +2448,40 @@ export function FormEditor({
 	previewInitialValues,
 	value
 }: FormEditorProps) {
+	const isReadonly = mode == "readonly";
 	const initialRawForm = React.useMemo(() => value ?? defaultValue ?? createDefaultForm(), [defaultValue, value]);
 	const [editorForm, setEditorForm] = React.useState<EditorForm>(() => normalizeForm(initialRawForm));
 	const [collapsedMap, setCollapsedMap] = React.useState<Record<string, boolean>>({});
 	const [clipboard, setClipboard] = React.useState<ClipboardState>(null);
 	const [dragState, setDragState] = React.useState<DragState>(null);
 	const [dragTargetId, setDragTargetId] = React.useState<string | null>(null);
+	const [focusedSlideId, setFocusedSlideId] = React.useState<string | null>(null);
 	const [previewNonce, setPreviewNonce] = React.useState(0);
 	const updateTimeoutRef = React.useRef<NodeJS.Timeout>();
 	const lastExternalSignatureRef = React.useRef<string | null>(null);
 
 	const serializedForm = React.useMemo(() => serializeForm(editorForm), [editorForm]);
 	const serializedSignature = React.useMemo(() => JSON.stringify(serializedForm), [serializedForm]);
+	const focusedSlideIndex = React.useMemo(() => {
+		if(focusedSlideId == null)
+			return null;
+
+		const index = editorForm.slides.findIndex(slide => slide.editorId == focusedSlideId);
+		return index >= 0 ? index : null;
+	}, [editorForm.slides, focusedSlideId]);
+	const previewForm = React.useMemo(() => {
+		if(focusedSlideIndex == null)
+			return serializedForm;
+
+		return {
+			...serializedForm,
+			settings: {
+				...(serializedForm.settings ?? {}),
+				startSlide: focusedSlideIndex
+			}
+		};
+	}, [focusedSlideIndex, serializedForm]);
+	const previewSignature = React.useMemo(() => JSON.stringify(previewForm), [previewForm]);
 
 	React.useEffect(() => {
 		lastExternalSignatureRef.current = serializedSignature;
@@ -2499,22 +2499,23 @@ export function FormEditor({
 		lastExternalSignatureRef.current = nextSignature;
 	}, [value]);
 
+	const onChangeRef = React.useRef(onChange);
+	onChangeRef.current = onChange;
 	React.useEffect(() => {
 		if(updateTimeoutRef.current)
 			clearTimeout(updateTimeoutRef.current);
 
 		updateTimeoutRef.current = setTimeout(() => {
 			lastExternalSignatureRef.current = serializedSignature;
-			onChange?.(serializedForm);
+			onChangeRef.current?.(serializedForm);
 		}, 80);
 
 		return () => {
 			if(updateTimeoutRef.current)
 				clearTimeout(updateTimeoutRef.current);
 		};
-	}, [onChange, serializedForm, serializedSignature]);
+	}, [serializedForm, serializedSignature]);
 
-	const previewShapeSignature = React.useMemo(() => buildPreviewShapeSignature(serializedForm), [serializedForm]);
 	const fieldReferences = React.useMemo<FieldReference[]>(() => {
 		const items: FieldReference[] = [];
 		let fallbackIndex = 1;
@@ -2622,239 +2623,238 @@ export function FormEditor({
 	}
 
 	return (
-		<div className={cn("grid gap-4 xl:grid-cols-[minmax(380px,560px)_minmax(0,1fr)]", className)}>
-			<div className="min-h-[72svh]">
-				<Card className="h-full rounded-3xl">
-					<CardHeader className="border-b">
-						<CardTitle className="flex items-center gap-2">
-							<LayoutTemplateIcon className="size-4" />
-							Form Builder
-						</CardTitle>
-						<CardDescription>
-							Arrange screens, add content blocks, and shape each question directly in place.
-						</CardDescription>
-						<CardAction className="flex items-center gap-2">
-							<Button
-								onClick={() => {
-									setEditorForm(normalizeForm(createDefaultForm()));
-									setCollapsedMap({});
-									setClipboard(null);
-									setPreviewNonce(current => current + 1);
-								}}
-								size="sm"
-								type="button"
-								variant="outline"
-							>
-								<RefreshCcwIcon />
-								Start fresh
-							</Button>
-						</CardAction>
-					</CardHeader>
-					<CardContent className="p-0">
-						<ScrollArea className="h-[calc(72svh-5rem)]">
-							<div className="space-y-4 p-4">
-								<OverviewPanel form={editorForm} onChange={setEditorForm} />
-								<Card className="rounded-3xl">
-									<CardHeader className="border-b">
-										<CardTitle>Screens</CardTitle>
-										<CardDescription>
-											Build the flow of the form from intro to finish.
-										</CardDescription>
-									</CardHeader>
-									<CardContent className="space-y-2 py-4">
-										<AddInsertControl
-											canPaste={clipboard?.scope == "slide"}
-											items={SLIDE_KIND_ITEMS}
-											label="Add screen"
-											onAdd={kind => insertSlide(0, kind)}
-											onPaste={clear => {
-												pasteSlide(0);
-												if(clear)
-													setClipboard(null);
-											}}
-										/>
-										<div className="space-y-2">
-											{editorForm.slides.map((slide, slideIndex) => (
-												<React.Fragment key={slide.editorId}>
-													{slideIndex > 0 ? (
-														<AddInsertControl
-															canPaste={clipboard?.scope == "slide"}
-															items={SLIDE_KIND_ITEMS}
-															label="Insert screen"
-															onAdd={kind => insertSlide(slideIndex, kind)}
-															onPaste={clear => {
-																pasteSlide(slideIndex);
-																if(clear)
-																	setClipboard(null);
-															}}
-														/>
-													) : null}
-													<div
-														className={cn(
-															"transition-shadow ring-2 ring-transparent ring-offset-2 rounded-2xl",
-															dragTargetId == slide.editorId && "ring-primary"
-														)}
-														onDragOver={event => {
-															if(dragState?.scope != "slide")
-																return;
-
-															event.preventDefault();
-															setDragTargetId(slide.editorId);
-														}}
-														onDrop={() => handleSlideDrop(slide.editorId)}
-													>
-														<SlideCard
-															availableFields={fieldReferences}
-															canPasteBlock={clipboard?.scope == "block"}
-															canPasteSlide={clipboard?.scope == "slide"}
-															blockCollapsedMap={collapsedMap}
-															blockDragTargetId={dragTargetId}
-															isCollapsed={collapsedMap[slide.editorId]}
-															onBlockDragEnd={() => {
-																setDragState(null);
-																setDragTargetId(null);
-															}}
-															onBlockDragStart={(event, blockId) => {
-																event.dataTransfer.effectAllowed = "move";
-																setDragState({
-																	draggedId: blockId,
-																	scope: "block",
-																	slideId: slide.editorId
-																});
-															}}
-															onBlockDrop={targetBlockId => handleBlockDrop(slide.editorId, targetBlockId)}
-															onBlockHover={(event, targetBlockId) => {
-																if(dragState?.scope != "block" || dragState.slideId != slide.editorId)
-																	return;
-
-																event.preventDefault();
-																setDragTargetId(targetBlockId);
-															}}
-															onChange={nextSlide => updateSlide(slide.editorId, () => nextSlide)}
-															onCopyBlock={block => setClipboard({ block: cloneEditorBlock(block), scope: "block" })}
-															onCopy={() => setClipboard({ scope: "slide", slide: cloneEditorSlide(slide) })}
-															onDelete={() => {
-																updateForm(currentForm => ({
-																	...currentForm,
-																	slides: currentForm.slides.filter(currentSlide => currentSlide.editorId != slide.editorId)
-																}));
-															}}
-															onDragEnd={() => {
-																setDragState(null);
-																setDragTargetId(null);
-															}}
-															onDragStart={event => {
-																event.dataTransfer.effectAllowed = "move";
-																setDragState({
-																	draggedId: slide.editorId,
-																	scope: "slide"
-																});
-															}}
-															onInsertBlock={(index, type) => insertBlock(slide.editorId, index, type)}
-															onMoveDown={() => {
-																updateForm(currentForm => ({
-																	...currentForm,
-																	slides: moveItem(currentForm.slides, slideIndex, slideIndex + 1)
-																}));
-															}}
-															onMoveUp={() => {
-																updateForm(currentForm => ({
-																	...currentForm,
-																	slides: moveItem(currentForm.slides, slideIndex, slideIndex - 1)
-																}));
-															}}
-															onPasteBlock={(index, clear) => {
-																pasteBlock(slide.editorId, index);
-																if(clear)
-																	setClipboard(null);
-															}}
-															onPasteSlide={clear => {
-																pasteSlide(slideIndex + 1);
-																if(clear)
-																	setClipboard(null);
-															}}
-															onToggleBlockCollapse={(blockId, nextValue) => {
-																setCollapsedMap(currentMap => ({
-																	...currentMap,
-																	[blockId]: nextValue
-																}));
-															}}
-															onToggleCollapse={() => {
-																setCollapsedMap(currentMap => ({
-																	...currentMap,
-																	[slide.editorId]: !currentMap[slide.editorId]
-																}));
-															}}
-															slide={slide}
-															slideIndex={slideIndex}
-															slideTotal={editorForm.slides.length}
-														/>
-													</div>
-												</React.Fragment>
-											))}
-										</div>
-										{editorForm.slides.length == 0 ? (
-											<div className="text-center py-8 text-sm text-muted-foreground">
-												No screens yet. Add one above to start building the flow.
-											</div>
-										) : (
-											<AddInsertControl
-												canPaste={clipboard?.scope == "slide"}
-												items={SLIDE_KIND_ITEMS}
-												label="Add screen"
-												onAdd={kind => insertSlide(editorForm.slides.length, kind)}
-												onPaste={clear => {
-													pasteSlide(editorForm.slides.length);
-													if(clear)
-														setClipboard(null);
-												}}
-											/>
-										)}
-									</CardContent>
-								</Card>
-							</div>
-						</ScrollArea>
-					</CardContent>
-				</Card>
-			</div>
-			<div className="min-h-[72svh]">
-				<Card className="h-full rounded-3xl">
-					<CardHeader className="border-b">
-						<CardTitle className="flex items-center gap-2">
-							<EyeIcon className="size-4" />
-							Live Preview
-						</CardTitle>
-						<CardDescription>
-							The preview updates as you edit. Reset it if you want to replay the form flow from the beginning.
-						</CardDescription>
-						<CardAction className="flex items-center gap-2">
-							<Button
-								onClick={() => setPreviewNonce(current => current + 1)}
-								size="sm"
-								type="button"
-								variant="outline"
-							>
-								<RefreshCcwIcon />
-								Reset preview
-							</Button>
-						</CardAction>
-					</CardHeader>
-					<CardContent className="h-[calc(72svh-2rem)] overflow-hidden p-0">
-						<ScrollArea className="h-full">
-							<div className={cn("bg-muted/20 min-h-full p-4", previewClassName)}>
-								<Form
-									className="rounded-3xl"
-									form={serializedForm}
-									initialValues={previewInitialValues}
-									key={`${previewShapeSignature}:${previewNonce}`}
-									onPartialSubmit={onPreviewPartialSubmit}
-									onSubmit={onPreviewSubmit}
+		<div
+			aria-disabled={isReadonly}
+			className={cn("grid gap-4 md:h-full md:grid-cols-[minmax(380px,560px)_minmax(0,1fr)]", isReadonly && "pointer-events-none select-none opacity-75", className)}
+		>
+			<Card className="flex h-full flex-col overflow-hidden rounded-3xl">
+				<CardHeader className="border-b">
+					<CardTitle className="flex items-center gap-2">
+						<LayoutTemplateIcon className="size-4" />
+						Form Builder
+					</CardTitle>
+					<CardDescription>
+						Arrange screens, add content blocks, and shape each question directly in place.
+					</CardDescription>
+					<CardAction className="flex items-center gap-2">
+						<Button
+							onClick={() => {
+								setEditorForm(normalizeForm(createDefaultForm()));
+								setCollapsedMap({});
+								setClipboard(null);
+								setPreviewNonce(current => current + 1);
+							}}
+							size="sm"
+							type="button"
+							variant="outline"
+						>
+							<RefreshCcwIcon />
+							Start fresh
+						</Button>
+					</CardAction>
+				</CardHeader>
+				<CardContent className="min-h-0 flex-1 overflow-auto p-0">
+					<div className="space-y-4 p-4">
+						<OverviewPanel form={editorForm} onChange={setEditorForm} />
+						<Card className="rounded-3xl">
+							<CardHeader className="border-b">
+								<CardTitle>Screens</CardTitle>
+								<CardDescription>
+									Build the flow of the form from intro to finish.
+								</CardDescription>
+							</CardHeader>
+							<CardContent className="space-y-2 py-4">
+								<AddInsertControl
+									canPaste={clipboard?.scope == "slide"}
+									items={SLIDE_KIND_ITEMS}
+									label="Add screen"
+									onAdd={kind => insertSlide(0, kind)}
+									onPaste={clear => {
+										pasteSlide(0);
+										if(clear)
+											setClipboard(null);
+									}}
 								/>
-							</div>
-						</ScrollArea>
-					</CardContent>
-				</Card>
-			</div>
+								<div className="space-y-2">
+									{editorForm.slides.map((slide, slideIndex) => (
+										<React.Fragment key={slide.editorId}>
+											{slideIndex > 0 ? (
+												<AddInsertControl
+													canPaste={clipboard?.scope == "slide"}
+													items={SLIDE_KIND_ITEMS}
+													label="Insert screen"
+													onAdd={kind => insertSlide(slideIndex, kind)}
+													onPaste={clear => {
+														pasteSlide(slideIndex);
+														if(clear)
+															setClipboard(null);
+													}}
+												/>
+											) : null}
+											<div
+													className={cn(
+														"transition-shadow ring-2 ring-transparent ring-offset-2 rounded-2xl",
+														dragTargetId == slide.editorId && "ring-primary"
+													)}
+													onFocusCapture={() => setFocusedSlideId(slide.editorId)}
+													onDragOver={event => {
+														if(dragState?.scope != "slide")
+															return;
+
+													event.preventDefault();
+													setDragTargetId(slide.editorId);
+												}}
+												onDrop={() => handleSlideDrop(slide.editorId)}
+											>
+													<SlideCard
+														availableFields={fieldReferences}
+														canPasteBlock={clipboard?.scope == "block"}
+														canPasteSlide={clipboard?.scope == "slide"}
+														blockCollapsedMap={collapsedMap}
+														blockDragTargetId={dragTargetId}
+														isCollapsed={collapsedMap[slide.editorId] ?? true}
+														onBlockDragEnd={() => {
+															setDragState(null);
+															setDragTargetId(null);
+													}}
+													onBlockDragStart={(event, blockId) => {
+														event.dataTransfer.effectAllowed = "move";
+														setDragState({
+															draggedId: blockId,
+															scope: "block",
+															slideId: slide.editorId
+														});
+													}}
+													onBlockDrop={targetBlockId => handleBlockDrop(slide.editorId, targetBlockId)}
+													onBlockHover={(event, targetBlockId) => {
+														if(dragState?.scope != "block" || dragState.slideId != slide.editorId)
+															return;
+
+														event.preventDefault();
+														setDragTargetId(targetBlockId);
+													}}
+													onChange={nextSlide => updateSlide(slide.editorId, () => nextSlide)}
+													onCopyBlock={block => setClipboard({ block: cloneEditorBlock(block), scope: "block" })}
+													onCopy={() => setClipboard({ scope: "slide", slide: cloneEditorSlide(slide) })}
+													onDelete={() => {
+														updateForm(currentForm => ({
+															...currentForm,
+															slides: currentForm.slides.filter(currentSlide => currentSlide.editorId != slide.editorId)
+														}));
+													}}
+													onDragEnd={() => {
+														setDragState(null);
+														setDragTargetId(null);
+													}}
+													onDragStart={event => {
+														event.dataTransfer.effectAllowed = "move";
+														setDragState({
+															draggedId: slide.editorId,
+															scope: "slide"
+														});
+													}}
+													onInsertBlock={(index, type) => insertBlock(slide.editorId, index, type)}
+													onMoveDown={() => {
+														updateForm(currentForm => ({
+															...currentForm,
+															slides: moveItem(currentForm.slides, slideIndex, slideIndex + 1)
+														}));
+													}}
+													onMoveUp={() => {
+														updateForm(currentForm => ({
+															...currentForm,
+															slides: moveItem(currentForm.slides, slideIndex, slideIndex - 1)
+														}));
+													}}
+													onPasteBlock={(index, clear) => {
+														pasteBlock(slide.editorId, index);
+														if(clear)
+															setClipboard(null);
+													}}
+														onPasteSlide={clear => {
+															pasteSlide(slideIndex + 1);
+															if(clear)
+																setClipboard(null);
+														}}
+													onToggleBlockCollapse={(blockId, nextValue) => {
+														setCollapsedMap(currentMap => ({
+															...currentMap,
+															[blockId]: nextValue
+														}));
+													}}
+														onToggleCollapse={() => {
+															setCollapsedMap(currentMap => ({
+																...currentMap,
+																[slide.editorId]: !(currentMap[slide.editorId] ?? true)
+															}));
+														}}
+													slide={slide}
+													slideIndex={slideIndex}
+													slideTotal={editorForm.slides.length}
+												/>
+											</div>
+										</React.Fragment>
+									))}
+								</div>
+								{editorForm.slides.length == 0 ? (
+									<div className="text-center py-8 text-sm text-muted-foreground">
+										No screens yet. Add one above to start building the flow.
+									</div>
+								) : (
+									<AddInsertControl
+										canPaste={clipboard?.scope == "slide"}
+										items={SLIDE_KIND_ITEMS}
+										label="Add screen"
+										onAdd={kind => insertSlide(editorForm.slides.length, kind)}
+										onPaste={clear => {
+											pasteSlide(editorForm.slides.length);
+											if(clear)
+												setClipboard(null);
+										}}
+									/>
+								)}
+							</CardContent>
+						</Card>
+					</div>
+				</CardContent>
+			</Card>
+			<Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl">
+				<CardHeader className="border-b">
+					<CardTitle className="flex items-center gap-2">
+						<EyeIcon className="size-4" />
+						Live Preview
+					</CardTitle>
+					<CardDescription>
+						The preview updates as you edit. Reset it if you want to replay the form flow from the beginning.
+					</CardDescription>
+					<CardAction className="flex items-center gap-2">
+						<Button
+							onClick={() => {
+								setFocusedSlideId(null);
+								setPreviewNonce(current => current + 1);
+							}}
+							size="sm"
+							type="button"
+							variant="outline"
+						>
+							<RefreshCcwIcon />
+							Reset preview
+						</Button>
+					</CardAction>
+				</CardHeader>
+					<CardContent className="min-h-0 flex-1 overflow-auto p-0">
+						<div className={cn("bg-muted/20 min-h-full p-4", previewClassName)}>
+							<Form
+								className="rounded-3xl"
+								form={previewForm}
+								initialValues={previewInitialValues}
+								key={`${previewSignature}:${previewNonce}`}
+								onPartialSubmit={onPreviewPartialSubmit}
+								onSubmit={onPreviewSubmit}
+							/>
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
