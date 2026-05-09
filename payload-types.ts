@@ -258,6 +258,10 @@ export interface Role {
     | 'satisfaction-survey-management-auditor'
     | 'satisfaction-survey-management-editor'
     | 'satisfaction-survey-management-approver'
+    | 'monitoring-officer-tracking-viewer'
+    | 'monitoring-log-gps-viewer'
+    | 'monitoring-log-recording-viewer'
+    | 'monitoring-log-otp-viewer'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;

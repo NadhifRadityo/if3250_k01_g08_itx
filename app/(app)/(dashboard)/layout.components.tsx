@@ -23,7 +23,7 @@ import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
 
-const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|survey-management|satisfaction-survey-management)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
+const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|survey-management|satisfaction-survey-management|monitoring-officer-tracking|monitoring-log-gps|monitoring-log-recording|monitoring-log-otp)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
 
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
