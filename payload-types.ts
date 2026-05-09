@@ -78,6 +78,7 @@ export interface Config {
     'credit-applications': CreditApplication;
     'credit-application-field-masks': CreditApplicationFieldMask;
     surveys: Survey;
+    'survey-results': SurveyResult;
     'satsifaction-surveys': SatsifactionSurvey;
     'recording-logs': RecordingLog;
     'audio-files': AudioFile;
@@ -109,6 +110,7 @@ export interface Config {
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
+    'survey-results': SurveyResultsSelect<false> | SurveyResultsSelect<true>;
     'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
     'recording-logs': RecordingLogsSelect<false> | RecordingLogsSelect<true>;
     'audio-files': AudioFilesSelect<false> | AudioFilesSelect<true>;
@@ -675,6 +677,31 @@ export interface Survey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-results".
+ */
+export interface SurveyResult {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  survey: string | Survey;
+  creditApplication: string | CreditApplication;
+  officer: string | User;
+  answers:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "satsifaction-surveys".
  */
 export interface SatsifactionSurvey {
@@ -1054,6 +1081,10 @@ export interface PayloadLockedDocument {
         value: string | Survey;
       } | null)
     | ({
+        relationTo: 'survey-results';
+        value: string | SurveyResult;
+      } | null)
+    | ({
         relationTo: 'satsifaction-surveys';
         value: string | SatsifactionSurvey;
       } | null)
@@ -1391,6 +1422,22 @@ export interface SurveysSelect<T extends boolean = true> {
   reviewApproved?: T;
   reviewComment?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-results_select".
+ */
+export interface SurveyResultsSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  survey?: T;
+  creditApplication?: T;
+  officer?: T;
+  answers?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
