@@ -18,7 +18,8 @@ import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugi
 import { RecordingLogs } from './collections/RecordingLogsCollection'
 import { AudioFiles } from './collections/AudioFiles'
 import { TextFiles } from './collections/TextFiles'
-\
+import { GPSRequestLogs } from "./collections/GPSRequestLogsCollection";
+
 export default buildConfig({
 	secret: process.env.PAYLOAD_SECRET,
 	serverURL: process.env.PROJECT_WEB_ORIGIN,
@@ -46,7 +47,8 @@ export default buildConfig({
 		SatisfactionSurveys(),
 		RecordingLogs(),
 		AudioFiles(),
-		TextFiles()
+		TextFiles(),
+		GPSRequestLogs()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),
