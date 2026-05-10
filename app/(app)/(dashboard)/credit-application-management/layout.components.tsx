@@ -117,6 +117,7 @@ export type CreditApplicationTableColumnId = "name" |
 	"createdAt" |
 	"updatedAt" |
 	"deletedAt" |
+	"import" |
 	"requestType" |
 	"status" |
 	"reviewedAt" |
@@ -134,6 +135,7 @@ export type CreditApplicationTableColumnConfig = {
 
 export type FormState = {
 	creditApplicationId?: string;
+	import: string | null;
 	name: string;
 	email: string;
 	addresses: string[];
@@ -184,6 +186,7 @@ export const emptyQueryResult: queryCreditApplicationsOutput = {
 };
 
 export const defaultFormState: FormState = {
+	import: null,
 	name: "",
 	email: "",
 	addresses: [],
@@ -247,6 +250,7 @@ export const creditApplicationTableColumns: CreditApplicationTableColumnConfig[]
 	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
 	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
 	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
+	{ id: "import", label: "Import", sortField: "import", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ id: "requestType", label: "Request" },
 	{ id: "status", label: "Status" },
 	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
@@ -268,7 +272,7 @@ function getCreditApplicationDrawerValueClassName(columnId: string): string {
 }
 
 export const defaultCreditApplicationColumnOrder: CreditApplicationTableColumnId[] = creditApplicationTableColumns.map(column => column.id);
-export const defaultCreditApplicationVisibleColumns: CreditApplicationTableColumnId[] = ["name", "email", "addresses", "phoneNumbers", "whatsappNumber", "assetName", "vendor", "requestType", "status", "updatedAt", "reviewComment"];
+export const defaultCreditApplicationVisibleColumns: CreditApplicationTableColumnId[] = ["import", "name", "email", "addresses", "phoneNumbers", "whatsappNumber", "assetName", "vendor", "requestType", "status", "updatedAt", "reviewComment"];
 export const defaultCreditApplicationHiddenColumns: CreditApplicationTableColumnId[] = defaultCreditApplicationColumnOrder.filter(columnId => !defaultCreditApplicationVisibleColumns.includes(columnId));
 
 const creditApplicationNonEligibleColumnSet = new Set<string>([
@@ -328,6 +332,7 @@ export const creditApplicationFilterColumns: FilterColumnOption[] = [
 	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "updatedBy", label: "Updated By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "deletedAt", label: "Deleted At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
+	{ value: "import", label: "Import", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
 	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
 	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
@@ -363,8 +368,10 @@ export function getFilterColumnConfig(column: FilterColumn): FilterColumnOption 
 export function getResolvedCreditApplicationFilterColumnConfig(
 	column: FilterColumn,
 	idSelectOptions: Array<{ value: string, label: string }>,
+	importSelectOptions: Array<{ value: string, label: string }>,
 	reviewedBySelectOptions: Array<{ value: string, label: string }>,
 	searchCreditApplicationOptions?: FilterSelectSearchAction,
+	searchCreditApplicationImportOptions?: FilterSelectSearchAction,
 	searchAuditUserOptions?: FilterSelectSearchAction
 ): FilterColumnOption {
 	const config = getFilterColumnConfig(column);
@@ -374,6 +381,12 @@ export function getResolvedCreditApplicationFilterColumnConfig(
 				...config,
 				selectOptions: idSelectOptions,
 				searchOptionsAction: searchCreditApplicationOptions
+			};
+		case "import":
+			return {
+				...config,
+				selectOptions: importSelectOptions,
+				searchOptionsAction: searchCreditApplicationImportOptions
 			};
 		case "createdBy":
 		case "updatedBy":
@@ -913,6 +926,8 @@ type CreditApplicationRequestFormDrawerProps = {
 	formState: FormState;
 	formError: { title: string, message: string } | null;
 	isMutating: boolean;
+	importRelation?: { filename: string, mimeType: string } | null;
+	relationNavigation?: CreditApplicationRelationNavigation;
 	onFormStateChange: (updater: (previous: FormState) => FormState) => void;
 	onSubmit: () => void;
 };
@@ -923,6 +938,8 @@ export function CreditApplicationRequestFormDrawer({
 	formState,
 	formError,
 	isMutating,
+	importRelation,
+	relationNavigation,
 	onFormStateChange,
 	onSubmit
 }: CreditApplicationRequestFormDrawerProps) {
@@ -967,6 +984,14 @@ export function CreditApplicationRequestFormDrawer({
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
 					<div className="grid gap-3 pb-4 sm:grid-cols-2">
+						{formState.import != null ? (
+							<div className="space-y-2 sm:col-span-2">
+								<label className="text-sm font-medium">Import</label>
+								<div className="rounded-md border px-3 py-2 text-sm wrap-break-word">
+									{renderCreditApplicationImportRelationValue({ relation: importRelation ?? null, relationId: formState.import, relationNavigation })}
+								</div>
+							</div>
+						) : null}
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Applicant Name</label>
 							<Input value={formState.name} onChange={event => updateField("name", event.target.value)} placeholder="John Doe" />
@@ -1154,6 +1179,7 @@ type CreditApplicationRequestReviewDrawerProps = {
 	onReject: () => void;
 	isMutating: boolean;
 	onOpenRequestChanges?: (row: CreditApplicationTableRow) => void;
+	relationNavigation?: CreditApplicationRelationNavigation;
 };
 
 export function CreditApplicationRequestReviewDrawer({
@@ -1167,10 +1193,11 @@ export function CreditApplicationRequestReviewDrawer({
 	onApprove,
 	onReject,
 	isMutating,
-	onOpenRequestChanges
+	onOpenRequestChanges,
+	relationNavigation
 }: CreditApplicationRequestReviewDrawerProps) {
 	const diff = reviewDrawerState?.diff;
-	const diffEntries = diff == null ? [] : buildCreditApplicationRequestDiffEntries(diff);
+	const diffEntries = diff == null ? [] : buildCreditApplicationRequestDiffEntries(diff, relationNavigation);
 	const changedCount = diffEntries.filter(entry => JSON.stringify(entry.previousRaw) != JSON.stringify(entry.requestedRaw)).length;
 	return (
 		<Drawer
@@ -1259,12 +1286,14 @@ type CreditApplicationRequestChangePreviewDrawerProps = {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	row: CreditApplicationTableRow | null;
+	relationNavigation?: CreditApplicationRelationNavigation;
 };
 
 export function CreditApplicationRequestChangePreviewDrawer({
 	open,
 	onOpenChange,
-	row
+	row,
+	relationNavigation
 }: CreditApplicationRequestChangePreviewDrawerProps) {
 	const diffQuery = useQuery({
 		queryKey: ["credit-application-management", "request-change-preview", row?.id ?? null],
@@ -1274,7 +1303,7 @@ export function CreditApplicationRequestChangePreviewDrawer({
 		refetchOnWindowFocus: true
 	});
 	const diff = diffQuery.data;
-	const diffEntries = diff == null ? [] : buildCreditApplicationRequestDiffEntries(diff);
+	const diffEntries = diff == null ? [] : buildCreditApplicationRequestDiffEntries(diff, relationNavigation);
 	const changedCount = diffEntries.filter(entry => JSON.stringify(entry.previousRaw) != JSON.stringify(entry.requestedRaw)).length;
 
 	return (
@@ -1479,6 +1508,7 @@ const creditApplicationRequestHistoryFields: CreditApplicationRequestHistoryFiel
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
+	"import",
 	"requestType",
 	"status",
 	"reviewedAt",
@@ -1489,6 +1519,7 @@ const creditApplicationRequestHistoryFields: CreditApplicationRequestHistoryFiel
 
 const creditApplicationRequestHistoryFieldLabelMap: Record<CreditApplicationRequestHistoryField, string> = {
 	id: "ID",
+	import: "Import",
 	name: "Name",
 	email: "Email",
 	addresses: "Addresses",
@@ -1535,6 +1566,12 @@ function renderCreditApplicationRequestHistoryValue(
 	relationNavigation?: CreditApplicationRelationNavigation
 ) {
 	switch(field) {
+		case "import":
+			return renderCreditApplicationImportRelationValue({
+				relation: value == null ? null : relations[`imports:${value}`] ?? null,
+				relationId: value ?? null,
+				relationNavigation
+			});
 		case "reviewComment":
 			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
 		case "collateralDescription":
@@ -1579,8 +1616,19 @@ function renderCreditApplicationRequestHistoryValue(
 	}
 }
 
-function renderCreditApplicationRequestDiffValue(field: keyof Omit<CreditApplicationRequestReviewDiff, "requestId" | "requestType" | "relations">, value: any): ReactNode {
+function renderCreditApplicationRequestDiffValue(
+	field: keyof Omit<CreditApplicationRequestReviewDiff, "requestId" | "requestType" | "relations">,
+	value: any,
+	relations: creditApplicationActions.CreditApplicationRelationValues = {},
+	relationNavigation?: CreditApplicationRelationNavigation
+): ReactNode {
 	switch(field) {
+		case "import":
+			return renderCreditApplicationImportRelationValue({
+				relation: value == null ? null : relations[`imports:${value}`] ?? null,
+				relationId: value ?? null,
+				relationNavigation
+			});
 		case "collateralDescription":
 		case "assetDescription":
 		case "remarks":
@@ -1606,7 +1654,7 @@ type CreditApplicationRequestDiffEntry = {
 	requestedRaw: unknown;
 };
 
-function buildCreditApplicationRequestDiffEntries(diff: CreditApplicationRequestReviewDiff): CreditApplicationRequestDiffEntry[] {
+function buildCreditApplicationRequestDiffEntries(diff: CreditApplicationRequestReviewDiff, relationNavigation?: CreditApplicationRelationNavigation): CreditApplicationRequestDiffEntry[] {
 	const entries: Array<readonly [CreditApplicationRequestDiffEntry["field"], string, unknown, unknown]> = [
 		["name", "Applicant Name", diff.name[0], diff.name[1]],
 		["email", "Email", diff.email[0], diff.email[1]],
@@ -1633,15 +1681,16 @@ function buildCreditApplicationRequestDiffEntries(diff: CreditApplicationRequest
 		["otherDate1", "Other Date 1", diff.otherDate1[0], diff.otherDate1[1]],
 		["otherDate2", "Other Date 2", diff.otherDate2[0], diff.otherDate2[1]],
 		["others", "Others", diff.others[0], diff.others[1]],
-		["deletedAt", "Deleted At", diff.deletedAt[0], diff.deletedAt[1]]
+		["deletedAt", "Deleted At", diff.deletedAt[0], diff.deletedAt[1]],
+		["import", "Import", diff.import[0], diff.import[1]]
 	];
 	return entries.map(([field, label, previousRaw, requestedRaw]) => ({
 		field,
 		label,
 		previousRaw,
 		requestedRaw,
-		previousValue: renderCreditApplicationRequestDiffValue(field, previousRaw),
-		requestedValue: renderCreditApplicationRequestDiffValue(field, requestedRaw)
+		previousValue: renderCreditApplicationRequestDiffValue(field, previousRaw, diff.relations, relationNavigation),
+		requestedValue: renderCreditApplicationRequestDiffValue(field, requestedRaw, diff.relations, relationNavigation)
 	}));
 }
 
@@ -1656,6 +1705,7 @@ type CreditApplicationRequestDetailsDrawerProps = {
 
 type CreditApplicationRelationNavigation = {
 	getHrefBase: (managementKey: "user-management" | "credit-application-management" | "team-management") => string | null;
+	getImportHrefBase: (managementKey: "credit-application-management") => string | null;
 	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
 		targetManagementKey: "user-management" | "credit-application-management" | "team-management";
 		hrefBase: string;
@@ -1663,7 +1713,7 @@ type CreditApplicationRelationNavigation = {
 		relationContext?: string;
 	}) => void;
 	onOpenSummary: (request: {
-		type: "user";
+		type: "user" | "credit-application-import";
 		id: string;
 		fallbackTitle: string;
 		fallbackDescription?: string;
@@ -1751,6 +1801,88 @@ function renderCreditApplicationUserRelationValue({
 	);
 }
 
+function formatCreditApplicationImportRelationValue(relation: { filename: string, mimeType: string } | null, relationId: string | null): string {
+	if(relationId == null || relationId.trim().length == 0)
+		return "-";
+	if(relation == null)
+		return relationId;
+	const filename = relation.filename.trim();
+	if(filename.length == 0)
+		return relationId;
+	return filename;
+}
+
+function renderCreditApplicationImportRelationValue({
+	relation,
+	relationId,
+	relationNavigation
+}: {
+	relation: { filename: string, mimeType: string } | null;
+	relationId: string | null;
+	relationNavigation?: CreditApplicationRelationNavigation;
+}): ReactNode {
+	const displayValue = formatCreditApplicationImportRelationValue(relation, relationId);
+	if(relationId == null || displayValue.trim().length == 0 || displayValue == "-")
+		return displayValue;
+
+	const hrefBase = relationNavigation?.getImportHrefBase("credit-application-management");
+	if(hrefBase != null && relationNavigation != null) {
+		const relationFilters = [{ column: "id", operator: "equals", value: relationId }];
+		const searchParams = new URLSearchParams();
+		searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(relationFilters));
+		searchParams.set("relationContext", "credit-application-management:import");
+		const href = `${hrefBase}?${searchParams.toString()}`;
+
+		return (
+			<Link
+				href={href}
+				onClick={event => {
+					if(event.altKey) {
+						event.preventDefault();
+						relationNavigation.onOpenSummary({
+							type: "credit-application-import",
+							id: relationId,
+							fallbackTitle: displayValue,
+							fallbackDescription: "Credit application import file",
+							fallbackMeta: [{ label: "Import ID", value: relationId }]
+						});
+						return;
+					}
+					relationNavigation.onRelationLinkClick(event, {
+						targetManagementKey: "credit-application-management",
+						hrefBase,
+						relationFilters,
+						relationContext: "credit-application-management:import"
+					});
+				}}
+				className="text-primary underline underline-offset-2 hover:opacity-80"
+			>
+				{displayValue}
+			</Link>
+		);
+	}
+
+	if(relationNavigation == null)
+		return displayValue;
+
+	return (
+		<Button
+			type="button"
+			variant="link"
+			onClick={() => relationNavigation.onOpenSummary({
+				type: "credit-application-import",
+				id: relationId,
+				fallbackTitle: displayValue,
+				fallbackDescription: "Credit application import file",
+				fallbackMeta: [{ label: "Import ID", value: relationId }]
+			})}
+			className="h-auto p-0 text-primary select-auto"
+		>
+			{displayValue}
+		</Button>
+	);
+}
+
 export function CreditApplicationRequestDetailsDrawer({
 	open,
 	onOpenChange,
@@ -1802,6 +1934,8 @@ export function CreditApplicationRequestDetailsDrawer({
 		switch(columnId) {
 			case "id":
 				return renderDetailColumnValue(columnId, data.row.id);
+			case "import":
+				return renderDetailColumnValue(columnId, renderCreditApplicationImportRelationValue({ relation: data.row.import == null ? null : data.relations[`imports:${data.row.import}`] ?? null, relationId: data.row.import, relationNavigation }));
 			case "name":
 				return renderDetailColumnValue(columnId, formatTextValue(data.row.name));
 			case "email":
@@ -2018,6 +2152,8 @@ export function useCreditApplicationCellRenderer({ relations, relationNavigation
 		switch(columnId) {
 			case "id":
 				return row.id;
+			case "import":
+				return renderCreditApplicationImportRelationValue({ relation: row.import == null ? null : relations[`imports:${row.import}`] ?? null, relationId: row.import, relationNavigation });
 			case "name":
 				return formatTextValue(row.name);
 			case "email":
@@ -2219,6 +2355,16 @@ export function useCreditApplicationFilterColumnConfig() {
 		})));
 	}, []);
 
+	const searchCreditApplicationImportOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
+		const imports = await creditApplicationActions.searchCreditApplicationImportOptionsAction(keyword, selectedValues);
+		return dedupeSelectOptions(imports.map(item => ({
+			value: item.id,
+			label: `${item.filename} (${item.id})`,
+			renderLabel: <span>{item.filename} (<span className="font-mono">{item.id}</span>)</span>,
+			keywords: `${item.id} ${item.filename} ${item.mimeType}`
+		})));
+	}, []);
+
 	const searchAuditUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
 		const users = await creditApplicationActions.searchCreditApplicationAuditUserOptionsAction(keyword, selectedValues);
 		return dedupeSelectOptions(users.map(user => ({
@@ -2229,8 +2375,8 @@ export function useCreditApplicationFilterColumnConfig() {
 	}, []);
 
 	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
-		getResolvedCreditApplicationFilterColumnConfig(column, [], [], searchCreditApplicationOptions, searchAuditUserOptions)
-	), [searchAuditUserOptions, searchCreditApplicationOptions]);
+		getResolvedCreditApplicationFilterColumnConfig(column, [], [], [], searchCreditApplicationOptions, searchCreditApplicationImportOptions, searchAuditUserOptions)
+	), [searchAuditUserOptions, searchCreditApplicationImportOptions, searchCreditApplicationOptions]);
 
 	return {
 		getResolvedFilterColumnConfig

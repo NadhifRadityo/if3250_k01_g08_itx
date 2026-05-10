@@ -96,6 +96,7 @@ export default function CreditApplicationManagementEditorPage() {
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
+			getImportHrefBase: relationNavigation.getImportTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
 			onOpenSummary: relationNavigation.openSummary
 		}
@@ -143,6 +144,7 @@ export default function CreditApplicationManagementEditorPage() {
 		setFormError(null);
 		setFormState({
 			creditApplicationId: row.id,
+			import: row.import,
 			name: row.name,
 			email: row.email,
 			addresses: row.addresses,
@@ -401,6 +403,7 @@ export default function CreditApplicationManagementEditorPage() {
 				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
+					getImportHrefBase: relationNavigation.getImportTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
 					onOpenSummary: relationNavigation.openSummary
 				}}
@@ -413,6 +416,12 @@ export default function CreditApplicationManagementEditorPage() {
 						setRequestChangeRow(null);
 				}}
 				row={requestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					getImportHrefBase: relationNavigation.getImportTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<CreditApplicationRequestFormDrawer
@@ -425,6 +434,13 @@ export default function CreditApplicationManagementEditorPage() {
 				formState={formState}
 				formError={formError}
 				isMutating={isMutating}
+				importRelation={formState.import == null ? null : queryResult.relations[`imports:${formState.import}`] ?? null}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					getImportHrefBase: relationNavigation.getImportTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 				onFormStateChange={setFormState}
 				onSubmit={submitForm}
 			/>

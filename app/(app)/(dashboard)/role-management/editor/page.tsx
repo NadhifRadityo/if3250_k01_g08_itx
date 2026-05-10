@@ -153,8 +153,6 @@ export default function RoleManagementEditorPage() {
 		setFormError(null);
 		if(formState.name.trim().length == 0)
 			return setFormError({ title: "ValidationError", message: "Role name is required." });
-		if(formState.menus.length == 0)
-			return setFormError({ title: "ValidationError", message: "At least one menu is required." });
 		runMutation(async () => {
 			await roleActions.upsertRoleRequestAction({
 				roleId: formState.role,

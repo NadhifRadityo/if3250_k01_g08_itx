@@ -68,6 +68,7 @@ export default function CreditApplicationManagementApproverPage() {
 		onOpenRequestChanges: setRequestChangeRow,
 		relationNavigation: {
 			getHrefBase: relationNavigation.getTargetHrefBase,
+			getImportHrefBase: relationNavigation.getImportTargetHrefBase,
 			onRelationLinkClick: relationNavigation.onRelationLinkClick,
 			onOpenSummary: relationNavigation.openSummary
 		}
@@ -224,6 +225,7 @@ export default function CreditApplicationManagementApproverPage() {
 				onOpenRequestChanges={setRequestChangeRow}
 				relationNavigation={{
 					getHrefBase: relationNavigation.getTargetHrefBase,
+					getImportHrefBase: relationNavigation.getImportTargetHrefBase,
 					onRelationLinkClick: relationNavigation.onRelationLinkClick,
 					onOpenSummary: relationNavigation.openSummary
 				}}
@@ -247,6 +249,12 @@ export default function CreditApplicationManagementApproverPage() {
 				onReject={() => submitReview("reject")}
 				isMutating={isMutating}
 				onOpenRequestChanges={setRequestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					getImportHrefBase: relationNavigation.getImportTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<CreditApplicationRequestChangePreviewDrawer
@@ -256,6 +264,12 @@ export default function CreditApplicationManagementApproverPage() {
 						setRequestChangeRow(null);
 				}}
 				row={requestChangeRow}
+				relationNavigation={{
+					getHrefBase: relationNavigation.getTargetHrefBase,
+					getImportHrefBase: relationNavigation.getImportTargetHrefBase,
+					onRelationLinkClick: relationNavigation.onRelationLinkClick,
+					onOpenSummary: relationNavigation.openSummary
+				}}
 			/>
 
 			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />

@@ -294,8 +294,7 @@ export const CreditApplications = (): CollectionConfig => ({
 			name: "import",
 			label: "Import",
 			type: "relationship",
-			relationTo: "credit-application-imports",
-			required: true
+			relationTo: "credit-application-imports"
 		},
 		{
 			name: "name",

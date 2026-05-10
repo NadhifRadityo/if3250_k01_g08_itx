@@ -43,11 +43,14 @@ export type DashboardViewerEditorTarget = {
 	viewerHref: string | null;
 	editorHref: string | null;
 	preferredHref: string | null;
+	importViewerHref: string | null;
+	importEditorHref: string | null;
+	importPreferredHref: string | null;
 };
 
 export type DashboardViewerEditorTargetMap = Record<DashboardManagementKey, DashboardViewerEditorTarget>;
 
-export type DashboardEntrySummaryType = "user" | "role" | "team" | "credit-application";
+export type DashboardEntrySummaryType = "user" | "role" | "team" | "credit-application" | "credit-application-import";
 
 export type DashboardEntrySummary = {
 	type: DashboardEntrySummaryType;
@@ -303,16 +306,25 @@ function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: Dash
 
 function resolveViewerEditorTarget(menus: DashboardRoleMenu[], key: DashboardManagementKey): DashboardViewerEditorTarget {
 	const menuSet = new Set(menus);
-	const hasViewer = menuSet.has(`${key}-viewer`) || menuSet.has(`${key}-auditor`);
-	const hasEditor = menuSet.has(`${key}-editor`);
+	const {
+		hasViewer,
+		hasEditor,
+		hasImportViewer,
+		hasImportEditor
+	} = getModeFlags(menuSet, key);
 	const viewerHref = hasViewer ? `/${key}/viewer` : null;
 	const editorHref = hasEditor ? `/${key}/editor` : null;
+	const importViewerHref = key == "credit-application-management" && hasImportViewer ? `/${key}/import-viewer` : null;
+	const importEditorHref = key == "credit-application-management" && hasImportEditor ? `/${key}/import-editor` : null;
 
 	return {
 		key,
 		viewerHref,
 		editorHref,
-		preferredHref: editorHref ?? viewerHref
+		preferredHref: editorHref ?? viewerHref,
+		importViewerHref,
+		importEditorHref,
+		importPreferredHref: importEditorHref ?? importViewerHref
 	};
 }
 
@@ -494,13 +506,13 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 	const context = await getDashboardShellContext();
 	if(context == null) {
 		return {
-			"user-management": { key: "user-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"role-management": { key: "role-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"credit-application-management": { key: "credit-application-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null },
-			"survey-management": { key: "survey-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"satisfaction-survey-management": { key: "satisfaction-survey-management", viewerHref: null, editorHref: null, preferredHref: null }
+			"user-management": { key: "user-management", viewerHref: null, editorHref: null, preferredHref: null, importViewerHref: null, importEditorHref: null, importPreferredHref: null },
+			"role-management": { key: "role-management", viewerHref: null, editorHref: null, preferredHref: null, importViewerHref: null, importEditorHref: null, importPreferredHref: null },
+			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null, importViewerHref: null, importEditorHref: null, importPreferredHref: null },
+			"credit-application-management": { key: "credit-application-management", viewerHref: null, editorHref: null, preferredHref: null, importViewerHref: null, importEditorHref: null, importPreferredHref: null },
+			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null, importViewerHref: null, importEditorHref: null, importPreferredHref: null },
+			"survey-management": { key: "survey-management", viewerHref: null, editorHref: null, preferredHref: null, importViewerHref: null, importEditorHref: null, importPreferredHref: null },
+			"satisfaction-survey-management": { key: "satisfaction-survey-management", viewerHref: null, editorHref: null, preferredHref: null, importViewerHref: null, importEditorHref: null, importPreferredHref: null }
 		};
 	}
 
@@ -627,6 +639,38 @@ export async function getDashboardEntrySummaryAction({
 				{ label: "Email", value: creditApplicationEmail.length > 0 ? creditApplicationEmail : "-" },
 				{ label: "Status", value: creditApplicationStatus.length > 0 ? creditApplicationStatus : "-" },
 				{ label: "Deleted At", value: formatSummaryDateLabel(creditApplicationDoc.deletedAt) }
+			]
+		};
+	}
+
+	if(type == "credit-application-import") {
+		const importDoc = await payload.findByID({
+			collection: "credit-application-imports",
+			id: normalizedId,
+			user,
+			overrideAccess: false,
+			trash: true,
+			depth: 0,
+			select: {
+				filename: true,
+				mimeType: true,
+				filesize: true,
+				deletedAt: true
+			}
+		});
+
+		const filename = String(importDoc.filename ?? "").trim();
+		const mimeType = String(importDoc.mimeType ?? "").trim();
+
+		return {
+			type,
+			id: String(importDoc.id),
+			title: filename.length > 0 ? filename : `Credit Application Import ${importDoc.id}`,
+			description: mimeType.length > 0 ? mimeType : "Credit application import file",
+			meta: [
+				{ label: "MIME Type", value: mimeType.length > 0 ? mimeType : "-" },
+				{ label: "File Size", value: typeof importDoc.filesize == "number" ? `${importDoc.filesize} B` : "-" },
+				{ label: "Deleted At", value: formatSummaryDateLabel(importDoc.deletedAt) }
 			]
 		};
 	}

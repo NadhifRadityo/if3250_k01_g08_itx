@@ -212,6 +212,7 @@ function DashboardMenu({
 		const handle = setTimeout(() => setLastSidebarState(sidebarState), 500);
 		return () => { clearTimeout(handle); };
 	}, [sidebarState]);
+	const isMobile = useIsMobile();
 
 	const Icon = getManagementIcon(item.key);
 	const isActive = isManagementItemActive(pathname, item);
@@ -229,7 +230,7 @@ function DashboardMenu({
 		);
 	}
 
-	if(sidebarState == "expanded" || lastSidebarState == "expanded") {
+	if(isMobile || sidebarState == "expanded" || lastSidebarState == "expanded") {
 		return (
 			<Collapsible
 				asChild

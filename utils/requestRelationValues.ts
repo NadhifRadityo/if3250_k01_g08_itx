@@ -19,4 +19,9 @@ export type RelationCreditApplication = {
 	email: string;
 };
 
+export type RelationCreditApplicationImport = {
+	filename: string;
+	mimeType: string;
+};
+
 export type RequestDiffPair<T> = [T, T];

@@ -5,7 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { RelationUser } from "@/utils/requestRelationValues";
+import type { RelationCreditApplicationImport, RelationUser } from "@/utils/requestRelationValues";
 import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import type { CreditApplication } from "@/payload-types";
 
@@ -23,6 +23,7 @@ const sortableFields = new Set<CreditApplicationManagementSortField>([
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
+	"import",
 	"name",
 	"email",
 	"addresses",
@@ -76,6 +77,7 @@ const filterableColumns = new Set<CreditApplicationManagementFilterColumn>([
 	"updatedAt",
 	"updatedBy",
 	"deletedAt",
+	"import",
 	"deletedBy",
 	"reviewedAt",
 	"reviewedBy",
@@ -132,6 +134,7 @@ export type CreditApplicationManagementSortField = "createdAt" |
 	"id" |
 	"updatedAt" |
 	"deletedAt" |
+	"import" |
 	"name" |
 	"email" |
 	"addresses" |
@@ -184,6 +187,7 @@ export type CreditApplicationManagementFilterColumn = "name" |
 	"updatedAt" |
 	"updatedBy" |
 	"deletedAt" |
+	"import" |
 	"deletedBy" |
 	"reviewedAt" |
 	"reviewedBy" |
@@ -242,6 +246,7 @@ export type CreditApplicationTableRow = {
 	createdAt: string;
 	updatedAt: string;
 	deletedAt: string | null;
+	import: string | null;
 	reviewedAt: string | null;
 	reviewedBy: string | null;
 	reviewApproved: boolean | null;
@@ -249,7 +254,9 @@ export type CreditApplicationTableRow = {
 	requestType: "Create" | "Update" | "Delete";
 };
 
-export type CreditApplicationRelationValues = Partial<Record<`users:${string}`, RelationUser>>;
+export type CreditApplicationRelationValues =
+	Partial<Record<`users:${string}`, RelationUser>> &
+	Partial<Record<`imports:${string}`, RelationCreditApplicationImport>>;
 
 export type queryCreditApplicationsInput = {
 	keyword: string;
@@ -281,6 +288,12 @@ export type CreditApplicationFilterIdOption = {
 	id: string;
 	name: string;
 	email: string;
+};
+
+export type CreditApplicationFilterImportOption = {
+	id: string;
+	filename: string;
+	mimeType: string;
 };
 
 export type UpsertCreditApplicationRequestInput = {
@@ -347,6 +360,7 @@ export type CreditApplicationRequestReviewDiffOutput = {
 	otherDate2: [CreditApplication["otherDate2"], CreditApplication["otherDate2"]];
 	others: [CreditApplication["others"], CreditApplication["others"]];
 	deletedAt: [CreditApplication["deletedAt"], CreditApplication["deletedAt"]];
+	import: [string | null, string | null];
 	relations: CreditApplicationRelationValues;
 };
 
@@ -389,6 +403,7 @@ export type CreditApplicationRequestHistoryEntry = {
 	createdAt: string | null;
 	updatedAt: string | null;
 	deletedAt: string | null;
+	import: string | null;
 	requestType: "Create" | "Update" | "Delete";
 	status: string;
 	reviewedAt: string | null;
@@ -741,6 +756,41 @@ async function findUsersByIds(payload: Awaited<ReturnType<typeof getPayload>>, u
 	return map;
 }
 
+async function findImportsByIds(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>, ids: string[]): Promise<Map<string, RelationCreditApplicationImport>> {
+	if(ids.length == 0)
+		return new Map();
+
+	const importsResult = await payload.find({
+		collection: "credit-application-imports",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: Math.max(ids.length, 1),
+		where: {
+			id: {
+				in: ids
+			}
+		},
+		select: {
+			filename: true,
+			mimeType: true
+		}
+	});
+
+	const map = new Map<string, RelationCreditApplicationImport>();
+	for(const doc of importsResult.docs) {
+		map.set(String(doc.id), {
+			filename: typeof doc.filename == "string" ? doc.filename : "(unknown)",
+			mimeType: typeof doc.mimeType == "string" ? doc.mimeType : "application/octet-stream"
+		});
+	}
+
+	return map;
+}
+
 function normalizeSelectedIds(selectedIds: string[] = []): string[] {
 	return [...new Set(
 		selectedIds
@@ -834,6 +884,50 @@ export async function searchCreditApplicationOptionsAction(keyword: string, sele
 	}));
 }
 
+export async function searchCreditApplicationImportOptionsAction(keyword: string, selectedIds: string[] = []): Promise<CreditApplicationFilterImportOption[]> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const normalizedKeyword = keyword.trim();
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = [
+		{ id: { like: normalizedKeyword } },
+		{ filename: { like: normalizedKeyword } },
+		{ mimeType: { like: normalizedKeyword } }
+	];
+	const whereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
+
+	const result = await payload.find({
+		collection: "credit-application-imports",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
+		sort: "-updatedAt",
+		select: {
+			filename: true,
+			mimeType: true
+		},
+		...(where != null ? { where } : {})
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		filename: typeof doc.filename == "string" ? doc.filename : "(unknown)",
+		mimeType: typeof doc.mimeType == "string" ? doc.mimeType : "application/octet-stream"
+	}));
+}
+
 function toPayloadSort(sort: CreditApplicationManagementSortToken[]): string {
 	return sort.map(token => {
 		const direction = token.startsWith("-") ? "-" : "";
@@ -841,6 +935,8 @@ function toPayloadSort(sort: CreditApplicationManagementSortToken[]): string {
 		let path: string;
 		if(field == "reviewedBy")
 			path = "reviewedBy.name";
+		else if(field == "import")
+			path = "import.filename";
 		else
 			path = field;
 		return `${direction}${path}`;
@@ -1012,6 +1108,7 @@ export async function queryCreditApplicationsAction({ keyword, sort, filters, fi
 			...(payloadFilterWhere != null ? [payloadFilterWhere] : [])
 		] },
 		select: {
+			import: true,
 			name: true,
 			email: true,
 			addresses: true,
@@ -1052,6 +1149,7 @@ export async function queryCreditApplicationsAction({ keyword, sort, filters, fi
 	});
 
 	const mappedRows: CreditApplicationTableRow[] = creditApplicationFindResult.docs.map(doc => {
+		const importId = getRelationshipId(doc.import);
 		const createdBy = getRelationshipId(doc.createdBy);
 		const updatedBy = getRelationshipId(doc.updatedBy);
 		const deletedBy = getRelationshipId(doc.deletedBy);
@@ -1066,6 +1164,7 @@ export async function queryCreditApplicationsAction({ keyword, sort, filters, fi
 
 		return {
 			id: String(doc.id),
+			import: importId,
 			name: normalizeOptionalTextValue(doc.name),
 			email,
 			addresses,
@@ -1107,7 +1206,11 @@ export async function queryCreditApplicationsAction({ keyword, sort, filters, fi
 	});
 
 	const userIds = new Set<string>();
+	const importIds = new Set<string>();
 	for(const doc of creditApplicationFindResult.docs) {
+		const importId = getRelationshipId(doc.import);
+		if(importId != null)
+			importIds.add(importId);
 		const reviewedBy = getRelationshipId(doc.reviewedBy);
 		if(reviewedBy != null)
 			userIds.add(reviewedBy);
@@ -1123,9 +1226,12 @@ export async function queryCreditApplicationsAction({ keyword, sort, filters, fi
 	}
 
 	const usersById = await findUsersByIds(payload, user, [...userIds]);
+	const importsById = await findImportsByIds(payload, user, [...importIds]);
 	const relations: CreditApplicationRelationValues = {};
 	for(const [id, relationUser] of usersById)
 		relations[`users:${id}`] = relationUser;
+	for(const [id, relationImport] of importsById)
+		relations[`imports:${id}`] = relationImport;
 
 	return {
 		docs: mappedRows,
@@ -1177,6 +1283,7 @@ export async function getCreditApplicationRequestDetailsAction(creditApplication
 		id: creditApplicationId,
 		depth: 0,
 		select: {
+			import: true,
 			name: true,
 			email: true,
 			addresses: true,
@@ -1216,6 +1323,7 @@ export async function getCreditApplicationRequestDetailsAction(creditApplication
 		}
 	});
 
+	const importId = getRelationshipId(creditApplication.import);
 	const createdBy = getRelationshipId(creditApplication.createdBy);
 	const updatedBy = getRelationshipId(creditApplication.updatedBy);
 	const deletedBy = getRelationshipId(creditApplication.deletedBy);
@@ -1230,6 +1338,7 @@ export async function getCreditApplicationRequestDetailsAction(creditApplication
 
 	const row: CreditApplicationTableRow = {
 		id: String(creditApplication.id),
+		import: importId,
 		name: normalizeOptionalTextValue(creditApplication.name),
 		email,
 		addresses,
@@ -1270,6 +1379,9 @@ export async function getCreditApplicationRequestDetailsAction(creditApplication
 	};
 
 	const relationUserIds = new Set<string>();
+	const relationImportIds = new Set<string>();
+	if(row.import != null)
+		relationImportIds.add(row.import);
 	if(row.reviewedBy != null)
 		relationUserIds.add(row.reviewedBy);
 	if(row.createdBy != null)
@@ -1280,9 +1392,12 @@ export async function getCreditApplicationRequestDetailsAction(creditApplication
 		relationUserIds.add(row.deletedBy);
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+	const importsById = await findImportsByIds(payload, user, [...relationImportIds]);
 	const relations: CreditApplicationRelationValues = {};
 	for(const [id, relationUser] of usersById)
 		relations[`users:${id}`] = relationUser;
+	for(const [id, relationImport] of importsById)
+		relations[`imports:${id}`] = relationImport;
 
 	return {
 		row,
@@ -1324,6 +1439,7 @@ export async function getCreditApplicationRequestHistoryAction(creditApplication
 			updatedAt: true,
 			version: {
 				id: true,
+				import: true,
 				name: true,
 				email: true,
 				addresses: true,
@@ -1368,6 +1484,7 @@ export async function getCreditApplicationRequestHistoryAction(creditApplication
 		updatedAt?: string | null;
 		version?: {
 			id?: string | number;
+			import?: unknown;
 			name?: string;
 			email?: unknown;
 			addresses?: unknown;
@@ -1409,16 +1526,20 @@ export async function getCreditApplicationRequestHistoryAction(creditApplication
 	const historyDocs = versionsResult.docs as CreditApplicationVersionSnapshotDoc[];
 
 	const relationUserIds = new Set<string>();
+	const relationImportIds = new Set<string>();
 	for(const historyDoc of historyDocs) {
 		const version = historyDoc.version;
 		if(version == null)
 			continue;
 
+		const importId = getRelationshipId(version.import);
 		const createdBy = getRelationshipId(version.createdBy);
 		const updatedBy = getRelationshipId(version.updatedBy);
 		const deletedBy = getRelationshipId(version.deletedBy);
 		const reviewedBy = getRelationshipId(version.reviewedBy);
 
+		if(importId != null)
+			relationImportIds.add(importId);
 		if(createdBy != null)
 			relationUserIds.add(createdBy);
 		if(updatedBy != null)
@@ -1430,9 +1551,12 @@ export async function getCreditApplicationRequestHistoryAction(creditApplication
 	}
 
 	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
+	const importsById = await findImportsByIds(payload, user, [...relationImportIds]);
 	const relations: CreditApplicationRelationValues = {};
 	for(const [id, relationUser] of usersById)
 		relations[`users:${id}`] = relationUser;
+	for(const [id, relationImport] of importsById)
+		relations[`imports:${id}`] = relationImport;
 
 	const snapshotsMaybe = historyDocs
 		.map<CreditApplicationRequestHistoryEntry | null>(historyDoc => {
@@ -1440,6 +1564,7 @@ export async function getCreditApplicationRequestHistoryAction(creditApplication
 			if(version == null)
 				return null;
 
+			const importId = getRelationshipId(version.import);
 			const createdBy = getRelationshipId(version.createdBy);
 			const updatedBy = getRelationshipId(version.updatedBy);
 			const deletedBy = getRelationshipId(version.deletedBy);
@@ -1456,6 +1581,7 @@ export async function getCreditApplicationRequestHistoryAction(creditApplication
 			return {
 				versionId: String(version.id ?? historyDoc.id ?? creditApplicationId),
 				id: String(version.id ?? creditApplicationId),
+				import: importId,
 				name: version.name ?? null,
 				email: typeof version.email == "string" ? version.email : null,
 				addresses: Array.isArray(version.addresses) ? version.addresses.filter((value): value is string => typeof value == "string") : null,
@@ -1582,27 +1708,13 @@ export async function upsertCreditApplicationRequestAction(input: UpsertCreditAp
 	};
 
 	if(input.creditApplicationId == null) {
-		const latestImport = await payload.find({
-			user,
-			collection: "credit-application-imports",
-			overrideAccess: true,
-			trash: true,
-			draft: true,
-			depth: 0,
-			limit: 1,
-			sort: "-updatedAt"
-		});
-		const importId = latestImport.docs[0]?.id;
-		if(importId == null)
-			throw new Error("Cannot create credit application because no credit-application-import exists.");
-
 		const created = await payload.create({
 			user,
 			collection: "credit-applications",
 			overrideAccess: true,
 			draft: true,
 			data: {
-				import: importId,
+				import: undefined,
 				...requestData
 			}
 		});
@@ -1700,6 +1812,7 @@ export async function cancelCreditApplicationRequestAction(creditApplicationId: 
 		] },
 		select: {
 			version: {
+				import: true,
 				name: true,
 				email: true,
 				addresses: true,
@@ -1942,6 +2055,7 @@ export async function getCreditApplicationRequestReviewDiffAction(creditApplicat
 		},
 		select: {
 			version: {
+				import: true,
 				name: true,
 				email: true,
 				addresses: true,
@@ -1988,6 +2102,7 @@ export async function getCreditApplicationRequestReviewDiffAction(creditApplicat
 		},
 		select: {
 			version: {
+				import: true,
 				name: true,
 				email: true,
 				addresses: true,
@@ -2023,9 +2138,19 @@ export async function getCreditApplicationRequestReviewDiffAction(creditApplicat
 	if(requestedVersion == null)
 		throw new Error("Draft credit application request could not be found.");
 
+	const requestedImportId = getRelationshipId(requestedVersion.import);
+	const approvedImportId = getRelationshipId(approvedVersion?.import);
+	const relationImportIds = [approvedImportId, requestedImportId]
+		.filter((value): value is string => value != null);
+	const importsById = await findImportsByIds(payload, user, relationImportIds);
+	const relations: CreditApplicationRelationValues = {};
+	for(const [id, relationImport] of importsById)
+		relations[`imports:${id}`] = relationImport;
+
 	return {
 		requestId: creditApplicationId,
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		import: [approvedImportId ?? requestedImportId, requestedImportId],
 		name: [approvedVersion?.name ?? requestedVersion.name, requestedVersion.name],
 		email: [approvedVersion?.email ?? requestedVersion.email, requestedVersion.email],
 		addresses: [approvedVersion?.addresses ?? requestedVersion.addresses, requestedVersion.addresses],
@@ -2052,6 +2177,6 @@ export async function getCreditApplicationRequestReviewDiffAction(creditApplicat
 		otherDate2: [approvedVersion?.otherDate2 ?? requestedVersion.otherDate2, requestedVersion.otherDate2],
 		others: [approvedVersion?.others ?? requestedVersion.others, requestedVersion.others],
 		deletedAt: [approvedVersion?.deletedAt ?? requestedVersion.deletedAt, requestedVersion.deletedAt],
-		relations: {}
+		relations
 	};
 }

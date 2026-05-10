@@ -269,6 +269,10 @@ export function useDashboardRelationNavigation() {
 		return targetsQuery.data?.[key]?.preferredHref ?? null;
 	}, [targetsQuery.data]);
 
+	const getImportTargetHrefBase = useCallback((key: dashboardActions.DashboardManagementKey) => {
+		return targetsQuery.data?.[key]?.importPreferredHref ?? null;
+	}, [targetsQuery.data]);
+
 	const onRelationLinkClick = useCallback((
 		event: MouseEvent<HTMLAnchorElement>,
 		request: {
@@ -296,6 +300,7 @@ export function useDashboardRelationNavigation() {
 
 	return {
 		getTargetHrefBase,
+		getImportTargetHrefBase,
 		onRelationLinkClick,
 		openSummary: entrySummary.openSummary,
 		summaryDrawerProps: {

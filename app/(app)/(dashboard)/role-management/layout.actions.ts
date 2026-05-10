@@ -1157,8 +1157,6 @@ export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 		throw new Error("Role name is required.");
 	if(level == null)
 		throw new Error("Role level is invalid.");
-	if(menus.length == 0)
-		throw new Error("At least one menu is required.");
 
 	if(input.roleId == null) {
 		const created = await payload.create({
