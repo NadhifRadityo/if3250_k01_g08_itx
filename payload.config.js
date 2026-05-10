@@ -11,6 +11,7 @@ import { Roles } from "./collections/RoleCollection";
 import { SatisfactionSurveys } from "./collections/SatisfactionSurveyCollection";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
+import { LoginLogs } from "./collections/LoginLogCollection";
 import { Surveys } from "./collections/SurveyCollection";
 import { Teams } from "./collections/TeamCollection";
 import { Users, StagedUsers } from "./collections/UserCollection";
@@ -32,6 +33,7 @@ export default buildConfig({
 	collections: [
 		GenericRichtextUploads(),
 		Users(),
+		LoginLogs(),
 		StagedUsers(),
 		Roles(),
 		Teams(),

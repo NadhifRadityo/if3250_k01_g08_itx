@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     'generic-richtext-uploads': GenericRichtextUpload;
     users: User;
+    'login-logs': LoginLog;
     'staged-users': StagedUser;
     roles: Role;
     teams: Team;
@@ -94,6 +95,7 @@ export interface Config {
   collectionsSelect: {
     'generic-richtext-uploads': GenericRichtextUploadsSelect<false> | GenericRichtextUploadsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    'login-logs': LoginLogsSelect<false> | LoginLogsSelect<true>;
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
@@ -260,6 +262,8 @@ export interface Role {
     | 'satisfaction-survey-management-auditor'
     | 'satisfaction-survey-management-editor'
     | 'satisfaction-survey-management-approver'
+    | 'login-activity-log-viewer'
+    | 'login-activity-log-auditor'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
@@ -318,6 +322,20 @@ export interface StagedUser {
     [k: string]: unknown;
   } | null;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs".
+ */
+export interface LoginLog {
+  id: string;
+  user?: (string | null) | User;
+  occurredAt: string;
+  ip: string;
+  event: 'login' | 'logout';
+  outcome?: ('success' | 'failure') | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -893,6 +911,10 @@ export interface PayloadLockedDocument {
         value: string | User;
       } | null)
     | ({
+        relationTo: 'login-logs';
+        value: string | LoginLog;
+      } | null)
+    | ({
         relationTo: 'staged-users';
         value: string | StagedUser;
       } | null)
@@ -1030,6 +1052,19 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs_select".
+ */
+export interface LoginLogsSelect<T extends boolean = true> {
+  user?: T;
+  occurredAt?: T;
+  ip?: T;
+  event?: T;
+  outcome?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

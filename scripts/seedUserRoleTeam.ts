@@ -127,6 +127,8 @@ const ROLE_SEEDS: SeedRole[] = [
 			"credit-application-assignment-approver",
 			"officer-task-reporting-viewer",
 			"officer-task-monitoring-viewer"
+			"login-activity-log-viewer",
+			"login-activity-log-auditor"
 		]
 	},
 	{

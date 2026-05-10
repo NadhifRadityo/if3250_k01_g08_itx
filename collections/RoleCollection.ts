@@ -169,7 +169,9 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "satisfaction-survey-management-viewer", label: "Satisfaction Survey Management - Viewer" },
 				{ value: "satisfaction-survey-management-auditor", label: "Satisfaction Survey Management - Auditor" },
 				{ value: "satisfaction-survey-management-editor", label: "Satisfaction Survey Management - Editor" },
-				{ value: "satisfaction-survey-management-approver", label: "Satisfaction Survey Management - Approver" }
+				{ value: "satisfaction-survey-management-approver", label: "Satisfaction Survey Management - Approver" },
+				{ value: "login-activity-log-viewer", label: "Login Activity Log - Viewer" },
+				{ value: "login-activity-log-auditor", label: "Login Activity Log - Auditor" }
 			],
 			required: true,
 			hasMany: true,
