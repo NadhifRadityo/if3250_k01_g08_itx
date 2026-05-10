@@ -1926,15 +1926,50 @@ export async function getCreditApplicationRequestReviewDiffAction(creditApplicat
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const creditApplication = await payload.findByID({
+	const requestedVersions = await payload.findVersions({
 		user,
 		collection: "credit-applications",
-		id: creditApplicationId,
 		overrideAccess: true,
-		draft: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		pagination: false,
+		limit: 1,
+		sort: "-updatedAt",
+		where: {
+			and: [
+				{ parent: { equals: creditApplicationId } },
+				{ "version._status": { equals: "draft" } }
+			]
+		},
+		select: {
+			version: {
+				name: true,
+				email: true,
+				addresses: true,
+				phoneNumbers: true,
+				whatsappNumber: true,
+				smsNumber: true,
+				collateralRegistryName: true,
+				collateralName: true,
+				collateralDescription: true,
+				assetId: true,
+				assetName: true,
+				assetDescription: true,
+				period: true,
+				installment: true,
+				downPayment: true,
+				plafond: true,
+				vendor: true,
+				remarks: true,
+				otherText1: true,
+				otherText2: true,
+				otherNumber1: true,
+				otherNumber2: true,
+				otherDate1: true,
+				otherDate2: true,
+				others: true,
+				deletedAt: true
+			}
+		}
 	});
 
 	const approvedVersions = await payload.findVersions({
@@ -1983,37 +2018,40 @@ export async function getCreditApplicationRequestReviewDiffAction(creditApplicat
 		}
 	});
 
+	const requestedVersion = requestedVersions.docs[0]?.version;
 	const approvedVersion = approvedVersions.docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft credit application request could not be found.");
 
 	return {
 		requestId: creditApplicationId,
-		requestType: creditApplication.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
-		name: [approvedVersion?.name ?? creditApplication.name, creditApplication.name],
-		email: [approvedVersion?.email ?? creditApplication.email, creditApplication.email],
-		addresses: [approvedVersion?.addresses ?? creditApplication.addresses, creditApplication.addresses],
-		phoneNumbers: [approvedVersion?.phoneNumbers ?? creditApplication.phoneNumbers, creditApplication.phoneNumbers],
-		whatsappNumber: [approvedVersion?.whatsappNumber ?? creditApplication.whatsappNumber, creditApplication.whatsappNumber],
-		smsNumber: [approvedVersion?.smsNumber ?? creditApplication.smsNumber, creditApplication.smsNumber],
-		collateralRegistryName: [approvedVersion?.collateralRegistryName ?? creditApplication.collateralRegistryName, creditApplication.collateralRegistryName],
-		collateralName: [approvedVersion?.collateralName ?? creditApplication.collateralName, creditApplication.collateralName],
-		collateralDescription: [approvedVersion?.collateralDescription ?? creditApplication.collateralDescription, creditApplication.collateralDescription],
-		assetId: [approvedVersion?.assetId ?? creditApplication.assetId, creditApplication.assetId],
-		assetName: [approvedVersion?.assetName ?? creditApplication.assetName, creditApplication.assetName],
-		assetDescription: [approvedVersion?.assetDescription ?? creditApplication.assetDescription, creditApplication.assetDescription],
-		period: [approvedVersion?.period ?? creditApplication.period, creditApplication.period],
-		installment: [approvedVersion?.installment ?? creditApplication.installment, creditApplication.installment],
-		downPayment: [approvedVersion?.downPayment ?? creditApplication.downPayment, creditApplication.downPayment],
-		plafond: [approvedVersion?.plafond ?? creditApplication.plafond, creditApplication.plafond],
-		vendor: [approvedVersion?.vendor ?? creditApplication.vendor, creditApplication.vendor],
-		remarks: [approvedVersion?.remarks ?? creditApplication.remarks, creditApplication.remarks],
-		otherText1: [approvedVersion?.otherText1 ?? creditApplication.otherText1, creditApplication.otherText1],
-		otherText2: [approvedVersion?.otherText2 ?? creditApplication.otherText2, creditApplication.otherText2],
-		otherNumber1: [approvedVersion?.otherNumber1 ?? creditApplication.otherNumber1, creditApplication.otherNumber1],
-		otherNumber2: [approvedVersion?.otherNumber2 ?? creditApplication.otherNumber2, creditApplication.otherNumber2],
-		otherDate1: [approvedVersion?.otherDate1 ?? creditApplication.otherDate1, creditApplication.otherDate1],
-		otherDate2: [approvedVersion?.otherDate2 ?? creditApplication.otherDate2, creditApplication.otherDate2],
-		others: [approvedVersion?.others ?? creditApplication.others, creditApplication.others],
-		deletedAt: [approvedVersion?.deletedAt ?? creditApplication.deletedAt, creditApplication.deletedAt],
+		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		name: [approvedVersion?.name ?? requestedVersion.name, requestedVersion.name],
+		email: [approvedVersion?.email ?? requestedVersion.email, requestedVersion.email],
+		addresses: [approvedVersion?.addresses ?? requestedVersion.addresses, requestedVersion.addresses],
+		phoneNumbers: [approvedVersion?.phoneNumbers ?? requestedVersion.phoneNumbers, requestedVersion.phoneNumbers],
+		whatsappNumber: [approvedVersion?.whatsappNumber ?? requestedVersion.whatsappNumber, requestedVersion.whatsappNumber],
+		smsNumber: [approvedVersion?.smsNumber ?? requestedVersion.smsNumber, requestedVersion.smsNumber],
+		collateralRegistryName: [approvedVersion?.collateralRegistryName ?? requestedVersion.collateralRegistryName, requestedVersion.collateralRegistryName],
+		collateralName: [approvedVersion?.collateralName ?? requestedVersion.collateralName, requestedVersion.collateralName],
+		collateralDescription: [approvedVersion?.collateralDescription ?? requestedVersion.collateralDescription, requestedVersion.collateralDescription],
+		assetId: [approvedVersion?.assetId ?? requestedVersion.assetId, requestedVersion.assetId],
+		assetName: [approvedVersion?.assetName ?? requestedVersion.assetName, requestedVersion.assetName],
+		assetDescription: [approvedVersion?.assetDescription ?? requestedVersion.assetDescription, requestedVersion.assetDescription],
+		period: [approvedVersion?.period ?? requestedVersion.period, requestedVersion.period],
+		installment: [approvedVersion?.installment ?? requestedVersion.installment, requestedVersion.installment],
+		downPayment: [approvedVersion?.downPayment ?? requestedVersion.downPayment, requestedVersion.downPayment],
+		plafond: [approvedVersion?.plafond ?? requestedVersion.plafond, requestedVersion.plafond],
+		vendor: [approvedVersion?.vendor ?? requestedVersion.vendor, requestedVersion.vendor],
+		remarks: [approvedVersion?.remarks ?? requestedVersion.remarks, requestedVersion.remarks],
+		otherText1: [approvedVersion?.otherText1 ?? requestedVersion.otherText1, requestedVersion.otherText1],
+		otherText2: [approvedVersion?.otherText2 ?? requestedVersion.otherText2, requestedVersion.otherText2],
+		otherNumber1: [approvedVersion?.otherNumber1 ?? requestedVersion.otherNumber1, requestedVersion.otherNumber1],
+		otherNumber2: [approvedVersion?.otherNumber2 ?? requestedVersion.otherNumber2, requestedVersion.otherNumber2],
+		otherDate1: [approvedVersion?.otherDate1 ?? requestedVersion.otherDate1, requestedVersion.otherDate1],
+		otherDate2: [approvedVersion?.otherDate2 ?? requestedVersion.otherDate2, requestedVersion.otherDate2],
+		others: [approvedVersion?.others ?? requestedVersion.others, requestedVersion.others],
+		deletedAt: [approvedVersion?.deletedAt ?? requestedVersion.deletedAt, requestedVersion.deletedAt],
 		relations: {}
 	};
 }

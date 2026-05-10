@@ -1467,15 +1467,28 @@ export async function getTeamRequestReviewDiffAction(teamId: string): Promise<Te
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const team = await payload.findByID({
+	const requestedVersions = await payload.findVersions({
 		user,
 		collection: "teams",
-		id: teamId,
 		overrideAccess: true,
-		draft: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		pagination: false,
+		limit: 1,
+		sort: "-updatedAt",
+		where: {
+			and: [
+				{ parent: { equals: teamId } },
+				{ "version._status": { equals: "draft" } }
+			]
+		},
+		select: {
+			version: {
+				name: true,
+				supervisor: true,
+				officers: true,
+				deletedAt: true
+			}
+		}
 	});
 
 	const approvedVersions = await payload.findVersions({
@@ -1502,11 +1515,14 @@ export async function getTeamRequestReviewDiffAction(teamId: string): Promise<Te
 		}
 	});
 
+	const requestedVersion = requestedVersions.docs[0]?.version;
 	const approvedVersion = approvedVersions.docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft team request could not be found.");
 	const approvedSupervisor = approvedVersion != null ? getRelationshipId(approvedVersion.supervisor) : null;
-	const requestedSupervisor = getRelationshipId(team.supervisor);
+	const requestedSupervisor = getRelationshipId(requestedVersion.supervisor);
 	const approvedOfficers = approvedVersion != null ? getRelationshipIds(approvedVersion.officers) : [];
-	const requestedOfficers = getRelationshipIds(team.officers);
+	const requestedOfficers = getRelationshipIds(requestedVersion.officers);
 
 	const userIds = [
 		approvedSupervisor,
@@ -1521,11 +1537,11 @@ export async function getTeamRequestReviewDiffAction(teamId: string): Promise<Te
 
 	return {
 		requestId: teamId,
-		requestType: team.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
-		name: [approvedVersion?.name ?? "", team.name],
+		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		name: [approvedVersion?.name ?? "", requestedVersion.name],
 		supervisor: [approvedSupervisor, requestedSupervisor],
 		officers: [approvedOfficers, requestedOfficers],
-		deletedAt: [approvedVersion?.deletedAt ?? null, team.deletedAt ?? null],
+		deletedAt: [approvedVersion?.deletedAt ?? null, requestedVersion.deletedAt ?? null],
 		relations
 	};
 }

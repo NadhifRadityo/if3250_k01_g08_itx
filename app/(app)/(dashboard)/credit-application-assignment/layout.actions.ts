@@ -1820,15 +1820,27 @@ export async function getCreditApplicationAssignmentRequestReviewDiffAction(
 	if(user == null)
 		return unauthorized();
 
-	const assignment = await payload.findByID({
+	const requestedVersions = await payload.findVersions({
 		user,
 		collection: "credit-application-assignments",
-		id: assignmentId,
 		overrideAccess: true,
-		draft: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		pagination: false,
+		limit: 1,
+		sort: "-updatedAt",
+		where: {
+			and: [
+				{ parent: { equals: assignmentId } },
+				{ "version._status": { equals: "draft" } }
+			]
+		},
+		select: {
+			version: {
+				creditApplication: true,
+				officer: true,
+				deletedAt: true
+			}
+		}
 	});
 
 	const approvedVersions = await payload.findVersions({
@@ -1854,11 +1866,14 @@ export async function getCreditApplicationAssignmentRequestReviewDiffAction(
 		}
 	});
 
+	const requestedVersion = requestedVersions.docs[0]?.version;
 	const approvedVersion = approvedVersions.docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft credit application assignment request could not be found.");
 	const approvedCreditApplication = getRelationshipId(approvedVersion?.creditApplication);
-	const requestedCreditApplication = getRelationshipId(assignment.creditApplication);
+	const requestedCreditApplication = getRelationshipId(requestedVersion.creditApplication);
 	const approvedOfficer = getRelationshipId(approvedVersion?.officer);
-	const requestedOfficer = getRelationshipId(assignment.officer);
+	const requestedOfficer = getRelationshipId(requestedVersion.officer);
 
 	const usersById = await findUsersByIds(payload, user, [
 		...new Set([approvedOfficer, requestedOfficer].filter((value): value is string => value != null))
@@ -1868,14 +1883,14 @@ export async function getCreditApplicationAssignmentRequestReviewDiffAction(
 	]);
 
 	const requestType: CreditApplicationAssignmentRequestReviewDiffOutput["requestType"] =
-		assignment.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
+		requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
 
 	return {
 		requestId: assignmentId,
 		requestType,
 		creditApplication: [approvedCreditApplication, requestedCreditApplication],
 		officer: [approvedOfficer, requestedOfficer],
-		deletedAt: [approvedVersion?.deletedAt ?? null, assignment.deletedAt ?? null],
+		deletedAt: [approvedVersion?.deletedAt ?? null, requestedVersion.deletedAt ?? null],
 		relations: (() => {
 			const relations: CreditApplicationAssignmentRelationValues = {};
 			if(approvedCreditApplication != null) {

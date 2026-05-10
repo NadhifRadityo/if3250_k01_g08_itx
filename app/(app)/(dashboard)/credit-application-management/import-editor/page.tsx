@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, PencilIcon, Trash2Icon, CircleAlertIcon } from "lucide-react";
 
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
@@ -120,7 +121,7 @@ export default function CreditApplicationImportEditorPage() {
 			filename: row.filename,
 			filesize: row.filesize,
 			fileUrl: row.fileUrl,
-			description: row.description
+			description: row.description ?? createEmptyReviewComment()
 		});
 		setFormOpen(true);
 	};
@@ -135,7 +136,7 @@ export default function CreditApplicationImportEditorPage() {
 			runMutation(async () => {
 				const formData = new FormData();
 				formData.set("file", formState.file!);
-				formData.set("description", formState.description);
+				formData.set("description", JSON.stringify(formState.description));
 				await importActions.createCreditApplicationImportAction(formData);
 				setFormOpen(false);
 				setFormState(defaultCreditApplicationImportFormState);
