@@ -47,7 +47,11 @@ const roleMenuValues = [
 	"satisfaction-survey-management-editor",
 	"satisfaction-survey-management-approver",
 	"login-activity-log-viewer",
-	"login-activity-log-auditor"
+	"login-activity-log-auditor",
+	"monitoring-officer-tracking-viewer",
+	"monitoring-log-gps-viewer",
+	"monitoring-log-recording-viewer",
+	"monitoring-log-otp-viewer"
 ] as const;
 const roleStatusValues = ["pending", "approved", "rejected"] as const;
 const roleLevelLabelMap: Record<RoleLevel, string> = {
@@ -91,7 +95,11 @@ const roleMenuLabelMap: Record<RoleMenu, string> = {
 	"satisfaction-survey-management-editor": "Satisfaction Survey Management - Editor",
 	"satisfaction-survey-management-approver": "Satisfaction Survey Management - Approver",
 	"login-activity-log-viewer": "Login Activity Log - Viewer",
-	"login-activity-log-auditor": "Login Activity Log - Auditor"
+	"login-activity-log-auditor": "Login Activity Log - Auditor",
+	"monitoring-officer-tracking-viewer": "Monitoring - Officer Tracking",
+	"monitoring-log-gps-viewer": "Monitoring - Log GPS",
+	"monitoring-log-recording-viewer": "Monitoring - Log Recording",
+	"monitoring-log-otp-viewer": "Monitoring - Log OTP"
 };
 const roleHistoryRequiredMenu: RoleMenu = "role-management-auditor";
 

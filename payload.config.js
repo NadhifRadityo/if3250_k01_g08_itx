@@ -16,6 +16,11 @@ import { Surveys } from "./collections/SurveyCollection";
 import { Teams } from "./collections/TeamCollection";
 import { Users, StagedUsers } from "./collections/UserCollection";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
+import { RecordingLogs } from './collections/RecordingLogsCollection'
+import { AudioFiles } from './collections/AudioFiles'
+import { TextFiles } from './collections/TextFiles'
+import { GPSRequestLogs } from "./collections/GPSRequestLogsCollection";
+import { OTPLogsCollection } from "./collections/OTPLogsCollection";
 
 export default buildConfig({
 	secret: process.env.PAYLOAD_SECRET,
@@ -42,7 +47,12 @@ export default buildConfig({
 		CreditApplications(),
 		CreditApplicationFieldMasks(),
 		Surveys(),
-		SatisfactionSurveys()
+		SatisfactionSurveys(),
+		RecordingLogs(),
+		AudioFiles(),
+		TextFiles(),
+		GPSRequestLogs(),
+		OTPLogsCollection()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),

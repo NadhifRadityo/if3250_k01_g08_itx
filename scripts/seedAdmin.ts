@@ -33,8 +33,12 @@ const ALL_MENUS: Role["menus"] = [
 	"credit-application-assignment-auditor",
 	"credit-application-assignment-editor",
 	"credit-application-assignment-approver",
+	"monitoring-officer-tracking-viewer",
+	"monitoring-log-gps-viewer",
+	"monitoring-log-recording-viewer",
+	"monitoring-log-otp-viewer",
 	"officer-task-reporting-viewer",
-	"officer-task-monitoring-viewer"
+	"officer-task-monitoring-viewer",
 	"login-activity-log-viewer",
 	"login-activity-log-auditor"
 ];

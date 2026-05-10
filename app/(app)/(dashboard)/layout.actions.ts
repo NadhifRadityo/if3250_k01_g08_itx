@@ -10,7 +10,8 @@ import type { Role, User } from "@/payload-types";
 import { getClientIpFromHeaders } from "@/utils/clientIp";
 import { writeLoginLogEntry } from "@/utils/loginLogWriter";
 
-const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management", "login-activity-log", "officer-task-reporting"] as const;
+
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management", "login-activity-log", "officer-task-reporting", "officer-task-monitoring","monitoring-officer-tracking", "monitoring-log-gps", "monitoring-log-recording", "monitoring-log-otp"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
 type DashboardSingleViewerKey = "officer-task-reporting" | "officer-task-monitoring";
@@ -72,6 +73,10 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"officer-task-monitoring": "Officer Task Monitoring",
 	"survey-management": "Survey Management",
 	"satisfaction-survey-management": "Satisfaction Survey Management",
+	"monitoring-officer-tracking": "Officer Tracking",
+	"monitoring-log-gps": "Log GPS",
+	"monitoring-log-recording": "Log Recording",
+	"monitoring-log-otp": "Log OTP",
 	"login-activity-log": "Login Activity Log"
 };
 
@@ -120,6 +125,10 @@ const dashboardRoleMenus = [
 	"satisfaction-survey-management-auditor",
 	"satisfaction-survey-management-editor",
 	"satisfaction-survey-management-approver",
+	"monitoring-officer-tracking-viewer", 
+	"monitoring-log-gps-viewer", 
+	"monitoring-log-recording-viewer", 
+	"monitoring-log-otp-viewer",
 	"login-activity-log-viewer",
 	"login-activity-log-auditor"
 ] as const satisfies DashboardRoleMenu[];
@@ -369,6 +378,10 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 		},
 		"survey-management": resolveViewerEditorTarget(menus, "survey-management"),
 		"satisfaction-survey-management": resolveViewerEditorTarget(menus, "satisfaction-survey-management"),
+		"monitoring-officer-tracking": resolveViewerEditorTarget(menus, "monitoring-officer-tracking"),
+		"monitoring-log-gps": resolveViewerEditorTarget(menus, "monitoring-log-gps"),
+		"monitoring-log-recording": resolveViewerEditorTarget(menus, "monitoring-log-recording"),
+		"monitoring-log-otp": resolveViewerEditorTarget(menus, "monitoring-log-otp"),
 		"login-activity-log": resolveViewerEditorTarget(menus, "login-activity-log")
 	};
 }
@@ -444,6 +457,14 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Satisfaction Survey Management - Editor";
 	if(menu == "satisfaction-survey-management-approver")
 		return "Satisfaction Survey Management - Approver";
+	if(menu == "monitoring-officer-tracking-viewer")
+		return "Monitoring - Officer Tracking";
+	if(menu == "monitoring-log-gps-viewer")
+		return "Monitoring - Log GPS";
+	if(menu == "monitoring-log-recording-viewer")
+		return "Monitoring - Log Recording";
+	if(menu == "monitoring-log-otp-viewer")
+		return "Monitoring - Log OTP";
 	if(menu == "login-activity-log-viewer")
 		return "Login Activity Log - Viewer";
 	if(menu == "login-activity-log-auditor")
@@ -556,6 +577,10 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 			"officer-task-monitoring": { key: "officer-task-monitoring", viewerHref: null, editorHref: null, preferredHref: null },
 			"survey-management": { key: "survey-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"satisfaction-survey-management": { key: "satisfaction-survey-management", viewerHref: null, editorHref: null, preferredHref: null },
+			"monitoring-officer-tracking": { key: "monitoring-officer-tracking", viewerHref: null, editorHref: null, preferredHref: null },
+			"monitoring-log-gps": { key: "monitoring-log-gps", viewerHref: null, editorHref: null, preferredHref: null },
+			"monitoring-log-recording": { key: "monitoring-log-recording", viewerHref: null, editorHref: null, preferredHref: null },
+			"monitoring-log-otp": { key: "monitoring-log-otp", viewerHref: null, editorHref: null, preferredHref: null },
 			"login-activity-log": { key: "login-activity-log", viewerHref: null, editorHref: null, preferredHref: null }
 		};
 	}

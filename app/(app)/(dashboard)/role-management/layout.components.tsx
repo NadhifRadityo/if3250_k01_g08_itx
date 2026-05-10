@@ -164,7 +164,11 @@ export const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
 	{ value: "satisfaction-survey-management-viewer", label: "Satisfaction Survey Management - Viewer" },
 	{ value: "satisfaction-survey-management-auditor", label: "Satisfaction Survey Management - Auditor" },
 	{ value: "satisfaction-survey-management-editor", label: "Satisfaction Survey Management - Editor" },
-	{ value: "satisfaction-survey-management-approver", label: "Satisfaction Survey Management - Approver" }
+	{ value: "satisfaction-survey-management-approver", label: "Satisfaction Survey Management - Approver" },
+	{ value: "monitoring-officer-tracking-viewer", label: "Monitoring - Officer Tracking" },
+	{ value: "monitoring-log-gps-viewer", label: "Monitoring - Log GPS" },
+	{ value: "monitoring-log-recording-viewer", label: "Monitoring - Log Recording" },
+	{ value: "monitoring-log-otp-viewer", label: "Monitoring - Log OTP" }
 ];
 
 export const reviewStatusOptions: Array<{ value: string, label: string }> = [
