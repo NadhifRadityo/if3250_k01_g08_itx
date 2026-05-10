@@ -250,6 +250,8 @@ export interface Role {
     | 'credit-application-assignment-auditor'
     | 'credit-application-assignment-editor'
     | 'credit-application-assignment-approver'
+    | 'officer-task-reporting-viewer'
+    | 'officer-task-monitoring-viewer'
     | 'survey-management-viewer'
     | 'survey-management-auditor'
     | 'survey-management-editor'

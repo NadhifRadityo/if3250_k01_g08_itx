@@ -11,6 +11,7 @@
 		"seed:admin": "payload run ./scripts/seedAdmin.ts",
 		"seed:user-role-team": "payload run ./scripts/seedUserRoleTeam.ts",
 		"seed:credit-application-management": "payload run ./scripts/seedCreditApplicationManagement.ts",
+		"seed:officer-task-report-monitor": "payload run ./scripts/seedOfficerTaskReportMonitor.ts",
 		"seed:credit-application-import": "payload run ./scripts/seedCreditApplicationImport.ts"
 	},
 	"packageManager": "pnpm@10.33.0",

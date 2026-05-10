@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect, type ReactNode, type ChangeEvent } from "react";
 import { usePathname } from "next/navigation";
-import { SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileCheckIcon, UserCheckIcon, ShieldCheckIcon, ChevronRightIcon, ClipboardListIcon, ChevronsUpDownIcon } from "lucide-react";
+import { SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, ShieldCheckIcon, ChevronRightIcon, ClipboardListIcon, ChevronsUpDownIcon } from "lucide-react";
 
 import useIsMobile from "@/utils/useIsMobile";
 import { Image } from "@/components/Image";
@@ -23,7 +23,7 @@ import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
 
-const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|survey-management|satisfaction-survey-management)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
+const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|officer-task-reporting|officer-task-monitoring|survey-management|satisfaction-survey-management)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
 
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
@@ -44,6 +44,10 @@ function getManagementIcon(key: DashboardManagementKey) {
 		return FileCheckIcon;
 	if(key == "credit-application-assignment")
 		return UserCheckIcon;
+	if(key == "officer-task-reporting")
+		return ClipboardListIcon;
+	if(key == "officer-task-monitoring")
+		return MapPinnedIcon;
 	if(key == "survey-management")
 		return ClipboardListIcon;
 	if(key == "satisfaction-survey-management")

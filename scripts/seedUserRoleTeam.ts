@@ -124,7 +124,9 @@ const ROLE_SEEDS: SeedRole[] = [
 			"credit-application-assignment-viewer",
 			"credit-application-assignment-auditor",
 			"credit-application-assignment-editor",
-			"credit-application-assignment-approver"
+			"credit-application-assignment-approver",
+			"officer-task-reporting-viewer",
+			"officer-task-monitoring-viewer"
 		]
 	},
 	{
@@ -135,7 +137,9 @@ const ROLE_SEEDS: SeedRole[] = [
 			"team-management-editor",
 			"credit-application-assignment-viewer",
 			"credit-application-assignment-auditor",
-			"credit-application-assignment-editor"
+			"credit-application-assignment-editor",
+			"officer-task-reporting-viewer",
+			"officer-task-monitoring-viewer"
 		]
 	},
 	{
