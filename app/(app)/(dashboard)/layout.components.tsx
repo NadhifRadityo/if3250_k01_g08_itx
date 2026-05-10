@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useEffect, type ReactNode, type ChangeEvent } from "react";
 import { usePathname } from "next/navigation";
-import { SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileCheckIcon, UserCheckIcon, ShieldCheckIcon, ChevronRightIcon, ClipboardListIcon, ChevronsUpDownIcon } from "lucide-react";
+
+import { SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, UserCogIcon, Columns3Icon, FileCheckIcon, UserCheckIcon, ShieldCheckIcon, ChevronRightIcon, ClipboardListIcon, ChevronsUpDownIcon, FileClockIcon, MapPinnedIcon } from "lucide-react";
 
 import useIsMobile from "@/utils/useIsMobile";
 import { Image } from "@/components/Image";
@@ -23,7 +24,8 @@ import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
 
-const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|survey-management|satisfaction-survey-management|monitoring-officer-tracking|monitoring-log-gps|monitoring-log-recording|monitoring-log-otp)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
+
+const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|officer-task-reporting|officer-task-monitoring|survey-management|satisfaction-survey-management|monitoring-officer-tracking|monitoring-log-gps|monitoring-log-recording|monitoring-log-otp|login-activity-log)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
 
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
@@ -44,10 +46,16 @@ function getManagementIcon(key: DashboardManagementKey) {
 		return FileCheckIcon;
 	if(key == "credit-application-assignment")
 		return UserCheckIcon;
+	if(key == "officer-task-reporting")
+		return ClipboardListIcon;
+	if(key == "officer-task-monitoring")
+		return MapPinnedIcon;
 	if(key == "survey-management")
 		return ClipboardListIcon;
 	if(key == "satisfaction-survey-management")
 		return SmileIcon;
+	if(key == "login-activity-log")
+		return FileClockIcon;
 	return UsersIcon;
 }
 
@@ -62,6 +70,9 @@ function getBreadcrumbModel(pathname: string, managementNavigation: DashboardMan
 } {
 	if(pathname == "/credit-application-management")
 		return { managementLabel: "Credit Application Management", modeLabel: null, isCreditApplication: true };
+
+	if(/^\/login-activity-log(?:\/viewer)?$/.test(pathname))
+		return { managementLabel: "Login Activity Log", modeLabel: "Viewer", isCreditApplication: false };
 
 	const parsedPath = parseManagementPath(pathname);
 	if(parsedPath == null)
@@ -157,7 +168,8 @@ export function DashboardManagementPagination({
 	isLoading,
 	isMutating,
 	onPrevious,
-	onNext
+	onNext,
+	summaryItemLabel = "request(s)"
 }: {
 	pageIndex: number;
 	totalRequests: number;
@@ -167,10 +179,11 @@ export function DashboardManagementPagination({
 	isMutating: boolean;
 	onPrevious: () => void;
 	onNext: () => void;
+	summaryItemLabel?: string;
 }) {
 	return (
 		<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-			<p className="text-muted-foreground text-sm">Showing page {pageIndex} ({totalRequests} request(s))</p>
+			<p className="text-muted-foreground text-sm">Showing page {pageIndex} ({totalRequests} {summaryItemLabel})</p>
 			<div className="flex gap-2">
 				<Button
 					type="button"

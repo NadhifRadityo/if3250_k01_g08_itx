@@ -13,7 +13,8 @@
 		"seed:credit-application-management": "payload run ./scripts/seedCreditApplicationManagement.ts",
 		"seed:credit-application-import": "payload run ./scripts/seedCreditApplicationImport.ts",
 		"seed:gps": "payload run ./scripts/seedGPSLogs.ts",
-		"seed:otp": "payload run ./scripts/seedOTP.ts"
+		"seed:otp": "payload run ./scripts/seedOTP.ts",
+		"seed:officer-task-report-monitor": "payload run ./scripts/seedOfficerTaskReportMonitor.ts"
 	},
 	"packageManager": "pnpm@10.33.0",
 	"dependencies": {

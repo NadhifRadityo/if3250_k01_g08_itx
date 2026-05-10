@@ -36,7 +36,11 @@ const ALL_MENUS: Role["menus"] = [
 	"monitoring-officer-tracking-viewer",
 	"monitoring-log-gps-viewer",
 	"monitoring-log-recording-viewer",
-	"monitoring-log-otp-viewer"
+	"monitoring-log-otp-viewer",
+	"officer-task-reporting-viewer",
+	"officer-task-monitoring-viewer",
+	"login-activity-log-viewer",
+	"login-activity-log-auditor"
 ];
 
 type ReviewCommentValue = NonNullable<Role["reviewComment"]>;

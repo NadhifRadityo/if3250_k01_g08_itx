@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     'generic-richtext-uploads': GenericRichtextUpload;
     users: User;
+    'login-logs': LoginLog;
     'staged-users': StagedUser;
     roles: Role;
     teams: Team;
@@ -78,6 +79,11 @@ export interface Config {
     'credit-application-field-masks': CreditApplicationFieldMask;
     surveys: Survey;
     'satsifaction-surveys': SatsifactionSurvey;
+    'recording-logs': RecordingLog;
+    'audio-files': AudioFile;
+    'text-files': TextFile;
+    'gps-request-logs': GpsRequestLog;
+    'otp-logs': OtpLog;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSync;
     search: Search;
     'payload-kv': PayloadKv;
@@ -94,6 +100,7 @@ export interface Config {
   collectionsSelect: {
     'generic-richtext-uploads': GenericRichtextUploadsSelect<false> | GenericRichtextUploadsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    'login-logs': LoginLogsSelect<false> | LoginLogsSelect<true>;
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
@@ -103,6 +110,11 @@ export interface Config {
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
     'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
+    'recording-logs': RecordingLogsSelect<false> | RecordingLogsSelect<true>;
+    'audio-files': AudioFilesSelect<false> | AudioFilesSelect<true>;
+    'text-files': TextFilesSelect<false> | TextFilesSelect<true>;
+    'gps-request-logs': GpsRequestLogsSelect<false> | GpsRequestLogsSelect<true>;
+    'otp-logs': OtpLogsSelect<false> | OtpLogsSelect<true>;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSyncsSelect<false> | DatabaseLockingPluginTransactionSyncsSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -250,6 +262,8 @@ export interface Role {
     | 'credit-application-assignment-auditor'
     | 'credit-application-assignment-editor'
     | 'credit-application-assignment-approver'
+    | 'officer-task-reporting-viewer'
+    | 'officer-task-monitoring-viewer'
     | 'survey-management-viewer'
     | 'survey-management-auditor'
     | 'survey-management-editor'
@@ -262,6 +276,8 @@ export interface Role {
     | 'monitoring-log-gps-viewer'
     | 'monitoring-log-recording-viewer'
     | 'monitoring-log-otp-viewer'
+    | 'login-activity-log-viewer'
+    | 'login-activity-log-auditor'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
@@ -320,6 +336,20 @@ export interface StagedUser {
     [k: string]: unknown;
   } | null;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs".
+ */
+export interface LoginLog {
+  id: string;
+  user?: (string | null) | User;
+  occurredAt: string;
+  ip: string;
+  event: 'login' | 'logout';
+  outcome?: ('success' | 'failure') | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -702,6 +732,99 @@ export interface SatsifactionSurvey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "recording-logs".
+ */
+export interface RecordingLog {
+  id: string;
+  rawRecordingId: string;
+  date: string;
+  officerName: string;
+  apply?: (string | null) | CreditApplication;
+  phoneNumber: string;
+  /**
+   * Duration in seconds
+   */
+  duration?: number | null;
+  recording?: (string | null) | AudioFile;
+  speechToText?: (string | null) | TextFile;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audio-files".
+ */
+export interface AudioFile {
+  id: string;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "text-files".
+ */
+export interface TextFile {
+  id: string;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gps-request-logs".
+ */
+export interface GpsRequestLog {
+  id: string;
+  officerName: string;
+  teamName?: string | null;
+  time: string;
+  apply: string | CreditApplication;
+  gpsCoordinate: {
+    latitude: number;
+    longitude: number;
+  };
+  ip?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "otp-logs".
+ */
+export interface OtpLog {
+  id: string;
+  requestDate: string;
+  officerName: string;
+  applyId?: (string | null) | CreditApplication;
+  waNumber?: string | null;
+  smsNumber?: string | null;
+  email?: string | null;
+  content?: string | null;
+  waResponse: 'Sent' | 'Failed' | 'Pending' | 'NA';
+  smsResponse: 'Sent' | 'Failed' | 'Pending' | 'NA';
+  emailResponse: 'Sent' | 'Failed' | 'Pending' | 'NA';
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "database-locking-plugin-transaction-syncs".
  */
 export interface DatabaseLockingPluginTransactionSync {
@@ -895,6 +1018,10 @@ export interface PayloadLockedDocument {
         value: string | User;
       } | null)
     | ({
+        relationTo: 'login-logs';
+        value: string | LoginLog;
+      } | null)
+    | ({
         relationTo: 'staged-users';
         value: string | StagedUser;
       } | null)
@@ -929,6 +1056,26 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'satsifaction-surveys';
         value: string | SatsifactionSurvey;
+      } | null)
+    | ({
+        relationTo: 'recording-logs';
+        value: string | RecordingLog;
+      } | null)
+    | ({
+        relationTo: 'audio-files';
+        value: string | AudioFile;
+      } | null)
+    | ({
+        relationTo: 'text-files';
+        value: string | TextFile;
+      } | null)
+    | ({
+        relationTo: 'gps-request-logs';
+        value: string | GpsRequestLog;
+      } | null)
+    | ({
+        relationTo: 'otp-logs';
+        value: string | OtpLog;
       } | null)
     | ({
         relationTo: 'database-locking-plugin-transaction-syncs';
@@ -1032,6 +1179,19 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs_select".
+ */
+export interface LoginLogsSelect<T extends boolean = true> {
+  user?: T;
+  occurredAt?: T;
+  ip?: T;
+  event?: T;
+  outcome?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1251,6 +1411,93 @@ export interface SatsifactionSurveysSelect<T extends boolean = true> {
   reviewApproved?: T;
   reviewComment?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "recording-logs_select".
+ */
+export interface RecordingLogsSelect<T extends boolean = true> {
+  rawRecordingId?: T;
+  date?: T;
+  officerName?: T;
+  apply?: T;
+  phoneNumber?: T;
+  duration?: T;
+  recording?: T;
+  speechToText?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "audio-files_select".
+ */
+export interface AudioFilesSelect<T extends boolean = true> {
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "text-files_select".
+ */
+export interface TextFilesSelect<T extends boolean = true> {
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gps-request-logs_select".
+ */
+export interface GpsRequestLogsSelect<T extends boolean = true> {
+  officerName?: T;
+  teamName?: T;
+  time?: T;
+  apply?: T;
+  gpsCoordinate?:
+    | T
+    | {
+        latitude?: T;
+        longitude?: T;
+      };
+  ip?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "otp-logs_select".
+ */
+export interface OtpLogsSelect<T extends boolean = true> {
+  requestDate?: T;
+  officerName?: T;
+  applyId?: T;
+  waNumber?: T;
+  smsNumber?: T;
+  email?: T;
+  content?: T;
+  waResponse?: T;
+  smsResponse?: T;
+  emailResponse?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

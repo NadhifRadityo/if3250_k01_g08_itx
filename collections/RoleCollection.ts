@@ -160,6 +160,8 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "credit-application-assignment-auditor", label: "Credit Application Assignment - Auditor" },
 				{ value: "credit-application-assignment-editor", label: "Credit Application Assignment - Editor" },
 				{ value: "credit-application-assignment-approver", label: "Credit Application Assignment - Approver" },
+				{ value: "officer-task-reporting-viewer", label: "Officer Task Reporting - Viewer" },
+				{ value: "officer-task-monitoring-viewer", label: "Officer Task Monitoring - Viewer" },
 				{ value: "survey-management-viewer", label: "Survey Management - Viewer" },
 				{ value: "survey-management-auditor", label: "Survey Management - Auditor" },
 				{ value: "survey-management-editor", label: "Survey Management - Editor" },
@@ -171,7 +173,9 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "monitoring-officer-tracking-viewer", label: "Monitoring - Officer Tracking" },
 				{ value: "monitoring-log-gps-viewer", label: "Monitoring - Log GPS" },
 				{ value: "monitoring-log-recording-viewer", label: "Monitoring - Log Recording" },
-				{ value: "monitoring-log-otp-viewer", label: "Monitoring - Log OTP" }
+				{ value: "monitoring-log-otp-viewer", label: "Monitoring - Log OTP" },
+				{ value: "login-activity-log-viewer", label: "Login Activity Log - Viewer" },
+				{ value: "login-activity-log-auditor", label: "Login Activity Log - Auditor" }
 			],
 			required: true,
 			hasMany: true,
