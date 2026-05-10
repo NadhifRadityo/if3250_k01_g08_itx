@@ -168,7 +168,9 @@ export const roleMenuOptions: Array<{ value: RoleMenu, label: string }> = [
 	{ value: "monitoring-officer-tracking-viewer", label: "Monitoring - Officer Tracking" },
 	{ value: "monitoring-log-gps-viewer", label: "Monitoring - Log GPS" },
 	{ value: "monitoring-log-recording-viewer", label: "Monitoring - Log Recording" },
-	{ value: "monitoring-log-otp-viewer", label: "Monitoring - Log OTP" }
+	{ value: "monitoring-log-otp-viewer", label: "Monitoring - Log OTP" },
+	{ value: "survey-result-monitoring", label: "Survey Result - Monitoring" },
+	{ value: "survey-result-reporting", label: "Survey Result - Reporting" }
 ];
 
 export const reviewStatusOptions: Array<{ value: string, label: string }> = [

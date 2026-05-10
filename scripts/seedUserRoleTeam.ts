@@ -126,9 +126,11 @@ const ROLE_SEEDS: SeedRole[] = [
 			"credit-application-assignment-editor",
 			"credit-application-assignment-approver",
 			"officer-task-reporting-viewer",
-			"officer-task-monitoring-viewer"
+			"officer-task-monitoring-viewer",
 			"login-activity-log-viewer",
-			"login-activity-log-auditor"
+			"login-activity-log-auditor",
+			"survey-result-monitoring",
+			"survey-result-reporting"
 		]
 	},
 	{
@@ -141,7 +143,8 @@ const ROLE_SEEDS: SeedRole[] = [
 			"credit-application-assignment-auditor",
 			"credit-application-assignment-editor",
 			"officer-task-reporting-viewer",
-			"officer-task-monitoring-viewer"
+			"officer-task-monitoring-viewer",
+			"survey-result-monitoring"
 		]
 	},
 	{

@@ -280,6 +280,8 @@ export interface Role {
     | 'monitoring-log-otp-viewer'
     | 'login-activity-log-viewer'
     | 'login-activity-log-auditor'
+    | 'survey-result-monitoring'
+    | 'survey-result-reporting'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;

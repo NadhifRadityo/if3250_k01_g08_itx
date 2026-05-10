@@ -175,7 +175,9 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "monitoring-log-recording-viewer", label: "Monitoring - Log Recording" },
 				{ value: "monitoring-log-otp-viewer", label: "Monitoring - Log OTP" },
 				{ value: "login-activity-log-viewer", label: "Login Activity Log - Viewer" },
-				{ value: "login-activity-log-auditor", label: "Login Activity Log - Auditor" }
+				{ value: "login-activity-log-auditor", label: "Login Activity Log - Auditor" },
+				{ value: "survey-result-monitoring", label: "Survey Result - Monitoring" },
+				{ value: "survey-result-reporting", label: "Survey Result - Reporting" }
 			],
 			required: true,
 			hasMany: true,
