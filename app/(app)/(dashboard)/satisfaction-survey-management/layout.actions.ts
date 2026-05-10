@@ -1036,6 +1036,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 			user,
 			collection: "satsifaction-surveys",
 			overrideAccess: true,
+			draft: true,
 			data: {
 				_status: "draft",
 				title,
@@ -1066,6 +1067,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 		collection: "satsifaction-surveys",
 		id: input.surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1104,6 +1106,7 @@ export async function requestDeleteSurveyAction(surveyId: string) {
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1130,6 +1133,7 @@ export async function cancelSurveyRequestAction(surveyId: string) {
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1172,6 +1176,7 @@ export async function cancelSurveyRequestAction(surveyId: string) {
 			collection: "satsifaction-surveys",
 			id: surveyId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1224,6 +1229,7 @@ export async function requestRestoreSurveyAction(surveyId: string) {
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1237,6 +1243,7 @@ export async function requestRestoreSurveyAction(surveyId: string) {
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1263,6 +1270,7 @@ export async function reviewSurveyRequestAction({ surveyId, decision, reviewComm
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1279,6 +1287,7 @@ export async function reviewSurveyRequestAction({ surveyId, decision, reviewComm
 			collection: "satsifaction-surveys",
 			id: surveyId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1322,6 +1331,7 @@ export async function getSurveyRequestReviewDiffAction(surveyId: string): Promis
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true

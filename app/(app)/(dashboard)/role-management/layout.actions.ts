@@ -1165,6 +1165,7 @@ export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 			user,
 			collection: "roles",
 			overrideAccess: true,
+			draft: true,
 			data: {
 				_status: "draft",
 				name,
@@ -1195,6 +1196,7 @@ export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 		collection: "roles",
 		id: input.roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1233,6 +1235,7 @@ export async function requestDeleteRoleAction(roleId: string) {
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1259,6 +1262,7 @@ export async function cancelRoleRequestAction(roleId: string) {
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1301,6 +1305,7 @@ export async function cancelRoleRequestAction(roleId: string) {
 			collection: "roles",
 			id: roleId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1355,6 +1360,7 @@ export async function requestRestoreRoleAction(roleId: string) {
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1368,6 +1374,7 @@ export async function requestRestoreRoleAction(roleId: string) {
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1394,6 +1401,7 @@ export async function reviewRoleRequestAction({ roleId, decision, reviewComment 
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1410,6 +1418,7 @@ export async function reviewRoleRequestAction({ roleId, decision, reviewComment 
 			collection: "roles",
 			id: roleId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1453,6 +1462,7 @@ export async function getRoleRequestReviewDiffAction(roleId: string): Promise<Ro
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true

@@ -1600,6 +1600,7 @@ export async function upsertCreditApplicationRequestAction(input: UpsertCreditAp
 			user,
 			collection: "credit-applications",
 			overrideAccess: true,
+			draft: true,
 			data: {
 				import: importId,
 				...requestData
@@ -1622,6 +1623,7 @@ export async function upsertCreditApplicationRequestAction(input: UpsertCreditAp
 		collection: "credit-applications",
 		id: input.creditApplicationId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: requestData
 	});
@@ -1649,6 +1651,7 @@ export async function requestDeleteCreditApplicationAction(creditApplicationId: 
 		collection: "credit-applications",
 		id: creditApplicationId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1675,6 +1678,7 @@ export async function cancelCreditApplicationRequestAction(creditApplicationId: 
 		collection: "credit-applications",
 		id: creditApplicationId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1739,6 +1743,7 @@ export async function cancelCreditApplicationRequestAction(creditApplicationId: 
 			collection: "credit-applications",
 			id: creditApplicationId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1820,6 +1825,7 @@ export async function requestRestoreCreditApplicationAction(creditApplicationId:
 		collection: "credit-applications",
 		id: creditApplicationId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1833,6 +1839,7 @@ export async function requestRestoreCreditApplicationAction(creditApplicationId:
 		collection: "credit-applications",
 		id: creditApplicationId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1863,6 +1870,7 @@ export async function reviewCreditApplicationRequestAction({
 		collection: "credit-applications",
 		id: creditApplicationId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1879,6 +1887,7 @@ export async function reviewCreditApplicationRequestAction({
 			collection: "credit-applications",
 			id: creditApplicationId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1922,6 +1931,7 @@ export async function getCreditApplicationRequestReviewDiffAction(creditApplicat
 		collection: "credit-applications",
 		id: creditApplicationId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true

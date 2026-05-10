@@ -501,15 +501,18 @@ async function findCreditApplicationsByIds(
 		collection: "credit-applications",
 		user,
 		overrideAccess: false,
-		draft: true,
-		trash: true,
 		pagination: false,
 		depth: 0,
 		limit: Math.max(ids.length, 1),
 		where: {
-			id: {
-				in: ids
-			}
+			and: [
+				{
+					id: {
+						in: ids
+					}
+				},
+				{ _status: { equals: "published" } }
+			]
 		},
 		select: {
 			name: true,
@@ -588,15 +591,19 @@ async function ensureOfficerUser(payload: Payload, user: User, officerId: string
 }
 
 async function ensureCreditApplicationExists(payload: Payload, user: User, creditApplicationId: string): Promise<void> {
-	await payload.findByID({
+	const creditApplication = await payload.findByID({
 		collection: "credit-applications",
 		id: creditApplicationId,
 		user,
 		overrideAccess: false,
-		draft: true,
-		trash: true,
-		depth: 0
+		depth: 0,
+		select: {
+			_status: true,
+			deletedAt: true
+		}
 	});
+	if(creditApplication._status != "published" || creditApplication.deletedAt != null)
+		throw new Error("Selected credit application must be an active published credit application.");
 }
 
 export async function searchCreditApplicationOptionsAction(
@@ -627,17 +634,21 @@ export async function searchCreditApplicationOptionsAction(
 		collection: "credit-applications",
 		user,
 		overrideAccess: false,
-		draft: true,
-		trash: true,
 		pagination: false,
 		depth: 0,
 		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
 		sort: "-updatedAt",
+		where: {
+			and: [
+				{ _status: { equals: "published" } },
+				{ deletedAt: { exists: false } },
+				...(where != null ? [where] : [])
+			]
+		},
 		select: {
 			name: true,
 			email: true
-		},
-		...(where != null ? { where } : {})
+		}
 	});
 
 	return result.docs.map(doc => ({
@@ -673,17 +684,21 @@ export async function searchAvailableCreditApplicationOptionsAction(
 		collection: "credit-applications",
 		user,
 		overrideAccess: false,
-		draft: true,
-		trash: true,
 		pagination: false,
 		depth: 0,
 		limit: RELATION_SEARCH_LIMIT * 5 + normalizedSelectedIds.length,
 		sort: "-updatedAt",
+		where: {
+			and: [
+				{ _status: { equals: "published" } },
+				{ deletedAt: { exists: false } },
+				...(where != null ? [where] : [])
+			]
+		},
 		select: {
 			name: true,
 			email: true
-		},
-		...(where != null ? { where } : {})
+		}
 	});
 
 	const selectedCreditApplicationsById = await findCreditApplicationsByIds(payload, user, normalizedSelectedIds);
@@ -1441,6 +1456,7 @@ export async function upsertCreditApplicationAssignmentRequestAction(
 			user,
 			collection: "credit-application-assignments",
 			overrideAccess: true,
+			draft: true,
 			data: requestData
 		});
 		return { assignmentId: created.id };
@@ -1460,6 +1476,7 @@ export async function upsertCreditApplicationAssignmentRequestAction(
 		collection: "credit-application-assignments",
 		id: input.assignmentId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: requestData
 	});
@@ -1518,6 +1535,7 @@ export async function createCreditApplicationAssignmentsRequestAction(
 				user,
 				collection: "credit-application-assignments",
 				overrideAccess: true,
+				draft: true,
 				data: {
 					...requestData,
 					creditApplication: creditApplicationId
@@ -1532,6 +1550,7 @@ export async function createCreditApplicationAssignmentsRequestAction(
 			collection: "credit-application-assignments",
 			id: existingAssignment.id,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				...requestData,
@@ -1565,6 +1584,7 @@ export async function requestDeleteCreditApplicationAssignmentAction(assignmentI
 		collection: "credit-application-assignments",
 		id: assignmentId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1592,6 +1612,7 @@ export async function cancelCreditApplicationAssignmentRequestAction(assignmentI
 		collection: "credit-application-assignments",
 		id: assignmentId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1636,6 +1657,7 @@ export async function cancelCreditApplicationAssignmentRequestAction(assignmentI
 			collection: "credit-application-assignments",
 			id: assignmentId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1692,6 +1714,7 @@ export async function requestRestoreCreditApplicationAssignmentAction(assignment
 		collection: "credit-application-assignments",
 		id: assignmentId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1705,6 +1728,7 @@ export async function requestRestoreCreditApplicationAssignmentAction(assignment
 		collection: "credit-application-assignments",
 		id: assignmentId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1736,6 +1760,7 @@ export async function reviewCreditApplicationAssignmentRequestAction({
 		collection: "credit-application-assignments",
 		id: assignmentId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1753,6 +1778,7 @@ export async function reviewCreditApplicationAssignmentRequestAction({
 			collection: "credit-application-assignments",
 			id: assignmentId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1799,6 +1825,7 @@ export async function getCreditApplicationAssignmentRequestReviewDiffAction(
 		collection: "credit-application-assignments",
 		id: assignmentId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true

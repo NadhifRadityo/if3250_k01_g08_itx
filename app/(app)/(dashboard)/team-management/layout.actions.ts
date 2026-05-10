@@ -1175,6 +1175,7 @@ export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
 			user,
 			collection: "teams",
 			overrideAccess: true,
+			draft: true,
 			data: {
 				_status: "draft",
 				name,
@@ -1205,6 +1206,7 @@ export async function upsertTeamRequestAction(input: UpsertTeamRequestInput) {
 		collection: "teams",
 		id: input.teamId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1243,6 +1245,7 @@ export async function requestDeleteTeamAction(teamId: string) {
 		collection: "teams",
 		id: teamId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1269,6 +1272,7 @@ export async function cancelTeamRequestAction(teamId: string) {
 		collection: "teams",
 		id: teamId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1311,6 +1315,7 @@ export async function cancelTeamRequestAction(teamId: string) {
 			collection: "teams",
 			id: teamId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1365,6 +1370,7 @@ export async function requestRestoreTeamAction(teamId: string) {
 		collection: "teams",
 		id: teamId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1378,6 +1384,7 @@ export async function requestRestoreTeamAction(teamId: string) {
 		collection: "teams",
 		id: teamId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1404,6 +1411,7 @@ export async function reviewTeamRequestAction({ teamId, decision, reviewComment 
 		collection: "teams",
 		id: teamId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1420,6 +1428,7 @@ export async function reviewTeamRequestAction({ teamId, decision, reviewComment 
 			collection: "teams",
 			id: teamId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1463,6 +1472,7 @@ export async function getTeamRequestReviewDiffAction(teamId: string): Promise<Te
 		collection: "teams",
 		id: teamId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
