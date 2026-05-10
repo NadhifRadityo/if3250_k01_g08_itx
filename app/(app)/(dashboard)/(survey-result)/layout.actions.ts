@@ -141,7 +141,7 @@ export type SurveyReportSummaryOutput = {
 	relations: SurveyResultRelationValues;
 };
 
-export type SurveyReportExportOutput = {
+export type ExportFileOutput = {
 	fileName: string;
 	mimeType: string;
 	base64: string;
@@ -1204,7 +1204,7 @@ function formatReportFileTimestamp(date: Date): string {
 	return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
 
-export async function exportSurveyReport(input: SurveyReportListInput = {}): Promise<SurveyReportExportOutput> {
+export async function exportSurveyReport(input: SurveyReportListInput = {}): Promise<ExportFileOutput> {
 	const { payload, user } = await requireAuthedPayload();
 
 	const keyword = normalizeOptionalTextValue(input.keyword);
@@ -1268,6 +1268,160 @@ export async function exportSurveyReport(input: SurveyReportListInput = {}): Pro
 	const buffer = await workbook.xlsx.writeBuffer();
 	const mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 	const fileName = `survey-report-${formatReportFileTimestamp(new Date())}.xlsx`;
+
+	return {
+		fileName,
+		mimeType,
+		base64: Buffer.from(buffer).toString("base64")
+	};
+}
+
+export async function exportSurveyResultDetail(surveyResultId: string): Promise<ExportFileOutput> {
+	const { payload, user } = await requireAuthedPayload();
+
+	const { row, surveyTemplate } = await getSurveyResultDetailInternalAction(payload, user, surveyResultId);
+
+	const answers = row.answers as unknown;
+	const templateContent = surveyTemplate?.content;
+
+	const workbook = new ExcelJS.Workbook();
+	workbook.title = "Survey Result Detail";
+	workbook.creator = "Survey Result Detail";
+	workbook.created = new Date();
+	workbook.modified = new Date();
+
+	const worksheet = workbook.addWorksheet("Survey Result Answers");
+	worksheet.columns = [
+		{ header: "Question", key: "question", width: 60 },
+		{ header: "Answer", key: "answer", width: 80 }
+	];
+
+	type ExportRow = { question: string, answer: string };
+
+	const stringifyRenderableText = (value: unknown): string => {
+		if(typeof value == "string" || typeof value == "number")
+			return String(value).trim();
+		if(Array.isArray(value))
+			return value.map(part => stringifyRenderableText(part)).join("").trim();
+		if(value == null)
+			return "";
+		try {
+			return JSON.stringify(value);
+		} catch{
+			return String(value);
+		}
+	};
+
+	const formatAnswerValue = (value: unknown): string => {
+		if(value == null)
+			return "";
+		if(typeof value == "string")
+			return value.trim();
+		if(typeof value == "number" || typeof value == "boolean")
+			return String(value);
+		if(Array.isArray(value))
+			return value.map(item => formatAnswerValue(item)).filter(item => item.length > 0).join(", ");
+		try {
+			return JSON.stringify(value, null, 2);
+		} catch{
+			return String(value);
+		}
+	};
+
+	const extractAnswerValues = (value: unknown): Record<string, unknown> => {
+		if(value == null || typeof value != "object")
+			return {};
+		if("values" in value && (value as any).values != null && typeof (value as any).values == "object" && !Array.isArray((value as any).values))
+			return (value as any).values as Record<string, unknown>;
+		if("data" in value && (value as any).data != null && typeof (value as any).data == "object" && !Array.isArray((value as any).data))
+			return (value as any).data as Record<string, unknown>;
+
+		const items = (value as any).items as unknown;
+		if(Array.isArray(items)) {
+			const mapped: Record<string, unknown> = {};
+			for(const item of items) {
+				if(item == null || typeof item != "object")
+					continue;
+				const questionId = typeof item.questionId == "string" ? item.questionId.trim() : "";
+				if(questionId.length == 0)
+					continue;
+				mapped[questionId] = item.value;
+			}
+			return mapped;
+		}
+
+		if(items != null && typeof items == "object" && !Array.isArray(items))
+			return items as Record<string, unknown>;
+
+		return {};
+	};
+
+	const answerValues = extractAnswerValues(answers);
+
+	const exportRows: ExportRow[] = [];
+
+	const isFormTemplate = (content: unknown): content is { slides: Array<{ blocks?: any[] }> } => {
+		return content != null && typeof content == "object" && Array.isArray((content as any).slides);
+	};
+
+	const walkFormBlocks = (blocks: unknown, out: Array<{ name: string, question: string }>) => {
+		if(!Array.isArray(blocks))
+			return;
+		for(const block of blocks) {
+			if(block == null || typeof block != "object")
+				continue;
+			const name = typeof block.name == "string" ? block.name.trim() : "";
+			if(name.length > 0) {
+				const question = stringifyRenderableText(block.question);
+				out.push({ name, question: question.length > 0 ? question : name });
+			}
+		}
+	};
+
+	if(isFormTemplate(templateContent)) {
+		const questions: Array<{ name: string, question: string }> = [];
+		for(const slide of templateContent.slides)
+			walkFormBlocks(slide?.blocks, questions);
+
+		for(const question of questions) {
+			exportRows.push({
+				question: question.question,
+				answer: formatAnswerValue(answerValues[question.name])
+			});
+		}
+	} else if(Array.isArray(templateContent?.questions)) {
+		for(const question of templateContent.questions) {
+			const id = typeof question?.id == "string" ? question.id.trim() : "";
+			if(id.length == 0)
+				continue;
+			const questionText = typeof question?.question == "string" ? question.question.trim() : "";
+			exportRows.push({
+				question: questionText.length > 0 ? questionText : id,
+				answer: formatAnswerValue(answerValues[id])
+			});
+		}
+	} else {
+		for(const [key, value] of Object.entries(answerValues)) {
+			const normalizedKey = key.trim();
+			if(normalizedKey.length == 0)
+				continue;
+			exportRows.push({ question: normalizedKey, answer: formatAnswerValue(value) });
+		}
+	}
+
+	if(exportRows.length == 0)
+		exportRows.push({ question: "Answers (JSON)", answer: JSON.stringify(answers ?? null, null, 2) });
+
+	for(const entry of exportRows)
+		worksheet.addRow(entry);
+
+	worksheet.getRow(1).font = { bold: true };
+	worksheet.getColumn(1).alignment = { vertical: "top", wrapText: true };
+	worksheet.getColumn(2).alignment = { vertical: "top", wrapText: true };
+
+	const buffer = await workbook.xlsx.writeBuffer();
+	const mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+	const fileName = `survey-result-${row.id}-answers.xlsx`;
 
 	return {
 		fileName,

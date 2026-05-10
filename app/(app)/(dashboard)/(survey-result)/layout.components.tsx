@@ -69,6 +69,23 @@ function formatListDate(value: string): string {
 	return `${parsed.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${parsed.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
 }
 
+function triggerBase64Download(file: surveyResultActions.ExportFileOutput) {
+	const binary = atob(file.base64);
+	const bytes = new Uint8Array(binary.length);
+	for(let i = 0; i < binary.length; i++)
+		bytes[i] = binary.charCodeAt(i);
+	const blob = new Blob([bytes], { type: file.mimeType });
+	const blobUrl = URL.createObjectURL(blob);
+	const anchor = document.createElement("a");
+	anchor.href = blobUrl;
+	anchor.download = file.fileName;
+	anchor.style.display = "none";
+	document.body.appendChild(anchor);
+	anchor.click();
+	document.body.removeChild(anchor);
+	URL.revokeObjectURL(blobUrl);
+}
+
 function safeJsonStringify(value: unknown): string {
 	try {
 		return JSON.stringify(value, null, 2);
@@ -398,6 +415,8 @@ export default function SurveyResultListPage({ variant }: { variant: SurveyResul
 	const [isColumnOpen, setIsColumnOpen] = useState(false);
 	const [detailId, setDetailId] = useState<string | null>(null);
 	const [isDetailOpen, setIsDetailOpen] = useState(false);
+	const [isDetailDownloading, setIsDetailDownloading] = useState(false);
+	const [detailDownloadErrorMessage, setDetailDownloadErrorMessage] = useState<string | null>(null);
 	const [filters, setFilters] = useState<SurveyResultFilters>({
 		officerId: "",
 		surveyId: "",
@@ -448,8 +467,11 @@ export default function SurveyResultListPage({ variant }: { variant: SurveyResul
 
 	const handleDetailOpenChange = (open: boolean) => {
 		setIsDetailOpen(open);
-		if(!open)
+		if(!open) {
 			setDetailId(null);
+			setIsDetailDownloading(false);
+			setDetailDownloadErrorMessage(null);
+		}
 	};
 
 	const listQuery = useQuery({
@@ -515,6 +537,22 @@ export default function SurveyResultListPage({ variant }: { variant: SurveyResul
 	const isLoading = listQuery.isPending;
 	const queryErrorMessage = listQuery.error instanceof Error ? listQuery.error.message : listQuery.error != null ? "Failed to load survey results." : null;
 	const detailErrorMessage = detailQuery.error instanceof Error ? detailQuery.error.message : detailQuery.error != null ? "Failed to load survey result detail." : null;
+
+	const handleDownloadDetail = async () => {
+		if(detailId == null || isDetailDownloading)
+			return;
+		setIsDetailDownloading(true);
+		setDetailDownloadErrorMessage(null);
+		try {
+			const file = await surveyResultActions.exportSurveyResultDetail(detailId);
+			triggerBase64Download(file);
+		} catch(error) {
+			const message = error instanceof Error ? error.message : "Failed to download survey result.";
+			setDetailDownloadErrorMessage(message);
+		} finally {
+			setIsDetailDownloading(false);
+		}
+	};
 
 	const toggleColumnVisibility = (columnId: SurveyResultTableColumnId, nextVisible: boolean) => {
 		setHiddenColumnIds(previous => {
@@ -848,6 +886,17 @@ export default function SurveyResultListPage({ variant }: { variant: SurveyResul
 						)}
 					</div>
 					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+						{detailDownloadErrorMessage != null ? (
+							<p className="text-destructive text-sm sm:mr-auto">{detailDownloadErrorMessage}</p>
+						) : null}
+						<Button
+							type="button"
+							variant="secondary"
+							onClick={handleDownloadDetail}
+							disabled={detailId == null || detailQuery.isPending || isDetailDownloading}
+						>
+							{isDetailDownloading ? "Downloading..." : "Download XLSX"}
+						</Button>
 						<Button type="button" variant="outline" onClick={() => handleDetailOpenChange(false)}>Close</Button>
 					</DrawerFooter>
 				</DrawerContent>
