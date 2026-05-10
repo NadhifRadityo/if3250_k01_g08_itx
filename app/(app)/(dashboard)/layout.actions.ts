@@ -7,8 +7,10 @@ import { getPayload, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
 import type { Role, User } from "@/payload-types";
+import { getClientIpFromHeaders } from "@/utils/clientIp";
+import { writeLoginLogEntry } from "@/utils/loginLogWriter";
 
-const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management"] as const;
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management", "login-activity-log"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
 export type DashboardMode = "viewer" | "editor" | "approver" | "import-viewer" | "import-editor" | "import-approver";
@@ -64,7 +66,8 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"credit-application-management": "Credit Application Management",
 	"credit-application-assignment": "Credit Application Assignment",
 	"survey-management": "Survey Management",
-	"satisfaction-survey-management": "Satisfaction Survey Management"
+	"satisfaction-survey-management": "Satisfaction Survey Management",
+	"login-activity-log": "Login Activity Log"
 };
 
 const modeLabelMap: Record<DashboardMode, string> = {
@@ -109,7 +112,9 @@ const dashboardRoleMenus = [
 	"satisfaction-survey-management-viewer",
 	"satisfaction-survey-management-auditor",
 	"satisfaction-survey-management-editor",
-	"satisfaction-survey-management-approver"
+	"satisfaction-survey-management-approver",
+	"login-activity-log-viewer",
+	"login-activity-log-auditor"
 ] as const satisfies DashboardRoleMenu[];
 
 const dashboardRoleMenuSet = new Set<DashboardRoleMenu>(dashboardRoleMenus);
@@ -320,7 +325,8 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 		"credit-application-management": resolveViewerEditorTarget(menus, "credit-application-management"),
 		"credit-application-assignment": resolveViewerEditorTarget(menus, "credit-application-assignment"),
 		"survey-management": resolveViewerEditorTarget(menus, "survey-management"),
-		"satisfaction-survey-management": resolveViewerEditorTarget(menus, "satisfaction-survey-management")
+		"satisfaction-survey-management": resolveViewerEditorTarget(menus, "satisfaction-survey-management"),
+		"login-activity-log": resolveViewerEditorTarget(menus, "login-activity-log")
 	};
 }
 
@@ -391,6 +397,10 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Satisfaction Survey Management - Editor";
 	if(menu == "satisfaction-survey-management-approver")
 		return "Satisfaction Survey Management - Approver";
+	if(menu == "login-activity-log-viewer")
+		return "Login Activity Log - Viewer";
+	if(menu == "login-activity-log-auditor")
+		return "Login Activity Log - Auditor";
 	return menu;
 }
 
@@ -496,7 +506,8 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 			"credit-application-management": { key: "credit-application-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null },
 			"survey-management": { key: "survey-management", viewerHref: null, editorHref: null, preferredHref: null },
-			"satisfaction-survey-management": { key: "satisfaction-survey-management", viewerHref: null, editorHref: null, preferredHref: null }
+			"satisfaction-survey-management": { key: "satisfaction-survey-management", viewerHref: null, editorHref: null, preferredHref: null },
+			"login-activity-log": { key: "login-activity-log", viewerHref: null, editorHref: null, preferredHref: null }
 		};
 	}
 
@@ -665,6 +676,19 @@ export async function getDashboardEntrySummaryAction({
 }
 
 export async function logoutAction() {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user != null) {
+		try {
+			await writeLoginLogEntry(payload, {
+				userId: String(user.id),
+				ip: getClientIpFromHeaders(headers),
+				event: "logout"
+			});
+		}
+		catch {}
+	}
 	await payloadLogout({ config: payloadConfig });
 	return redirect("/login", RedirectType.push);
 }
