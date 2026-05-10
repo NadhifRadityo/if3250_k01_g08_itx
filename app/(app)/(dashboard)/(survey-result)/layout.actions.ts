@@ -2,17 +2,18 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { getPayload, type Payload, type Where } from "payload";
+import { getPayload, type Where, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
 import ExcelJS from "@/utils/exceljs";
-import type { RelationCreditApplication, RelationUser } from "@/utils/requestRelationValues";
-import type { Survey, User } from "@/payload-types";
+import type { RelationUser, RelationCreditApplication } from "@/utils/requestRelationValues";
+import type { User } from "@/payload-types";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
+const RELATION_SEARCH_LIMIT = 20;
 const MAX_PAGE_SIZE = 100;
-const SURVEY_RESULTS_COLLECTION = "survey-results" as any;
+const SURVEY_RESULTS_COLLECTION = "survey-results" as const;
 
 export type RelationSurvey = {
 	title: string;
@@ -84,6 +85,49 @@ export type SurveyResultDetailOutput = {
 	relations: SurveyResultRelationValues;
 };
 
+export type SurveyResultCreditApplicationDetail = {
+	id: string;
+	name: string;
+	email: string;
+	addresses: string[];
+	phoneNumbers: string[];
+	whatsappNumber: string;
+	smsNumber: string;
+	collateralRegistryName: string;
+	collateralName: string;
+	collateralDescription: any;
+	assetId: string | null;
+	assetName: string;
+	assetDescription: any;
+	period: number | null;
+	installment: number | null;
+	downPayment: number | null;
+	plafond: number | null;
+	vendor: string;
+	remarks: any;
+	others: any;
+	otherText1: string;
+	otherText2: string;
+	otherNumber1: number | null;
+	otherNumber2: number | null;
+	otherDate1: string | null;
+	otherDate2: string | null;
+};
+
+export type SurveyResultCreditApplicationAssignmentDetail = {
+	id: string;
+	creditApplication: string | null;
+	officer: string | null;
+	createdAt: string;
+	updatedAt: string;
+	deletedAt: string | null;
+};
+
+export type SurveyResultViewerDetailOutput = SurveyResultDetailOutput & {
+	creditApplicationDetail: SurveyResultCreditApplicationDetail | null;
+	creditApplicationAssignment: SurveyResultCreditApplicationAssignmentDetail | null;
+};
+
 export type SurveyReportSummaryOfficerItem = { officer: string, total: number };
 export type SurveyReportSummarySurveyItem = { survey: string, total: number };
 export type SurveyReportSummaryOfficerSurveyItem = { officer: string, survey: string, total: number };
@@ -123,6 +167,38 @@ function clampPageSize(limit: number | undefined): number {
 
 function normalizeOptionalTextValue(value: unknown): string {
 	return typeof value == "string" ? value.trim() : "";
+}
+
+function normalizeOptionalTextArray(value: unknown): string[] {
+	if(!Array.isArray(value))
+		return [];
+	return value
+		.filter((item): item is string => typeof item == "string")
+		.map(item => item.trim())
+		.filter(item => item.length > 0);
+}
+
+function normalizeOptionalNumberValue(value: unknown): number | null {
+	if(typeof value == "number" && Number.isFinite(value))
+		return value;
+	if(typeof value == "string" && value.trim().length > 0) {
+		const parsed = Number(value);
+		if(Number.isFinite(parsed))
+			return parsed;
+	}
+	return null;
+}
+
+function normalizeOptionalDateString(value: unknown): string | null {
+	if(value == null)
+		return null;
+	if(value instanceof Date)
+		return value.toISOString();
+	if(typeof value == "string") {
+		const trimmed = value.trim();
+		return trimmed.length > 0 ? trimmed : null;
+	}
+	return null;
 }
 
 function normalizeOptionalBooleanValue(value: unknown): boolean | undefined {
@@ -259,7 +335,7 @@ function buildSurveyResultsWhere({
 }): Where | null {
 	const terms: Where[] = [];
 
-	if(includeSoftDeleted == false)
+	if(!includeSoftDeleted)
 		terms.push({ deletedAt: { exists: false } });
 
 	if(officerId.length > 0)
@@ -304,7 +380,13 @@ async function requireAuthedPayload(): Promise<{ payload: Payload, user: User }>
 	const { user } = await payload.auth({ headers });
 	if(user == null)
 		return unauthorized();
-	return { payload, user: user as User };
+	return { payload, user };
+}
+
+function normalizeSelectedIds(ids: string[]): string[] {
+	if(!Array.isArray(ids))
+		return [];
+	return [...new Set(ids.map(id => (typeof id == "string" ? id.trim() : "")).filter(id => id.length > 0))];
 }
 
 async function findUsersByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, RelationUser>> {
@@ -318,6 +400,7 @@ async function findUsersByIds(payload: Payload, user: User, ids: string[]): Prom
 		overrideAccess: false,
 		pagination: false,
 		depth: 0,
+		limit: normalizedIds.length,
 		where: { id: { in: normalizedIds } },
 		select: {
 			name: true,
@@ -338,6 +421,63 @@ async function findUsersByIds(payload: Payload, user: User, ids: string[]): Prom
 	return map;
 }
 
+export type SurveyResultOfficerOption = {
+	id: string;
+	name: string;
+	email: string;
+};
+
+export async function searchSurveyResultOfficerOptionsAction(
+	keyword: string,
+	selectedIds: string[] = []
+): Promise<SurveyResultOfficerOption[]> {
+	const { payload, user } = await requireAuthedPayload();
+
+	const normalizedKeyword = keyword.trim();
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = normalizedKeyword.length == 0 ? [] : [
+		{ email: { like: normalizedKeyword } },
+		{ name: { like: normalizedKeyword } },
+		{ employeeId: { like: normalizedKeyword } }
+	];
+	const officerSearchTerms: Where[] = [{ "role.level": { equals: "officer" } }];
+	if(keywordFilters.length > 0)
+		officerSearchTerms.push({ or: keywordFilters });
+
+	const where: Where = {
+		and: [
+			{ deletedAt: { exists: false } },
+			{
+				or: [
+					officerSearchTerms.length == 1 ? officerSearchTerms[0] : { and: officerSearchTerms },
+					...(normalizedSelectedIds.length > 0 ? [{ id: { in: normalizedSelectedIds } }] : [])
+				]
+			}
+		]
+	};
+
+	const result = await payload.find({
+		collection: "users",
+		user,
+		overrideAccess: false,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
+		sort: "name",
+		where,
+		select: {
+			name: true,
+			email: true
+		}
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		name: normalizeOptionalTextValue(doc.name),
+		email: normalizeOptionalTextValue(doc.email)
+	}));
+}
+
 async function findCreditApplicationsByIds(
 	payload: Payload,
 	user: User,
@@ -355,8 +495,10 @@ async function findCreditApplicationsByIds(
 		trash: true,
 		pagination: false,
 		depth: 0,
+		limit: normalizedIds.length,
 		where: { id: { in: normalizedIds } },
 		select: {
+			assetId: true,
 			name: true,
 			email: true
 		}
@@ -365,12 +507,190 @@ async function findCreditApplicationsByIds(
 	const map = new Map<string, RelationCreditApplication>();
 	for(const doc of result.docs) {
 		map.set(String(doc.id), {
+			assetId: typeof (doc as any).assetId == "string" ? (doc as any).assetId : null,
 			name: normalizeOptionalTextValue(doc.name),
 			email: normalizeOptionalTextValue(doc.email)
 		});
 	}
 
 	return map;
+}
+
+async function findCreditApplicationDetailById(
+	payload: Payload,
+	user: User,
+	id: string
+): Promise<SurveyResultCreditApplicationDetail | null> {
+	const normalizedId = id.trim();
+	if(normalizedId.length == 0)
+		return null;
+
+	const doc = await payload.findByID({
+		collection: "credit-applications",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		id: normalizedId,
+		depth: 0,
+		select: {
+			name: true,
+			email: true,
+			addresses: true,
+			phoneNumbers: true,
+			whatsappNumber: true,
+			smsNumber: true,
+			collateralRegistryName: true,
+			collateralName: true,
+			collateralDescription: true,
+			assetId: true,
+			assetName: true,
+			assetDescription: true,
+			period: true,
+			installment: true,
+			downPayment: true,
+			plafond: true,
+			vendor: true,
+			remarks: true,
+			others: true,
+			otherText1: true,
+			otherText2: true,
+			otherNumber1: true,
+			otherNumber2: true,
+			otherDate1: true,
+			otherDate2: true
+		}
+	});
+
+	return {
+		id: String(doc.id),
+		name: normalizeOptionalTextValue(doc.name),
+		email: normalizeOptionalTextValue((doc as any).email),
+		addresses: normalizeOptionalTextArray((doc as any).addresses),
+		phoneNumbers: normalizeOptionalTextArray((doc as any).phoneNumbers),
+		whatsappNumber: normalizeOptionalTextValue((doc as any).whatsappNumber),
+		smsNumber: normalizeOptionalTextValue((doc as any).smsNumber),
+		collateralRegistryName: normalizeOptionalTextValue((doc as any).collateralRegistryName),
+		collateralName: normalizeOptionalTextValue((doc as any).collateralName),
+		collateralDescription: (doc as any).collateralDescription ?? null,
+		assetId: typeof (doc as any).assetId == "string" ? (doc as any).assetId : null,
+		assetName: normalizeOptionalTextValue((doc as any).assetName),
+		assetDescription: (doc as any).assetDescription ?? null,
+		period: normalizeOptionalNumberValue((doc as any).period),
+		installment: normalizeOptionalNumberValue((doc as any).installment),
+		downPayment: normalizeOptionalNumberValue((doc as any).downPayment),
+		plafond: normalizeOptionalNumberValue((doc as any).plafond),
+		vendor: normalizeOptionalTextValue((doc as any).vendor),
+		remarks: (doc as any).remarks ?? null,
+		others: (doc as any).others ?? null,
+		otherText1: normalizeOptionalTextValue((doc as any).otherText1),
+		otherText2: normalizeOptionalTextValue((doc as any).otherText2),
+		otherNumber1: normalizeOptionalNumberValue((doc as any).otherNumber1),
+		otherNumber2: normalizeOptionalNumberValue((doc as any).otherNumber2),
+		otherDate1: normalizeOptionalDateString((doc as any).otherDate1),
+		otherDate2: normalizeOptionalDateString((doc as any).otherDate2)
+	};
+}
+
+async function findCreditApplicationAssignmentByCreditApplicationId(
+	payload: Payload,
+	user: User,
+	creditApplicationId: string
+): Promise<SurveyResultCreditApplicationAssignmentDetail | null> {
+	const normalizedId = creditApplicationId.trim();
+	if(normalizedId.length == 0)
+		return null;
+
+	const result = await payload.find({
+		collection: "credit-application-assignments",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		limit: 1,
+		sort: "-updatedAt",
+		depth: 0,
+		where: {
+			and: [
+				{ deletedAt: { exists: false } },
+				{ creditApplication: { equals: normalizedId } }
+			]
+		},
+		select: {
+			creditApplication: true,
+			officer: true,
+			createdAt: true,
+			updatedAt: true,
+			deletedAt: true
+		}
+	});
+
+	if(result.docs.length == 0)
+		return null;
+
+	const doc = result.docs[0] as any;
+	return {
+		id: String(doc.id),
+		creditApplication: getRelationshipId(doc.creditApplication),
+		officer: getRelationshipId(doc.officer),
+		createdAt: doc.createdAt,
+		updatedAt: doc.updatedAt,
+		deletedAt: doc.deletedAt ?? null
+	};
+}
+
+export type SurveyResultCreditApplicationOption = {
+	id: string;
+	name: string;
+	email: string;
+	assetId: string | null;
+};
+
+export async function searchSurveyResultCreditApplicationOptionsAction(
+	keyword: string,
+	selectedIds: string[] = []
+): Promise<SurveyResultCreditApplicationOption[]> {
+	const { payload, user } = await requireAuthedPayload();
+
+	const normalizedKeyword = keyword.trim();
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = normalizedKeyword.length == 0 ? [] : [
+		{ id: { like: normalizedKeyword } },
+		{ name: { like: normalizedKeyword } },
+		{ email: { like: normalizedKeyword } },
+		{ assetId: { like: normalizedKeyword } }
+	];
+	const whereTerms: Where[] = [{ deletedAt: { exists: false } }];
+	if(keywordFilters.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where: Where = whereTerms.length == 1 ? whereTerms[0] : { and: whereTerms };
+
+	const result = await payload.find({
+		collection: "credit-applications",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
+		sort: "name",
+		where,
+		select: {
+			assetId: true,
+			name: true,
+			email: true
+		}
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		name: normalizeOptionalTextValue(doc.name),
+		email: normalizeOptionalTextValue(doc.email),
+		assetId: typeof (doc as any).assetId == "string" ? (doc as any).assetId : null
+	}));
 }
 
 async function findSurveysByIds(payload: Payload, user: User, ids: string[]): Promise<Map<string, RelationSurvey>> {
@@ -386,6 +706,7 @@ async function findSurveysByIds(payload: Payload, user: User, ids: string[]): Pr
 		trash: true,
 		pagination: false,
 		depth: 0,
+		limit: normalizedIds.length,
 		where: { id: { in: normalizedIds } },
 		select: {
 			title: true
@@ -397,6 +718,52 @@ async function findSurveysByIds(payload: Payload, user: User, ids: string[]): Pr
 		map.set(String(doc.id), { title: normalizeOptionalTextValue(doc.title) });
 
 	return map;
+}
+
+export type SurveyResultSurveyOption = {
+	id: string;
+	title: string;
+};
+
+export async function searchSurveyResultSurveyOptionsAction(
+	keyword: string,
+	selectedIds: string[] = []
+): Promise<SurveyResultSurveyOption[]> {
+	const { payload, user } = await requireAuthedPayload();
+
+	const normalizedKeyword = keyword.trim();
+	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
+	const keywordFilters: Where[] = normalizedKeyword.length == 0 ? [] : [
+		{ id: { like: normalizedKeyword } },
+		{ title: { like: normalizedKeyword } }
+	];
+	const whereTerms: Where[] = [];
+	if(keywordFilters.length > 0)
+		whereTerms.push({ or: keywordFilters });
+	if(normalizedSelectedIds.length > 0)
+		whereTerms.push({ id: { in: normalizedSelectedIds } });
+	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
+
+	const result = await payload.find({
+		collection: "surveys",
+		user,
+		overrideAccess: false,
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
+		sort: "-updatedAt",
+		select: {
+			title: true
+		},
+		...(where != null ? { where } : {})
+	});
+
+	return result.docs.map(doc => ({
+		id: String(doc.id),
+		title: normalizeOptionalTextValue(doc.title)
+	}));
 }
 
 async function querySurveyResultsListAction(
@@ -529,7 +896,7 @@ async function getSurveyResultDetailInternalAction(
 				title: true,
 				content: true
 			}
-		}) as Pick<Survey, "id" | "title" | "content">;
+		});
 
 		surveyTemplate = {
 			id: String(survey.id),
@@ -556,32 +923,63 @@ async function getSurveyResultDetailInternalAction(
 	};
 }
 
-function isWithinRange(createdAt: string, range: DateRange): boolean {
-	const date = new Date(createdAt);
-	if(Number.isNaN(date.getTime()))
-		return false;
-	const time = date.getTime();
-	return time >= range.from.getTime() && time < range.to.getTime();
-}
-
-export async function getSurveyResultList(input: SurveyResultListInput = {}): Promise<SurveyResultListOutput> {
-	return querySurveyResultsListAction(input, null);
-}
-
-export async function getSurveyMonitoringList(input: SurveyMonitoringListInput = {}): Promise<SurveyResultListOutput> {
-	const range = resolveMonitoringRange(input.date);
-	return querySurveyResultsListAction(input, range);
-}
-
-export async function getSurveyReportList(input: SurveyReportListInput = {}): Promise<SurveyResultListOutput> {
-	const range = resolveReportRange(input.from, input.to);
-	return querySurveyResultsListAction(input, range);
-}
-
-export async function getSurveyResultDetail(surveyResultId: string): Promise<SurveyResultDetailOutput> {
-	const { payload, user } = await requireAuthedPayload();
+async function getSurveyResultViewerDetailInternalAction(
+	payload: Payload,
+	user: User,
+	surveyResultId: string
+): Promise<SurveyResultViewerDetailOutput> {
 	const { row, surveyTemplate } = await getSurveyResultDetailInternalAction(payload, user, surveyResultId);
 
+	const relationUserIds = [
+		row.officer,
+		row.createdBy,
+		row.updatedBy,
+		row.deletedBy
+	].filter((value): value is string => value != null);
+	const relationCreditApplicationIds = row.creditApplication != null ? [row.creditApplication] : [];
+	const relationSurveyIds = row.survey != null && surveyTemplate == null ? [row.survey] : [];
+
+	const creditApplicationId = row.creditApplication;
+
+	const [
+		usersById,
+		creditApplicationsById,
+		surveysById,
+		creditApplicationDetail,
+		creditApplicationAssignment
+	] = await Promise.all([
+		findUsersByIds(payload, user, relationUserIds),
+		findCreditApplicationsByIds(payload, user, relationCreditApplicationIds),
+		findSurveysByIds(payload, user, relationSurveyIds),
+		creditApplicationId != null ? findCreditApplicationDetailById(payload, user, creditApplicationId) : Promise.resolve(null),
+		creditApplicationId != null ? findCreditApplicationAssignmentByCreditApplicationId(payload, user, creditApplicationId) : Promise.resolve(null)
+	]);
+
+	const relations: SurveyResultRelationValues = {};
+	for(const [id, relation] of usersById)
+		relations[`users:${id}`] = relation;
+	for(const [id, relation] of creditApplicationsById)
+		relations[`credit-applications:${id}`] = relation;
+	for(const [id, relation] of surveysById)
+		relations[`surveys:${id}`] = relation;
+	if(row.survey != null && surveyTemplate != null)
+		relations[`surveys:${row.survey}`] = { title: surveyTemplate.title };
+
+	return {
+		row,
+		surveyTemplate,
+		relations,
+		creditApplicationDetail,
+		creditApplicationAssignment
+	};
+}
+
+async function buildSurveyResultDetailRelations(
+	payload: Payload,
+	user: User,
+	row: SurveyResultDetailRow,
+	surveyTemplate: SurveyResultDetailOutput["surveyTemplate"]
+): Promise<SurveyResultRelationValues> {
 	const relationUserIds = [
 		row.officer,
 		row.createdBy,
@@ -607,14 +1005,76 @@ export async function getSurveyResultDetail(surveyResultId: string): Promise<Sur
 	if(row.survey != null && surveyTemplate != null)
 		relations[`surveys:${row.survey}`] = { title: surveyTemplate.title };
 
+	return relations;
+}
+
+async function getSurveyResultDetailInternalWithRelations(
+	payload: Payload,
+	user: User,
+	surveyResultId: string
+): Promise<SurveyResultDetailOutput> {
+	const { row, surveyTemplate } = await getSurveyResultDetailInternalAction(payload, user, surveyResultId);
+	const relations = await buildSurveyResultDetailRelations(payload, user, row, surveyTemplate);
 	return { row, surveyTemplate, relations };
+}
+
+function isWithinRange(createdAt: string, range: DateRange): boolean {
+	const date = new Date(createdAt);
+	if(Number.isNaN(date.getTime()))
+		return false;
+	const time = date.getTime();
+	return time >= range.from.getTime() && time < range.to.getTime();
+}
+
+export async function getSurveyResultList(input: SurveyResultListInput = {}): Promise<SurveyResultListOutput> {
+	return querySurveyResultsListAction(input, null);
+}
+
+export async function getSurveyMonitoringList(input: SurveyMonitoringListInput = {}): Promise<SurveyResultListOutput> {
+	const range = resolveMonitoringRange(input.date);
+	return querySurveyResultsListAction(input, range);
+}
+
+export async function getSurveyReportList(input: SurveyReportListInput = {}): Promise<SurveyResultListOutput> {
+	const range = resolveReportRange(input.from, input.to);
+	return querySurveyResultsListAction(input, range);
+}
+
+export async function getSurveyResultViewerDetail(surveyResultId: string): Promise<SurveyResultViewerDetailOutput> {
+	const { payload, user } = await requireAuthedPayload();
+	return getSurveyResultViewerDetailInternalAction(payload, user, surveyResultId);
+}
+
+export async function getSurveyResultDetail(surveyResultId: string): Promise<SurveyResultDetailOutput> {
+	const { payload, user } = await requireAuthedPayload();
+	return getSurveyResultDetailInternalWithRelations(payload, user, surveyResultId);
 }
 
 export async function getSurveyMonitoringDetail(surveyResultId: string, date?: string): Promise<SurveyResultDetailOutput> {
 	const range = resolveMonitoringRange(date);
-	const detail = await getSurveyResultDetail(surveyResultId);
-	if(isWithinRange(detail.row.createdAt, range) == false)
+	const { payload, user } = await requireAuthedPayload();
+	const { row, surveyTemplate } = await getSurveyResultDetailInternalAction(payload, user, surveyResultId);
+	if(!isWithinRange(row.createdAt, range))
 		throw new Error("Survey result is not within the monitoring date range.");
+	const relations = await buildSurveyResultDetailRelations(payload, user, row, surveyTemplate);
+	return { row, surveyTemplate, relations };
+}
+
+export async function getSurveyMonitoringViewerDetail(surveyResultId: string, date?: string): Promise<SurveyResultViewerDetailOutput> {
+	const range = resolveMonitoringRange(date);
+	const { payload, user } = await requireAuthedPayload();
+	const detail = await getSurveyResultViewerDetailInternalAction(payload, user, surveyResultId);
+	if(!isWithinRange(detail.row.createdAt, range))
+		throw new Error("Survey result is not within the monitoring date range.");
+	return detail;
+}
+
+export async function getSurveyReportViewerDetail(surveyResultId: string, from?: string, to?: string): Promise<SurveyResultViewerDetailOutput> {
+	const range = resolveReportRange(from, to);
+	const { payload, user } = await requireAuthedPayload();
+	const detail = await getSurveyResultViewerDetailInternalAction(payload, user, surveyResultId);
+	if(!isWithinRange(detail.row.createdAt, range))
+		throw new Error("Survey result is not within the reporting date range.");
 	return detail;
 }
 
@@ -659,7 +1119,7 @@ async function iterateSurveyResults(
 			});
 		}
 
-		if(result.hasNextPage != true)
+		if(!result.hasNextPage)
 			break;
 		page = (result.nextPage ?? (page + 1));
 	}
