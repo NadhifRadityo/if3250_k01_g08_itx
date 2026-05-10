@@ -281,9 +281,13 @@ async function resolveRoleMenus(payload: Payload, user: User): Promise<Dashboard
 		trash: true,
 		depth: 0,
 		select: {
-			menus: true
+			menus: true,
+			_status: true,
+			deletedAt: true
 		}
 	});
+	if(role._status != "published" || role.deletedAt != null)
+		return [];
 
 	return normalizeDashboardRoleMenus(role.menus);
 }

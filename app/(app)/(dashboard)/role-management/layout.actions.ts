@@ -1181,6 +1181,7 @@ export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 			user,
 			collection: "roles",
 			overrideAccess: true,
+			draft: true,
 			data: {
 				_status: "draft",
 				name,
@@ -1211,6 +1212,7 @@ export async function upsertRoleRequestAction(input: UpsertRoleRequestInput) {
 		collection: "roles",
 		id: input.roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1249,6 +1251,7 @@ export async function requestDeleteRoleAction(roleId: string) {
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1275,6 +1278,7 @@ export async function cancelRoleRequestAction(roleId: string) {
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1317,6 +1321,7 @@ export async function cancelRoleRequestAction(roleId: string) {
 			collection: "roles",
 			id: roleId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1371,6 +1376,7 @@ export async function requestRestoreRoleAction(roleId: string) {
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1384,6 +1390,7 @@ export async function requestRestoreRoleAction(roleId: string) {
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1410,6 +1417,7 @@ export async function reviewRoleRequestAction({ roleId, decision, reviewComment 
 		collection: "roles",
 		id: roleId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1426,6 +1434,7 @@ export async function reviewRoleRequestAction({ roleId, decision, reviewComment 
 			collection: "roles",
 			id: roleId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1464,14 +1473,28 @@ export async function getRoleRequestReviewDiffAction(roleId: string): Promise<Ro
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const role = await payload.findByID({
+	const requestedVersions = await payload.findVersions({
 		user,
 		collection: "roles",
-		id: roleId,
 		overrideAccess: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		pagination: false,
+		limit: 1,
+		sort: "-updatedAt",
+		where: {
+			and: [
+				{ parent: { equals: roleId } },
+				{ "version._status": { equals: "draft" } }
+			]
+		},
+		select: {
+			version: {
+				name: true,
+				level: true,
+				menus: true,
+				deletedAt: true
+			}
+		}
 	});
 
 	const approvedVersions = await payload.findVersions({
@@ -1498,15 +1521,18 @@ export async function getRoleRequestReviewDiffAction(roleId: string): Promise<Ro
 		}
 	});
 
+	const requestedVersion = requestedVersions.docs[0]?.version;
 	const approvedVersion = approvedVersions.docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft role request could not be found.");
 
 	return {
 		requestId: roleId,
-		requestType: role.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
-		name: [approvedVersion?.name ?? "", role.name],
-		level: [approvedVersion?.level ?? role.level, role.level],
-		menus: [approvedVersion?.menus ?? [], role.menus],
-		deletedAt: [approvedVersion?.deletedAt ?? null, role.deletedAt ?? null],
+		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		name: [approvedVersion?.name ?? "", requestedVersion.name],
+		level: [approvedVersion?.level ?? requestedVersion.level, requestedVersion.level],
+		menus: [approvedVersion?.menus ?? [], requestedVersion.menus],
+		deletedAt: [approvedVersion?.deletedAt ?? null, requestedVersion.deletedAt ?? null],
 		relations: {}
 	};
 }

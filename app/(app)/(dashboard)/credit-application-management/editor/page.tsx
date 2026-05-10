@@ -4,13 +4,13 @@ import { useMemo, useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { XIcon, PlusIcon, PencilIcon, Trash2Icon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
 import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
 import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
-import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
 import * as creditApplicationActions from "../layout.actions";
 import { CreditApplicationActiveFiltersSummary } from "../layout.components";
 import { CreditApplicationColumnConfigCard } from "../layout.components";

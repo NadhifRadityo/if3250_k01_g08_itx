@@ -174,7 +174,7 @@ export type UpsertSurveyRequestInput = {
 	surveyId?: string;
 	title: string;
 	description: RichTextValue;
-	content: string;
+	content: any;
 };
 
 export type ReviewSurveyRequestInput = {
@@ -347,17 +347,6 @@ function getRelationshipId(value: unknown): string | null {
 	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
 		return value.id;
 	return null;
-}
-
-function parseContentInput(value: string): JsonValue {
-	const trimmed = value.trim();
-	if(trimmed.length == 0)
-		throw new Error("Content JSON is required.");
-	try {
-		return JSON.parse(trimmed) as JsonValue;
-	} catch{
-		throw new Error("Content must be valid JSON.");
-	}
 }
 
 async function resolveUserMenus(payload: Awaited<ReturnType<typeof getPayload>>, user: NonNullable<Awaited<ReturnType<typeof payload.auth>>["user"]>): Promise<string[]> {
@@ -1026,7 +1015,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 
 	const title = input.title.trim();
 	const description = input.description;
-	const content = parseContentInput(input.content);
+	const content = input.content;
 
 	if(title.length == 0)
 		throw new Error("Satisfaction survey title is required.");
@@ -1036,6 +1025,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 			user,
 			collection: "satsifaction-surveys",
 			overrideAccess: true,
+			draft: true,
 			data: {
 				_status: "draft",
 				title,
@@ -1066,6 +1056,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 		collection: "satsifaction-surveys",
 		id: input.surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1104,6 +1095,7 @@ export async function requestDeleteSurveyAction(surveyId: string) {
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1130,6 +1122,7 @@ export async function cancelSurveyRequestAction(surveyId: string) {
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1172,6 +1165,7 @@ export async function cancelSurveyRequestAction(surveyId: string) {
 			collection: "satsifaction-surveys",
 			id: surveyId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1224,6 +1218,7 @@ export async function requestRestoreSurveyAction(surveyId: string) {
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1237,6 +1232,7 @@ export async function requestRestoreSurveyAction(surveyId: string) {
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1263,6 +1259,7 @@ export async function reviewSurveyRequestAction({ surveyId, decision, reviewComm
 		collection: "satsifaction-surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1279,6 +1276,7 @@ export async function reviewSurveyRequestAction({ surveyId, decision, reviewComm
 			collection: "satsifaction-surveys",
 			id: surveyId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1317,14 +1315,28 @@ export async function getSurveyRequestReviewDiffAction(surveyId: string): Promis
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const survey = await payload.findByID({
+	const requestedVersions = await payload.findVersions({
 		user,
 		collection: "satsifaction-surveys",
-		id: surveyId,
 		overrideAccess: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		pagination: false,
+		limit: 1,
+		sort: "-updatedAt",
+		where: {
+			and: [
+				{ parent: { equals: surveyId } },
+				{ "version._status": { equals: "draft" } }
+			]
+		},
+		select: {
+			version: {
+				title: true,
+				description: true,
+				content: true,
+				deletedAt: true
+			}
+		}
 	});
 
 	const approvedVersions = await payload.findVersions({
@@ -1351,15 +1363,18 @@ export async function getSurveyRequestReviewDiffAction(surveyId: string): Promis
 		}
 	});
 
+	const requestedVersion = requestedVersions.docs[0]?.version;
 	const approvedVersion = approvedVersions.docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft satisfaction survey request could not be found.");
 
 	return {
 		requestId: surveyId,
-		requestType: survey.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
-		title: [approvedVersion?.title ?? "", survey.title],
-		description: [approvedVersion?.description ?? null, survey.description],
-		content: [approvedVersion?.content ?? null, survey.content],
-		deletedAt: [approvedVersion?.deletedAt ?? null, survey.deletedAt],
+		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		title: [approvedVersion?.title ?? "", requestedVersion.title],
+		description: [approvedVersion?.description ?? null, requestedVersion.description],
+		content: [approvedVersion?.content ?? null, requestedVersion.content],
+		deletedAt: [approvedVersion?.deletedAt ?? null, requestedVersion.deletedAt],
 		relations: {}
 	} as unknown as SurveyRequestReviewDiffOutput;
 }

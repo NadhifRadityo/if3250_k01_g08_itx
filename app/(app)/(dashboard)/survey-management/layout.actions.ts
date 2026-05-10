@@ -1034,6 +1034,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 			user,
 			collection: "surveys",
 			overrideAccess: true,
+			draft: true,
 			data: {
 				_status: "draft",
 				title,
@@ -1064,6 +1065,7 @@ export async function upsertSurveyRequestAction(input: UpsertSurveyRequestInput)
 		collection: "surveys",
 		id: input.surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1102,6 +1104,7 @@ export async function requestDeleteSurveyAction(surveyId: string) {
 		collection: "surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1128,6 +1131,7 @@ export async function cancelSurveyRequestAction(surveyId: string) {
 		collection: "surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1170,6 +1174,7 @@ export async function cancelSurveyRequestAction(surveyId: string) {
 			collection: "surveys",
 			id: surveyId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1222,6 +1227,7 @@ export async function requestRestoreSurveyAction(surveyId: string) {
 		collection: "surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1235,6 +1241,7 @@ export async function requestRestoreSurveyAction(surveyId: string) {
 		collection: "surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		data: {
 			_status: "draft",
@@ -1261,6 +1268,7 @@ export async function reviewSurveyRequestAction({ surveyId, decision, reviewComm
 		collection: "surveys",
 		id: surveyId,
 		overrideAccess: true,
+		draft: true,
 		trash: true,
 		depth: 0,
 		showHiddenFields: true
@@ -1277,6 +1285,7 @@ export async function reviewSurveyRequestAction({ surveyId, decision, reviewComm
 			collection: "surveys",
 			id: surveyId,
 			overrideAccess: true,
+			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
@@ -1315,14 +1324,28 @@ export async function getSurveyRequestReviewDiffAction(surveyId: string): Promis
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const survey = await payload.findByID({
+	const requestedVersions = await payload.findVersions({
 		user,
 		collection: "surveys",
-		id: surveyId,
 		overrideAccess: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		pagination: false,
+		limit: 1,
+		sort: "-updatedAt",
+		where: {
+			and: [
+				{ parent: { equals: surveyId } },
+				{ "version._status": { equals: "draft" } }
+			]
+		},
+		select: {
+			version: {
+				title: true,
+				description: true,
+				content: true,
+				deletedAt: true
+			}
+		}
 	});
 
 	const approvedVersions = await payload.findVersions({
@@ -1349,18 +1372,21 @@ export async function getSurveyRequestReviewDiffAction(surveyId: string): Promis
 		}
 	});
 
+	const requestedVersion = requestedVersions.docs[0]?.version;
 	const approvedVersion = approvedVersions.docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft survey request could not be found.");
 
 	const requestType: SurveyRequestReviewDiffOutput["requestType"] =
-		survey.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
+		requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
 
 	return {
 		requestId: surveyId,
 		requestType,
-		title: [approvedVersion?.title ?? "", survey.title],
-		description: [approvedVersion?.description ?? null, survey.description ?? null],
-		content: [approvedVersion?.content ?? null, survey.content ?? null],
-		deletedAt: [approvedVersion?.deletedAt ?? null, survey.deletedAt ?? null],
+		title: [approvedVersion?.title ?? "", requestedVersion.title],
+		description: [approvedVersion?.description ?? null, requestedVersion.description ?? null],
+		content: [approvedVersion?.content ?? null, requestedVersion.content ?? null],
+		deletedAt: [approvedVersion?.deletedAt ?? null, requestedVersion.deletedAt ?? null],
 		relations: {}
 	};
 }
