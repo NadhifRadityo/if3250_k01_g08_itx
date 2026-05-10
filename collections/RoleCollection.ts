@@ -160,6 +160,8 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "credit-application-assignment-auditor", label: "Credit Application Assignment - Auditor" },
 				{ value: "credit-application-assignment-editor", label: "Credit Application Assignment - Editor" },
 				{ value: "credit-application-assignment-approver", label: "Credit Application Assignment - Approver" },
+				{ value: "officer-task-reporting-viewer", label: "Officer Task Reporting - Viewer" },
+				{ value: "officer-task-monitoring-viewer", label: "Officer Task Monitoring - Viewer" },
 				{ value: "survey-management-viewer", label: "Survey Management - Viewer" },
 				{ value: "survey-management-auditor", label: "Survey Management - Auditor" },
 				{ value: "survey-management-editor", label: "Survey Management - Editor" },

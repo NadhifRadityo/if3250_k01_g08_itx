@@ -33,6 +33,12 @@ type SeededApplicationReference = {
 	id: string;
 	assignmentStatus: AssignmentStatus;
 };
+type LocationPointSeed = {
+	latitude: number;
+	longitude: number;
+	label: string;
+	recordedAt: string;
+};
 
 type CreditApplicationSeed = {
 	seedKey: string;
@@ -206,9 +212,34 @@ function plainTextToRichText(value: string): RichTextValue {
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string")
 		return value;
-	if(value != null && typeof value == "object" && "id" in value && typeof (value as { id: unknown }).id == "string")
-		return (value as { id: string }).id;
+	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
+		return value.id;
 	return null;
+}
+
+function addMinutes(value: string, minutes: number): string {
+	const date = new Date(value);
+	date.setMinutes(date.getMinutes() + minutes);
+	return date.toISOString();
+}
+
+function createSeedLocation(index: number, offset = 0): LocationPointSeed {
+	const baseLatitude = -6.914744;
+	const baseLongitude = 107.60981;
+	return {
+		latitude: Number((baseLatitude + (index * 0.012) + (offset * 0.002)).toFixed(6)),
+		longitude: Number((baseLongitude + (index * 0.009) + (offset * 0.0025)).toFixed(6)),
+		label: `Seed point ${index + 1}.${offset + 1}`,
+		recordedAt: new Date().toISOString()
+	};
+}
+
+function createTrackingLocations(index: number, now: string): LocationPointSeed[] {
+	return [0, 1, 2].map(offset => ({
+		...createSeedLocation(index, offset),
+		label: `Tracking ${offset + 1}`,
+		recordedAt: addMinutes(now, index + offset)
+	}));
 }
 
 async function resolveReviewerUserId(payload: Awaited<ReturnType<typeof getPayload>>): Promise<string | null> {
@@ -227,7 +258,15 @@ async function resolveReviewerUserId(payload: Awaited<ReturnType<typeof getPaylo
 }
 
 async function ensureSeedImportDocument(payload: Awaited<ReturnType<typeof getPayload>>): Promise<SeedImportResult> {
-	const placeholderData = await readFile(PLACEHOLDER_IMPORT_ABSOLUTE_PATH);
+	let placeholderData: Buffer;
+	try {
+		placeholderData = await readFile(PLACEHOLDER_IMPORT_ABSOLUTE_PATH);
+	} catch(error) {
+		if(error != null && typeof error == "object" && "code" in error && error.code == "ENOENT")
+			placeholderData = Buffer.from("Seed placeholder file for credit application import.\n", "utf8");
+		else
+			throw error;
+	}
 	if(placeholderData.byteLength == 0)
 		throw new Error(`Placeholder import file is empty: ${PLACEHOLDER_IMPORT_RELATIVE_PATH}`);
 
@@ -317,7 +356,35 @@ function resolveCreditApplicationSeedData(
 		others: {
 			seededBy: "seedCreditApplicationManagement",
 			seedKey: seed.seedKey,
-			assignmentStatus: seed.assignmentStatus
+			assignmentStatus: seed.assignmentStatus,
+			surveyDate: addMinutes(now, index + 35),
+			surveyResult: seed.assignmentStatus == "approved" ? "Finished" : seed.assignmentStatus == "rejected" ? "Rejected" : "Draft",
+			rescheduleDate: seed.assignmentStatus == "pending" ? addMinutes(now, 1440 + index) : null,
+			rescheduleTime: seed.assignmentStatus == "pending" ? "10:30" : null,
+			tracking: createTrackingLocations(index, now),
+			trackingLocations: createTrackingLocations(index, now),
+			firstLoginLocation: {
+				...createSeedLocation(index, 0),
+				label: "First Login",
+				recordedAt: addMinutes(now, index)
+			},
+			lastLogoutLocation: {
+				...createSeedLocation(index, 3),
+				label: "Last Logout",
+				recordedAt: addMinutes(now, index + 180)
+			},
+			picture1: `https://example.com/seed/${seed.seedKey.toLowerCase()}-picture-1.jpg`,
+			picture1Location: {
+				...createSeedLocation(index, 1),
+				label: "Picture 1",
+				recordedAt: addMinutes(now, index + 45)
+			},
+			picture12: `https://example.com/seed/${seed.seedKey.toLowerCase()}-picture-12.jpg`,
+			picture12Location: {
+				...createSeedLocation(index, 2),
+				label: "Picture 12",
+				recordedAt: addMinutes(now, index + 90)
+			}
 		},
 		reviewedAt: now,
 		reviewedBy: reviewerId,
@@ -452,7 +519,7 @@ async function ensureSeedAssignments(
 		const existingResult = await payload.find({
 			collection: "credit-application-assignments",
 			where: {
-				account: { equals: seededApplication.id }
+				creditApplication: { equals: seededApplication.id }
 			},
 			limit: 1,
 			sort: "-updatedAt",
@@ -463,10 +530,14 @@ async function ensureSeedAssignments(
 
 		const assignedOfficerId = officerUserIds[index % officerUserIds.length];
 		const reviewData = resolveAssignmentReviewData(seededApplication.assignmentStatus, now, reviewerId);
+		const createdAt = addMinutes(now, index);
+		const updatedAt = addMinutes(now, index + 180);
 		const normalizedData = {
 			_status: "published" as const,
-			account: seededApplication.id,
-			user: assignedOfficerId,
+			createdAt,
+			updatedAt,
+			creditApplication: seededApplication.id,
+			officer: assignedOfficerId,
 			reviewedAt: reviewData.reviewedAt,
 			reviewedBy: getRelationshipId(reviewData.reviewedBy),
 			reviewApproved: reviewData.reviewApproved,

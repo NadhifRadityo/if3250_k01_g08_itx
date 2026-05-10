@@ -10,13 +10,16 @@ import type { Role, User } from "@/payload-types";
 import { getClientIpFromHeaders } from "@/utils/clientIp";
 import { writeLoginLogEntry } from "@/utils/loginLogWriter";
 
-const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management", "login-activity-log"] as const;
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management", "login-activity-log", "officer-task-reporting"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
+type DashboardSingleViewerKey = "officer-task-reporting" | "officer-task-monitoring";
+type DashboardRoleManagedKey = Exclude<DashboardManagementKey, DashboardSingleViewerKey>;
 export type DashboardMode = "viewer" | "editor" | "approver" | "import-viewer" | "import-editor" | "import-approver";
 type DashboardRoleMenuMode = "viewer" | "editor" | "approver" | "auditor";
 type DashboardCreditApplicationImportRoleMenu = `credit-application-management-import-${"viewer" | "editor" | "approver"}`;
-export type DashboardRoleMenu = `${DashboardManagementKey}-${DashboardRoleMenuMode}` | DashboardCreditApplicationImportRoleMenu;
+type DashboardSingleViewerRoleMenu = `${DashboardSingleViewerKey}-viewer`;
+export type DashboardRoleMenu = `${DashboardRoleManagedKey}-${DashboardRoleMenuMode}` | DashboardCreditApplicationImportRoleMenu | DashboardSingleViewerRoleMenu;
 
 export type DashboardNavLink = {
 	label: string;
@@ -65,6 +68,8 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"team-management": "Team Management",
 	"credit-application-management": "Credit Application Management",
 	"credit-application-assignment": "Credit Application Assignment",
+	"officer-task-reporting": "Officer Task Reporting",
+	"officer-task-monitoring": "Officer Task Monitoring",
 	"survey-management": "Survey Management",
 	"satisfaction-survey-management": "Satisfaction Survey Management",
 	"login-activity-log": "Login Activity Log"
@@ -105,6 +110,8 @@ const dashboardRoleMenus = [
 	"credit-application-assignment-auditor",
 	"credit-application-assignment-editor",
 	"credit-application-assignment-approver",
+	"officer-task-reporting-viewer",
+	"officer-task-monitoring-viewer",
 	"survey-management-viewer",
 	"survey-management-auditor",
 	"survey-management-editor",
@@ -118,6 +125,10 @@ const dashboardRoleMenus = [
 ] as const satisfies DashboardRoleMenu[];
 
 const dashboardRoleMenuSet = new Set<DashboardRoleMenu>(dashboardRoleMenus);
+
+function isDashboardSingleViewerKey(key: DashboardManagementKey): key is DashboardSingleViewerKey {
+	return key == "officer-task-reporting" || key == "officer-task-monitoring";
+}
 
 function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string")
@@ -137,7 +148,7 @@ function normalizeDashboardRoleMenus(value: unknown): DashboardRoleMenu[] {
 	return [...new Set(normalized)];
 }
 
-function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey): {
+function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardRoleManagedKey): {
 	hasViewer: boolean;
 	hasAuditor: boolean;
 	hasEditor: boolean;
@@ -168,6 +179,23 @@ function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey
 }
 
 function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: DashboardManagementKey): DashboardManagementNavigationItem | null {
+	if(isDashboardSingleViewerKey(key)) {
+		if(!menus.has(`${key}-viewer`))
+			return null;
+		const baseHref = `/${key}`;
+		return {
+			key,
+			label: managementLabelMap[key],
+			baseHref,
+			hasSubmenu: false,
+			links: [
+				{ label: modeLabelMap.viewer, mode: "viewer", href: baseHref }
+			],
+			defaultHref: baseHref,
+			defaultMode: "viewer"
+		};
+	}
+
 	const {
 		hasViewer,
 		hasAuditor,
@@ -257,6 +285,9 @@ function resolveDefaultManagementHref(menus: DashboardRoleMenu[], key: Dashboard
 }
 
 function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: DashboardManagementKey, mode: DashboardMode): string | null {
+	if(isDashboardSingleViewerKey(key))
+		return mode == "viewer" && menus.includes(`${key}-viewer`) ? null : "/";
+
 	const menuSet = new Set(menus);
 	const {
 		hasViewer,
@@ -302,7 +333,7 @@ function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: Dash
 	return hasApprover ? null : "/";
 }
 
-function resolveViewerEditorTarget(menus: DashboardRoleMenu[], key: DashboardManagementKey): DashboardViewerEditorTarget {
+function resolveViewerEditorTarget(menus: DashboardRoleMenu[], key: DashboardRoleManagedKey): DashboardViewerEditorTarget {
 	const menuSet = new Set(menus);
 	const hasViewer = menuSet.has(`${key}-viewer`) || menuSet.has(`${key}-auditor`);
 	const hasEditor = menuSet.has(`${key}-editor`);
@@ -324,6 +355,18 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 		"team-management": resolveViewerEditorTarget(menus, "team-management"),
 		"credit-application-management": resolveViewerEditorTarget(menus, "credit-application-management"),
 		"credit-application-assignment": resolveViewerEditorTarget(menus, "credit-application-assignment"),
+		"officer-task-reporting": {
+			key: "officer-task-reporting",
+			viewerHref: menus.includes("officer-task-reporting-viewer") ? "/officer-task-reporting" : null,
+			editorHref: null,
+			preferredHref: menus.includes("officer-task-reporting-viewer") ? "/officer-task-reporting" : null
+		},
+		"officer-task-monitoring": {
+			key: "officer-task-monitoring",
+			viewerHref: menus.includes("officer-task-monitoring-viewer") ? "/officer-task-monitoring" : null,
+			editorHref: null,
+			preferredHref: menus.includes("officer-task-monitoring-viewer") ? "/officer-task-monitoring" : null
+		},
 		"survey-management": resolveViewerEditorTarget(menus, "survey-management"),
 		"satisfaction-survey-management": resolveViewerEditorTarget(menus, "satisfaction-survey-management"),
 		"login-activity-log": resolveViewerEditorTarget(menus, "login-activity-log")
@@ -381,6 +424,10 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Credit Application Assignment - Editor";
 	if(menu == "credit-application-assignment-approver")
 		return "Credit Application Assignment - Approver";
+	if(menu == "officer-task-reporting-viewer")
+		return "Officer Task Reporting - Viewer";
+	if(menu == "officer-task-monitoring-viewer")
+		return "Officer Task Monitoring - Viewer";
 	if(menu == "survey-management-viewer")
 		return "Survey Management - Viewer";
 	if(menu == "survey-management-auditor")
@@ -505,6 +552,8 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 			"team-management": { key: "team-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"credit-application-management": { key: "credit-application-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"credit-application-assignment": { key: "credit-application-assignment", viewerHref: null, editorHref: null, preferredHref: null },
+			"officer-task-reporting": { key: "officer-task-reporting", viewerHref: null, editorHref: null, preferredHref: null },
+			"officer-task-monitoring": { key: "officer-task-monitoring", viewerHref: null, editorHref: null, preferredHref: null },
 			"survey-management": { key: "survey-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"satisfaction-survey-management": { key: "satisfaction-survey-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"login-activity-log": { key: "login-activity-log", viewerHref: null, editorHref: null, preferredHref: null }
