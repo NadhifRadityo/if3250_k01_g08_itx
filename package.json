@@ -12,7 +12,8 @@
 		"seed:user-role-team": "payload run ./scripts/seedUserRoleTeam.ts",
 		"seed:credit-application-management": "payload run ./scripts/seedCreditApplicationManagement.ts",
 		"seed:credit-application-import": "payload run ./scripts/seedCreditApplicationImport.ts",
-		"seed:gps": "payload run ./scripts/seedGPSLogs.ts"
+		"seed:gps": "payload run ./scripts/seedGPSLogs.ts",
+		"seed:otp": "payload run ./scripts/seedOTP.ts"
 	},
 	"packageManager": "pnpm@10.33.0",
 	"dependencies": {

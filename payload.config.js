@@ -19,6 +19,7 @@ import { RecordingLogs } from './collections/RecordingLogsCollection'
 import { AudioFiles } from './collections/AudioFiles'
 import { TextFiles } from './collections/TextFiles'
 import { GPSRequestLogs } from "./collections/GPSRequestLogsCollection";
+import { OTPLogsCollection } from "./collections/OTPLogsCollection";
 
 export default buildConfig({
 	secret: process.env.PAYLOAD_SECRET,
@@ -48,7 +49,8 @@ export default buildConfig({
 		RecordingLogs(),
 		AudioFiles(),
 		TextFiles(),
-		GPSRequestLogs()
+		GPSRequestLogs(),
+		OTPLogsCollection()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),
