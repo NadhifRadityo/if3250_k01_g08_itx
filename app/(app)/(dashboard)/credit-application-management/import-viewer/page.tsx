@@ -10,18 +10,18 @@ import { Switch } from "@/components/radix/Switch";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryViewerAction } from "../import.actions";
-import { ColumnData, DetailsDrawer, tableConfigColumns, columnConfigColumns, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../import.components";
+import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../import.components";
 
 export default function Page() {
 	const { roles } = useDashboardShellContext();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: [] as string[] });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: [] as string[] });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
 	const [filters, setFilters] = useConfigStorage({ localStorageKey: "credit-application-management-import.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
 	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "credit-application-management-import.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "credit-application-management-import.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: [] });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "credit-application-management-import.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
 		queryKey: ["credit-application-management-import", "viewer", {

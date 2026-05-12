@@ -11,7 +11,7 @@ import { Switch } from "@/components/radix/Switch";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryEditorAction, cancelRequestAction, requestDeleteAction, requestUpsertAction, requestRestoreAction } from "../layout.actions";
-import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, HistoryDrawer, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, filterConfigColumns, RevertApprovedDialog, RestoreDeletionDialog, CancelPendingRequestDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../layout.components";
+import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, RevertApprovedDialog, RestoreDeletionDialog, CancelPendingRequestDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../layout.components";
 
 const columnConfigColumnsWithActions = Object.freeze([
 	...columnConfigColumns,
@@ -69,13 +69,13 @@ export default function Page() {
 	const queryClient = useQueryClient();
 	const { roles } = useDashboardShellContext();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "user-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: [] as string[] });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "user-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: [] as string[] });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "user-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "user-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
 	const [filters, setFilters] = useConfigStorage({ localStorageKey: "user-management.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
 	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "user-management.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "user-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: [] });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "user-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
 		queryKey: ["user-management", "editor", {
@@ -266,7 +266,7 @@ export default function Page() {
 								name: editFormDrawerState.name,
 								employeeId: editFormDrawerState.employeeId,
 								role: editFormDrawerState.role,
-								supervisor: editFormDrawerState.supervisor != null && editFormDrawerState.supervisor.length > 0 ? editFormDrawerState.supervisor : null,
+								supervisor: editFormDrawerState.supervisor,
 								initialPassword: editFormDrawerState.initialPassword
 							});
 							setEditFormDrawerOpen(false);
@@ -304,7 +304,7 @@ export default function Page() {
 								name: addFormDrawerState.name,
 								employeeId: addFormDrawerState.employeeId,
 								role: addFormDrawerState.role,
-								supervisor: addFormDrawerState.supervisor != null && addFormDrawerState.supervisor.length > 0 ? addFormDrawerState.supervisor : null,
+								supervisor: addFormDrawerState.supervisor,
 								initialPassword: addFormDrawerState.initialPassword
 							});
 							setAddFormDrawerOpen(false);

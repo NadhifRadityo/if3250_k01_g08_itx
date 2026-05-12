@@ -112,6 +112,34 @@ export const eligibleDetailsTriggerColumns = Object.freeze([
 	"filename"
 ]);
 export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
+export const defaultColumnOrder = Object.freeze([
+	"id",
+	"filename",
+	"filesize",
+	"mimeType",
+	"description",
+	"reviewComment",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"#status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved"
+]) as string[];
+export const defaultColumnsShown = Object.freeze([
+	"filename",
+	"filesize",
+	"#status",
+	"updatedAt",
+	"reviewComment"
+]) as string[];
+export const defaultColumnsSort = Object.freeze([
+	["updatedAt", false]
+]) as [string, boolean][];
 
 const templateColumns = [
 	{ key: "name", label: "Name", width: 28, required: true, type: "text", example: "Example Applicant", promptTitle: "Name", prompt: "Enter a non-empty applicant name.", error: "Name is required." },

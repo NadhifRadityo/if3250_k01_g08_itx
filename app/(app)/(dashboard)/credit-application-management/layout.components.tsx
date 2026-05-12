@@ -201,6 +201,63 @@ export const eligibleDetailsTriggerColumns = Object.freeze([
 	"reviewApproved"
 ]);
 export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
+export const defaultColumnOrder = Object.freeze([
+	"id",
+	"import",
+	"name",
+	"email",
+	"addresses",
+	"phoneNumbers",
+	"whatsappNumber",
+	"smsNumber",
+	"collateralRegistryName",
+	"collateralName",
+	"collateralDescription",
+	"assetId",
+	"assetName",
+	"assetDescription",
+	"period",
+	"installment",
+	"downPayment",
+	"plafond",
+	"vendor",
+	"remarks",
+	"otherText1",
+	"otherText2",
+	"otherNumber1",
+	"otherNumber2",
+	"otherDate1",
+	"otherDate2",
+	"others",
+	"createdBy",
+	"updatedBy",
+	"deletedBy",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"#changeRequest",
+	"#status",
+	"reviewedAt",
+	"reviewedBy",
+	"reviewApproved",
+	"reviewComment"
+]) as string[];
+export const defaultColumnsShown = Object.freeze([
+	"name",
+	"email",
+	"addresses",
+	"phoneNumbers",
+	"whatsappNumber",
+	"assetName",
+	"vendor",
+	"#changeRequest",
+	"#status",
+	"updatedAt",
+	"reviewComment"
+]) as string[];
+export const defaultColumnsSort = Object.freeze([
+	["updatedAt", false]
+]) as [string, boolean][];
 
 export function DetailsDrawer(
 	{ open, onOpenChange, row, renderActions, onOpenHistory }:

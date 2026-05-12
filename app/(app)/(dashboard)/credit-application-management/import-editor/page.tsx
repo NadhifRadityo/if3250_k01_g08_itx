@@ -12,7 +12,7 @@ import { Switch } from "@/components/radix/Switch";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryEditorAction, requestCreateAction, requestDeleteAction, requestRestoreAction, requestUpdateDescriptionAction } from "../import.actions";
-import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, tableConfigColumns, columnConfigColumns, filterConfigColumns, RestoreDeletionDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../import.components";
+import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, RestoreDeletionDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../import.components";
 
 const columnConfigColumnsWithActions = Object.freeze([
 	...columnConfigColumns,
@@ -58,13 +58,13 @@ export default function Page() {
 	const queryClient = useQueryClient();
 	const { roles } = useDashboardShellContext();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: [] as string[] });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: [] as string[] });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
 	const [filters, setFilters] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
 	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "credit-application-manaagement-import.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: [] });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "credit-application-manaagement-import.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
 		queryKey: ["credit-application-manaagement-import", "editor", {

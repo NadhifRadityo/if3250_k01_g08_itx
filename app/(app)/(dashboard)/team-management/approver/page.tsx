@@ -12,7 +12,7 @@ import { Switch } from "@/components/radix/Switch";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { reviewAction, queryApproverAction } from "../layout.actions";
-import { ColumnData, ReviewDrawer, DetailsDrawer, HistoryDrawer, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+import { ColumnData, ReviewDrawer, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 const columnConfigColumnsWithActions = Object.freeze([
 	...columnConfigColumns,
@@ -42,13 +42,13 @@ export default function Page() {
 	const queryClient = useQueryClient();
 	const { roles } = useDashboardShellContext();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "team-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: [] as string[] });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "team-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: [] as string[] });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "team-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "team-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
 	const [filters, setFilters] = useConfigStorage({ localStorageKey: "team-management.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
 	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "team-management.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "team-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: [] });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "team-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
 		queryKey: ["team-management", "approver", {
