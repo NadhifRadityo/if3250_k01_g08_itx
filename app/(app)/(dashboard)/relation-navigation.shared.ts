@@ -1,13 +1,13 @@
 export type RelationUser = {
 	name: string;
 	email: string;
-	stagedUserId: string | null;
+	stagedUserId?: string | null;
 };
 
 export type RelationStagedUser = {
 	name: string;
 	email: string;
-	userId: string | null;
+	userId?: string | null;
 };
 
 export type RelationRole = {
@@ -16,7 +16,7 @@ export type RelationRole = {
 
 export type RelationCreditApplication = {
 	name: string;
-	email: string;
+	email?: string | null;
 };
 
 export type RequestDiffPair<T> = [T, T];

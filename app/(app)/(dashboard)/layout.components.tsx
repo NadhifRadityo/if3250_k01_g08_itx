@@ -31,7 +31,7 @@ import { logoutAction } from "./layout.actions";
 import { DashboardMenu, getDashboardShellContextAction } from "./layout.actions";
 import { dashboardMenuGroups } from "./layout.shared";
 import { RelationNavigationLink } from "./relation-navigation.components";
-import { RelationUser } from "./relation-navigation.shared";
+import { RelationUser, RelationCreditApplication } from "./relation-navigation.shared";
 
 const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
 	"user-management": UserCogIcon,
@@ -1091,6 +1091,25 @@ export const defaultRelationUsersRenderer = ({ description, relationSource }: { 
 			))(context?.relationValues?.[`users:${userId}`]))}
 		</RelationNavigationLink>
 	);
+export const defaultRelationCreditApplicationRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(creditApplicationId: string | null, row: { id: string }, context: { relationValues?: Record<`credit-applications:${string}`, RelationCreditApplication> }) => creditApplicationId == null ? "-" : (creditApplicationRelation => (
+		<RelationNavigationLink
+			relationType="credit-application"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			relationId={creditApplicationId}
+			fallback={{
+				title: creditApplicationRelation?.name ?? (<>Credit Application <span className="font-mono">{creditApplicationId}</span></>),
+				description: description,
+				fields: [
+					{ label: "Id", value: (<span className="font-mono">{creditApplicationId}</span>) },
+					...(creditApplicationRelation != null ? [{ label: "Name", value: creditApplicationRelation.name }] : []),
+					...(creditApplicationRelation != null ? [{ label: "Email", value: creditApplicationRelation.email }] : [])
+				]
+			}}
+		>
+			{creditApplicationRelation?.name ?? (<>Credit Application <span className="font-mono">{creditApplicationId}</span></>)}
+		</RelationNavigationLink>
+	))(context?.relationValues?.[`credit-applications:${creditApplicationId}`]);
 export const defaultChangeRequestRenderer = () =>
 	(_, row: { createdAt?: string, updatedAt?: string, deletedAt?: string }, { setChangeRequestDrawerRow, setChangeRequestDrawerOpen }) => (
 		<Button

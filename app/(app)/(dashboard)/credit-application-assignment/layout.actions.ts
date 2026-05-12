@@ -2,600 +2,111 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { getPayload, type Where, type Payload } from "payload";
+import { Payload, getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
-import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
-import type { RelationCreditApplication, RelationUser, RequestDiffPair } from "@/utils/requestRelationValues";
-import type { User, CreditApplicationAssignment } from "@/payload-types";
+import { lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
+import type { CreditApplicationAssignment, User } from "@/payload-types";
 
-const MAX_PAGE_SIZE = 20;
-const RELATION_SEARCH_LIMIT = 20;
-const creditApplicationAssignmentStatusValues = ["pending", "approved", "rejected"] as const;
-const creditApplicationAssignmentHistoryRequiredMenu = "credit-application-assignment-auditor";
+import { MenuFilterState } from "../layout.components";
+import { resolveRelationCreditApplications, resolveRelationUsers } from "../relation-navigation.actions";
+import { RelationCreditApplication, RelationUser } from "../relation-navigation.shared";
+import { FormState } from "./layout.components";
 
-export type CreditApplicationAssignmentStatus = typeof creditApplicationAssignmentStatusValues[number];
-
-const creditApplicationAssignmentStatusSet = new Set<CreditApplicationAssignmentStatus>(creditApplicationAssignmentStatusValues);
-
-const sortableFields = new Set<CreditApplicationAssignmentSortField>([
-	"id",
-	"createdAt",
-	"updatedAt",
-	"deletedAt",
-	"creditApplication",
-	"officer",
-	"reviewedAt",
-	"reviewedBy",
-	"reviewApproved"
-]);
-const filterableColumns = new Set<CreditApplicationAssignmentFilterColumn>([
-	"id",
-	"creditApplication",
-	"officer",
-	"createdAt",
-	"createdBy",
-	"updatedAt",
-	"updatedBy",
-	"deletedAt",
-	"deletedBy",
-	"reviewedAt",
-	"reviewedBy",
-	"status",
-	"reviewApproved"
-]);
-const filterOperators = new Set<CreditApplicationAssignmentFilterOperator>([
-	"equals",
-	"not_equals",
-	"contains",
-	"not_contains",
-	"in",
-	"not_in",
-	"exists",
-	"greater_than",
-	"less_than",
-	"greater_than_equal",
-	"less_than_equal"
-]);
-const statusFilterOperators = new Set<CreditApplicationAssignmentFilterOperator>([
-	"equals",
-	"not_equals",
-	"in",
-	"not_in",
-	"exists"
-]);
-const dateFilterColumns = new Set<CreditApplicationAssignmentFilterColumn>([
-	"createdAt",
-	"updatedAt",
-	"deletedAt",
-	"reviewedAt"
-]);
-const booleanFilterColumns = new Set<CreditApplicationAssignmentFilterColumn>(["reviewApproved"]);
-
-type ReviewCommentValue = NonNullable<CreditApplicationAssignment["reviewComment"]>;
-type SortFieldKey = CreditApplicationAssignmentSortToken extends `${"+" | "-"}${infer T}` ? T : never;
-
-const defaultReviewComment: ReviewCommentValue = createEmptyReviewComment();
-
-export type CreditApplicationAssignmentTabMode = "editor" | "approver";
-export type CreditApplicationAssignmentSortField = "createdAt" |
-	"id" |
-	"updatedAt" |
-	"deletedAt" |
-	"creditApplication" |
-	"officer" |
-	"reviewedAt" |
-	"reviewedBy" |
-	"reviewApproved";
-export type CreditApplicationAssignmentSortToken = `${"+" | "-"}${CreditApplicationAssignmentSortField}`;
-export type CreditApplicationAssignmentFilterColumn = "id" |
-	"creditApplication" |
-	"officer" |
-	"createdAt" |
-	"createdBy" |
-	"updatedAt" |
-	"updatedBy" |
-	"deletedAt" |
-	"deletedBy" |
-	"reviewedAt" |
-	"reviewedBy" |
-	"status" |
-	"reviewApproved";
-export type CreditApplicationAssignmentFilterOperator = "equals" |
-	"not_equals" |
-	"contains" |
-	"not_contains" |
-	"in" |
-	"not_in" |
-	"exists" |
-	"greater_than" |
-	"less_than" |
-	"greater_than_equal" |
-	"less_than_equal";
-export type CreditApplicationAssignmentFilterCombinator = "and" | "or";
-export type CreditApplicationAssignmentFilterInput = {
-	column: CreditApplicationAssignmentFilterColumn;
-	operator: CreditApplicationAssignmentFilterOperator;
-	value?: string | Array<string | boolean> | boolean | null;
-	joinWithPrevious?: CreditApplicationAssignmentFilterCombinator;
-};
-
-export type CreditApplicationAssignmentTableRow = {
-	id: string;
-	creditApplication: string | null;
-	officer: string | null;
-	isSoftDeleted: boolean;
-	createdBy: string | null;
-	updatedBy: string | null;
-	deletedBy: string | null;
-	createdAt: string;
-	updatedAt: string;
-	deletedAt: string | null;
-	reviewedAt: string | null;
-	reviewedBy: string | null;
-	reviewApproved: boolean | null;
-	reviewComment: ReviewCommentValue | null;
-	requestType: "Create" | "Update" | "Delete";
-};
-
-export type CreditApplicationAssignmentRelationValues =
-	Partial<Record<`users:${string}`, RelationUser>> &
+const PAGE_LIMIT = 20;
+export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
 	Partial<Record<`credit-applications:${string}`, RelationCreditApplication>>;
 
-export type QueryCreditApplicationAssignmentsInput = {
-	keyword: string;
-	sort: string[];
-	filters?: CreditApplicationAssignmentFilterInput[];
-	filterCombinator?: CreditApplicationAssignmentFilterCombinator;
-	page: number;
-	limit: number;
-	mode: CreditApplicationAssignmentTabMode;
-	includeSoftDeleted?: boolean;
-};
+const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
+	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator] as const))
+		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
+			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
+			[...termGroups, [unit]], [] as Where[][])
+		.map(termGroups => ({ and: termGroups }))
+});
 
-export type QueryCreditApplicationAssignmentsOutput = {
-	docs: CreditApplicationAssignmentTableRow[];
-	relations: CreditApplicationAssignmentRelationValues;
-	totalDocs: number;
-	page: number;
-	hasNextPage: boolean;
-	hasPreviousPage: boolean;
-};
-
-export type CreditApplicationAssignmentCreditApplicationOption = {
-	id: string;
-	name: string;
-	email: string;
-};
-
-export type CreateCreditApplicationAssignmentsRequestInput = {
-	creditApplications: string[];
-	officer: string;
-};
-
-export type CreditApplicationAssignmentOfficerOption = {
-	id: string;
-	name: string;
-	email: string;
-};
-
-export type CreditApplicationAssignmentAuditUserOption = {
-	id: string;
-	name: string;
-	email: string;
-};
-
-export type CreditApplicationAssignmentFilterIdOption = {
-	id: string;
-};
-
-export type UpsertCreditApplicationAssignmentRequestInput = {
-	assignmentId?: string;
-	creditApplication: string;
-	officer: string;
-};
-
-export type ReviewCreditApplicationAssignmentRequestInput = {
-	assignmentId: string;
-	decision: "approve" | "reject";
-	reviewComment: ReviewCommentValue;
-};
-
-export type CreditApplicationAssignmentRequestReviewDiffOutput = {
-	requestId: string;
-	requestType: "Create" | "Update" | "Delete";
-	creditApplication: RequestDiffPair<string | null>;
-	officer: RequestDiffPair<string | null>;
-	deletedAt: RequestDiffPair<string | null>;
-	relations: CreditApplicationAssignmentRelationValues;
-};
-
-export type CreditApplicationAssignmentRequestDetailsOutput = {
-	row: CreditApplicationAssignmentTableRow;
-	relations: CreditApplicationAssignmentRelationValues;
-};
-
-export type CreditApplicationAssignmentRequestHistoryEntry = {
-	versionId: string;
-	id: string;
-	creditApplication: string | null;
-	officer: string | null;
-	createdBy: string | null;
-	updatedBy: string | null;
-	deletedBy: string | null;
-	createdAt: string | null;
-	updatedAt: string | null;
-	deletedAt: string | null;
-	requestType: "Create" | "Update" | "Delete";
-	status: string;
-	reviewedAt: string | null;
-	reviewedBy: string | null;
-	reviewApproved: boolean | null;
-	reviewComment: ReviewCommentValue | null;
-};
-
-export type CreditApplicationAssignmentRequestHistoryOutput = {
-	requestId: string;
-	entries: CreditApplicationAssignmentRequestHistoryEntry[];
-	relations: CreditApplicationAssignmentRelationValues;
-};
-
-function clampPageSize(limit: number): number {
-	if(Number.isFinite(limit))
-		return Math.max(1, Math.min(MAX_PAGE_SIZE, Math.floor(limit)));
-	return MAX_PAGE_SIZE;
-}
-
-function normalizeSortTokens(sort: string[]): CreditApplicationAssignmentSortToken[] {
-	const prefixed = sort
-		.map(token => token.trim())
-		.filter(token => token.length > 0)
-		.map(token => token.startsWith("+") || token.startsWith("-") ? token : `+${token}`)
-		.filter(token => sortableFields.has(token.slice(1) as CreditApplicationAssignmentSortField)) as CreditApplicationAssignmentSortToken[];
-	const deduplicated = prefixed.filter((token, index, source) =>
-		index == source.findIndex(candidate => candidate.slice(1) == token.slice(1))
-	);
-	if(deduplicated.length == 0)
-		return ["-updatedAt"];
-	return deduplicated;
-}
-
-function normalizeOptionalTextValue(value: unknown): string {
-	return typeof value == "string" ? value.trim() : "";
-}
-
-function parseBooleanValue(value: unknown): boolean | null {
-	if(typeof value == "boolean")
-		return value;
-	if(typeof value != "string")
-		return null;
-	const normalized = value.trim().toLowerCase();
-	if(normalized == "true" || normalized == "1" || normalized == "yes")
-		return true;
-	if(normalized == "false" || normalized == "0" || normalized == "no")
-		return false;
-	return null;
-}
-
-function normalizeCreditApplicationAssignmentStatusValue(value: unknown): CreditApplicationAssignmentStatus | null {
-	if(typeof value != "string")
-		return null;
-	const normalized = value.trim().toLowerCase() as CreditApplicationAssignmentStatus;
-	return creditApplicationAssignmentStatusSet.has(normalized) ? normalized : null;
-}
-
-function normalizeScalarFilterValue(column: CreditApplicationAssignmentFilterColumn, rawValue: unknown): string | boolean | null {
-	if(rawValue == null)
-		return null;
-
-	if(booleanFilterColumns.has(column))
-		return parseBooleanValue(rawValue);
-
-	if(column == "status")
-		return normalizeCreditApplicationAssignmentStatusValue(rawValue);
-
-	if(typeof rawValue != "string")
-		return null;
-	const trimmed = rawValue.trim();
-	if(trimmed.length == 0)
-		return null;
-
-	if(dateFilterColumns.has(column)) {
-		const date = new Date(trimmed);
-		if(!Number.isNaN(date.getTime()))
-			return date.toISOString();
+async function resolveRelations(
+	{ payload, docs }:
+	{ payload?: Payload, docs: CreditApplicationAssignment[] }
+) {
+	payload ??= await getPayload({ config: payloadConfig });
+	const userIds = new Set<string>();
+	const creditApplicationIds = new Set<string>();
+	for(const doc of docs) {
+		const createdBy = getRelationshipId(doc.createdBy);
+		if(createdBy != null)
+			userIds.add(createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		if(updatedBy != null)
+			userIds.add(updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		if(deletedBy != null)
+			userIds.add(deletedBy);
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
+		if(reviewedBy != null)
+			userIds.add(reviewedBy);
+		const creditApplication = getRelationshipId(doc.creditApplication);
+		if(creditApplication != null)
+			creditApplicationIds.add(creditApplication);
+		const officer = getRelationshipId(doc.officer);
+		if(officer != null)
+			userIds.add(officer);
 	}
-
-	return trimmed;
+	const relations = {} as RelationValues;
+	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
+	Object.assign(relations, await resolveRelationCreditApplications({ payload, ids: [...creditApplicationIds] }));
+	return relations;
 }
 
-function normalizeFilters(
-	filters: CreditApplicationAssignmentFilterInput[] | undefined,
-	fallbackCombinator: CreditApplicationAssignmentFilterCombinator
-): CreditApplicationAssignmentFilterInput[] {
-	if(filters == null)
-		return [];
-
-	const normalized: CreditApplicationAssignmentFilterInput[] = [];
-	for(const filter of filters) {
-		if(filter == null || !filterableColumns.has(filter.column) || !filterOperators.has(filter.operator))
-			continue;
-		if(filter.column == "status" && !statusFilterOperators.has(filter.operator))
-			continue;
-
-		if(filter.operator == "exists") {
-			const existsValue = parseBooleanValue(filter.value) ?? true;
-			normalized.push({
-				column: filter.column,
-				operator: filter.operator,
-				value: existsValue,
-				joinWithPrevious: normalized.length == 0 ? undefined : (filter.joinWithPrevious == "or" ? "or" : fallbackCombinator)
-			});
-			continue;
-		}
-
-		if(filter.operator == "in" || filter.operator == "not_in") {
-			const values = (Array.isArray(filter.value) ? filter.value : String(filter.value ?? "").split(","))
-				.map(value => normalizeScalarFilterValue(filter.column, value))
-				.filter((value): value is string | boolean => value != null);
-			if(values.length == 0)
-				continue;
-			normalized.push({
-				column: filter.column,
-				operator: filter.operator,
-				value: values,
-				joinWithPrevious: normalized.length == 0 ? undefined : (filter.joinWithPrevious == "or" ? "or" : fallbackCombinator)
-			});
-			continue;
-		}
-
-		const scalarValue = normalizeScalarFilterValue(filter.column, filter.value);
-		if(scalarValue == null)
-			continue;
-
-		normalized.push({
-			column: filter.column,
-			operator: filter.operator,
-			value: scalarValue,
-			joinWithPrevious: normalized.length == 0 ? undefined : (filter.joinWithPrevious == "or" ? "or" : fallbackCombinator)
-		});
-	}
-
-	return normalized;
-}
-
-function normalizeFilterCombinator(
-	filterCombinator: CreditApplicationAssignmentFilterCombinator | undefined
-): CreditApplicationAssignmentFilterCombinator {
-	return filterCombinator == "or" ? "or" : "and";
-}
-
-function getRelationshipId(value: unknown): string | null {
-	if(typeof value == "string")
-		return value;
-	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
-		return value.id;
-	return null;
-}
-
-function normalizeRoleMenus(value: unknown): string[] {
-	if(!Array.isArray(value))
-		return [];
-
-	const normalized = value
-		.filter((menu): menu is string => typeof menu == "string")
-		.map(menu => menu.trim().toLowerCase())
-		.filter(menu => menu.length > 0);
-
-	return [...new Set(normalized)];
-}
-
-async function resolveUserRoleMenus(payload: Payload, user: User): Promise<string[]> {
-	const rawRole = user.role;
-	if(rawRole != null && typeof rawRole == "object" && "menus" in rawRole)
-		return normalizeRoleMenus(rawRole.menus);
-
-	const roleId = getRelationshipId(rawRole);
-	if(roleId == null)
-		return [];
-
-	const role = await payload.findByID({
-		collection: "roles",
-		id: roleId,
-		user,
-		overrideAccess: true,
-		trash: true,
-		depth: 0,
-		select: {
-			menus: true
-		}
-	});
-
-	return normalizeRoleMenus(role.menus);
-}
-
-async function hasCreditApplicationAssignmentRequestHistoryAccess(payload: Payload, user: User): Promise<boolean> {
-	const roleMenus = await resolveUserRoleMenus(payload, user);
-	return roleMenus.includes(creditApplicationAssignmentHistoryRequiredMenu);
-}
-
-function getCreditApplicationAssignmentRequestType(
-	deletedAt: string | null | undefined,
-	createdAt: string | null | undefined,
-	updatedAt: string | null | undefined
-): "Create" | "Update" | "Delete" {
-	if(deletedAt != null)
-		return "Delete";
-	if(createdAt == null || updatedAt == null)
-		return "Update";
-	return createdAt == updatedAt ? "Create" : "Update";
-}
-
-function getCreditApplicationAssignmentHistoryStatusLabel(
-	reviewedAt: string | null | undefined,
-	reviewApproved: boolean | null | undefined
-): string {
-	if(reviewedAt == null)
-		return "Pending";
-	if(reviewApproved == true)
-		return "Approved";
-	return "Rejected";
-}
-
-function normalizeSelectedIds(selectedIds: string[] = []): string[] {
-	return [...new Set(
-		selectedIds
-			.map(selectedId => selectedId.trim())
-			.filter(selectedId => selectedId.length > 0)
-	)];
-}
-
-async function findUsersByIds(
-	payload: Payload,
-	user: User,
-	ids: string[]
-): Promise<Map<string, { name: string, email: string, stagedUserId: string | null }>> {
-	if(ids.length == 0)
-		return new Map();
-
-	const usersResult = await payload.find({
-		collection: "users",
-		user,
-		overrideAccess: false,
-		pagination: false,
-		depth: 0,
-		limit: Math.max(ids.length, 1),
-		where: {
-			id: {
-				in: ids
-			}
-		},
-		select: {
-			name: true,
-			email: true,
-			stagedUser: true
-		}
-	});
-
-	const map = new Map<string, { name: string, email: string, stagedUserId: string | null }>();
-	for(const doc of usersResult.docs) {
-		map.set(String(doc.id), {
-			name: doc.name,
-			email: doc.email,
-			stagedUserId: getRelationshipId(doc.stagedUser)
-		});
-	}
-
-	return map;
-}
-
-async function findCreditApplicationsByIds(
-	payload: Payload,
-	user: User,
-	ids: string[]
-): Promise<Map<string, { name: string, email: string }>> {
-	if(ids.length == 0)
-		return new Map();
-
-	const applicationsResult = await payload.find({
-		collection: "credit-applications",
-		user,
-		overrideAccess: false,
-		pagination: false,
-		depth: 0,
-		limit: Math.max(ids.length, 1),
-		where: {
-			and: [
-				{
-					id: {
-						in: ids
-					}
-				},
-				{ _status: { equals: "published" } }
-			]
-		},
-		select: {
-			name: true,
-			email: true
-		}
-	});
-
-	const map = new Map<string, { name: string, email: string }>();
-	for(const doc of applicationsResult.docs) {
-		map.set(String(doc.id), {
-			name: normalizeOptionalTextValue(doc.name),
-			email: normalizeOptionalTextValue(doc.email)
-		});
-	}
-
-	return map;
-}
-
-async function findCreditApplicationAssignmentsByCreditApplicationIds(
-	payload: Payload,
-	user: User,
-	creditApplicationIds: string[]
-): Promise<Map<string, { id: string, deletedAt: string | null }>> {
+async function findCreditApplicationAssignmentsByCreditApplicationIds(payload: Payload, user: User, creditApplicationIds: string[]) {
 	if(creditApplicationIds.length == 0)
-		return new Map();
-
-	const assignmentsResult = await payload.find({
-		collection: "credit-application-assignments",
-		user,
+		return new Map<string, { id: string, deletedAt: string | null }>();
+	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
+		collection: "credit-application-assignments",
 		draft: true,
 		trash: true,
 		pagination: false,
 		depth: 0,
 		limit: Math.max(creditApplicationIds.length, 1),
-		where: {
-			creditApplication: {
-				in: creditApplicationIds
-			}
-		},
+		where: { creditApplication: { in: creditApplicationIds } },
 		select: {
 			creditApplication: true,
 			deletedAt: true
 		}
 	});
-
-	const map = new Map<string, { id: string, deletedAt: string | null }>();
-	for(const doc of assignmentsResult.docs) {
-		const creditApplicationId = getRelationshipId(doc.creditApplication);
-		if(creditApplicationId == null)
-			continue;
-		map.set(creditApplicationId, {
-			id: String(doc.id),
+	return new Map(result.docs.flatMap(doc => {
+		const creditApplication = getRelationshipId(doc.creditApplication);
+		return creditApplication != null ? [[creditApplication, {
+			id: doc.id,
 			deletedAt: doc.deletedAt ?? null
-		});
-	}
-
-	return map;
+		}] as const] : [];
+	}));
 }
 
-async function ensureOfficerUser(payload: Payload, user: User, officerId: string): Promise<void> {
+async function ensureOfficerUser(payload: Payload, user: User, officerId: string) {
 	const officer = await payload.findByID({
+		user: user,
+		overrideAccess: false,
 		collection: "users",
 		id: officerId,
-		user,
-		overrideAccess: false,
 		depth: 1,
 		select: {
 			role: true
 		}
 	});
-
 	const roleLevel = typeof officer.role == "object" && officer.role != null && "level" in officer.role ? officer.role.level : null;
 	if(roleLevel != "officer")
 		throw new Error("Selected user must have officer role.");
 }
 
-async function ensureCreditApplicationExists(payload: Payload, user: User, creditApplicationId: string): Promise<void> {
+async function ensureCreditApplicationExists(payload: Payload, user: User, creditApplicationId: string) {
 	const creditApplication = await payload.findByID({
+		user: user,
+		overrideAccess: false,
 		collection: "credit-applications",
 		id: creditApplicationId,
-		user,
-		overrideAccess: false,
 		depth: 0,
 		select: {
 			_status: true,
@@ -606,705 +117,171 @@ async function ensureCreditApplicationExists(payload: Payload, user: User, credi
 		throw new Error("Selected credit application must be an active published credit application.");
 }
 
-export async function searchCreditApplicationOptionsAction(
-	keyword: string,
-	selectedIds: string[] = []
-): Promise<CreditApplicationAssignmentCreditApplicationOption[]> {
+async function queryAction(
+	{ mode, keyword, filters, columnsSort, includeDeleted, pageIndex }:
+	{ mode: "viewer" | "approver" | "editor", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], includeDeleted: boolean, pageIndex: number }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	const normalizedKeyword = keyword.trim();
-	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
-	const keywordFilters: Where[] = normalizedKeyword.length == 0 ? [] : [
-		{ id: { like: normalizedKeyword } },
-		{ name: { like: normalizedKeyword } },
-		{ email: { like: normalizedKeyword } }
-	];
-	const whereTerms: Where[] = [];
-	if(keywordFilters.length > 0)
-		whereTerms.push({ or: keywordFilters });
-	if(normalizedKeyword.length > 0 && normalizedSelectedIds.length > 0)
-		whereTerms.push({ id: { in: normalizedSelectedIds } });
-	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
-
+	if(user == null) return unauthorized();
 	const result = await payload.find({
-		collection: "credit-applications",
-		user,
-		overrideAccess: false,
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
-		sort: "-updatedAt",
-		where: {
-			and: [
-				{ _status: { equals: "published" } },
-				{ deletedAt: { exists: false } },
-				...(where != null ? [where] : [])
-			]
-		},
-		select: {
-			name: true,
-			email: true
-		}
+		user: user,
+		overrideAccess: true,
+		collection: "credit-application-assignments",
+		draft: true,
+		trash: true,
+		page: pageIndex,
+		limit: PAGE_LIMIT,
+		sort: columnsSort.map(([columnKey, ascending]) => `${!ascending ? "-" : ""}${columnKey}`),
+		where: { and: [
+			...(mode == "approver" ? [
+				{ _status: { equals: "draft" } },
+				{ reviewedAt: { exists: false } }
+			] : []),
+			...(!includeDeleted ? [
+				{ deletedAt: { exists: false } }
+			] : []),
+			...(keyword.length > 0 ? [{ or: [
+				{ id: { like: keyword } },
+				{ "creditApplication.name": { like: keyword } },
+				{ "creditApplication.email": { like: keyword } },
+				{ "officer.name": { like: keyword } },
+				{ "officer.email": { like: keyword } }
+			] }] : []),
+			buildFilterWhere(filters)
+		] }
 	});
-
-	return result.docs.map(doc => ({
-		id: String(doc.id),
-		name: normalizeOptionalTextValue(doc.name),
-		email: normalizeOptionalTextValue(doc.email)
-	}));
+	const relations = await resolveRelations({ payload, docs: result.docs });
+	return { ...result, relations };
 }
 
-export async function searchAvailableCreditApplicationOptionsAction(
-	keyword: string,
-	selectedIds: string[] = []
-): Promise<CreditApplicationAssignmentCreditApplicationOption[]> {
+export async function queryViewerAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+	return await queryAction({ ...p, mode: "viewer" });
+}
+export async function queryEditorAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+	return await queryAction({ ...p, mode: "editor" });
+}
+export async function queryApproverAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+	return await queryAction({ ...p, mode: "approver" });
+}
+
+export async function getDetailsAction(id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
+	if(user == null) return unauthorized();
 
-	const normalizedKeyword = keyword.trim();
-	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
-	const keywordFilters: Where[] = normalizedKeyword.length == 0 ? [] : [
-		{ id: { like: normalizedKeyword } },
-		{ name: { like: normalizedKeyword } },
-		{ email: { like: normalizedKeyword } }
-	];
-	const whereTerms: Where[] = [];
-	if(keywordFilters.length > 0)
-		whereTerms.push({ or: keywordFilters });
-	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
-
-	const result = await payload.find({
-		collection: "credit-applications",
-		user,
+	const result = await payload.findByID({
+		user: user,
 		overrideAccess: false,
-		pagination: false,
+		collection: "credit-application-assignments",
+		draft: true,
+		trash: true,
+		id: id,
 		depth: 0,
-		limit: RELATION_SEARCH_LIMIT * 5 + normalizedSelectedIds.length,
-		sort: "-updatedAt",
-		where: {
-			and: [
-				{ _status: { equals: "published" } },
-				{ deletedAt: { exists: false } },
-				...(where != null ? [where] : [])
-			]
-		},
 		select: {
-			name: true,
-			email: true
+			creditApplication: true,
+			officer: true,
+			createdBy: true,
+			updatedBy: true,
+			deletedBy: true,
+			createdAt: true,
+			updatedAt: true,
+			deletedAt: true,
+			_status: true,
+			reviewedAt: true,
+			reviewedBy: true,
+			reviewApproved: true,
+			reviewComment: true
 		}
 	});
+	const relations = await resolveRelations({ payload, docs: [result] });
+	return { row: result, relations };
+}
 
-	const selectedCreditApplicationsById = await findCreditApplicationsByIds(payload, user, normalizedSelectedIds);
-	const assignmentsByCreditApplication = await findCreditApplicationAssignmentsByCreditApplicationIds(
+export async function getDifferenceAction(id: string) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const requestedVersion = (await payload.findVersions({
+		user: user,
+		overrideAccess: true,
+		collection: "credit-application-assignments",
+		trash: true,
+		pagination: false,
+		limit: 1,
+		sort: "-updatedAt",
+		where: { and: [
+			{ parent: { equals: id } },
+			{ "version._status": { equals: "draft" } }
+		] },
+		select: {
+			version: {
+				creditApplication: true,
+				officer: true,
+				deletedAt: true
+			}
+		}
+	})).docs[0]?.version;
+	const approvedVersion = (await payload.findVersions({
+		user: user,
+		overrideAccess: true,
+		collection: "credit-application-assignments",
+		trash: true,
+		pagination: false,
+		limit: 1,
+		sort: "-updatedAt",
+		where: { and: [
+			{ parent: { equals: id } },
+			{ "version._status": { equals: "published" } }
+		] },
+		select: {
+			version: {
+				creditApplication: true,
+				officer: true,
+				deletedAt: true
+			}
+		}
+	})).docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft credit application assignment request could not be found.");
+	const relations = await resolveRelations({
 		payload,
-		user,
-		result.docs.map(doc => String(doc.id))
-	);
-	const normalizedSelectedIdSet = new Set(normalizedSelectedIds);
-	const availableOptionsById = new Map<string, CreditApplicationAssignmentCreditApplicationOption>();
-	for(const doc of result.docs) {
-		const creditApplicationId = String(doc.id);
-		const assignment = assignmentsByCreditApplication.get(creditApplicationId);
-		if(!normalizedSelectedIdSet.has(creditApplicationId) && assignment != null && assignment.deletedAt == null)
-			continue;
-		availableOptionsById.set(creditApplicationId, {
-			id: creditApplicationId,
-			name: normalizeOptionalTextValue(doc.name),
-			email: normalizeOptionalTextValue(doc.email)
-		});
-	}
-	for(const creditApplicationId of normalizedSelectedIds) {
-		if(availableOptionsById.has(creditApplicationId))
-			continue;
-		const selectedCreditApplication = selectedCreditApplicationsById.get(creditApplicationId);
-		if(selectedCreditApplication == null)
-			continue;
-		availableOptionsById.set(creditApplicationId, {
-			id: creditApplicationId,
-			name: selectedCreditApplication.name,
-			email: selectedCreditApplication.email
-		});
-	}
-
-	return [...availableOptionsById.values()]
-		.slice(0, RELATION_SEARCH_LIMIT + normalizedSelectedIds.length)
-		;
-}
-
-export async function searchCreditApplicationAssignmentOptionsAction(
-	keyword: string,
-	selectedIds: string[] = []
-): Promise<CreditApplicationAssignmentFilterIdOption[]> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	const normalizedKeyword = keyword.trim();
-	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
-	const whereTerms: Where[] = [];
-	if(normalizedKeyword.length > 0)
-		whereTerms.push({ id: { like: normalizedKeyword } });
-	if(normalizedSelectedIds.length > 0)
-		whereTerms.push({ id: { in: normalizedSelectedIds } });
-	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
-
-	const result = await payload.find({
-		collection: "credit-application-assignments",
-		user,
-		overrideAccess: false,
-		draft: true,
-		trash: true,
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
-		sort: "-updatedAt",
-		select: {},
-		...(where != null ? { where } : {})
-	});
-
-	return result.docs.map(doc => ({
-		id: String(doc.id)
-	}));
-}
-
-export async function searchCreditApplicationAssignmentOfficerOptionsAction(
-	keyword: string,
-	selectedIds: string[] = []
-): Promise<CreditApplicationAssignmentOfficerOption[]> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	const normalizedKeyword = keyword.trim();
-	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
-	const keywordFilters: Where[] = normalizedKeyword.length == 0 ? [] : [
-		{ email: { like: normalizedKeyword } },
-		{ name: { like: normalizedKeyword } },
-		{ employeeId: { like: normalizedKeyword } }
-	];
-	const officerSearchTerms: Where[] = [{ "role.level": { equals: "officer" } }];
-	if(keywordFilters.length > 0)
-		officerSearchTerms.push({ or: keywordFilters });
-
-	const where: Where = {
-		and: [
-			{ deletedAt: { exists: false } },
-			{
-				or: [
-					officerSearchTerms.length == 1 ? officerSearchTerms[0] : { and: officerSearchTerms },
-					...(normalizedSelectedIds.length > 0 ? [{ id: { in: normalizedSelectedIds } }] : [])
-				]
-			}
+		docs: [
+			...(approvedVersion != null ? [approvedVersion] : []),
+			requestedVersion
 		]
-	};
-
-	const result = await payload.find({
-		collection: "users",
-		user,
-		overrideAccess: false,
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
-		sort: "name",
-		where,
-		select: {
-			name: true,
-			email: true
-		}
 	});
-
-	return result.docs.map(doc => ({
-		id: String(doc.id),
-		name: doc.name,
-		email: doc.email
-	}));
-}
-
-export async function searchCreditApplicationAssignmentAuditUserOptionsAction(
-	keyword: string,
-	selectedIds: string[] = []
-): Promise<CreditApplicationAssignmentAuditUserOption[]> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	const normalizedKeyword = keyword.trim();
-	const normalizedSelectedIds = normalizeSelectedIds(selectedIds);
-	const keywordFilters: Where[] = normalizedKeyword.length == 0 ? [] : [
-		{ email: { like: normalizedKeyword } },
-		{ name: { like: normalizedKeyword } },
-		{ employeeId: { like: normalizedKeyword } }
-	];
-	const whereTerms: Where[] = [];
-	if(keywordFilters.length > 0)
-		whereTerms.push({ or: keywordFilters });
-	if(normalizedSelectedIds.length > 0)
-		whereTerms.push({ id: { in: normalizedSelectedIds } });
-	const where = whereTerms.length == 0 ? null : whereTerms.length == 1 ? whereTerms[0] : { or: whereTerms };
-
-	const result = await payload.find({
-		collection: "users",
-		user,
-		overrideAccess: false,
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + normalizedSelectedIds.length,
-		sort: "name",
-		select: {
-			name: true,
-			email: true
-		},
-		...(where != null ? { where } : {})
-	});
-
-	return result.docs.map(doc => ({
-		id: String(doc.id),
-		name: doc.name,
-		email: doc.email
-	}));
-}
-
-function toPayloadSort(sort: CreditApplicationAssignmentSortToken[]): string {
-	return sort.map(token => {
-		const direction = token.startsWith("-") ? "-" : "";
-		const field = token.slice(1) as SortFieldKey;
-		let path: string;
-		if(field == "creditApplication")
-			path = "creditApplication.name";
-		else if(field == "officer" || field == "reviewedBy")
-			path = `${field}.name`;
-		else
-			path = field;
-		return `${direction}${path}`;
-	}).join(",");
-}
-
-function toPayloadFilterWhere(filters: CreditApplicationAssignmentFilterInput[]): Where | null {
-	if(filters.length == 0)
-		return null;
-
-	const operatorMap: Record<CreditApplicationAssignmentFilterOperator, string> = {
-		equals: "equals",
-		not_equals: "not_equals",
-		contains: "like",
-		not_contains: "not_like",
-		in: "in",
-		not_in: "not_in",
-		exists: "exists",
-		greater_than: "greater_than",
-		less_than: "less_than",
-		greater_than_equal: "greater_than_equal",
-		less_than_equal: "less_than_equal"
-	};
-	const impossibleWhere: Where = {
-		and: [
-			{ reviewedAt: { exists: true } },
-			{ reviewedAt: { exists: false } }
-		]
-	};
-
-	const getStatusWhere = (status: CreditApplicationAssignmentStatus): Where => {
-		if(status == "pending")
-			return { reviewedAt: { exists: false } };
-		if(status == "approved") {
-			return {
-				and: [
-					{ reviewedAt: { exists: true } },
-					{ reviewApproved: { equals: true } }
-				]
-			};
-		}
-		return {
-			and: [
-				{ reviewedAt: { exists: true } },
-				{ reviewApproved: { equals: false } }
-			]
-		};
-	};
-
-	const buildStatusFilterWhere = (filter: CreditApplicationAssignmentFilterInput): Where | null => {
-		if(filter.operator == "exists")
-			return filter.value == true ? null : impossibleWhere;
-
-		const rawStatuses = Array.isArray(filter.value) ? filter.value : [filter.value];
-		const statuses = rawStatuses
-			.map(normalizeCreditApplicationAssignmentStatusValue)
-			.filter((status): status is CreditApplicationAssignmentStatus => status != null)
-			.filter((status, index, source) => source.indexOf(status) == index);
-		if(statuses.length == 0)
-			return null;
-
-		if(filter.operator == "equals" || filter.operator == "in")
-			return statuses.length == 1 ? getStatusWhere(statuses[0]) : { or: statuses.map(getStatusWhere) };
-
-		if(filter.operator == "not_equals" || filter.operator == "not_in") {
-			const excluded = new Set(statuses);
-			const remaining = creditApplicationAssignmentStatusValues.filter(status => !excluded.has(status));
-			if(remaining.length == 0)
-				return impossibleWhere;
-			return remaining.length == 1 ? getStatusWhere(remaining[0]) : { or: remaining.map(getStatusWhere) };
-		}
-
-		return null;
-	};
-
-	const conditions = filters
-		.map(filter => {
-			if(filter.column == "status") {
-				const statusWhere = buildStatusFilterWhere(filter);
-				if(statusWhere == null)
-					return null;
-				return {
-					where: statusWhere,
-					joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
-				};
-			}
-
-			return {
-				where: {
-					[filter.column]: {
-						[operatorMap[filter.operator]]: filter.value
-					}
-				},
-				joinWithPrevious: filter.joinWithPrevious == "or" ? "or" : "and"
-			};
-		})
-		.filter((condition): condition is { where: Where, joinWithPrevious: "and" | "or" } => condition != null);
-
-	if(conditions.length == 0)
-		return null;
-
-	const andTerms: Where[][] = [];
-	let currentAndTerm: Where[] = [conditions[0].where];
-	for(let index = 1; index < conditions.length; index++) {
-		const condition = conditions[index];
-		if(condition.joinWithPrevious == "or") {
-			andTerms.push(currentAndTerm);
-			currentAndTerm = [condition.where];
-			continue;
-		}
-		currentAndTerm.push(condition.where);
-	}
-	andTerms.push(currentAndTerm);
-
-	if(andTerms.length == 1)
-		return andTerms[0].length == 1 ? andTerms[0][0] : { and: andTerms[0] };
-
 	return {
-		or: andTerms.map(andTerm => andTerm.length == 1 ? andTerm[0] : ({ and: andTerm }))
+		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
+		approvedVersion: approvedVersion,
+		requestedVersion: requestedVersion,
+		relations: relations
 	};
 }
 
-export async function queryCreditApplicationAssignmentsAction({
-	keyword,
-	sort,
-	filters,
-	filterCombinator,
-	page,
-	limit,
-	mode,
-	includeSoftDeleted = false
-}: QueryCreditApplicationAssignmentsInput): Promise<QueryCreditApplicationAssignmentsOutput> {
+export async function getHistoryAction(id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	const pageSize = clampPageSize(limit);
-	const pageNumber = Number.isFinite(page) ? Math.max(1, Math.floor(page)) : 1;
-	const normalizedKeyword = keyword.trim();
-	const sortTokens = normalizeSortTokens(sort);
-	const normalizedFilterCombinator = normalizeFilterCombinator(filterCombinator);
-	const normalizedFilters = normalizeFilters(filters, normalizedFilterCombinator);
-	const payloadFilterWhere = toPayloadFilterWhere(normalizedFilters);
-	const payloadSort = toPayloadSort(sortTokens);
-
-	const assignmentsResult = await payload.find({
-		collection: "credit-application-assignments",
-		user,
-		overrideAccess: false,
-		draft: true,
-		trash: true,
-		page: pageNumber,
-		limit: pageSize,
-		sort: payloadSort,
-		depth: 0,
-		where: {
-			and: [
-				...(mode == "approver" ? [{ reviewedAt: { exists: false } }, { _status: { equals: "draft" } }] : []),
-				...(includeSoftDeleted ? [] : [{
-					or: [
-						{ deletedAt: { exists: false } },
-						{ _status: { equals: "draft" } }
-					]
-				}]),
-				...(normalizedKeyword.length > 0 ? [{
-					or: [
-						{ id: { like: normalizedKeyword } },
-						{ "creditApplication.name": { like: normalizedKeyword } },
-						{ "creditApplication.email": { like: normalizedKeyword } },
-						{ "officer.name": { like: normalizedKeyword } },
-						{ "officer.email": { like: normalizedKeyword } }
-					]
-				}] : []),
-				...(payloadFilterWhere != null ? [payloadFilterWhere] : [])
-			]
-		},
-		select: {
-			creditApplication: true,
-			officer: true,
-			createdBy: true,
-			updatedBy: true,
-			deletedBy: true,
-			createdAt: true,
-			updatedAt: true,
-			deletedAt: true,
-			_status: true,
-			reviewedAt: true,
-			reviewedBy: true,
-			reviewApproved: true,
-			reviewComment: true
-		}
-	});
-
-	const mappedRows: CreditApplicationAssignmentTableRow[] = assignmentsResult.docs.map(doc => ({
-		id: String(doc.id),
-		creditApplication: getRelationshipId(doc.creditApplication),
-		officer: getRelationshipId(doc.officer),
-		isSoftDeleted: doc.deletedAt != null && doc._status == "published",
-		createdBy: getRelationshipId(doc.createdBy),
-		updatedBy: getRelationshipId(doc.updatedBy),
-		deletedBy: getRelationshipId(doc.deletedBy),
-		createdAt: doc.createdAt,
-		updatedAt: doc.updatedAt,
-		deletedAt: doc.deletedAt ?? null,
-		reviewedAt: doc.reviewedAt ?? null,
-		reviewedBy: getRelationshipId(doc.reviewedBy),
-		reviewApproved: doc.reviewApproved ?? null,
-		reviewComment: doc.reviewComment ?? null,
-		requestType: getCreditApplicationAssignmentRequestType(doc.deletedAt ?? null, doc.createdAt, doc.updatedAt)
-	}));
-
-	const userIds = [...new Set(assignmentsResult.docs.flatMap(doc => [
-		getRelationshipId(doc.officer),
-		getRelationshipId(doc.reviewedBy),
-		getRelationshipId(doc.createdBy),
-		getRelationshipId(doc.updatedBy),
-		getRelationshipId(doc.deletedBy)
-	].filter((value): value is string => value != null)))];
-	const creditApplicationIds = [...new Set(assignmentsResult.docs
-		.map(doc => getRelationshipId(doc.creditApplication))
-		.filter((value): value is string => value != null))];
-	const [usersById, creditApplicationsById] = await Promise.all([
-		findUsersByIds(payload, user, userIds),
-		findCreditApplicationsByIds(payload, user, creditApplicationIds)
-	]);
-
-	const relations: CreditApplicationAssignmentRelationValues = {};
-	for(const [userId, relationUser] of usersById)
-		relations[`users:${userId}`] = relationUser;
-	for(const [creditApplicationId, relation] of creditApplicationsById)
-		relations[`credit-applications:${creditApplicationId}`] = relation;
-
-	return {
-		docs: mappedRows,
-		relations,
-		totalDocs: assignmentsResult.totalDocs,
-		page: assignmentsResult.page ?? pageNumber,
-		hasNextPage: assignmentsResult.hasNextPage,
-		hasPreviousPage: assignmentsResult.hasPrevPage
-	};
-}
-
-type QueryCreditApplicationAssignmentsSharedInput = Omit<QueryCreditApplicationAssignmentsInput, "mode">;
-
-export async function queryCreditApplicationAssignmentsViewerAction(
-	input: QueryCreditApplicationAssignmentsSharedInput
-): Promise<QueryCreditApplicationAssignmentsOutput> {
-	return queryCreditApplicationAssignmentsAction({
-		...input,
-		mode: "editor",
-		includeSoftDeleted: false
-	});
-}
-
-export async function queryCreditApplicationAssignmentsEditorAction(
-	input: QueryCreditApplicationAssignmentsSharedInput
-): Promise<QueryCreditApplicationAssignmentsOutput> {
-	return queryCreditApplicationAssignmentsAction({
-		...input,
-		mode: "editor"
-	});
-}
-
-export async function queryCreditApplicationAssignmentsApproverAction(
-	input: QueryCreditApplicationAssignmentsSharedInput
-): Promise<QueryCreditApplicationAssignmentsOutput> {
-	return queryCreditApplicationAssignmentsAction({
-		...input,
-		mode: "approver",
-		includeSoftDeleted: false
-	});
-}
-
-export async function getCreditApplicationAssignmentRequestDetailsAction(
-	assignmentId: string
-): Promise<CreditApplicationAssignmentRequestDetailsOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	const assignment = await payload.findByID({
-		collection: "credit-application-assignments",
-		user,
-		overrideAccess: false,
-		draft: true,
-		trash: true,
-		id: assignmentId,
-		depth: 0,
-		select: {
-			creditApplication: true,
-			officer: true,
-			createdBy: true,
-			updatedBy: true,
-			deletedBy: true,
-			createdAt: true,
-			updatedAt: true,
-			deletedAt: true,
-			_status: true,
-			reviewedAt: true,
-			reviewedBy: true,
-			reviewApproved: true,
-			reviewComment: true
-		}
-	});
-
-	const row: CreditApplicationAssignmentTableRow = {
-		id: String(assignment.id),
-		creditApplication: getRelationshipId(assignment.creditApplication),
-		officer: getRelationshipId(assignment.officer),
-		isSoftDeleted: assignment.deletedAt != null && assignment._status == "published",
-		createdBy: getRelationshipId(assignment.createdBy),
-		updatedBy: getRelationshipId(assignment.updatedBy),
-		deletedBy: getRelationshipId(assignment.deletedBy),
-		createdAt: assignment.createdAt,
-		updatedAt: assignment.updatedAt,
-		deletedAt: assignment.deletedAt ?? null,
-		reviewedAt: assignment.reviewedAt ?? null,
-		reviewedBy: getRelationshipId(assignment.reviewedBy),
-		reviewApproved: assignment.reviewApproved ?? null,
-		reviewComment: assignment.reviewComment ?? null,
-		requestType: getCreditApplicationAssignmentRequestType(assignment.deletedAt ?? null, assignment.createdAt, assignment.updatedAt)
-	};
-
-	const relationUserIds = new Set<string>();
-	const creditApplicationIds = new Set<string>();
-	if(row.creditApplication != null)
-		creditApplicationIds.add(row.creditApplication);
-	if(row.officer != null)
-		relationUserIds.add(row.officer);
-	if(row.createdBy != null)
-		relationUserIds.add(row.createdBy);
-	if(row.updatedBy != null)
-		relationUserIds.add(row.updatedBy);
-	if(row.deletedBy != null)
-		relationUserIds.add(row.deletedBy);
-	if(row.reviewedBy != null)
-		relationUserIds.add(row.reviewedBy);
-
-	const usersById = await findUsersByIds(payload, user, [...relationUserIds]);
-	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, [...creditApplicationIds]);
-	const relations: CreditApplicationAssignmentRelationValues = {};
-	if(row.creditApplication != null) {
-		const relation = creditApplicationsById.get(row.creditApplication);
-		if(relation != null)
-			relations[`credit-applications:${row.creditApplication}`] = relation;
-	}
-	if(row.officer != null) {
-		const relation = usersById.get(row.officer);
-		if(relation != null)
-			relations[`users:${row.officer}`] = relation;
-	}
-	if(row.createdBy != null) {
-		const relation = usersById.get(row.createdBy);
-		if(relation != null)
-			relations[`users:${row.createdBy}`] = relation;
-	}
-	if(row.updatedBy != null) {
-		const relation = usersById.get(row.updatedBy);
-		if(relation != null)
-			relations[`users:${row.updatedBy}`] = relation;
-	}
-	if(row.deletedBy != null) {
-		const relation = usersById.get(row.deletedBy);
-		if(relation != null)
-			relations[`users:${row.deletedBy}`] = relation;
-	}
-	if(row.reviewedBy != null) {
-		const relation = usersById.get(row.reviewedBy);
-		if(relation != null)
-			relations[`users:${row.reviewedBy}`] = relation;
-	}
-
-	return {
-		row,
-		relations
-	};
-}
-
-export async function canAccessCreditApplicationAssignmentRequestHistoryAction(): Promise<boolean> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	return hasCreditApplicationAssignmentRequestHistoryAccess(payload, user);
-}
-
-export async function getCreditApplicationAssignmentRequestHistoryAction(
-	assignmentId: string
-): Promise<CreditApplicationAssignmentRequestHistoryOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	if(!(await hasCreditApplicationAssignmentRequestHistoryAccess(payload, user)))
-		throw new Error("You do not have access to assignment request history.");
+	if(user == null) return unauthorized();
 
 	const versionsResult = await payload.findVersions({
-		user,
-		collection: "credit-application-assignments",
+		user: user,
 		overrideAccess: true,
+		collection: "credit-application-assignments",
 		trash: true,
 		pagination: false,
 		limit: 100,
 		sort: "-updatedAt",
-		where: {
-			parent: {
-				equals: assignmentId
-			}
-		},
+		where: { parent: { equals: id } },
 		select: {
+			updatedAt: true,
 			version: {
+				id: true,
 				creditApplication: true,
 				officer: true,
 				createdBy: true,
@@ -1316,274 +293,111 @@ export async function getCreditApplicationAssignmentRequestHistoryAction(
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
-				reviewComment: true,
-				_status: true
+				reviewComment: true
 			}
 		}
 	});
-
-	type AssignmentVersionSnapshotDoc = {
-		id: string;
-		updatedAt?: string | null;
-		version?: {
-			id?: string | null;
-			creditApplication?: unknown;
-			officer?: unknown;
-			createdBy?: unknown;
-			updatedBy?: unknown;
-			deletedBy?: unknown;
-			createdAt?: string | null;
-			updatedAt?: string | null;
-			deletedAt?: string | null;
-			reviewedAt?: string | null;
-			reviewedBy?: unknown;
-			reviewApproved?: boolean | null;
-			reviewComment?: unknown;
-		};
-	};
-
-	const historyDocs = versionsResult.docs as AssignmentVersionSnapshotDoc[];
-
-	const userIds = new Set<string>();
-	const creditApplicationIds = new Set<string>();
-	for(const historyDoc of historyDocs) {
-		const version = historyDoc.version;
-		if(version == null)
-			continue;
-
-		const creditApplication = getRelationshipId(version.creditApplication);
-		const officer = getRelationshipId(version.officer);
-		const createdBy = getRelationshipId(version.createdBy);
-		const updatedBy = getRelationshipId(version.updatedBy);
-		const deletedBy = getRelationshipId(version.deletedBy);
-		const reviewedBy = getRelationshipId(version.reviewedBy);
-
-		if(creditApplication != null)
-			creditApplicationIds.add(creditApplication);
-		if(officer != null)
-			userIds.add(officer);
-		if(createdBy != null)
-			userIds.add(createdBy);
-		if(updatedBy != null)
-			userIds.add(updatedBy);
-		if(deletedBy != null)
-			userIds.add(deletedBy);
-		if(reviewedBy != null)
-			userIds.add(reviewedBy);
-	}
-
-	const usersById = await findUsersByIds(payload, user, [...userIds]);
-	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, [...creditApplicationIds]);
-
-	const snapshotsMaybe = historyDocs.map<CreditApplicationAssignmentRequestHistoryEntry | null>(historyDoc => {
-		const version = historyDoc.version;
-		if(version == null)
-			return null;
-
-		const createdAt = version.createdAt ?? null;
-		const updatedAt = version.updatedAt ?? null;
-		const deletedAt = version.deletedAt ?? null;
-		const reviewedAt = version.reviewedAt ?? null;
-
-		return {
-			versionId: String(version.id ?? historyDoc.id ?? assignmentId),
-			id: String(version.id ?? assignmentId),
-			creditApplication: getRelationshipId(version.creditApplication),
-			officer: getRelationshipId(version.officer),
-			createdBy: getRelationshipId(version.createdBy),
-			updatedBy: getRelationshipId(version.updatedBy),
-			deletedBy: getRelationshipId(version.deletedBy),
-			createdAt,
-			updatedAt,
-			deletedAt,
-			requestType: getCreditApplicationAssignmentRequestType(deletedAt, createdAt, updatedAt),
-			status: getCreditApplicationAssignmentHistoryStatusLabel(reviewedAt, version.reviewApproved ?? null),
-			reviewedAt,
-			reviewedBy: getRelationshipId(version.reviewedBy),
-			reviewApproved: version.reviewApproved ?? null,
-			reviewComment: version.reviewComment as ReviewCommentValue | null
-		};
-	});
-
-	const entries = snapshotsMaybe.filter((snapshot): snapshot is CreditApplicationAssignmentRequestHistoryEntry => snapshot != null);
-	const relations: CreditApplicationAssignmentRelationValues = {};
-	for(const [creditApplicationId, relation] of creditApplicationsById)
-		relations[`credit-applications:${creditApplicationId}`] = relation;
-	for(const [userId, relation] of usersById)
-		relations[`users:${userId}`] = relation;
-
-	return {
-		requestId: assignmentId,
-		entries,
-		relations
-	};
+	const relations = await resolveRelations({ payload, docs: versionsResult.docs.map(v => v.version) });
+	const entries = versionsResult.docs.map(v => ({ ...v.version, versionId: v.id }));
+	return { entries, relations };
 }
 
-export async function upsertCreditApplicationAssignmentRequestAction(
-	input: UpsertCreditApplicationAssignmentRequestInput
-) {
+export async function requestUpsertAction(formState: FormState) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
+	if(user == null) return unauthorized();
 
-	const creditApplicationId = input.creditApplication.trim();
-	const officer = input.officer.trim();
-
-	if(creditApplicationId.length == 0)
+	formState.creditApplications ??= [];
+	if(formState.creditApplications.length == 0)
 		throw new Error("Credit application is required.");
-	if(officer.length == 0)
+	if(formState.officer == null || formState.officer.trim().length == 0)
 		throw new Error("Officer is required.");
 
-	await ensureCreditApplicationExists(payload, user, creditApplicationId);
-	await ensureOfficerUser(payload, user, officer);
+	await ensureOfficerUser(payload, user, formState.officer);
+	for(const creditApplication of formState.creditApplications)
+		await ensureCreditApplicationExists(payload, user, creditApplication);
 
-	const requestData = {
-		_status: "draft" as const,
-		creditApplication: creditApplicationId,
-		officer: officer,
-		deletedAt: null,
-		deletedBy: null,
-		reviewedAt: null,
-		reviewedBy: null,
-		reviewApproved: null,
-		reviewComment: null
-	};
-
-	if(input.assignmentId == null) {
-		const created = await payload.create({
-			user,
-			collection: "credit-application-assignments",
-			overrideAccess: true,
-			draft: true,
-			data: requestData
-		});
-		return { assignmentId: created.id };
+	if(formState.id == null) {
+		const requestData = {
+			_status: "draft" as const,
+			officer: formState.officer,
+			deletedAt: null,
+			deletedBy: null,
+			reviewedAt: null,
+			reviewedBy: null,
+			reviewApproved: null,
+			reviewComment: null
+		};
+		const assignmentsByCreditApplication = await findCreditApplicationAssignmentsByCreditApplicationIds(payload, user, formState.creditApplications);
+		if(formState.creditApplications.some(creditApplication => assignmentsByCreditApplication.get(creditApplication)?.deletedAt == null))
+			throw new Error("One or more selected credit applications already have an assignment.");
+		const assignmentIds = [] as string[];
+		for(const creditApplication of formState.creditApplications) {
+			const existingAssignment = assignmentsByCreditApplication.get(creditApplication);
+			if(existingAssignment == null) {
+				const created = await payload.create({
+					user: user,
+					collection: "credit-application-assignments",
+					overrideAccess: true,
+					draft: true,
+					data: {
+						...requestData,
+						creditApplication: creditApplication
+					}
+				});
+				assignmentIds.push(created.id);
+				continue;
+			}
+			const restored = await payload.update({
+				user: user,
+				collection: "credit-application-assignments",
+				id: existingAssignment.id,
+				overrideAccess: true,
+				draft: true,
+				trash: true,
+				data: {
+					...requestData,
+					creditApplication: creditApplication
+				}
+			});
+			assignmentIds.push(restored.id);
+		}
+		return { id: assignmentIds[0] };
 	}
-
-	await payload.findByID({
-		user,
-		collection: "credit-application-assignments",
-		id: input.assignmentId,
-		overrideAccess: true,
-		trash: true,
-		depth: 0
-	});
-
 	await payload.update({
-		user,
+		user: user,
 		collection: "credit-application-assignments",
-		id: input.assignmentId,
+		id: formState.id,
 		overrideAccess: true,
 		draft: true,
 		trash: true,
-		data: requestData
-	});
-
-	return { assignmentId: input.assignmentId };
-}
-
-export async function createCreditApplicationAssignmentsRequestAction(
-	input: CreateCreditApplicationAssignmentsRequestInput
-) {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	const creditApplicationIds = normalizeSelectedIds(input.creditApplications);
-	const officer = input.officer.trim();
-
-	if(creditApplicationIds.length == 0)
-		throw new Error("At least one credit application is required.");
-	if(officer.length == 0)
-		throw new Error("Officer is required.");
-
-	await ensureOfficerUser(payload, user, officer);
-
-	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, creditApplicationIds);
-	const missingCreditApplicationIds = creditApplicationIds.filter(creditApplicationId => !creditApplicationsById.has(creditApplicationId));
-	if(missingCreditApplicationIds.length > 0)
-		throw new Error("One or more selected credit applications could not be found.");
-
-	const assignmentsByCreditApplication = await findCreditApplicationAssignmentsByCreditApplicationIds(payload, user, creditApplicationIds);
-	const activeAssignedCreditApplicationIds = creditApplicationIds.filter(creditApplicationId => {
-		const assignment = assignmentsByCreditApplication.get(creditApplicationId);
-		return assignment != null && assignment.deletedAt == null;
-	});
-	if(activeAssignedCreditApplicationIds.length > 0)
-		throw new Error("One or more selected credit applications already have an assignment.");
-
-	const requestData = {
-		_status: "draft" as const,
-		officer,
-		deletedAt: null,
-		deletedBy: null,
-		reviewedAt: null,
-		reviewedBy: null,
-		reviewApproved: null,
-		reviewComment: null
-	};
-
-	const assignmentIds: string[] = [];
-	for(const creditApplicationId of creditApplicationIds) {
-		const existingAssignment = assignmentsByCreditApplication.get(creditApplicationId);
-		if(existingAssignment == null) {
-			const created = await payload.create({
-				user,
-				collection: "credit-application-assignments",
-				overrideAccess: true,
-				draft: true,
-				data: {
-					...requestData,
-					creditApplication: creditApplicationId
-				}
-			});
-			assignmentIds.push(String(created.id));
-			continue;
+		data: {
+			_status: "draft",
+			creditApplication: formState.creditApplications[0],
+			officer: formState.officer,
+			deletedAt: null,
+			deletedBy: null,
+			reviewedAt: null,
+			reviewedBy: null,
+			reviewApproved: null,
+			reviewComment: null
 		}
-
-		const restored = await payload.update({
-			user,
-			collection: "credit-application-assignments",
-			id: existingAssignment.id,
-			overrideAccess: true,
-			draft: true,
-			trash: true,
-			data: {
-				...requestData,
-				creditApplication: creditApplicationId
-			}
-		});
-		assignmentIds.push(String(restored.id));
-	}
-
-	return { assignmentIds };
+	});
+	return { id: formState.id };
 }
 
-export async function requestDeleteCreditApplicationAssignmentAction(assignmentId: string) {
+export async function requestDeleteAction(id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	await payload.findByID({
-		user,
-		collection: "credit-application-assignments",
-		id: assignmentId,
-		overrideAccess: true,
-		trash: true,
-		depth: 0
-	});
+	if(user == null) return unauthorized();
 
 	await payload.update({
-		user,
-		collection: "credit-application-assignments",
-		id: assignmentId,
+		user: user,
 		overrideAccess: true,
+		collection: "credit-application-assignments",
+		id: id,
 		draft: true,
 		trash: true,
 		data: {
@@ -1596,47 +410,41 @@ export async function requestDeleteCreditApplicationAssignmentAction(assignmentI
 			reviewComment: null
 		}
 	});
-
-	return { assignmentId };
+	return { id: id };
 }
 
-export async function cancelCreditApplicationAssignmentRequestAction(assignmentId: string) {
+export async function cancelRequestAction(id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
+	if(user == null) return unauthorized();
 
-	const assignment = await payload.findByID({
-		user,
-		collection: "credit-application-assignments",
-		id: assignmentId,
+	const creditApplicationAssignment = await payload.findByID({
+		user: user,
 		overrideAccess: true,
+		collection: "credit-application-assignments",
+		id: id,
 		draft: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		depth: 0
 	});
-
-	if(assignment.reviewedAt != null && assignment.reviewApproved != false)
+	if(creditApplicationAssignment.reviewedAt != null && creditApplicationAssignment.reviewApproved != false)
 		throw new Error("Cannot restore an approved request.");
-
-	const approvedVersions = await payload.findVersions({
-		user,
-		collection: "credit-application-assignments",
+	const approvedVersion = (await payload.findVersions({
+		user: user,
 		overrideAccess: true,
+		collection: "credit-application-assignments",
 		trash: true,
 		pagination: false,
 		limit: 1,
 		sort: "-updatedAt",
-		where: {
-			and: [
-				{ parent: { equals: assignmentId } },
-				{ "version._status": { equals: "published" } }
-			]
-		},
+		where: { and: [
+			{ parent: { equals: id } },
+			{ "version._status": { equals: "published" } }
+		] },
 		select: {
 			version: {
+				_status: true,
 				creditApplication: true,
 				officer: true,
 				deletedAt: true,
@@ -1644,90 +452,73 @@ export async function cancelCreditApplicationAssignmentRequestAction(assignmentI
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
-				reviewComment: true,
-				_status: true
+				reviewComment: true
 			}
 		}
-	});
-
-	const approvedVersion = approvedVersions.docs[0]?.version;
+	})).docs[0]?.version;
 	if(approvedVersion == null) {
 		await payload.update({
-			user,
-			collection: "credit-application-assignments",
-			id: assignmentId,
+			user: user,
 			overrideAccess: true,
+			collection: "credit-application-assignments",
+			id: id,
 			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
 				deletedAt: new Date().toISOString(),
 				deletedBy: user.id,
-				reviewedAt: null,
+				reviewedAt: new Date().toISOString(),
 				reviewedBy: null,
-				reviewApproved: null,
-				reviewComment: null
+				reviewApproved: true,
+				reviewComment: lexicalPlainText("Auto-reviewed by system because the entry was cancelled before approval.")
 			}
 		});
-
-		return { assignmentId, softDeleted: true };
+		return { id: id };
 	}
-
-	const approvedCreditApplication = getRelationshipId(approvedVersion.creditApplication);
-	const approvedOfficer = getRelationshipId(approvedVersion.officer);
-	if(approvedCreditApplication == null)
-		throw new Error("Cannot restore approved assignment without a credit application.");
-	if(approvedOfficer == null)
-		throw new Error("Cannot restore approved assignment without an officer.");
-
 	await payload.update({
-		user,
+		user: user,
 		collection: "credit-application-assignments",
-		id: assignmentId,
+		id: id,
 		overrideAccess: true,
 		trash: true,
 		data: {
 			_status: "published",
-			creditApplication: approvedCreditApplication,
-			officer: approvedOfficer,
-			deletedAt: approvedVersion.deletedAt ?? null,
-			deletedBy: getRelationshipId(approvedVersion.deletedBy),
-			reviewedAt: approvedVersion.reviewedAt ?? null,
-			reviewedBy: getRelationshipId(approvedVersion.reviewedBy),
-			reviewApproved: approvedVersion.reviewApproved ?? null,
-			reviewComment: (approvedVersion.reviewComment ?? defaultReviewComment) as any
+			creditApplication: approvedVersion.creditApplication,
+			officer: approvedVersion.officer,
+			deletedAt: approvedVersion.deletedAt,
+			deletedBy: approvedVersion.deletedBy,
+			reviewedAt: approvedVersion.reviewedAt,
+			reviewedBy: approvedVersion.reviewedBy,
+			reviewApproved: approvedVersion.reviewApproved,
+			reviewComment: leixcalPreprendPlainText(approvedVersion.reviewComment, `Auto-reviewed by system on behalf of ${JSON.stringify(approvedVersion.reviewedBy)} because the change request was cancelled before approval.`)
 		}
 	});
-
-	return { assignmentId, softDeleted: false };
+	return { id: id };
 }
 
-export async function requestRestoreCreditApplicationAssignmentAction(assignmentId: string) {
+export async function requestRestoreAction(id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
+	if(user == null) return unauthorized();
 
-	const assignment = await payload.findByID({
-		user,
-		collection: "credit-application-assignments",
-		id: assignmentId,
+	const creditApplicationAssignment = await payload.findByID({
+		user: user,
 		overrideAccess: true,
+		collection: "credit-application-assignments",
+		id: id,
 		draft: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		depth: 0
 	});
-
-	if(assignment.deletedAt == null)
+	if(creditApplicationAssignment.deletedAt == null)
 		throw new Error("Credit application assignment is not deleted.");
-
 	await payload.update({
-		user,
-		collection: "credit-application-assignments",
-		id: assignmentId,
+		user: user,
 		overrideAccess: true,
+		collection: "credit-application-assignments",
+		id: id,
 		draft: true,
 		trash: true,
 		data: {
@@ -1740,180 +531,60 @@ export async function requestRestoreCreditApplicationAssignmentAction(assignment
 			reviewComment: null
 		}
 	});
-
-	return { assignmentId };
+	return { assignmentId: id };
 }
 
-export async function reviewCreditApplicationAssignmentRequestAction({
-	assignmentId,
-	decision,
-	reviewComment
-}: ReviewCreditApplicationAssignmentRequestInput) {
+export async function reviewAction(
+	{ id, decision, reviewComment }:
+	{ id: string, decision: "approve" | "reject", reviewComment: any }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
+	if(user == null) return unauthorized();
 
-	const assignment = await payload.findByID({
-		user,
-		collection: "credit-application-assignments",
-		id: assignmentId,
+	const creditApplicationAssignment = await payload.findByID({
+		user: user,
 		overrideAccess: true,
+		collection: "credit-application-assignments",
+		id: id,
 		draft: true,
 		trash: true,
-		depth: 0,
-		showHiddenFields: true
+		depth: 0
 	});
-
-	if(assignment.reviewedAt != null)
+	if(creditApplicationAssignment.reviewedAt != null)
 		throw new Error("This request has already been reviewed.");
-	if(decision != "approve" && decision != "reject")
-		throw new Error("Invalid review decision.");
-
-	const now = new Date().toISOString();
 	if(decision == "reject") {
 		await payload.update({
-			user,
-			collection: "credit-application-assignments",
-			id: assignmentId,
+			user: user,
 			overrideAccess: true,
+			collection: "credit-application-assignments",
+			id: id,
 			draft: true,
 			trash: true,
 			data: {
 				_status: "draft",
-				deletedAt: null,
-				deletedBy: null,
-				reviewedAt: now,
+				reviewedAt: new Date().toISOString(),
 				reviewedBy: user.id,
 				reviewApproved: false,
-				reviewComment: reviewComment as any
+				reviewComment: reviewComment
 			}
 		});
-		return { assignmentId, decision };
+		return { id: id };
 	}
-
 	await payload.update({
-		user,
-		collection: "credit-application-assignments",
-		id: assignmentId,
+		user: user,
 		overrideAccess: true,
+		collection: "credit-application-assignments",
+		id: id,
 		trash: true,
 		data: {
 			_status: "published",
-			reviewedAt: now,
+			reviewedAt: new Date().toISOString(),
 			reviewedBy: user.id,
 			reviewApproved: true,
-			reviewComment: reviewComment as any
+			reviewComment: reviewComment
 		}
 	});
-
-	return { assignmentId, decision };
-}
-
-export async function getCreditApplicationAssignmentRequestReviewDiffAction(
-	assignmentId: string
-): Promise<CreditApplicationAssignmentRequestReviewDiffOutput> {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null)
-		return unauthorized();
-
-	const requestedVersions = await payload.findVersions({
-		user,
-		collection: "credit-application-assignments",
-		overrideAccess: true,
-		trash: true,
-		pagination: false,
-		limit: 1,
-		sort: "-updatedAt",
-		where: {
-			and: [
-				{ parent: { equals: assignmentId } },
-				{ "version._status": { equals: "draft" } }
-			]
-		},
-		select: {
-			version: {
-				creditApplication: true,
-				officer: true,
-				deletedAt: true
-			}
-		}
-	});
-
-	const approvedVersions = await payload.findVersions({
-		user,
-		collection: "credit-application-assignments",
-		overrideAccess: true,
-		trash: true,
-		pagination: false,
-		limit: 1,
-		sort: "-updatedAt",
-		where: {
-			and: [
-				{ parent: { equals: assignmentId } },
-				{ "version._status": { equals: "published" } }
-			]
-		},
-		select: {
-			version: {
-				creditApplication: true,
-				officer: true,
-				deletedAt: true
-			}
-		}
-	});
-
-	const requestedVersion = requestedVersions.docs[0]?.version;
-	const approvedVersion = approvedVersions.docs[0]?.version;
-	if(requestedVersion == null)
-		throw new Error("Draft credit application assignment request could not be found.");
-	const approvedCreditApplication = getRelationshipId(approvedVersion?.creditApplication);
-	const requestedCreditApplication = getRelationshipId(requestedVersion.creditApplication);
-	const approvedOfficer = getRelationshipId(approvedVersion?.officer);
-	const requestedOfficer = getRelationshipId(requestedVersion.officer);
-
-	const usersById = await findUsersByIds(payload, user, [
-		...new Set([approvedOfficer, requestedOfficer].filter((value): value is string => value != null))
-	]);
-	const creditApplicationsById = await findCreditApplicationsByIds(payload, user, [
-		...new Set([approvedCreditApplication, requestedCreditApplication].filter((value): value is string => value != null))
-	]);
-
-	const requestType: CreditApplicationAssignmentRequestReviewDiffOutput["requestType"] =
-		requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update";
-
-	return {
-		requestId: assignmentId,
-		requestType,
-		creditApplication: [approvedCreditApplication, requestedCreditApplication],
-		officer: [approvedOfficer, requestedOfficer],
-		deletedAt: [approvedVersion?.deletedAt ?? null, requestedVersion.deletedAt ?? null],
-		relations: (() => {
-			const relations: CreditApplicationAssignmentRelationValues = {};
-			if(approvedCreditApplication != null) {
-				const relation = creditApplicationsById.get(approvedCreditApplication);
-				if(relation != null)
-					relations[`credit-applications:${approvedCreditApplication}`] = relation;
-			}
-			if(requestedCreditApplication != null) {
-				const relation = creditApplicationsById.get(requestedCreditApplication);
-				if(relation != null)
-					relations[`credit-applications:${requestedCreditApplication}`] = relation;
-			}
-			if(approvedOfficer != null) {
-				const relation = usersById.get(approvedOfficer);
-				if(relation != null)
-					relations[`users:${approvedOfficer}`] = relation;
-			}
-			if(requestedOfficer != null) {
-				const relation = usersById.get(requestedOfficer);
-				if(relation != null)
-					relations[`users:${requestedOfficer}`] = relation;
-			}
-			return relations;
-		})()
-	};
+	return { id: id };
 }
