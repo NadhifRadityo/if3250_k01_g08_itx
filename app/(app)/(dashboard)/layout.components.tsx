@@ -31,7 +31,7 @@ import { logoutAction } from "./layout.actions";
 import { DashboardMenu, getDashboardShellContextAction } from "./layout.actions";
 import { dashboardMenuGroups } from "./layout.shared";
 import { RelationNavigationLink } from "./relation-navigation.components";
-import { RelationUser, RelationCreditApplication, RelationCreditApplicationImport } from "./relation-navigation.shared";
+import { RelationRole, RelationUser, RelationCreditApplication, RelationCreditApplicationImport } from "./relation-navigation.shared";
 
 const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
 	"user-management": UserCogIcon,
@@ -1045,9 +1045,9 @@ export function useMenuRowValueRenderer<R, C>(
 export const defaultRelationUserRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
 	(userId: string | null, row: { id: string }, context: { relationValues?: Record<`users:${string}`, RelationUser> }) => userId == null ? "-" : (userRelation => (
 		<RelationNavigationLink
-			relationType="users"
+			relationType={userRelation != null && userRelation.stagedUserId != null ? "staged-users" : "users"}
 			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={userId}
+			relationId={userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}
 			fallback={{
 				title: userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>),
 				description: description,
@@ -1064,33 +1064,51 @@ export const defaultRelationUserRenderer = ({ description, relationSource }: { d
 export const defaultRelationUsersRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
 	(userIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`users:${string}`, RelationUser> }) => userIds == null || userIds.length == 0 ? "-" : (
 		<RelationNavigationLink
-			relationType="users"
+			relationType="staged-users"
 			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
 			pickerTitle="Select users"
 			pickerDescription={description}
-			relationChoices={userIds.map(userId => (userRelation => ({
+			relationChoices={userIds.map(userId => (userRelation => userRelation == null ? null : ({
 				id: userId,
-				name: userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>),
-				description: userRelation?.email,
+				name: userRelation.name,
+				description: userRelation.email,
 				fallback: {
-					title: userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>),
-					description: userRelation?.email,
+					title: userRelation.name,
+					description: userRelation.email,
 					fields: [
 						{ label: "Id", value: (<span className="font-mono">{userId}</span>) },
-						...(userRelation != null ? [{ label: "Email", value: userRelation.email }] : []),
-						...(userRelation != null ? [{ label: "Name", value: userRelation.name }] : [])
+						{ label: "Email", value: userRelation.email },
+						{ label: "Name", value: userRelation.name }
 					]
 				}
-			}))(context?.relationValues?.[`users:${userId}`]))}
+			}))(context?.relationValues?.[`users:${userId}`])).filter(choice => choice != null)}
 		>
-			{userIds.map((userId, i) => (userRelation => (
+			{userIds.map((userId, i) => (userRelation => userRelation == null ? null : (
 				<React.Fragment key={userId}>
-					{userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>)}
+					{userRelation.name}
 					{i != userIds.length - 1 ? " " : ""}
 				</React.Fragment>
-			))(context?.relationValues?.[`users:${userId}`]))}
+			))(context?.relationValues?.[`users:${userId}`])).filter(choice => choice != null)}
 		</RelationNavigationLink>
 	);
+export const defaultRelationRoleRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(roleId: string | null, row: { id: string }, context: { relationValues?: Record<`roles:${string}`, RelationRole> }) => roleId == null ? "-" : (roleRelation => (
+		<RelationNavigationLink
+			relationType="roles"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			relationId={roleId}
+			fallback={{
+				title: roleRelation?.name ?? (<>Role <span className="font-mono">{roleId}</span></>),
+				description: description,
+				fields: [
+					{ label: "Id", value: (<span className="font-mono">{roleId}</span>) },
+					...(roleRelation != null ? [{ label: "Name", value: roleRelation.name }] : [])
+				]
+			}}
+		>
+			{roleRelation?.name ?? (<>Role <span className="font-mono">{roleId}</span></>)}
+		</RelationNavigationLink>
+	))(context?.relationValues?.[`roles:${roleId}`]);
 export const defaultRelationCreditApplicationRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
 	(creditApplicationId: string | null, row: { id: string }, context: { relationValues?: Record<`credit-applications:${string}`, RelationCreditApplication> }) => creditApplicationId == null ? "-" : (creditApplicationRelation => (
 		<RelationNavigationLink

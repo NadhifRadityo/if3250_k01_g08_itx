@@ -9,7 +9,7 @@ import { getRelationshipId } from "@/utils/payload";
 import payloadConfig from "@/payload.config";
 
 import { dashboardRoleLabels } from "./layout.shared";
-import { RelationUser, RelationCreditApplication, RelationCreditApplicationImport } from "./relation-navigation.shared";
+import { RelationRole, RelationUser, RelationCreditApplication, RelationCreditApplicationImport } from "./relation-navigation.shared";
 
 export async function resolveRelationUsers(
 	{ payload, ids }:
@@ -27,6 +27,24 @@ export async function resolveRelationUsers(
 		name: doc.name,
 		email: doc.email,
 		stagedUserId: getRelationshipId(doc.stagedUser)
+	}]));
+}
+
+export async function resolveRelationRoles(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`roles:${string}`, RelationRole>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "roles",
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { name: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`roles:${doc.id}`, {
+		name: doc.name
 	}]));
 }
 
@@ -505,6 +523,37 @@ export async function searchRelationCreditApplicationAssignmentsAction(keyword: 
 	return result.docs.map(doc => ({
 		id: doc.id,
 		label: <span className="font-mono">{doc.id}</span>
+	}));
+}
+
+export async function searchRelationStagedUsersAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "staged-users",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } },
+			{ email: { like: keyword } },
+			{ employeeId: { like: keyword } }
+		] },
+		select: { name: true, email: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>
 	}));
 }
 

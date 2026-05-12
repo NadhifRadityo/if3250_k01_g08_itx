@@ -267,10 +267,10 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
-	const relations = await resolveRelations({ payload, docs: [approvedVersion, requestedVersion] });
+	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
-		approvedVersion: approvedVersion ?? null,
+		approvedVersion: approvedVersion,
 		requestedVersion: requestedVersion,
 		relations: relations
 	};

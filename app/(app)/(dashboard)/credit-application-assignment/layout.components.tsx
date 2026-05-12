@@ -287,8 +287,8 @@ export function ChangeRequestDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion ?? {}), ...Object.keys(query.data.requestedVersion ?? {})])]
-		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion?.[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey] ?? null)] as const) : null;
+	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion ?? {})])]
+		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey] ?? null)] as const) : null;
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
 		context: {
@@ -378,8 +378,8 @@ export function ReviewDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion ?? {}), ...Object.keys(query.data.requestedVersion ?? {})])]
-		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion?.[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey] ?? null)] as const) : null;
+	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion ?? {})])]
+		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey] ?? null)] as const) : null;
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
 		context: {

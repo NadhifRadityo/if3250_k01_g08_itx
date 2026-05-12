@@ -1,582 +1,614 @@
 "use client";
 
-import { useMemo, useState, useEffect, useCallback, type DragEvent, type ReactNode, type MouseEvent } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, ArrowUpIcon, HistoryIcon, ArrowDownIcon, ArrowUpDownIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
+import { SerializedEditorState } from "lexical";
+import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
-import cn from "@/utils/cn";
-import type { ReviewCommentRichText } from "@/utils/reviewCommentRichText";
-import { DatetimeInput } from "@/components/DatetimeInput";
-import { Link } from "@/components/Link";
-import { ReviewCommentInput, ReviewCommentPreview } from "@/components/ReviewCommentInput";
-import { SearchableSelect, type SearchableSelectOption } from "@/components/SearchableSelect";
+import { getRelationshipId } from "@/utils/payload";
+import { RichTextInput } from "@/components/RichText";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
-import { Checkbox } from "@/components/radix/Checkbox";
-import { Collapsible, CollapsibleContent } from "@/components/radix/Collapsible";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
-import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
-import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
+import { StagedUser } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { consumePendingRelationFilterNavigation } from "../relation-navigation.components";
-import * as userActions from "./layout.actions";
+import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, useDashboardShellContext, defaultRelationRoleRenderer, defaultRelationUserRenderer, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { searchRelationRolesAction, searchRelationUsersAction, searchRelationStagedUsersAction, searchRelationUsersByRoleLevelAction } from "../relation-navigation.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
-export const PAGE_SIZE = 20;
-
-export type SortDirection = "asc" | "desc";
-export type SortField = userActions.UserManagementSortField;
-export type FilterColumn = userActions.UserManagementFilterColumn;
-export type FilterOperator = userActions.UserManagementFilterOperator;
-export type FilterCombinator = userActions.UserManagementFilterCombinator;
-export type FilterInput = userActions.UserManagementFilterInput;
-export type QueryStagedUsersOutput = Awaited<ReturnType<typeof userActions.queryStagedUsersAction>>;
-export type StagedUserTableRow = QueryStagedUsersOutput["docs"][number];
-export type UserManagementTabMode = "viewer" | Parameters<typeof userActions.queryStagedUsersAction>[0]["mode"];
-export type RoleOption = Awaited<ReturnType<typeof userActions.searchUserRoleOptionsAction>>[number];
-export type SupervisorOption = Awaited<ReturnType<typeof userActions.searchUserSupervisorUserOptionsAction>>[number];
-export type UserRequestReviewDiff = Awaited<ReturnType<typeof userActions.getStagedUserRequestReviewDiffAction>>;
-export type UserRequestHistory = Awaited<ReturnType<typeof userActions.getStagedUserRequestHistoryAction>>;
-export type FilterValueType = "text" | "date" | "select" | "boolean";
-export type FilterSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
-export type ActionError = {
-	title: string;
-	message: string;
-};
-
-export const resolveActionError = (error: unknown, fallbackMessage: string): ActionError => {
-	if(error instanceof Error) {
-		return {
-			title: error.name.length > 0 ? error.name : "Error",
-			message: error.message.length > 0 ? error.message : fallbackMessage
-		};
-	}
-	return {
-		title: "Error",
-		message: fallbackMessage
-	};
-};
-
-export type FilterColumnOption = {
-	value: FilterColumn;
-	label: string;
-	valueType: FilterValueType;
-	operators: FilterOperator[];
-	placeholder?: string;
-	selectOptions?: Array<{ value: string, label: string }>;
-	searchOptionsAction?: FilterSelectSearchAction;
-};
-
-export type FilterCondition = {
-	column: FilterColumn;
-	operator: FilterOperator;
-	joinWithPrevious: FilterCombinator;
-	value: string;
-	values: string[];
-	existsValue: "true" | "false";
-	dateValue: Date | null;
-	listDateValue: Date | null;
-	dateText: string;
-	listDateText: string;
-};
-
-export type UserTableColumnId = "id" |
-	"name" |
-	"email" |
-	"employeeId" |
-	"role" |
-	"supervisor" |
-	"createdBy" |
-	"updatedBy" |
-	"deletedBy" |
-	"createdAt" |
-	"updatedAt" |
-	"deletedAt" |
-	"requestType" |
-	"status" |
-	"reviewedAt" |
-	"reviewedBy" |
-	"reviewApproved" |
-	"reviewComment";
-
-export type UserTableColumnConfig = {
-	id: UserTableColumnId;
-	label: string;
-	sortField?: SortField;
-	headClassName?: string;
-	cellClassName?: string;
-};
-
-export type FormState = {
-	stagedUserId?: string;
-	email: string;
-	name: string;
-	employeeId: string;
-	role: string;
-	supervisor: string;
-	initialPassword: string;
-};
-
-export type FilterSummaryItem = {
-	combinator: string | null;
-	columnLabel: string;
-	operatorLabel: string;
-	valueLabel: string;
-};
-
-export const emptyQueryResult: QueryStagedUsersOutput = {
-	docs: [],
-	relations: {},
-	totalDocs: 0,
-	page: 1,
-	hasNextPage: false,
-	hasPreviousPage: false
-};
-
-export const defaultFormState: FormState = {
-	email: "",
-	name: "",
-	employeeId: "",
-	role: "",
-	supervisor: "",
-	initialPassword: ""
-};
-
-export const USER_COLUMN_PREFERENCES_KEY = "user-management-columns-v1";
-export const RELATION_FILTER_QUERY_PARAM = "relationFilters";
-
-export const reviewStatusOptions: Array<{ value: string, label: string }> = [
-	{ value: "pending", label: "Pending" },
-	{ value: "approved", label: "Approved" },
-	{ value: "rejected", label: "Rejected" }
-];
-
-export const userTableColumns: UserTableColumnConfig[] = [
-	{ id: "id", label: "ID", sortField: "id", cellClassName: "font-mono text-xs" },
-	{ id: "name", label: "Name", sortField: "name", cellClassName: "font-medium" },
-	{ id: "email", label: "Email", sortField: "email" },
-	{ id: "employeeId", label: "Employee ID", sortField: "employeeId" },
-	{ id: "role", label: "Role", sortField: "role" },
-	{ id: "supervisor", label: "Supervisor", sortField: "supervisor" },
-	{ id: "createdBy", label: "Created By" },
-	{ id: "updatedBy", label: "Updated By" },
-	{ id: "deletedBy", label: "Deleted By" },
-	{ id: "createdAt", label: "Created At", sortField: "createdAt" },
-	{ id: "updatedAt", label: "Updated At", sortField: "updatedAt" },
-	{ id: "deletedAt", label: "Deleted At", sortField: "deletedAt" },
-	{ id: "requestType", label: "Request" },
-	{ id: "status", label: "Status" },
-	{ id: "reviewedAt", label: "Reviewed At", sortField: "reviewedAt" },
-	{ id: "reviewedBy", label: "Reviewed By", sortField: "reviewedBy" },
-	{ id: "reviewApproved", label: "Review Approved", sortField: "reviewApproved" },
-	{ id: "reviewComment", label: "Review Comment", cellClassName: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
-];
-
-function getUserDrawerValueClassName(columnId: string): string {
-	if(columnId == "id")
-		return "text-xs font-mono";
-	if(columnId == "name")
-		return "text-sm font-medium";
-	if(columnId == "reviewComment")
-		return "text-sm leading-relaxed";
-	return "text-sm";
-}
-
-export const defaultUserColumnOrder: UserTableColumnId[] = userTableColumns.map(column => column.id);
-export const defaultUserVisibleColumns: UserTableColumnId[] = ["name", "email", "employeeId", "role", "requestType", "status", "updatedAt", "reviewComment"];
-export const defaultUserHiddenColumns: UserTableColumnId[] = defaultUserColumnOrder.filter(columnId => !defaultUserVisibleColumns.includes(columnId));
-
-const userNonEligibleColumnSet = new Set<string>([
-	"actions",
-	"status",
-	"requestType",
-	"role",
-	"supervisor",
-	"reviewedBy",
-	"createdBy",
-	"updatedBy",
-	"deletedBy"
+export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
+export const filterConfigColumns = Object.freeze([
+	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationStagedUsersAction },
+	{ key: "createdAt", label: "Created At", type: "date" },
+	{ key: "createdBy", label: "Created By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "updatedAt", label: "Updated At", type: "date" },
+	{ key: "updatedBy", label: "Updated By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "deletedAt", label: "Deleted At", type: "date" },
+	{ key: "deletedBy", label: "Deleted By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "email", label: "Email", type: "text" },
+	{ key: "name", label: "Name", type: "text" },
+	{ key: "employeeId", label: "Employee ID", type: "text" },
+	{ key: "role", label: "Role", type: "relation", relationSearch: searchRelationRolesAction },
+	{ key: "supervisor", label: "Supervisor", type: "relation", relationSearch: (keyword, selectedIds) => searchRelationUsersByRoleLevelAction("supervisor", keyword, selectedIds) },
+	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
+	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
+] as MenuFilterConfigColumn[]);
+export const columnConfigColumns = Object.freeze([
+	{ key: "id", label: "Id" },
+	{ key: "createdAt", label: "Created At" },
+	{ key: "createdBy", label: "Created By" },
+	{ key: "updatedAt", label: "Updated At" },
+	{ key: "updatedBy", label: "Updated By" },
+	{ key: "deletedAt", label: "Deleted At" },
+	{ key: "deletedBy", label: "Deleted By" },
+	{ key: "email", label: "Email" },
+	{ key: "name", label: "Name" },
+	{ key: "employeeId", label: "Employee ID" },
+	{ key: "role", label: "Role" },
+	{ key: "supervisor", label: "Supervisor" },
+	{ key: "#changeRequest", label: "Request" },
+	{ key: "#status", label: "Status" },
+	{ key: "reviewedAt", label: "Reviewed At" },
+	{ key: "reviewedBy", label: "Reviewed By" },
+	{ key: "reviewApproved", label: "Review Approved" },
+	{ key: "reviewComment", label: "Review Comment" }
+] as MenuColumnConfigColumn[]);
+export const tableConfigColumns = Object.freeze([
+	{ key: "id", label: "Id", sortable: true, className: "font-mono text-xs" },
+	{ key: "createdAt", label: "Created At", sortable: true },
+	{ key: "createdBy", label: "Created By", sortable: false },
+	{ key: "updatedAt", label: "Updated At", sortable: true },
+	{ key: "updatedBy", label: "Updated By", sortable: false },
+	{ key: "deletedAt", label: "Deleted At", sortable: true },
+	{ key: "deletedBy", label: "Deleted By", sortable: false },
+	{ key: "email", label: "Email", sortable: true },
+	{ key: "name", label: "Name", sortable: true, className: "font-medium" },
+	{ key: "employeeId", label: "Employee ID", sortable: true },
+	{ key: "role", label: "Role", sortable: false },
+	{ key: "supervisor", label: "Supervisor", sortable: false },
+	{ key: "#changeRequest", label: "Request", sortable: false },
+	{ key: "#status", label: "Status", sortable: false },
+	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
+	{ key: "reviewedBy", label: "Reviewed By", sortable: false },
+	{ key: "reviewApproved", label: "Review Approved", sortable: true },
+	{ key: "reviewComment", label: "Review Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
+] as MenuTableConfigColumn[]);
+export const rowValueRendererConfigColumns = Object.freeze([
+	{ key: "id", type: "text" },
+	{ key: "createdAt", type: "date" },
+	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "staged-users.createdBy" }) },
+	{ key: "updatedAt", type: "date" },
+	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "staged-users.updatedBy" }) },
+	{ key: "deletedAt", type: "date" },
+	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "staged-users.deletedBy" }) },
+	{ key: "email", type: "text" },
+	{ key: "name", type: "text" },
+	{ key: "employeeId", type: "text" },
+	{ key: "role", type: "relation", render: defaultRelationRoleRenderer({ description: "Role", relationSource: "staged-users.role" }) },
+	{ key: "supervisor", type: "relation", render: defaultRelationUserRenderer({ description: "Supervisor", relationSource: "staged-users.supervisor" }) },
+	{ key: "#changeRequest", type: "select", render: defaultChangeRequestRenderer() },
+	{ key: "#status", type: "select", render: defaultStatusRenderer() },
+	{ key: "reviewedAt", type: "date" },
+	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "staged-users.reviewedBy" }) },
+	{ key: "reviewApproved", type: "boolean" },
+	{ key: "reviewComment", type: "richText" }
+] as MenuRowValueRendererConfigColumn<ColumnData, {
+	relationValues?: RelationValues;
+	isMutating?: boolean;
+	setChangeRequestDrawerRow?: (v: ColumnData | null) => void;
+	setChangeRequestDrawerOpen?: (v: boolean) => void;
+	setReviewDrawerRow?: (v: ColumnData | null) => void;
+	setReviewDrawerOpen?: (v: boolean) => void;
+	setEditFormDrawerState?: (v: FormState) => void;
+	setEditFormDrawerOpen?: (v: boolean) => void;
+	setDeleteTargetRow?: (v: ColumnData | null) => void;
+	setCancelPendingRequestTargetRow?: (v: ColumnData | null) => void;
+	setRevertApprovedTargetRow?: (v: ColumnData | null) => void;
+	setRestoreDeletionTargetRow?: (v: ColumnData | null) => void;
+}>[]);
+export const eligibleDetailsTriggerColumns = Object.freeze([
+	"id",
+	"createdAt",
+	"updatedAt",
+	"deletedAt",
+	"email",
+	"name",
+	"employeeId",
+	"reviewedAt",
+	"reviewApproved"
 ]);
+export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 
-export function getEligibleDetailTriggerUserColumnId(visibleColumns: UserTableColumnConfig[]): UserTableColumnId | null {
-	const triggerColumn = visibleColumns.find(column => !userNonEligibleColumnSet.has(column.id));
-	return triggerColumn?.id ?? null;
-}
-
-export const filterOperatorOptions: Array<{ value: FilterOperator, label: string }> = [
-	{ value: "equals", label: "Equals" },
-	{ value: "not_equals", label: "Not Equals" },
-	{ value: "contains", label: "Contains" },
-	{ value: "not_contains", label: "Does Not Contain" },
-	{ value: "in", label: "Is In" },
-	{ value: "not_in", label: "Is Not In" },
-	{ value: "exists", label: "Exists" },
-	{ value: "greater_than", label: "Is Greater Than" },
-	{ value: "less_than", label: "Is Less Than" },
-	{ value: "greater_than_equal", label: "Is Greater Than Or Equal To" },
-	{ value: "less_than_equal", label: "Is Less Than Or Equal To" }
-];
-
-export const userFilterColumns: FilterColumnOption[] = [
-	{ value: "id", label: "ID", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "name", label: "Name", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter name" },
-	{ value: "email", label: "Email", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter email" },
-	{ value: "employeeId", label: "Employee ID", valueType: "text", operators: ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"], placeholder: "Enter employee ID" },
-	{ value: "role", label: "Role", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "supervisor", label: "Supervisor", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "createdAt", label: "Created At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
-	{ value: "createdBy", label: "Created By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "updatedAt", label: "Updated At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
-	{ value: "updatedBy", label: "Updated By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "deletedAt", label: "Deleted At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
-	{ value: "deletedBy", label: "Deleted By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "reviewedAt", label: "Reviewed At", valueType: "date", operators: ["equals", "not_equals", "in", "not_in", "exists", "greater_than", "less_than", "greater_than_equal", "less_than_equal"] },
-	{ value: "reviewedBy", label: "Reviewed By", valueType: "select", operators: ["equals", "not_equals", "in", "not_in", "exists"], selectOptions: [] },
-	{ value: "status", label: "Status", valueType: "select", operators: ["equals", "not_equals", "in", "not_in"], selectOptions: reviewStatusOptions },
-	{ value: "reviewApproved", label: "Review Approved", valueType: "boolean", operators: ["equals", "not_equals", "exists"] }
-];
-
-export const defaultFilterCombinator: FilterCombinator = "and";
-
-export function dedupeSelectOptions(options: SearchableSelectOption[]): SearchableSelectOption[] {
-	const seen = new Set<string>();
-	const deduplicated: SearchableSelectOption[] = [];
-	for(const option of options) {
-		const normalizedValue = option.value.trim();
-		if(normalizedValue.length == 0)
-			continue;
-		const dedupeKey = normalizedValue.toLowerCase();
-		if(seen.has(dedupeKey))
-			continue;
-		seen.add(dedupeKey);
-		deduplicated.push({
-			...option,
-			value: normalizedValue
-		});
-	}
-	return deduplicated;
-}
-
-export function getFilterColumnConfig(column: FilterColumn): FilterColumnOption {
-	return userFilterColumns.find(option => option.value == column) ?? userFilterColumns[0];
-}
-
-export function getResolvedUserFilterColumnConfig(
-	column: FilterColumn,
-	idSelectOptions: Array<{ value: string, label: string }>,
-	roleSelectOptions: Array<{ value: string, label: string }>,
-	supervisorSelectOptions: Array<{ value: string, label: string }>,
-	reviewedBySelectOptions: Array<{ value: string, label: string }>,
-	searchUserOptions?: FilterSelectSearchAction,
-	searchRoleOptions?: FilterSelectSearchAction,
-	searchSupervisorUserOptions?: FilterSelectSearchAction,
-	searchAuditUserOptions?: FilterSelectSearchAction
-): FilterColumnOption {
-	const config = getFilterColumnConfig(column);
-	switch(column) {
-		case "id":
-			return {
-				...config,
-				selectOptions: idSelectOptions,
-				searchOptionsAction: searchUserOptions
-			};
-		case "role":
-			return {
-				...config,
-				selectOptions: roleSelectOptions,
-				searchOptionsAction: searchRoleOptions
-			};
-		case "supervisor":
-			return {
-				...config,
-				selectOptions: supervisorSelectOptions,
-				searchOptionsAction: searchSupervisorUserOptions
-			};
-		case "createdBy":
-		case "updatedBy":
-		case "deletedBy":
-		case "reviewedBy":
-			return {
-				...config,
-				selectOptions: reviewedBySelectOptions,
-				searchOptionsAction: searchAuditUserOptions
-			};
-		default:
-			return config;
-	}
-}
-
-export function createFilterCondition(column: FilterColumn = userFilterColumns[0].value): FilterCondition {
-	const columnConfig = getFilterColumnConfig(column);
-	return {
-		column,
-		operator: columnConfig.operators[0],
-		joinWithPrevious: defaultFilterCombinator,
-		value: "",
-		values: [],
-		existsValue: "true",
-		dateValue: null,
-		listDateValue: null,
-		dateText: "",
-		listDateText: ""
-	};
-}
-
-export function formatFilterDateValue(date: Date | null): string {
-	if(date == null)
-		return "Select date and time";
-	return `${date.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })}`;
-}
-
-export function parseFilterDateValue(value: string): Date | null {
-	const trimmed = value.trim();
-	if(trimmed.length == 0)
-		return null;
-	const normalized = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(trimmed) ? trimmed.replace(" ", "T") : trimmed;
-	const parsed = new Date(normalized);
-	return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-export function parseFilterDateOnlyValue(value: string): Date | null {
-	const trimmed = value.trim();
-	if(trimmed.length == 0)
-		return null;
-	const normalized = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00` : trimmed;
-	const parsed = new Date(normalized);
-	return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-export function formatFilterDateOnlyInput(date: Date | null): string {
-	if(date == null)
-		return "";
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	const day = String(date.getDate()).padStart(2, "0");
-	return `${year}-${month}-${day}`;
-}
-
-export function formatFilterDateInput(date: Date | null): string {
-	if(date == null)
-		return "";
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	const day = String(date.getDate()).padStart(2, "0");
-	const hours = String(date.getHours()).padStart(2, "0");
-	const minutes = String(date.getMinutes()).padStart(2, "0");
-	const seconds = String(date.getSeconds()).padStart(2, "0");
-	return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-
-export function applyTimeToDate(date: Date, timeValue: string): Date {
-	const [rawHours, rawMinutes, rawSeconds = "0"] = timeValue.split(":");
-	const hours = Number(rawHours);
-	const minutes = Number(rawMinutes);
-	const seconds = Number(rawSeconds);
-	const nextDate = new Date(date);
-	if(Number.isInteger(hours) && Number.isInteger(minutes) && Number.isInteger(seconds))
-		nextDate.setHours(hours, minutes, seconds, 0);
-	return nextDate;
-}
-
-export function getFilterTimeInput(date: Date | null): string {
-	if(date == null)
-		return "00:00:00";
-	const hours = String(date.getHours()).padStart(2, "0");
-	const minutes = String(date.getMinutes()).padStart(2, "0");
-	const seconds = String(date.getSeconds()).padStart(2, "0");
-	return `${hours}:${minutes}:${seconds}`;
-}
-
-export function splitFilterDateValue(value: string): { dateText: string, timeText: string } {
-	const parsed = parseFilterDateValue(value);
-	if(parsed == null)
-		return { dateText: "", timeText: "00:00:00" };
-	return {
-		dateText: formatFilterDateOnlyInput(parsed),
-		timeText: getFilterTimeInput(parsed)
-	};
-}
-
-export function buildFilterDateValue(dateText: string, timeText: string): string {
-	const parsedDate = parseFilterDateOnlyValue(dateText);
-	if(parsedDate == null)
-		return "";
-	return formatFilterDateInput(applyTimeToDate(parsedDate, timeText));
-}
-
-export function formatDateTime(dateValue: string | null) {
-	if(dateValue == null)
-		return "-";
-	const date = new Date(dateValue);
-	if(Number.isNaN(date.getTime()))
-		return "-";
-	return `${date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} ${date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}`;
-}
-
-export function getReviewStatus(row: StagedUserTableRow): { label: string, variant: "default" | "secondary" | "destructive" } {
-	if(row.reviewedAt == null)
-		return { label: "Pending", variant: "secondary" };
-	if(row.reviewApproved == true)
-		return { label: "Approved", variant: "default" };
-	return { label: "Rejected", variant: "destructive" };
-}
-
-function renderRequestTypeTrigger({
-	row,
-	onOpenRequestChanges,
-	className
-}: {
-	row: StagedUserTableRow;
-	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
-	className?: string;
-}): ReactNode {
-	if(onOpenRequestChanges == null)
-		return row.requestType;
-
+export function DetailsDrawer(
+	{ open, onOpenChange, row, renderActions, onOpenHistory }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, renderActions?: (r: ColumnData) => React.ReactNode, onOpenHistory?: () => void }
+) {
+	const { roles } = useDashboardShellContext();
+	const canAccessHistory = roles.includes("user-management-auditor");
+	const query = useQuery({
+		queryKey: ["user-management", "details", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: async () => await getDetailsAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+	const renderValue = useMenuRowValueRenderer({
+		columns: drawerValueRendererConfigColumns,
+		context: {
+			relationValues: query.data?.relations
+		}
+	});
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
 	return (
-		<Button
-			type="button"
-			variant="link"
-			onClick={() => onOpenRequestChanges(row)}
-			className={cn("text-primary h-auto p-0 select-auto", className)}
-		>
-			{row.requestType}
-		</Button>
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>Staged User Request Details</DrawerTitle>
+					<DrawerDescription>Review all available columns for this staged user request entry.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+					{row == null ? (
+						<p className="text-muted-foreground text-sm">
+							No staged user request selected.
+						</p>
+					) : query.isPending ? (
+						<div className="space-y-2">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					) : query.isError || query.data == null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>
+								{`${query.error?.name ?? "Error"}`}
+							</AlertTitle>
+							<AlertDescription>
+								{`${query.error?.message ?? "Unable to load staged user request details."}`}
+							</AlertDescription>
+						</Alert>
+					) : (
+						drawerValueRendererConfigColumns.map(column => (
+							<div key={column.key} className="space-y-1 rounded-lg border p-3">
+								<p className="text-muted-foreground text-xs font-medium">
+									{columnLabels[column.key]}
+								</p>
+								{renderValue(row, column.key)}
+							</div>
+						))
+					)}
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+						Close
+					</Button>
+					{canAccessHistory && onOpenHistory != null ? (
+						<Button type="button" variant="secondary" onClick={onOpenHistory} disabled={row == null}>
+							<HistoryIcon />History
+						</Button>
+					) : null}
+					{row != null && renderActions != null ? (
+						renderActions(row)
+					) : null}
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
 	);
 }
-
-export function reorderColumns(order: UserTableColumnId[], sourceId: UserTableColumnId, targetId: UserTableColumnId): UserTableColumnId[] {
-	if(sourceId == targetId)
-		return order;
-	const sourceIndex = order.indexOf(sourceId);
-	const targetIndex = order.indexOf(targetId);
-	if(sourceIndex == -1 || targetIndex == -1)
-		return order;
-	const nextOrder = [...order];
-	const [moved] = nextOrder.splice(sourceIndex, 1);
-	nextOrder.splice(targetIndex, 0, moved);
-	return nextOrder;
-}
-
-type UserActiveFiltersSummaryProps = {
-	items: FilterSummaryItem[];
-};
-
-export function UserActiveFiltersSummary({ items }: UserActiveFiltersSummaryProps) {
-	if(items.length == 0)
-		return null;
-
+export function HistoryDrawer(
+	{ open, onOpenChange, row }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null }
+) {
+	const { roles } = useDashboardShellContext();
+	const canAccessHistory = roles.includes("user-management-auditor");
+	const query = useQuery({
+		queryKey: ["user-management", "history", row?.id ?? null],
+		enabled: canAccessHistory && open && row != null,
+		queryFn: async () => await getHistoryAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+	const renderValue = useMenuRowValueRenderer({
+		columns: drawerValueRendererConfigColumns,
+		context: {
+			relationValues: query.data?.relations
+		}
+	});
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
 	return (
-		<div className="rounded-lg border border-dashed px-3 py-2 text-xs">
-			<p className="text-muted-foreground font-medium">Active filters</p>
-			<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-				{items.map((item, index) => (
-					<span key={index} className="inline-flex items-center gap-1.5">
-						{item.combinator != null ? (
-							<span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">{item.combinator}</span>
-						) : null}
-						<span className="bg-background rounded border px-2 py-0.5">
-							<span className="font-semibold">{item.columnLabel}</span>
-							<span className="text-muted-foreground mx-1 italic">{item.operatorLabel}</span>
-							<span className="font-mono text-[11px]">{item.valueLabel}</span>
-						</span>
-					</span>
-				))}
-			</div>
-		</div>
-	);
-}
-
-type UserColumnConfigCardProps = {
-	isOpen: boolean;
-	onOpenChange: (open: boolean) => void;
-	orderedColumns: UserTableColumnConfig[];
-	hiddenColumnIds: UserTableColumnId[];
-	visibleColumnCount: number;
-	onToggleColumnVisibility: (columnId: UserTableColumnId, checked: boolean) => void;
-	onReset: () => void;
-	onColumnDragStart: (columnId: UserTableColumnId) => void;
-	onColumnDragOver: (event: DragEvent<HTMLDivElement>, targetColumnId: UserTableColumnId) => void;
-	onColumnDragEnd: () => void;
-};
-
-export function UserColumnConfigCard({
-	isOpen,
-	onOpenChange,
-	orderedColumns,
-	hiddenColumnIds,
-	visibleColumnCount,
-	onToggleColumnVisibility,
-	onReset,
-	onColumnDragStart,
-	onColumnDragOver,
-	onColumnDragEnd
-}: UserColumnConfigCardProps) {
-	return (
-		<Collapsible open={isOpen} onOpenChange={onOpenChange}>
-			<CollapsibleContent>
-				<div className="space-y-3 rounded-xl border p-4">
-					<div className="flex items-center justify-between">
-						<div className="space-y-1">
-							<h3 className="text-sm font-semibold">Configure Columns</h3>
-							<p className="text-muted-foreground text-sm">Toggle visibility and drag cards to reorder columns.</p>
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+				<DrawerHeader>
+					<DrawerTitle>Staged User Request History</DrawerTitle>
+					<DrawerDescription>Changes are shown from the most recent version to the earliest version.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+					{row == null ? (
+						<p className="text-muted-foreground text-sm">No staged user request selected.</p>
+					) : !canAccessHistory ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>Unauthorized</AlertTitle>
+							<AlertDescription>You need User Management auditor access to view history.</AlertDescription>
+						</Alert>
+					) : query.isPending ? (
+						<div className="space-y-2">
+							<Skeleton className="h-28 w-full" />
+							<Skeleton className="h-28 w-full" />
 						</div>
-						<div className="flex items-center gap-2">
-							<p className="text-muted-foreground text-sm">Visible {visibleColumnCount} of {userTableColumns.length}</p>
-							<Button type="button" variant="outline" size="sm" onClick={onReset}>Reset</Button>
-						</div>
-					</div>
-					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-						{orderedColumns.map(column => {
-							const isVisible = !hiddenColumnIds.includes(column.id);
-							const isOnlyVisibleColumn = isVisible && hiddenColumnIds.length >= userTableColumns.length - 1;
+					) : query.isError || query.data == null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>
+								{`${query.error?.name ?? "Error"}`}
+							</AlertTitle>
+							<AlertDescription>
+								{`${query.error?.message ?? "Unable to load staged user request details."}`}
+							</AlertDescription>
+						</Alert>
+					) : query.data.entries.length == 0 ? (
+						<p className="text-muted-foreground text-sm">
+							No history entries found for this staged user request.
+						</p>
+					) : (
+						query.data.entries.map((entry, index, entries) => {
+							const changedColumns = drawerValueRendererConfigColumns.filter(column => JSON.stringify(entry[column.key] ?? null) !=
+								JSON.stringify(entries[index + 1]?.[column.key] ?? null));
 							return (
-								<div
-									key={column.id}
-									draggable
-									onDragStart={() => onColumnDragStart(column.id)}
-									onDragOver={event => onColumnDragOver(event, column.id)}
-									onDragEnd={onColumnDragEnd}
-									onDrop={onColumnDragEnd}
-									className="hover:bg-muted/60 flex h-full min-h-14 items-center gap-3 rounded-lg border px-3 py-1.5 text-left"
-								>
-									<GripVerticalIcon className="text-muted-foreground size-4 shrink-0" />
-									<Checkbox
-										checked={isVisible}
-										disabled={isOnlyVisibleColumn}
-										onCheckedChange={checked => onToggleColumnVisibility(column.id, checked == true)}
-									/>
-									<div className="min-w-0 flex-1">
-										<p className="text-sm font-medium">{column.label}</p>
+								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-semibold">{new Date(entry.updatedAt).toLocaleString()}</p>
+										<Badge variant="outline">{changedColumns.length} change(s)</Badge>
+									</div>
+									<div className="space-y-1">
+										{changedColumns.length == 0 ? (
+											<p className="text-muted-foreground text-xs">No field changes detected.</p>
+										) : changedColumns.map(changedColumn => (
+											<div key={changedColumn.key} className="space-y-0.5 rounded-md border p-2 text-xs">
+												<div className="font-medium">{columnLabels[changedColumn.key]}</div>
+												<div className="text-muted-foreground">From: {entries[index + 1] != null ? renderValue(entries[index + 1], changedColumn.key) : "-"}</div>
+												<div>To: {renderValue(entry, changedColumn.key)}</div>
+											</div>
+										))}
 									</div>
 								</div>
 							);
-						})}
-					</div>
+						})
+					)}
 				</div>
-			</CollapsibleContent>
-		</Collapsible>
+				<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+export function ChangeRequestDrawer(
+	{ open, onOpenChange, row }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null }
+) {
+	const query = useQuery({
+		queryKey: ["user-management", "change-request-diff", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: async () => await getDifferenceAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion ?? {})])]
+		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey] ?? null)] as const) : null;
+	const renderValue = useMenuRowValueRenderer({
+		columns: drawerValueRendererConfigColumns,
+		context: {
+			relationValues: query.data?.relations
+		}
+	});
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
+		[column.key, column.key == "initialPassword" ? "Initial Password" : tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>Request Changes</DrawerTitle>
+					<DrawerDescription>Review the differences between the last approved version and the selected request.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+						<p>
+							<span className="font-medium">Request Type</span>{": "}
+							{query.data?.requestType ?? "-"}
+						</p>
+						<p className="text-muted-foreground">
+							{diffs != null ? `${diffs.filter(([_, changed]) => changed).length} changed field(s)` : "Loading differences..."}
+						</p>
+					</div>
+					{row == null ? (
+						<p className="text-muted-foreground text-sm">
+							Changes are not available.
+						</p>
+					) : query.isPending ? (
+						<div className="space-y-2">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					) : query.isError || diffs == null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+							<AlertDescription>{`${query.error?.message ?? "Unable to load request changes."}`}</AlertDescription>
+						</Alert>
+					) : (
+						<div className="space-y-2">
+							{diffs.map(([columnKey, changed]) => (
+								<div key={columnKey} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-medium">{columnLabels[columnKey]}</p>
+										<Badge variant={changed ? "default" : "secondary"}>
+											{changed ? "Changed" : "Unchanged"}
+										</Badge>
+									</div>
+									<div className="grid gap-2 sm:grid-cols-2">
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+											<div className="bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word">
+												{query.data.approvedVersion != null ? renderValue(query.data.approvedVersion, columnKey) : "-"}
+											</div>
+										</div>
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Requested</p>
+											<div className="bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word">
+												{renderValue(query.data.requestedVersion, columnKey)}
+											</div>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
 	);
 }
 
-type UserRequestDeleteDialogProps = {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onConfirm: () => void;
-	isMutating: boolean;
+export function ReviewDrawer(
+	{ open, onOpenChange, row, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
+) {
+	const query = useQuery({
+		queryKey: ["user-management", "change-request-diff", row?.id ?? null],
+		enabled: open && row != null,
+		queryFn: async () => await getDifferenceAction(row!.id),
+		refetchInterval: 10000,
+		refetchOnWindowFocus: true
+	});
+	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion ?? {})])]
+		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey] ?? null)] as const) : null;
+	const renderValue = useMenuRowValueRenderer({
+		columns: drawerValueRendererConfigColumns,
+		context: {
+			relationValues: query.data?.relations
+		}
+	});
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
+		[column.key, column.key == "initialPassword" ? "Initial Password" : tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>Review</DrawerTitle>
+					<DrawerDescription>Review the differences between the last approved version and the current pending request before making a decision.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
+						<p>
+							<span className="font-medium">Request Type</span>{": "}
+							{query.data?.requestType ?? "-"}
+						</p>
+						<p className="text-muted-foreground">
+							{diffs != null ? `${diffs.filter(([_, changed]) => changed).length} changed field(s)` : "Loading differences..."}
+						</p>
+					</div>
+					{row == null ? (
+						<p className="text-muted-foreground text-sm">
+							Changes are not available.
+						</p>
+					) : query.isPending ? (
+						<div className="space-y-2">
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+							<Skeleton className="h-20 w-full" />
+						</div>
+					) : query.isError || diffs == null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+							<AlertDescription>{`${query.error?.message ?? "Unable to load request changes."}`}</AlertDescription>
+						</Alert>
+					) : (
+						<div className="space-y-2">
+							{diffs.map(([columnKey, changed]) => (
+								<div key={columnKey} className="space-y-2 rounded-lg border p-3">
+									<div className="flex items-center justify-between gap-2">
+										<p className="text-sm font-medium">{columnLabels[columnKey]}</p>
+										<Badge variant={changed ? "default" : "secondary"}>
+											{changed ? "Changed" : "Unchanged"}
+										</Badge>
+									</div>
+									<div className="grid gap-2 sm:grid-cols-2">
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
+											<div className="bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word">
+												{query.data.approvedVersion != null ? renderValue(query.data.approvedVersion, columnKey) : "-"}
+											</div>
+										</div>
+										<div className="space-y-1">
+											<p className="text-muted-foreground text-xs font-medium">Requested</p>
+											<div className="bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word">
+												{renderValue(query.data.requestedVersion, columnKey)}
+											</div>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+					{mutationError != null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
+							<AlertDescription>{`${mutationError?.message ?? "Unable to submit review."}`}</AlertDescription>
+						</Alert>
+					) : null}
+					<div className="space-y-2">
+						<label className="text-sm font-medium">Review Comment</label>
+						<RichTextInput
+							serializedState={reviewComment}
+							onSerializedStateChange={onReviewCommentChange}
+							onImageUpload={uploadGenericRichtextImage}
+						/>
+					</div>
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+					<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || diffs == null}>Approve</Button>
+					<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || diffs == null}>Reject</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+export type FormState = {
+	id?: string;
+	email?: string;
+	name?: string;
+	employeeId?: string;
+	role?: string;
+	supervisor?: string;
+	initialPassword?: string;
 };
+export function toFormState(data: StagedUser) {
+	return {
+		id: data.id,
+		email: data.email,
+		name: data.name,
+		employeeId: data.employeeId,
+		role: getRelationshipId(data.role) ?? undefined,
+		supervisor: getRelationshipId(data.supervisor) ?? undefined,
+		initialPassword: data.initialPassword ?? undefined
+	} as FormState;
+}
+export function FormDrawer(
+	{ open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating = false }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: FormState, onFormStateChange: (v: FormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
+) {
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>{title}</DrawerTitle>
+					<DrawerDescription>Changes in editor mode create pending staged user requests that require approver review before publication.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 overflow-y-auto px-4">
+					<div className="grid gap-3 pb-4 sm:grid-cols-2">
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Email</label>
+							<Input
+								value={formState.email}
+								onChange={event => onFormStateChange({ ...formState, email: event.target.value })}
+								placeholder="user@example.com"
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Name</label>
+							<Input
+								value={formState.name}
+								onChange={event => onFormStateChange({ ...formState, name: event.target.value })}
+								placeholder="Full name"
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Employee ID</label>
+							<Input
+								value={formState.employeeId}
+								onChange={event => onFormStateChange({ ...formState, employeeId: event.target.value })}
+								placeholder="EMP-0001"
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Role</label>
+							<SearchableSelect
+								value={formState.role!}
+								onValueChange={value => onFormStateChange({ ...formState, role: value })}
+								options={[]}
+								onSearch={(keyword, selectedValues) => searchRelationRolesAction(keyword, selectedValues).then(roles => roles.map(role => ({
+									value: role.id,
+									label: role.label
+								})))}
+								disabled={isMutating}
+								placeholder="Search role"
+								searchPlaceholder="Search role..."
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Supervisor</label>
+							<SearchableSelect
+								value={formState.supervisor!}
+								onValueChange={value => onFormStateChange({ ...formState, supervisor: value })}
+								options={[]}
+								onSearch={(keyword, selectedValues) => searchRelationUsersByRoleLevelAction("supervisor", keyword, selectedValues).then(users => users.map(user => ({
+									value: user.id,
+									label: user.label
+								})))}
+								disabled={isMutating}
+								placeholder="Search supervisor"
+								searchPlaceholder="Search supervisor..."
+								allowClear
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Initial Password</label>
+							<Input
+								type="password"
+								value={formState.initialPassword}
+								onChange={event => onFormStateChange({ ...formState, initialPassword: event.target.value })}
+								placeholder={formState.id == null ? "At least 8 characters" : "Leave blank to keep current password"}
+							/>
+						</div>
+						{mutationError != null ? (
+							<Alert variant="destructive" className="sm:col-span-2">
+								<CircleAlertIcon />
+								<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
+								<AlertDescription>{`${mutationError?.message ?? "Unable to submit form."}`}</AlertDescription>
+							</Alert>
+						) : null}
+					</div>
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
+					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
 
-export function UserRequestDeleteDialog({
-	open,
-	onOpenChange,
-	onConfirm,
-	isMutating
-}: UserRequestDeleteDialogProps) {
+export function DeleteDialog(
+	{ open, onOpenChange, onConfirm, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
+) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
@@ -595,1871 +627,68 @@ export function UserRequestDeleteDialog({
 	);
 }
 
-type UserRequestCancelDialogProps = {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	onConfirm: () => void;
-	isMutating: boolean;
-};
-
-export function UserRequestCancelDialog({
-	open,
-	onOpenChange,
-	onConfirm,
-	isMutating
-}: UserRequestCancelDialogProps) {
+export function CancelPendingRequestDialog(
+	{ open, onOpenChange, onConfirm, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
+) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
 				<AlertDialogHeader>
-					<AlertDialogTitle>Cancel</AlertDialogTitle>
+					<AlertDialogTitle>Cancel Pending Request</AlertDialogTitle>
 					<AlertDialogDescription>
 						This will cancel the pending request and keep the last approved version unchanged.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
-					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Cancel</AlertDialogAction>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Cancel Pending</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
 	);
 }
 
-type UserRequestFilterCardProps = {
-	isLoading: boolean;
-	isMutating: boolean;
-	filters: UseUserRequestFiltersResult;
-	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption;
-};
-
-export function UserRequestFilterCard({
-	isLoading,
-	isMutating,
-	filters,
-	getResolvedFilterColumnConfig
-}: UserRequestFilterCardProps) {
-	return (
-		<Collapsible open={filters.isFilterOpen} onOpenChange={filters.setIsFilterOpen}>
-			<CollapsibleContent>
-				<div className="space-y-3 rounded-xl border p-4">
-					<div className="flex items-center justify-between gap-2">
-						<div className="space-y-1">
-							<h3 className="text-sm font-semibold">Configure Filters</h3>
-							<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
-						</div>
-						{filters.appliedFilters.length > 0 ? (
-							<Button type="button" variant="outline" size="sm" onClick={filters.clearFilter} disabled={isLoading || isMutating}>Clear Filter</Button>
-						) : null}
-					</div>
-					{filters.filters.map((filterCondition, index) => {
-						const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
-						const isListOperator = filterCondition.operator == "in" || filterCondition.operator == "not_in";
-
-						return (
-							<div key={index} className="space-y-3">
-								{index > 0 ? (
-									<div className="rounded-lg border border-dashed p-2">
-										<label className="text-sm font-medium">Combinator with previous filter</label>
-										<Select
-											value={filterCondition.joinWithPrevious}
-											onValueChange={value => filters.updateFilterJoinWithPrevious(index, value as FilterCombinator)}
-										>
-											<SelectTrigger className="w-full"><SelectValue placeholder="Select combinator" /></SelectTrigger>
-											<SelectContent>
-												<SelectItem value="and">AND</SelectItem>
-												<SelectItem value="or">OR</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-								) : null}
-								<div className="space-y-3 rounded-lg border p-3">
-									<div className="flex items-center justify-between">
-										<p className="text-sm font-medium">Filter {index + 1}</p>
-										<Button type="button" variant="ghost" size="sm" onClick={() => filters.removeFilter(index)} disabled={isMutating}>
-											<XIcon />
-											Remove
-										</Button>
-									</div>
-									<div className="grid gap-3 sm:grid-cols-2">
-										<div className="space-y-2">
-											<label className="text-sm font-medium">Column</label>
-											<Select value={filterCondition.column} onValueChange={value => filters.handleFilterColumnChange(index, value as FilterColumn)}>
-												<SelectTrigger className="w-full"><SelectValue placeholder="Select column" /></SelectTrigger>
-												<SelectContent>
-													{userFilterColumns.map(column => (
-														<SelectItem key={column.value} value={column.value}>{column.label}</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-										<div className="space-y-2">
-											<label className="text-sm font-medium">Operator</label>
-											<Select value={filterCondition.operator} onValueChange={value => filters.handleFilterOperatorChange(index, value as FilterColumnOption["operators"][number])}>
-												<SelectTrigger className="w-full"><SelectValue placeholder="Select operator" /></SelectTrigger>
-												<SelectContent>
-													{filterOperatorOptions.filter(operator => columnConfig.operators.includes(operator.value)).map(operator => (
-														<SelectItem key={operator.value} value={operator.value}>{operator.label}</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
-										</div>
-									</div>
-									<div className="space-y-2">
-										<label className="text-sm font-medium">Filter Value</label>
-										{filterCondition.operator == "exists" ? (
-											<Select value={filterCondition.existsValue} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, existsValue: value as "true" | "false" }))}>
-												<SelectTrigger className="w-full"><SelectValue placeholder="Select exists value" /></SelectTrigger>
-												<SelectContent>
-													<SelectItem value="true">True</SelectItem>
-													<SelectItem value="false">False</SelectItem>
-												</SelectContent>
-											</Select>
-										) : isListOperator ? (
-											<div className="space-y-2">
-												<div className="flex items-center justify-between">
-													<p className="text-muted-foreground text-xs">Define one or more values.</p>
-													<Button type="button" variant="outline" onClick={() => filters.addFilterListValue(index)}><PlusIcon />Add Value</Button>
-												</div>
-												{filterCondition.values.length == 0 ? (
-													<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
-												) : (
-													<div className="space-y-2">
-														{filterCondition.values.map((value, valueIndex) => {
-															const listDate = columnConfig.valueType == "date" ? splitFilterDateValue(value) : null;
-															return (
-																<div key={`${index}-${valueIndex}`} className="flex items-start gap-2">
-																	{columnConfig.valueType == "boolean" ? (
-																		<Select value={value.length > 0 ? value : "true"} onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}>
-																			<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
-																			<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
-																		</Select>
-																	) : columnConfig.valueType == "select" ? (
-																		<SearchableSelect
-																			value={value.length > 0 ? value : (columnConfig.selectOptions?.[0]?.value ?? "")}
-																			onValueChange={nextValue => filters.updateFilterListValue(index, valueIndex, nextValue)}
-																			options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
-																			onSearch={columnConfig.searchOptionsAction}
-																			placeholder="Select value"
-																			searchPlaceholder="Type to filter values"
-																			className="min-w-0 flex-1"
-																		/>
-																	) : columnConfig.valueType == "date" ? (
-																		<DatetimeInput
-																			className="flex-1"
-																			mode="datetime"
-																			onChange={nextValue => {
-																				const parsedDate = parseFilterDateValue(nextValue);
-																				filters.updateFilterListValue(index, valueIndex, parsedDate == null ? "" : formatFilterDateInput(parsedDate));
-																			}}
-																			placeholder="Select date and time"
-																			precision="second"
-																			value={listDate == null || listDate.dateText.length == 0 ? "" : `${listDate.dateText}T${listDate.timeText}`}
-																		/>
-																	) : (
-																		<Input value={value} onChange={event => filters.updateFilterListValue(index, valueIndex, event.target.value)} placeholder={columnConfig.placeholder ?? "Enter value"} className="flex-1" />
-																	)}
-																	<Button type="button" variant="outline" onClick={() => filters.removeFilterListValue(index, valueIndex)} className="shrink-0"><XIcon />Remove</Button>
-																</div>
-															);
-														})}
-													</div>
-												)}
-											</div>
-										) : columnConfig.valueType == "select" ? (
-											<SearchableSelect
-												value={filterCondition.value.length > 0 ? filterCondition.value : ""}
-												onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}
-												options={(columnConfig.selectOptions ?? []).map(option => ({ value: option.value, label: option.label }))}
-												onSearch={columnConfig.searchOptionsAction}
-												placeholder="Select value"
-												searchPlaceholder="Type to filter values"
-											/>
-										) : columnConfig.valueType == "boolean" ? (
-											<Select value={filterCondition.value.length > 0 ? filterCondition.value : ""} onValueChange={value => filters.updateFilter(index, previous => ({ ...previous, value }))}>
-												<SelectTrigger className="w-full"><SelectValue placeholder="Select value" /></SelectTrigger>
-												<SelectContent><SelectItem value="true">True</SelectItem><SelectItem value="false">False</SelectItem></SelectContent>
-											</Select>
-										) : columnConfig.valueType == "date" ? (
-											<DatetimeInput
-												mode="datetime"
-												onChange={nextValue => filters.updateFilter(index, previous => {
-													const parsedDate = parseFilterDateValue(nextValue);
-													return {
-														...previous,
-														dateText: formatFilterDateOnlyInput(parsedDate),
-														dateValue: parsedDate
-													};
-												})}
-												placeholder="Select date and time"
-												precision="second"
-												value={filterCondition.dateValue == null ? "" : formatFilterDateInput(filterCondition.dateValue).replace(" ", "T")}
-											/>
-										) : (
-											<Input value={filterCondition.value} onChange={event => filters.updateFilter(index, previous => ({ ...previous, value: event.target.value }))} placeholder={columnConfig.placeholder ?? "Enter value"} />
-										)}
-									</div>
-								</div>
-							</div>
-						);
-					})}
-
-					<Button type="button" variant="outline" onClick={filters.addFilter} disabled={isMutating}>
-						<PlusIcon />
-						Add Filter
-					</Button>
-				</div>
-			</CollapsibleContent>
-		</Collapsible>
-	);
-}
-
-type UserRequestFormDrawerProps = {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	formState: FormState;
-	formError: { title: string, message: string } | null;
-	onSearchRoles: FilterSelectSearchAction;
-	onSearchSupervisors: FilterSelectSearchAction;
-	isMutating: boolean;
-	onEmailChange: (value: string) => void;
-	onNameChange: (value: string) => void;
-	onEmployeeIdChange: (value: string) => void;
-	onRoleChange: (value: string) => void;
-	onSupervisorChange: (value: string) => void;
-	onInitialPasswordChange: (value: string) => void;
-	onSubmit: () => void;
-};
-
-export function UserRequestFormDrawer({
-	open,
-	onOpenChange,
-	formState,
-	formError,
-	onSearchRoles,
-	onSearchSupervisors,
-	isMutating,
-	onEmailChange,
-	onNameChange,
-	onEmployeeIdChange,
-	onRoleChange,
-	onSupervisorChange,
-	onInitialPasswordChange,
-	onSubmit
-}: UserRequestFormDrawerProps) {
-	return (
-		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-				<DrawerHeader>
-					<DrawerTitle>{formState.stagedUserId == null ? "Add Staged User" : "Edit Staged User"}</DrawerTitle>
-					<DrawerDescription>Changes in editor mode create pending requests and require approver review before the users collection is updated.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 overflow-y-auto px-4">
-					<div className="grid gap-3 pb-4 sm:grid-cols-2">
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Email</label>
-							<Input value={formState.email} onChange={event => onEmailChange(event.target.value)} placeholder="user@example.com" />
-						</div>
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Name</label>
-							<Input value={formState.name} onChange={event => onNameChange(event.target.value)} placeholder="Full name" />
-						</div>
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Employee ID</label>
-							<Input value={formState.employeeId} onChange={event => onEmployeeIdChange(event.target.value)} placeholder="EMP-0001" />
-						</div>
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Role</label>
-							<SearchableSelect
-								value={formState.role}
-								onValueChange={onRoleChange}
-								options={[]}
-								onSearch={onSearchRoles}
-								placeholder="Select role"
-								searchPlaceholder="Type role name"
-							/>
-						</div>
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Supervisor</label>
-							<SearchableSelect
-								value={formState.supervisor}
-								onValueChange={onSupervisorChange}
-								options={[]}
-								onSearch={onSearchSupervisors}
-								placeholder="No supervisor"
-								searchPlaceholder="Type supervisor name or email"
-								allowClear
-								clearLabel="No supervisor"
-							/>
-						</div>
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Initial Password {formState.stagedUserId == null ? "(required)" : "(optional reset)"}</label>
-							<Input
-								type="password"
-								value={formState.initialPassword}
-								onChange={event => onInitialPasswordChange(event.target.value)}
-								placeholder={formState.stagedUserId == null ? "At least 8 characters" : "Leave blank to keep current password"}
-							/>
-						</div>
-						{formError != null ? (
-							<Alert variant="destructive" className="sm:col-span-2">
-								<CircleAlertIcon />
-								<AlertTitle>{formError.title}</AlertTitle>
-								<AlertDescription>{formError.message}</AlertDescription>
-							</Alert>
-						) : null}
-					</div>
-				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
-	);
-}
-
-type UserRequestReviewDrawerProps = {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	reviewDrawerState: { row: StagedUserTableRow, diff: UserRequestReviewDiff | null } | null;
-	reviewError: { title: string, message: string } | null;
-	isReviewDiffLoading: boolean;
-	reviewComment: ReviewCommentRichText;
-	onReviewCommentChange: (value: ReviewCommentRichText) => void;
-	onApprove: () => void;
-	onReject: () => void;
-	isMutating: boolean;
-	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
-	relationNavigation?: UserRelationNavigation;
-};
-
-export function UserRequestReviewDrawer({
-	open,
-	onOpenChange,
-	reviewDrawerState,
-	reviewError,
-	isReviewDiffLoading,
-	reviewComment,
-	onReviewCommentChange,
-	onApprove,
-	onReject,
-	isMutating,
-	onOpenRequestChanges,
-	relationNavigation
-}: UserRequestReviewDrawerProps) {
-	const diff = reviewDrawerState?.diff;
-	const changedFields = diff == null ? [] : userRequestReviewDiffFields.filter(field => JSON.stringify(diff[field][0]) != JSON.stringify(diff[field][1]));
-
-	return (
-		<>
-			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-					<DrawerHeader>
-						<DrawerTitle>Review</DrawerTitle>
-						<DrawerDescription>Review the differences between the last approved version and the current pending request before making a decision.</DrawerDescription>
-					</DrawerHeader>
-					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
-							<p>
-								<span className="font-medium">Request Type:</span>{" "}
-								{reviewDrawerState?.row != null ? renderRequestTypeTrigger({
-									row: {
-										...reviewDrawerState.row,
-										requestType: diff?.requestType ?? reviewDrawerState.row.requestType
-									},
-									onOpenRequestChanges,
-									className: "align-baseline"
-								}) : "-"}
-							</p>
-							<p className="text-muted-foreground">
-								{diff != null ? `${changedFields.length} changed field(s)` : "Loading differences..."}
-							</p>
-						</div>
-
-						{isReviewDiffLoading ? (
-							<div className="space-y-2">
-								<Skeleton className="h-20 w-full" />
-								<Skeleton className="h-20 w-full" />
-								<Skeleton className="h-20 w-full" />
-							</div>
-						) : diff == null ? (
-							<p className="text-muted-foreground text-sm">No diff is available for this request.</p>
-						) : (
-							<div className="space-y-2">
-								{userRequestReviewDiffFields.map(field => {
-									const [previousValue, requestedValue] = diff[field];
-									const changed = JSON.stringify(previousValue) != JSON.stringify(requestedValue);
-									return (
-										<div key={field} className="space-y-2 rounded-lg border p-3">
-											<div className="flex items-center justify-between gap-2">
-												<p className="text-sm font-medium">{userRequestReviewDiffFieldLabelMap[field]}</p>
-												<Badge variant={changed ? "default" : "secondary"}>{changed ? "Changed" : "Unchanged"}</Badge>
-											</div>
-											<div className="grid gap-2 sm:grid-cols-2">
-												<div className="space-y-1">
-													<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-													<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
-														{renderUserRequestReviewDiffValue(field, previousValue, diff.relations, relationNavigation)}
-													</div>
-												</div>
-												<div className="space-y-1">
-													<p className="text-muted-foreground text-xs font-medium">Requested</p>
-													<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
-														{renderUserRequestReviewDiffValue(field, requestedValue, diff.relations, relationNavigation)}
-													</div>
-												</div>
-											</div>
-										</div>
-									);
-								})}
-							</div>
-						)}
-
-						{reviewError != null ? (
-							<Alert variant="destructive">
-								<CircleAlertIcon />
-								<AlertTitle>{reviewError.title}</AlertTitle>
-								<AlertDescription>{reviewError.message}</AlertDescription>
-							</Alert>
-						) : null}
-
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Review Comment (optional)</label>
-							<ReviewCommentInput serializedState={reviewComment} onSerializedStateChange={onReviewCommentChange} onImageUpload={uploadGenericRichtextImage} />
-						</div>
-					</div>
-					<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-						<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-						<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || reviewDrawerState?.diff == null}>Approve</Button>
-						<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || reviewDrawerState?.diff == null}>Reject</Button>
-					</DrawerFooter>
-				</DrawerContent>
-			</Drawer>
-
-		</>
-	);
-}
-
-type UserRequestChangePreviewDrawerProps = {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	row: StagedUserTableRow | null;
-	relationNavigation?: UserRelationNavigation;
-};
-
-export function UserRequestChangePreviewDrawer({
-	open,
-	onOpenChange,
-	row,
-	relationNavigation
-}: UserRequestChangePreviewDrawerProps) {
-	const diffQuery = useQuery({
-		queryKey: ["user-management", "request-change-preview", row?.id ?? null],
-		enabled: open && row != null,
-		queryFn: () => userActions.getStagedUserRequestReviewDiffAction(row!.id),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-	const diff = diffQuery.data;
-	const changedFields = diff == null ? [] : userRequestReviewDiffFields.filter(field => JSON.stringify(diff[field][0]) != JSON.stringify(diff[field][1]));
-
-	return (
-		<>
-			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-					<DrawerHeader>
-						<DrawerTitle>Request Changes</DrawerTitle>
-						<DrawerDescription>Review the differences between the last approved version and the selected request.</DrawerDescription>
-					</DrawerHeader>
-					<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
-						<div className="bg-muted/30 rounded-lg border p-3 text-sm">
-							<p><span className="font-medium">Request Type:</span> {diff?.requestType ?? row?.requestType ?? "-"}</p>
-							<p className="text-muted-foreground">{diff != null ? `${changedFields.length} changed field(s)` : "Loading differences..."}</p>
-						</div>
-
-						{row == null ? (
-							<p className="text-muted-foreground text-sm">No request selected.</p>
-						) : diffQuery.isPending ? (
-							<div className="space-y-2">
-								<Skeleton className="h-20 w-full" />
-								<Skeleton className="h-20 w-full" />
-								<Skeleton className="h-20 w-full" />
-							</div>
-						) : diffQuery.isError || diff == null ? (
-							<Alert variant="destructive">
-								<CircleAlertIcon />
-								<AlertTitle>Error</AlertTitle>
-								<AlertDescription>Unable to load request changes.</AlertDescription>
-							</Alert>
-						) : (
-							<div className="space-y-2">
-								{userRequestReviewDiffFields.map(field => {
-									const [previousValue, requestedValue] = diff[field];
-									const changed = JSON.stringify(previousValue) != JSON.stringify(requestedValue);
-									return (
-										<div key={field} className="space-y-2 rounded-lg border p-3">
-											<div className="flex items-center justify-between gap-2">
-												<p className="text-sm font-medium">{userRequestReviewDiffFieldLabelMap[field]}</p>
-												<Badge variant={changed ? "default" : "secondary"}>{changed ? "Changed" : "Unchanged"}</Badge>
-											</div>
-											<div className="grid gap-2 sm:grid-cols-2">
-												<div className="space-y-1">
-													<p className="text-muted-foreground text-xs font-medium">Last Approved</p>
-													<div className={cn("bg-muted/50 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
-														{renderUserRequestReviewDiffValue(field, previousValue, diff.relations, relationNavigation)}
-													</div>
-												</div>
-												<div className="space-y-1">
-													<p className="text-muted-foreground text-xs font-medium">Requested</p>
-													<div className={cn("bg-muted/10 min-h-9 rounded border px-2 py-1.5 wrap-break-word", getUserDrawerValueClassName(field))}>
-														{renderUserRequestReviewDiffValue(field, requestedValue, diff.relations, relationNavigation)}
-													</div>
-												</div>
-											</div>
-										</div>
-									);
-								})}
-							</div>
-						)}
-					</div>
-					<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-					</DrawerFooter>
-				</DrawerContent>
-			</Drawer>
-
-		</>
-	);
-}
-
-type UserRequestsTableProps = {
-	queryResult: QueryStagedUsersOutput;
-	visibleColumns: UserTableColumnConfig[];
-	visibleColumnCount: number;
-	includeActions?: boolean;
-	detailTriggerColumnId: UserTableColumnId | null;
-	isLoading: boolean;
-	isMutating: boolean;
-	getSortDirection: (field: SortField) => SortDirection | null;
-	onToggleSortField: (field: SortField) => void;
-	onOpenDetails: (row: StagedUserTableRow) => void;
-	renderUserCell: (columnId: UserTableColumnConfig["id"], row: StagedUserTableRow) => ReactNode;
-	renderActions: (row: StagedUserTableRow) => ReactNode;
-};
-
-export function UserRequestsTable({
-	queryResult,
-	visibleColumns,
-	visibleColumnCount,
-	includeActions = true,
-	detailTriggerColumnId,
-	isLoading,
-	isMutating,
-	getSortDirection,
-	onToggleSortField,
-	onOpenDetails,
-	renderUserCell,
-	renderActions
-}: UserRequestsTableProps) {
-	const renderSortIcon = (field: SortField) => {
-		const direction = getSortDirection(field);
-		if(direction == "asc")
-			return <ArrowUpIcon className="size-3.5" />;
-		if(direction == "desc")
-			return <ArrowDownIcon className="size-3.5" />;
-		return <ArrowUpDownIcon className="text-muted-foreground size-3.5" />;
-	};
-
-	return (
-		<div className="rounded-xl border">
-			<Table>
-				<TableHeader>
-					<TableRow>
-						{visibleColumns.map(column => (
-							column.sortField != null ? (
-								<TableHead key={column.id} className={column.headClassName}>
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										onClick={() => onToggleSortField(column.sortField!)}
-										disabled={isLoading || isMutating}
-										className="-ml-2 h-7 gap-1 px-2"
-									>
-										{column.label}
-										{renderSortIcon(column.sortField)}
-									</Button>
-								</TableHead>
-							) : (
-								<TableHead key={column.id} className={column.headClassName}>{column.label}</TableHead>
-							)
-						))}
-						{includeActions ? <TableHead className="w-65">Actions</TableHead> : null}
-					</TableRow>
-				</TableHeader>
-				<TableBody>
-					{isLoading ? (
-						<TableRow>
-							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">Loading staged users...</TableCell>
-						</TableRow>
-					) : null}
-					{!isLoading && queryResult.docs.length == 0 ? (
-						<TableRow>
-							<TableCell colSpan={visibleColumnCount} className="text-muted-foreground py-8 text-center">No staged users found.</TableCell>
-						</TableRow>
-					) : null}
-					{queryResult.docs.map(row => {
-						return (
-							<TableRow key={row.id}>
-								{visibleColumns.map(column => {
-									const cellValue = renderUserCell(column.id, row);
-									const isDetailTriggerColumn = detailTriggerColumnId != null && column.id == detailTriggerColumnId;
-									return (
-										<TableCell key={`${row.id}-${column.id}`} className={column.cellClassName}>
-											{isDetailTriggerColumn ? (
-												<Button type="button" variant="link" onClick={() => onOpenDetails(row)} className="text-primary h-auto p-0 text-left whitespace-normal select-auto">
-													{cellValue}
-												</Button>
-											) : cellValue}
-										</TableCell>
-									);
-								})}
-								{includeActions ? (
-									<TableCell>
-										<div className="flex flex-wrap gap-2">
-											{renderActions(row)}
-										</div>
-									</TableCell>
-								) : null}
-							</TableRow>
-						);
-					})}
-				</TableBody>
-			</Table>
-		</div>
-	);
-}
-
-type UserRequestDetailsDrawerProps = {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	row: StagedUserTableRow | null;
-	renderActions: (row: StagedUserTableRow) => ReactNode;
-	relationNavigation?: UserRelationNavigation;
-	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
-};
-
-type UserRelationNavigation = {
-	getHrefBase: (managementKey: "user-management" | "role-management" | "team-management") => string | null;
-	onRelationLinkClick: (event: MouseEvent<HTMLAnchorElement>, request: {
-		targetManagementKey: "user-management" | "role-management" | "team-management";
-		hrefBase: string;
-		relationFilters: unknown;
-		relationContext?: string;
-	}) => void;
-	onOpenSummary: (request: {
-		type: "user" | "role";
-		id: string;
-		fallbackTitle: string;
-		fallbackDescription?: string;
-		fallbackMeta?: Array<{ label: string, value: string }>;
-	}) => void;
-};
-
-function renderUserRelationValue({
-	relation,
-	relationId,
-	filterColumn,
-	relationType,
-	relationLabel,
-	relationNavigation,
-	fallbackValue
-}: {
-	relation: { name: string, email?: string, stagedUserId?: string | null } | null;
-	relationId: string | null;
-	filterColumn: FilterColumn;
-	relationType: "user" | "role";
-	relationLabel: string;
-	relationNavigation?: UserRelationNavigation;
-	fallbackValue?: string;
-}): ReactNode {
-	const displayValue = relation?.name ?? relation?.email ?? fallbackValue ?? "-";
-	const normalizedValue = displayValue.trim();
-	if(relationId == null || normalizedValue.length == 0 || normalizedValue == "-")
-		return displayValue;
-
-	const targetManagementKey = relationType == "role" ? "role-management" : "user-management";
-	const hrefBase = relationNavigation?.getHrefBase(targetManagementKey);
-	if(hrefBase != null && relationNavigation != null) {
-		const relationFilterId = relationType == "role" ? relationId : relation?.stagedUserId ?? null;
-		if(relationFilterId == null || relationFilterId.trim().length == 0)
-			return displayValue;
-
-		const filters: FilterInput[] = [{ column: "id", operator: "equals", value: relationFilterId }];
-		const searchParams = new URLSearchParams();
-		searchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(filters));
-		searchParams.set("relationContext", `user-management:${filterColumn}`);
-		const href = `${hrefBase}?${searchParams.toString()}`;
-		return (
-			<Link
-				href={href}
-				onClick={event => {
-					if(event.altKey) {
-						event.preventDefault();
-						relationNavigation.onOpenSummary({
-							type: relationType,
-							id: relationId,
-							fallbackTitle: displayValue,
-							fallbackDescription: relationLabel
-						});
-						return;
-					}
-					relationNavigation.onRelationLinkClick(event, {
-						targetManagementKey,
-						hrefBase,
-						relationFilters: filters,
-						relationContext: `user-management:${filterColumn}`
-					});
-				}}
-				className="text-primary underline underline-offset-2 hover:opacity-80"
-			>
-				{displayValue}
-			</Link>
-		);
-	}
-
-	if(relationNavigation == null)
-		return displayValue;
-
-	return (
-		<Button
-			type="button"
-			variant="link"
-			onClick={() => relationNavigation.onOpenSummary({
-				type: relationType,
-				id: relationId,
-				fallbackTitle: displayValue,
-				fallbackDescription: relationLabel
-			})}
-			className="h-auto p-0 text-primary select-auto"
-		>
-			{displayValue}
-		</Button>
-	);
-}
-
-type UserRequestHistoryEntry = UserRequestHistory["entries"][number];
-type UserRequestHistoryField = Exclude<keyof UserRequestHistoryEntry, "versionId">;
-type UserRequestHistoryRelationValues = UserRequestHistory["relations"];
-type UserRequestReviewDiffField = Exclude<keyof UserRequestReviewDiff, "requestId" | "requestType" | "relations">;
-
-const userRequestReviewDiffFields: UserRequestReviewDiffField[] = [
-	"email",
-	"name",
-	"employeeId",
-	"role",
-	"supervisor",
-	"deletedAt",
-	"initialPassword"
-];
-
-const userRequestReviewDiffFieldLabelMap: Record<UserRequestReviewDiffField, string> = {
-	email: "Email",
-	name: "Name",
-	employeeId: "Employee ID",
-	role: "Role",
-	supervisor: "Supervisor",
-	deletedAt: "Deleted At",
-	initialPassword: "Initial Password"
-};
-
-const userRequestHistoryFields: UserRequestHistoryField[] = [
-	"id",
-	"name",
-	"email",
-	"employeeId",
-	"role",
-	"supervisor",
-	"createdBy",
-	"updatedBy",
-	"deletedBy",
-	"createdAt",
-	"updatedAt",
-	"deletedAt",
-	"requestType",
-	"status",
-	"reviewedAt",
-	"reviewedBy",
-	"reviewApproved",
-	"reviewComment"
-];
-
-const userRequestHistoryFieldLabelMap: Record<UserRequestHistoryField, string> = {
-	id: "ID",
-	name: "Name",
-	email: "Email",
-	employeeId: "Employee ID",
-	role: "Role",
-	supervisor: "Supervisor",
-	createdBy: "Created By",
-	updatedBy: "Updated By",
-	deletedBy: "Deleted By",
-	createdAt: "Created At",
-	updatedAt: "Updated At",
-	deletedAt: "Deleted At",
-	requestType: "Request",
-	status: "Status",
-	reviewedAt: "Reviewed At",
-	reviewedBy: "Reviewed By",
-	reviewApproved: "Review Approved",
-	reviewComment: "Review Comment"
-};
-
-function renderUserRequestHistoryValue(
-	field: UserRequestHistoryField,
-	value: any,
-	relations: UserRequestHistoryRelationValues,
-	relationNavigation?: UserRelationNavigation
+export function RevertApprovedDialog(
+	{ open, onOpenChange, onConfirm, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
 ) {
-	switch(field) {
-		case "reviewComment":
-			return <ReviewCommentPreview serializedState={value} className="w-full" contentClassName="min-h-9 max-h-44" />;
-		case "reviewApproved":
-			return value == null ? "-" : value as boolean ? "True" : "False";
-		case "status": {
-			if(value == null || String(value).length == 0)
-				return "-";
-			const normalizedStatus = String(value).toLowerCase();
-			if(normalizedStatus == "pending")
-				return <Badge variant="secondary">Pending</Badge>;
-			if(normalizedStatus == "approved")
-				return <Badge variant="default">Approved</Badge>;
-			if(normalizedStatus == "rejected")
-				return <Badge variant="destructive">Rejected</Badge>;
-			return <Badge variant="outline">{String(value)}</Badge>;
-		}
-		case "createdAt":
-		case "updatedAt":
-		case "deletedAt":
-		case "reviewedAt":
-			return formatDateTime(value);
-		case "role":
-			return renderUserRelationValue({
-				relation: value == null ? null : relations[`roles:${value}`] ?? null,
-				relationId: value ?? null,
-				filterColumn: "role",
-				relationType: "role",
-				relationLabel: "Role entry",
-				relationNavigation,
-				fallbackValue: value == null ? "-" : String(value)
-			});
-		case "supervisor":
-			return renderUserRelationValue({
-				relation: value == null ? null : relations[`users:${value}`] ?? null,
-				relationId: value ?? null,
-				filterColumn: "supervisor",
-				relationType: "user",
-				relationLabel: "Supervisor user",
-				relationNavigation,
-				fallbackValue: value == null ? "-" : String(value)
-			});
-		case "createdBy":
-			return renderUserRelationValue({
-				relation: value == null ? null : relations[`users:${value}`] ?? null,
-				relationId: value ?? null,
-				filterColumn: "createdBy",
-				relationType: "user",
-				relationLabel: "Created by user",
-				relationNavigation,
-				fallbackValue: value == null ? "-" : String(value)
-			});
-		case "updatedBy":
-			return renderUserRelationValue({
-				relation: value == null ? null : relations[`users:${value}`] ?? null,
-				relationId: value ?? null,
-				filterColumn: "updatedBy",
-				relationType: "user",
-				relationLabel: "Updated by user",
-				relationNavigation,
-				fallbackValue: value == null ? "-" : String(value)
-			});
-		case "deletedBy":
-			return renderUserRelationValue({
-				relation: value == null ? null : relations[`users:${value}`] ?? null,
-				relationId: value ?? null,
-				filterColumn: "deletedBy",
-				relationType: "user",
-				relationLabel: "Deleted by user",
-				relationNavigation,
-				fallbackValue: value == null ? "-" : String(value)
-			});
-		case "reviewedBy":
-			return renderUserRelationValue({
-				relation: value == null ? null : relations[`users:${value}`] ?? null,
-				relationId: value ?? null,
-				filterColumn: "reviewedBy",
-				relationType: "user",
-				relationLabel: "Reviewed by user",
-				relationNavigation,
-				fallbackValue: value == null ? "-" : String(value)
-			});
-		default:
-			return value == null || String(value).length == 0 ? "-" : String(value);
-	}
-}
-
-function renderUserRequestReviewDiffValue(
-	field: UserRequestReviewDiffField,
-	value: string | null,
-	relations: UserRequestReviewDiff["relations"],
-	relationNavigation?: UserRelationNavigation
-) {
-	switch(field) {
-		case "role":
-			return renderUserRelationValue({
-				relation: value == null ? null : relations[`roles:${value}`] ?? null,
-				relationId: value,
-				filterColumn: "role",
-				relationType: "role",
-				relationLabel: "Role entry",
-				relationNavigation,
-				fallbackValue: value ?? "-"
-			});
-		case "supervisor":
-			return renderUserRelationValue({
-				relation: value == null ? null : relations[`users:${value}`] ?? null,
-				relationId: value,
-				filterColumn: "supervisor",
-				relationType: "user",
-				relationLabel: "Supervisor user",
-				relationNavigation,
-				fallbackValue: value ?? "-"
-			});
-		case "deletedAt":
-			return formatDateTime(value);
-		default:
-			return value == null || value.length == 0 ? "-" : value;
-	}
-}
-
-export function UserRequestDetailsDrawer({
-	open,
-	onOpenChange,
-	row,
-	renderActions,
-	relationNavigation,
-	onOpenRequestChanges
-}: UserRequestDetailsDrawerProps) {
-	const [historyOpen, setHistoryOpen] = useState(false);
-
-	useEffect(() => {
-		if(!open)
-			setHistoryOpen(false);
-	}, [open]);
-
-	const detailsQuery = useQuery({
-		queryKey: ["user-management", "details", row?.id ?? null],
-		enabled: open && row != null,
-		queryFn: () => userActions.getStagedUserRequestDetailsAction(row!.id),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const historyAccessQuery = useQuery({
-		queryKey: ["user-management", "history-access"],
-		queryFn: () => userActions.canAccessStagedUserRequestHistoryAction(),
-		staleTime: 60_000,
-		refetchOnWindowFocus: true
-	});
-
-	const canAccessHistory = historyAccessQuery.data == true;
-
-	const historyQuery = useQuery({
-		queryKey: ["user-management", "history", row?.id ?? null],
-		enabled: historyOpen && row != null && canAccessHistory,
-		queryFn: () => userActions.getStagedUserRequestHistoryAction(row!.id),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	const details = detailsQuery.data;
-	const actionRow = details?.row ?? row;
-
-	const renderDetailColumnValue = (columnId: UserTableColumnId, value: ReactNode) => {
-		return <div className={cn(getUserDrawerValueClassName(columnId), "wrap-break-word")}>{value}</div>;
-	};
-
-	const renderDetailValue = (columnId: UserTableColumnId, data: userActions.UserRequestDetailsOutput) => {
-		switch(columnId) {
-			case "id":
-				return renderDetailColumnValue(columnId, data.row.id);
-			case "name":
-				return renderDetailColumnValue(columnId, data.row.name);
-			case "email":
-				return renderDetailColumnValue(columnId, data.row.email);
-			case "employeeId":
-				return renderDetailColumnValue(columnId, data.row.employeeId);
-			case "role":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.role == null ? null : data.relations[`roles:${data.row.role}`] ?? null, relationId: data.row.role, filterColumn: "role", relationType: "role", relationLabel: "Role entry", relationNavigation, fallbackValue: data.row.role ?? "-" }));
-			case "supervisor":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.supervisor == null ? null : data.relations[`users:${data.row.supervisor}`] ?? null, relationId: data.row.supervisor, filterColumn: "supervisor", relationType: "user", relationLabel: "Supervisor user", relationNavigation }));
-			case "createdBy":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.createdBy == null ? null : data.relations[`users:${data.row.createdBy}`] ?? null, relationId: data.row.createdBy, filterColumn: "createdBy", relationType: "user", relationLabel: "Created by user", relationNavigation }));
-			case "updatedBy":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.updatedBy == null ? null : data.relations[`users:${data.row.updatedBy}`] ?? null, relationId: data.row.updatedBy, filterColumn: "updatedBy", relationType: "user", relationLabel: "Updated by user", relationNavigation }));
-			case "deletedBy":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.deletedBy == null ? null : data.relations[`users:${data.row.deletedBy}`] ?? null, relationId: data.row.deletedBy, filterColumn: "deletedBy", relationType: "user", relationLabel: "Deleted by user", relationNavigation }));
-			case "createdAt":
-				return renderDetailColumnValue(columnId, formatDateTime(data.row.createdAt));
-			case "updatedAt":
-				return renderDetailColumnValue(columnId, formatDateTime(data.row.updatedAt));
-			case "deletedAt":
-				return renderDetailColumnValue(columnId, formatDateTime(data.row.deletedAt));
-			case "requestType":
-				return renderDetailColumnValue(columnId, renderRequestTypeTrigger({ row: data.row, onOpenRequestChanges, className: "text-left whitespace-normal" }));
-			case "status": {
-				const status = getReviewStatus(data.row);
-				return <Badge variant={status.variant}>{status.label}</Badge>;
-			}
-			case "reviewedAt":
-				return renderDetailColumnValue(columnId, formatDateTime(data.row.reviewedAt));
-			case "reviewedBy":
-				return renderDetailColumnValue(columnId, renderUserRelationValue({ relation: data.row.reviewedBy == null ? null : data.relations[`users:${data.row.reviewedBy}`] ?? null, relationId: data.row.reviewedBy, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation }));
-			case "reviewApproved":
-				return renderDetailColumnValue(columnId, data.row.reviewApproved == null ? "-" : data.row.reviewApproved ? "True" : "False");
-			case "reviewComment":
-				return renderDetailColumnValue(columnId, <ReviewCommentPreview serializedState={data.row.reviewComment ?? undefined} className="w-full bg-transparent shadow-none border-none rounded-none" contentClassName="min-h-5 max-h-44 p-0" placeholderClassName="p-0" />);
-			default:
-				return renderDetailColumnValue(columnId, "-");
-		}
-	};
-
 	return (
-		<>
-			<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-					<DrawerHeader>
-						<DrawerTitle>User Request Details</DrawerTitle>
-						<DrawerDescription>Review all available columns for this staged user request entry.</DrawerDescription>
-					</DrawerHeader>
-					<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
-						{row == null ? (
-							<p className="text-muted-foreground text-sm">No staged user request selected.</p>
-						) : detailsQuery.isPending ? (
-							<div className="space-y-2">
-								<Skeleton className="h-20 w-full" />
-								<Skeleton className="h-20 w-full" />
-								<Skeleton className="h-20 w-full" />
-							</div>
-						) : detailsQuery.isError || details == null ? (
-							<Alert variant="destructive">
-								<CircleAlertIcon />
-								<AlertTitle>Error</AlertTitle>
-								<AlertDescription>Unable to load staged user request details.</AlertDescription>
-							</Alert>
-						) : (
-							userTableColumns.map(column => (
-								<div key={`${details.row.id}-details-${column.id}`} className="space-y-1 rounded-lg border p-3">
-									<p className="text-muted-foreground text-xs font-medium">{column.label}</p>
-									{renderDetailValue(column.id, details)}
-								</div>
-							))
-						)}
-					</div>
-					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
-						<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-						{!historyAccessQuery.isPending && canAccessHistory ? (
-							<Button type="button" variant="secondary" onClick={() => setHistoryOpen(true)} disabled={row == null}><HistoryIcon />History</Button>
-						) : null}
-						{actionRow != null ? (
-							renderActions(actionRow)
-						) : null}
-					</DrawerFooter>
-				</DrawerContent>
-			</Drawer>
-
-			<Drawer open={historyOpen} onOpenChange={setHistoryOpen} direction="right">
-				<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
-					<DrawerHeader>
-						<DrawerTitle>User Request History</DrawerTitle>
-						<DrawerDescription>Changes are shown from the most recent version to the earliest version.</DrawerDescription>
-					</DrawerHeader>
-					<div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
-						{row == null ? (
-							<p className="text-muted-foreground text-sm">No staged user request selected.</p>
-						) : historyAccessQuery.isPending ? (
-							<div className="space-y-2">
-								<Skeleton className="h-28 w-full" />
-								<Skeleton className="h-28 w-full" />
-							</div>
-						) : !canAccessHistory ? (
-							<Alert variant="destructive">
-								<CircleAlertIcon />
-								<AlertTitle>Unauthorized</AlertTitle>
-								<AlertDescription>You need User Management auditor access to view history.</AlertDescription>
-							</Alert>
-						) : historyQuery.isPending ? (
-							<div className="space-y-2">
-								<Skeleton className="h-28 w-full" />
-								<Skeleton className="h-28 w-full" />
-							</div>
-						) : historyQuery.isError || historyQuery.data == null ? (
-							<Alert variant="destructive">
-								<CircleAlertIcon />
-								<AlertTitle>Error</AlertTitle>
-								<AlertDescription>Unable to load staged user request history.</AlertDescription>
-							</Alert>
-						) : historyQuery.data.entries.length == 0 ? (
-							<p className="text-muted-foreground text-sm">No history entries found for this staged user request.</p>
-						) : (
-							historyQuery.data.entries.map((entry, entryIndex, historyEntries) => {
-								const previousEntry = historyEntries[entryIndex + 1] ?? null;
-								const changes = userRequestHistoryFields.flatMap(field => {
-									const nextValue = entry[field];
-									const previousValue = previousEntry?.[field] ?? null;
-									if(JSON.stringify(nextValue) == JSON.stringify(previousValue))
-										return [];
-									return [{
-										field,
-										label: userRequestHistoryFieldLabelMap[field],
-										previousValue,
-										nextValue
-									}];
-								});
-
-								return (
-									<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
-										<div className="flex items-center justify-between gap-2">
-											<p className="text-sm font-semibold">{formatDateTime(entry.updatedAt)}</p>
-											<Badge variant="outline">{changes.length} change(s)</Badge>
-										</div>
-										<div className="space-y-1">
-											{changes.length == 0 ? (
-												<p className="text-muted-foreground text-xs">No field changes detected.</p>
-											) : changes.map(change => (
-												<div key={`${entry.versionId}-${change.field}`} className="space-y-0.5 rounded-md border p-2 text-xs">
-													<div className="font-medium">{change.label}</div>
-													<div className="text-muted-foreground">From: {renderUserRequestHistoryValue(change.field, change.previousValue, historyQuery.data.relations, relationNavigation)}</div>
-													<div>To: {renderUserRequestHistoryValue(change.field, change.nextValue, historyQuery.data.relations, relationNavigation)}</div>
-												</div>
-											))}
-										</div>
-									</div>
-								);
-							})
-						)}
-					</div>
-					<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
-						<Button type="button" variant="outline" onClick={() => setHistoryOpen(false)}>Close</Button>
-					</DrawerFooter>
-				</DrawerContent>
-			</Drawer>
-		</>
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Revert Approved</AlertDialogTitle>
+					<AlertDialogDescription>
+						This will revert the data to the last approved version.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Revert Approved</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
 	);
 }
 
-type UseUserCellRendererOptions = {
-	relations: userActions.StagedUserRelationValues;
-	relationNavigation?: UserRelationNavigation;
-	onOpenRequestChanges?: (row: StagedUserTableRow) => void;
-};
-
-export function useUserCellRenderer({ relations, relationNavigation, onOpenRequestChanges }: UseUserCellRendererOptions) {
-	return useCallback((columnId: UserTableColumnId, row: StagedUserTableRow) => {
-		switch(columnId) {
-			case "id":
-				return row.id;
-			case "name":
-				return row.name;
-			case "email":
-				return row.email;
-			case "employeeId":
-				return row.employeeId;
-			case "role":
-				return renderUserRelationValue({ relation: row.role == null ? null : relations[`roles:${row.role}`] ?? null, relationId: row.role, filterColumn: "role", relationType: "role", relationLabel: "Role entry", relationNavigation, fallbackValue: row.role ?? "-" });
-			case "supervisor":
-				return renderUserRelationValue({ relation: row.supervisor == null ? null : relations[`users:${row.supervisor}`] ?? null, relationId: row.supervisor, filterColumn: "supervisor", relationType: "user", relationLabel: "Supervisor user", relationNavigation });
-			case "createdBy":
-				return renderUserRelationValue({ relation: row.createdBy == null ? null : relations[`users:${row.createdBy}`] ?? null, relationId: row.createdBy, filterColumn: "createdBy", relationType: "user", relationLabel: "Created by user", relationNavigation });
-			case "updatedBy":
-				return renderUserRelationValue({ relation: row.updatedBy == null ? null : relations[`users:${row.updatedBy}`] ?? null, relationId: row.updatedBy, filterColumn: "updatedBy", relationType: "user", relationLabel: "Updated by user", relationNavigation });
-			case "deletedBy":
-				return renderUserRelationValue({ relation: row.deletedBy == null ? null : relations[`users:${row.deletedBy}`] ?? null, relationId: row.deletedBy, filterColumn: "deletedBy", relationType: "user", relationLabel: "Deleted by user", relationNavigation });
-			case "createdAt":
-				return formatDateTime(row.createdAt);
-			case "updatedAt":
-				return formatDateTime(row.updatedAt);
-			case "deletedAt":
-				return formatDateTime(row.deletedAt);
-			case "requestType":
-				return renderRequestTypeTrigger({ row, onOpenRequestChanges, className: "text-left whitespace-normal" });
-			case "status": {
-				const status = getReviewStatus(row);
-				return <Badge variant={status.variant}>{status.label}</Badge>;
-			}
-			case "reviewedAt":
-				return formatDateTime(row.reviewedAt);
-			case "reviewedBy":
-				return renderUserRelationValue({ relation: row.reviewedBy == null ? null : relations[`users:${row.reviewedBy}`] ?? null, relationId: row.reviewedBy, filterColumn: "reviewedBy", relationType: "user", relationLabel: "Reviewed by user", relationNavigation });
-			case "reviewApproved":
-				return row.reviewApproved == null ? "-" : row.reviewApproved ? "True" : "False";
-			case "reviewComment":
-				return <ReviewCommentPreview serializedState={row.reviewComment ?? undefined} className="bg-transparent shadow-none border-none rounded-none" contentClassName="line-clamp-2 min-h-5 max-h-28 p-0" placeholderClassName="p-0" />;
-			default:
-				return "-";
-		}
-	}, [onOpenRequestChanges, relationNavigation, relations]);
-}
-
-export function useUserColumnPreferences() {
-	const [isColumnOpen, setIsColumnOpen] = useState(false);
-	const [columnOrder, setColumnOrder] = useState<UserTableColumnId[]>(defaultUserColumnOrder);
-	const [hiddenColumnIds, setHiddenColumnIds] = useState<UserTableColumnId[]>(defaultUserHiddenColumns);
-	const [draggedColumnId, setDraggedColumnId] = useState<UserTableColumnId | null>(null);
-
-	const columnById = useMemo(() => Object.fromEntries(
-		userTableColumns.map(column => [column.id, column])
-	) as Record<UserTableColumnId, UserTableColumnConfig>, []);
-
-	const orderedColumns = useMemo(() => {
-		const normalizedOrder = [
-			...columnOrder.filter(columnId => columnById[columnId] != null),
-			...defaultUserColumnOrder.filter(columnId => !columnOrder.includes(columnId))
-		];
-		return normalizedOrder.map(columnId => columnById[columnId]);
-	}, [columnById, columnOrder]);
-
-	const visibleColumns = useMemo(() => (
-		orderedColumns.filter(column => !hiddenColumnIds.includes(column.id))
-	), [hiddenColumnIds, orderedColumns]);
-
-	useEffect(() => {
-		if(typeof window == "undefined")
-			return;
-		const rawPreferences = window.localStorage.getItem(USER_COLUMN_PREFERENCES_KEY);
-		if(rawPreferences == null)
-			return;
-
-		try {
-			const parsed = JSON.parse(rawPreferences) as { order?: unknown, hidden?: unknown };
-			const parsedOrder = Array.isArray(parsed.order) ? parsed.order.filter((value): value is UserTableColumnId =>
-				typeof value == "string" && defaultUserColumnOrder.includes(value as UserTableColumnId)
-			) : [];
-			const deduplicatedOrder = parsedOrder.filter((columnId, index) => parsedOrder.indexOf(columnId) == index);
-			setColumnOrder([
-				...deduplicatedOrder,
-				...defaultUserColumnOrder.filter(columnId => !deduplicatedOrder.includes(columnId))
-			]);
-
-			const parsedHidden = Array.isArray(parsed.hidden) ? parsed.hidden.filter((value): value is UserTableColumnId =>
-				typeof value == "string" && defaultUserColumnOrder.includes(value as UserTableColumnId)
-			) : [];
-			const deduplicatedHidden = parsedHidden.filter((columnId, index) => parsedHidden.indexOf(columnId) == index);
-			setHiddenColumnIds(deduplicatedHidden.slice(0, Math.max(defaultUserColumnOrder.length - 1, 0)));
-		} catch{
-			setColumnOrder(defaultUserColumnOrder);
-			setHiddenColumnIds(defaultUserHiddenColumns);
-		}
-	}, []);
-
-	useEffect(() => {
-		if(typeof window == "undefined")
-			return;
-		window.localStorage.setItem(USER_COLUMN_PREFERENCES_KEY, JSON.stringify({
-			order: columnOrder,
-			hidden: hiddenColumnIds
-		}));
-	}, [columnOrder, hiddenColumnIds]);
-
-	const toggleColumnVisibility = (columnId: UserTableColumnId, checked: boolean) => {
-		setHiddenColumnIds(previous => {
-			const isHidden = previous.includes(columnId);
-			if(checked)
-				return isHidden ? previous.filter(value => value != columnId) : previous;
-			if(isHidden)
-				return previous;
-			const visibleCount = userTableColumns.length - previous.length;
-			if(visibleCount <= 1)
-				return previous;
-			return [...previous, columnId];
-		});
-	};
-
-	const resetColumnPreferences = () => {
-		setColumnOrder(defaultUserColumnOrder);
-		setHiddenColumnIds(defaultUserHiddenColumns);
-	};
-
-	const handleColumnDragStart = (columnId: UserTableColumnId) => {
-		setDraggedColumnId(columnId);
-	};
-
-	const handleColumnDragOver = (event: DragEvent<HTMLDivElement>, targetColumnId: UserTableColumnId) => {
-		event.preventDefault();
-		if(draggedColumnId == null || draggedColumnId == targetColumnId)
-			return;
-		setColumnOrder(previous => reorderColumns(previous, draggedColumnId, targetColumnId));
-	};
-
-	const handleColumnDragEnd = () => {
-		setDraggedColumnId(null);
-	};
-
-	return {
-		isColumnOpen,
-		setIsColumnOpen,
-		orderedColumns,
-		visibleColumns,
-		hiddenColumnIds,
-		toggleColumnVisibility,
-		resetColumnPreferences,
-		handleColumnDragStart,
-		handleColumnDragOver,
-		handleColumnDragEnd
-	};
-}
-
-export function useUserFilterColumnConfig() {
-	const searchUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
-		const stagedUsers = await userActions.searchUserOptionsAction(keyword, selectedValues);
-		return dedupeSelectOptions(stagedUsers.map(stagedUser => ({
-			value: stagedUser.id,
-			label: `${stagedUser.name} (${stagedUser.id})`,
-			renderLabel: <span>{stagedUser.name} (<span className="font-mono">{stagedUser.id}</span>)</span>,
-			keywords: `${stagedUser.id} ${stagedUser.name} ${stagedUser.email} ${stagedUser.employeeId}`
-		})));
-	}, []);
-
-	const searchRoleOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
-		const roles = await userActions.searchUserRoleOptionsAction(keyword, selectedValues);
-		return roles.map(role => ({
-			value: role.id,
-			label: role.name,
-			keywords: `${role.name} ${role.level}`
-		}));
-	}, []);
-
-	const searchSupervisorUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
-		const supervisors = await userActions.searchUserSupervisorUserOptionsAction(keyword, selectedValues);
-		return dedupeSelectOptions(supervisors.map(supervisor => ({
-			value: supervisor.id,
-			label: `${supervisor.name} (${supervisor.email})`,
-			keywords: `${supervisor.name} ${supervisor.email}`
-		})));
-	}, []);
-
-	const searchAuditUserOptions = useCallback(async (keyword: string, selectedValues: string[]): Promise<SearchableSelectOption[]> => {
-		const reviewers = await userActions.searchUserAuditUserOptionsAction(keyword, selectedValues);
-		return dedupeSelectOptions(reviewers.map(reviewer => ({
-			value: reviewer.id,
-			label: `${reviewer.name} (${reviewer.email})`,
-			keywords: `${reviewer.name} ${reviewer.email}`
-		})));
-	}, []);
-
-	const getResolvedFilterColumnConfig = useCallback((column: FilterColumn): FilterColumnOption => (
-		getResolvedUserFilterColumnConfig(column, [], [], [], [], searchUserOptions, searchRoleOptions, searchSupervisorUserOptions, searchAuditUserOptions)
-	), [searchAuditUserOptions, searchRoleOptions, searchSupervisorUserOptions, searchUserOptions]);
-
-	return {
-		searchRoleOptions,
-		searchSupervisorUserOptions,
-		getResolvedFilterColumnConfig
-	};
-}
-
-type UseUserManagementQueryStateOptions = {
-	debounceMs?: number;
-	defaultSortField?: SortField;
-	defaultSortDirection?: SortDirection;
-};
-
-export function useUserManagementQueryState({
-	debounceMs = 250,
-	defaultSortField = "updatedAt",
-	defaultSortDirection = "desc"
-}: UseUserManagementQueryStateOptions = {}) {
-	const [keyword, setKeyword] = useState("");
-	const [debouncedKeyword, setDebouncedKeyword] = useState("");
-	const [sortState, setSortState] = useState<Array<{ field: SortField, direction: SortDirection }>>([
-		{ field: defaultSortField, direction: defaultSortDirection }
-	]);
-
-	const sortTokens = useMemo(() => (
-		sortState.map(sortItem => `${sortItem.direction == "desc" ? "-" : "+"}${sortItem.field}`)
-	), [sortState]);
-
-	useEffect(() => {
-		const timeout = window.setTimeout(() => {
-			setDebouncedKeyword(keyword.trim());
-		}, debounceMs);
-		return () => {
-			window.clearTimeout(timeout);
-		};
-	}, [debounceMs, keyword]);
-
-	const getSortDirection = (field: SortField): SortDirection | null => {
-		const activeSort = sortState.find(sortItem => sortItem.field == field);
-		return activeSort?.direction ?? null;
-	};
-
-	const toggleSortField = (field: SortField) => {
-		setSortState(previous => {
-			const current = previous.find(sortItem => sortItem.field == field);
-			if(current == null)
-				return [{ field, direction: "asc" }];
-			if(current.direction == "asc")
-				return [{ field, direction: "desc" }];
-			return [];
-		});
-	};
-
-	return {
-		keyword,
-		setKeyword,
-		debouncedKeyword,
-		sortTokens,
-		getSortDirection,
-		toggleSortField
-	};
-}
-
-type UseUserRequestFiltersOptions = {
-	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption;
-};
-
-export type UseUserRequestFiltersResult = {
-	isFilterOpen: boolean;
-	isFilterStateReady: boolean;
-	setIsFilterOpen: (open: boolean) => void;
-	toggleFilterPanel: () => void;
-	clearFilter: () => void;
-	appliedFilters: FilterInput[];
-	filterSummaryItems: FilterSummaryItem[];
-	filters: FilterCondition[];
-	updateFilterJoinWithPrevious: (filterIndex: number, combinator: FilterCombinator) => void;
-	updateFilter: (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => void;
-	handleFilterColumnChange: (filterIndex: number, column: FilterColumn) => void;
-	handleFilterOperatorChange: (filterIndex: number, operator: FilterColumnOption["operators"][number]) => void;
-	addFilter: () => void;
-	removeFilter: (filterIndex: number) => void;
-	addFilterListValue: (filterIndex: number) => void;
-	updateFilterListValue: (filterIndex: number, valueIndex: number, nextValue: string) => void;
-	removeFilterListValue: (filterIndex: number, valueIndex: number) => void;
-};
-
-function mapAppliedFilterToCondition(
-	filter: FilterInput,
-	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption
-): FilterCondition {
-	const columnConfig = getResolvedFilterColumnConfig(filter.column);
-	const values = Array.isArray(filter.value) ? filter.value.map(value => {
-		if(columnConfig.valueType != "date")
-			return String(value);
-		const parsed = parseFilterDateValue(String(value));
-		return parsed == null ? String(value) : formatFilterDateInput(parsed);
-	}) : [];
-	const parsedDate = !Array.isArray(filter.value) && columnConfig.valueType == "date" && typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null;
-
-	return {
-		column: filter.column,
-		operator: filter.operator,
-		joinWithPrevious: filter.joinWithPrevious ?? defaultFilterCombinator,
-		value: Array.isArray(filter.value) || filter.value == null ? "" : String(filter.value),
-		values,
-		existsValue: filter.value == false ? "false" : "true",
-		dateValue: parsedDate,
-		listDateValue: null,
-		dateText: formatFilterDateOnlyInput(parsedDate),
-		listDateText: ""
-	};
-}
-
-function createFilterConditionsFromAppliedFilters(
-	appliedFilters: FilterInput[],
-	getResolvedFilterColumnConfig: (column: FilterColumn) => FilterColumnOption
-): FilterCondition[] {
-	if(appliedFilters.length == 0)
-		return [];
-
-	return appliedFilters.map(filter => mapAppliedFilterToCondition(filter, getResolvedFilterColumnConfig));
-}
-
-declare global {
-	interface Window {
-		__userDashboardFilters?: string;
-	}
-}
-
-export function useUserRequestFilters({ getResolvedFilterColumnConfig }: UseUserRequestFiltersOptions): UseUserRequestFiltersResult {
-	const pathname = usePathname();
-	const router = useRouter();
-	const searchParams = useSearchParams();
-	const searchParamsKey = searchParams.toString();
-	const [isFilterOpen, setIsFilterOpen] = useState(false);
-	const [filters, setFilters0] = useState<FilterCondition[]>([]);
-	const setFilters = useCallback((v: FilterCondition[] | ((o: FilterCondition[]) => FilterCondition[])) => {
-		if(typeof v != "function") {
-			window.__userDashboardFilters = JSON.stringify(v);
-			setFilters0(v);
-			return;
-		}
-		setFilters0(o => {
-			const n = v(o);
-			window.__userDashboardFilters = JSON.stringify(n);
-			return n;
-		});
-	}, [setFilters0]);
-	const [isFilterStateHydrated, setIsFilterStateHydrated] = useState(false);
-
-	useEffect(() => {
-		const nextSearchParams = new URLSearchParams(searchParamsKey);
-		const pendingNavigation = consumePendingRelationFilterNavigation("user-management");
-		const relationFilters = pendingNavigation?.relationFiltersJson ?? nextSearchParams.get(RELATION_FILTER_QUERY_PARAM) ?? window.__userDashboardFilters ?? null;
-		if(relationFilters != null) {
-			try {
-				const parsed = JSON.parse(relationFilters) as unknown;
-				const parsedFilters = Array.isArray(parsed) ? parsed.filter((filter): filter is FilterInput => (
-					filter != null &&
-					typeof filter == "object" &&
-					typeof (filter as { column?: unknown }).column == "string" &&
-					typeof (filter as { operator?: unknown }).operator == "string"
-				)) : [];
-				const restoredFilters = createFilterConditionsFromAppliedFilters(parsedFilters, getResolvedFilterColumnConfig);
-				setFilters(restoredFilters);
-				if(restoredFilters.length > 0)
-					setIsFilterOpen(true);
-				setIsFilterStateHydrated(true);
-				return;
-			} catch{
-				setFilters([]);
-				setIsFilterOpen(false);
-				setIsFilterStateHydrated(true);
-				return;
-			}
-		}
-
-		setFilters([]);
-		setIsFilterOpen(false);
-		setIsFilterStateHydrated(true);
-	}, [getResolvedFilterColumnConfig, searchParamsKey]);
-
-	const normalizeFilterItemValue = (columnConfig: FilterColumnOption, rawValue: string): string | boolean | null => {
-		if(columnConfig.valueType == "boolean")
-			return rawValue == "true" ? true : rawValue == "false" ? false : null;
-		if(columnConfig.valueType == "date") {
-			const dateValue = parseFilterDateValue(rawValue);
-			return dateValue == null ? null : dateValue.toISOString();
-		}
-		const trimmed = rawValue.trim();
-		return trimmed.length > 0 ? trimmed : null;
-	};
-
-	const createFilterListValue = (columnConfig: FilterColumnOption): string => {
-		if(columnConfig.valueType == "boolean")
-			return "true";
-		if(columnConfig.valueType == "select")
-			return columnConfig.selectOptions?.[0]?.value ?? "";
-		if(columnConfig.valueType == "date")
-			return "";
-		return "";
-	};
-
-	const buildFilterPayload = (filterCondition: FilterCondition): FilterInput | null => {
-		const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
-		if(filterCondition.operator == "exists") {
-			return {
-				column: filterCondition.column,
-				operator: filterCondition.operator,
-				value: filterCondition.existsValue == "true"
-			};
-		}
-
-		if(filterCondition.operator == "in" || filterCondition.operator == "not_in") {
-			const values = filterCondition.values
-				.map(value => normalizeFilterItemValue(columnConfig, value))
-				.filter((value): value is string | boolean => value != null);
-			if(values.length == 0)
-				return null;
-			return {
-				column: filterCondition.column,
-				operator: filterCondition.operator,
-				value: values
-			};
-		}
-
-		if(columnConfig.valueType == "date") {
-			if(filterCondition.dateValue == null)
-				return null;
-			return {
-				column: filterCondition.column,
-				operator: filterCondition.operator,
-				value: filterCondition.dateValue.toISOString()
-			};
-		}
-
-		const scalar = normalizeFilterItemValue(columnConfig, filterCondition.value);
-		if(scalar == null)
-			return null;
-
-		return {
-			column: filterCondition.column,
-			operator: filterCondition.operator,
-			value: scalar
-		};
-	};
-
-	const appliedFilters = useMemo(() => {
-		const nextFilters: FilterInput[] = [];
-		for(const filter of filters) {
-			const payload = buildFilterPayload(filter);
-			if(payload == null)
-				continue;
-
-			nextFilters.push({
-				...payload,
-				joinWithPrevious: nextFilters.length == 0 ? undefined : (filter.joinWithPrevious ?? defaultFilterCombinator)
-			});
-		}
-
-		return nextFilters;
-	}, [filters]);
-
-	useEffect(() => {
-		if(!isFilterStateHydrated)
-			return;
-		const currentSearchKey = searchParamsKey;
-		const nextSearchParams = new URLSearchParams(currentSearchKey);
-
-		if(appliedFilters.length > 0)
-			nextSearchParams.set(RELATION_FILTER_QUERY_PARAM, JSON.stringify(appliedFilters));
-		else
-			nextSearchParams.delete(RELATION_FILTER_QUERY_PARAM);
-
-		const nextSearch = nextSearchParams.toString();
-		if(nextSearch == currentSearchKey)
-			return;
-		const nextUrl = `${pathname}${nextSearch.length > 0 ? `?${nextSearch}` : ""}`;
-		const handle = window.setTimeout(() => {
-			router.replace(nextUrl);
-		});
-		return () => {
-			window.clearTimeout(handle);
-		};
-	}, [appliedFilters, isFilterStateHydrated, pathname, router, searchParamsKey]);
-
-	const filterSummaryItems = useMemo(() => (
-		appliedFilters.map((filter, index) => {
-			const columnConfig = getResolvedFilterColumnConfig(filter.column);
-			const operatorLabel = filterOperatorOptions.find(operator => operator.value == filter.operator)?.label ?? filter.operator;
-			const valueLabel = (() => {
-				if(filter.operator == "exists")
-					return filter.value == true ? "true" : "false";
-				if(Array.isArray(filter.value)) {
-					return filter.value.map(value => {
-						if(columnConfig.valueType == "boolean")
-							return value == true ? "True" : "False";
-						if(columnConfig.valueType == "date")
-							return formatFilterDateValue(typeof value == "string" ? parseFilterDateValue(value) : null);
-						if(columnConfig.valueType == "select")
-							return columnConfig.selectOptions?.find(option => option.value == String(value))?.label ?? String(value);
-						return String(value);
-					}).join(", ");
-				}
-				if(columnConfig.valueType == "date")
-					return formatFilterDateValue(typeof filter.value == "string" ? parseFilterDateValue(filter.value) : null);
-				if(columnConfig.valueType == "boolean")
-					return filter.value == true ? "True" : "False";
-				if(columnConfig.valueType == "select")
-					return columnConfig.selectOptions?.find(option => option.value == String(filter.value))?.label ?? String(filter.value ?? "");
-				return String(filter.value ?? "");
-			})();
-
-			return {
-				combinator: index == 0 ? null : (filter.joinWithPrevious ?? defaultFilterCombinator).toUpperCase(),
-				columnLabel: columnConfig.label,
-				operatorLabel,
-				valueLabel
-			};
-		})
-	), [appliedFilters, getResolvedFilterColumnConfig]);
-
-	const toggleFilterPanel = () => {
-		if(isFilterOpen) {
-			setIsFilterOpen(false);
-			return;
-		}
-		setIsFilterOpen(true);
-	};
-
-	const clearFilter = () => {
-		setFilters([]);
-	};
-
-	const updateFilterJoinWithPrevious = (filterIndex: number, combinator: FilterCombinator) => {
-		setFilters(previous => previous.map((filter, index) => index == filterIndex ? { ...filter, joinWithPrevious: combinator } : filter));
-	};
-
-	const updateFilter = (filterIndex: number, updater: (filterCondition: FilterCondition) => FilterCondition) => {
-		setFilters(previous => previous.map((filterCondition, index) => index == filterIndex ? updater(filterCondition) : filterCondition));
-	};
-
-	const handleFilterColumnChange = (filterIndex: number, column: FilterColumn) => {
-		const nextColumnConfig = getResolvedFilterColumnConfig(column);
-		updateFilter(filterIndex, filterCondition => ({
-			...filterCondition,
-			column,
-			operator: nextColumnConfig.operators.includes(filterCondition.operator) ? filterCondition.operator : nextColumnConfig.operators[0],
-			value: "",
-			values: [],
-			dateValue: null,
-			listDateValue: null,
-			existsValue: "true",
-			dateText: "",
-			listDateText: ""
-		}));
-	};
-
-	const handleFilterOperatorChange = (filterIndex: number, operator: FilterColumnOption["operators"][number]) => {
-		updateFilter(filterIndex, filterCondition => ({
-			...filterCondition,
-			operator,
-			value: "",
-			values: [],
-			dateValue: null,
-			listDateValue: null,
-			existsValue: "true",
-			dateText: "",
-			listDateText: ""
-		}));
-	};
-
-	const addFilter = () => {
-		setFilters(previous => [...previous, createFilterCondition(userFilterColumns[0].value)]);
-	};
-
-	const removeFilter = (filterIndex: number) => {
-		setFilters(previous => previous.filter((_, index) => index != filterIndex));
-	};
-
-	const addFilterListValue = (filterIndex: number) => {
-		setFilters(previous => previous.map((filterCondition, index) => {
-			if(index != filterIndex)
-				return filterCondition;
-			if(filterCondition.operator != "in" && filterCondition.operator != "not_in")
-				return filterCondition;
-
-			const columnConfig = getResolvedFilterColumnConfig(filterCondition.column);
-			return {
-				...filterCondition,
-				values: [...filterCondition.values, createFilterListValue(columnConfig)]
-			};
-		}));
-	};
-
-	const updateFilterListValue = (filterIndex: number, valueIndex: number, nextValue: string) => {
-		updateFilter(filterIndex, filterCondition => ({
-			...filterCondition,
-			values: filterCondition.values.map((value, index) => index == valueIndex ? nextValue : value)
-		}));
-	};
-
-	const removeFilterListValue = (filterIndex: number, valueIndex: number) => {
-		updateFilter(filterIndex, filterCondition => ({
-			...filterCondition,
-			values: filterCondition.values.filter((_, index) => index != valueIndex)
-		}));
-	};
-
-	const isFilterStateReady = isFilterStateHydrated;
-
-	return {
-		isFilterOpen,
-		isFilterStateReady,
-		setIsFilterOpen,
-		toggleFilterPanel,
-		clearFilter,
-		appliedFilters,
-		filterSummaryItems,
-		filters,
-		updateFilterJoinWithPrevious,
-		updateFilter,
-		handleFilterColumnChange,
-		handleFilterOperatorChange,
-		addFilter,
-		removeFilter,
-		addFilterListValue,
-		updateFilterListValue,
-		removeFilterListValue
-	};
-}
-
-type UserQueryActionInput = Parameters<typeof import("./layout.actions").queryStagedUsersEditorAction>[0];
-
-type UseUserRequestsQueryOptions = {
-	queryScope: string;
-	queryAction: (input: UserQueryActionInput) => Promise<QueryStagedUsersOutput>;
-	debouncedKeyword: string;
-	sortTokens: string[];
-	appliedFilters: FilterInput[];
-	isFilterStateReady: boolean;
-	includeSoftDeleted: boolean;
-};
-
-export function useUserRequestsQuery({
-	queryScope,
-	queryAction,
-	debouncedKeyword,
-	sortTokens,
-	appliedFilters,
-	isFilterStateReady,
-	includeSoftDeleted
-}: UseUserRequestsQueryOptions) {
-	const [pageIndex, setPageIndex] = useState(1);
-
-	const stagedUsersQuery = useQuery({
-		enabled: isFilterStateReady,
-		queryKey: ["user-management", "staged-users", {
-			queryScope,
-			debouncedKeyword,
-			sortTokens,
-			appliedFilters,
-			pageIndex,
-			includeSoftDeleted
-		}],
-		queryFn: () => queryAction({
-			keyword: debouncedKeyword,
-			sort: sortTokens,
-			filters: appliedFilters,
-			page: pageIndex,
-			limit: PAGE_SIZE,
-			includeSoftDeleted
-		}),
-		refetchInterval: 10000,
-		refetchOnWindowFocus: true
-	});
-
-	useEffect(() => {
-		setPageIndex(1);
-	}, [appliedFilters, debouncedKeyword, includeSoftDeleted, sortTokens]);
-
-	useEffect(() => {
-		if(stagedUsersQuery.data == null || stagedUsersQuery.isFetching)
-			return;
-		if(stagedUsersQuery.data.page != pageIndex)
-			setPageIndex(stagedUsersQuery.data.page);
-	}, [pageIndex, stagedUsersQuery.data, stagedUsersQuery.isFetching]);
-
-	const queryResult = stagedUsersQuery.data ?? emptyQueryResult;
-	const isLoading = !isFilterStateReady || stagedUsersQuery.isPending;
-	const queryErrorMessage = stagedUsersQuery.error instanceof Error ? stagedUsersQuery.error.message : stagedUsersQuery.error != null ? "Failed to load staged users." : null;
-
-	return {
-		pageIndex,
-		setPageIndex,
-		queryResult,
-		isLoading,
-		queryErrorMessage
-	};
+export function RestoreDeletionDialog(
+	{ open, onOpenChange, onConfirm, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Restore Deletion</AlertDialogTitle>
+					<AlertDialogDescription>
+						This will create a new change request to restore the data.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Restore Deletion</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
 }

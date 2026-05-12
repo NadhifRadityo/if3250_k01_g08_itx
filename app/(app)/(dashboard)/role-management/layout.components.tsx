@@ -130,7 +130,12 @@ export function DetailsDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const renderValue = useMenuRowValueRenderer({ columns: drawerValueRendererConfigColumns });
+	const renderValue = useMenuRowValueRenderer({
+		columns: drawerValueRendererConfigColumns,
+		context: {
+			relationValues: query.data?.relations
+		}
+	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
 		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
 	return (
@@ -202,7 +207,12 @@ export function HistoryDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const renderValue = useMenuRowValueRenderer({ columns: drawerValueRendererConfigColumns });
+	const renderValue = useMenuRowValueRenderer({
+		columns: drawerValueRendererConfigColumns,
+		context: {
+			relationValues: query.data?.relations
+		}
+	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
 		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
 	return (
@@ -284,9 +294,14 @@ export function ChangeRequestDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion)])]
-		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey]) != JSON.stringify(query.data.requestedVersion[columnKey])] as const) : null;
-	const renderValue = useMenuRowValueRenderer({ columns: drawerValueRendererConfigColumns });
+	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion ?? {})])]
+		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey])] as const) : null;
+	const renderValue = useMenuRowValueRenderer({
+		columns: drawerValueRendererConfigColumns,
+		context: {
+			relationValues: query.data?.relations
+		}
+	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
 		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
 	return (
@@ -370,9 +385,14 @@ export function ReviewDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion)])]
-		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey]) != JSON.stringify(query.data.requestedVersion[columnKey])] as const) : null;
-	const renderValue = useMenuRowValueRenderer({ columns: drawerValueRendererConfigColumns });
+	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion ?? {})])]
+		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey])] as const) : null;
+	const renderValue = useMenuRowValueRenderer({
+		columns: drawerValueRendererConfigColumns,
+		context: {
+			relationValues: query.data?.relations
+		}
+	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
 		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
 	return (

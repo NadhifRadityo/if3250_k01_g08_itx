@@ -154,10 +154,10 @@ export async function getDifferenceAction(id: string) {
 		},
 		select: {
 			version: {
+				deletedAt: true,
 				name: true,
 				level: true,
-				menus: true,
-				deletedAt: true
+				menus: true
 			}
 		}
 	})).docs[0]?.version;
@@ -179,14 +179,14 @@ export async function getDifferenceAction(id: string) {
 		},
 		select: {
 			version: {
+				deletedAt: true,
 				name: true,
 				level: true,
-				menus: true,
-				deletedAt: true
+				menus: true
 			}
 		}
 	})).docs[0]?.version;
-	const relations = await resolveRelations({ payload, docs: [approvedVersion, requestedVersion] });
+	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
 		approvedVersion: approvedVersion,
