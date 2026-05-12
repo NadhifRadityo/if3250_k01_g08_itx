@@ -104,12 +104,12 @@ import { ScrollBar, ScrollArea } from "./radix/ScrollArea";
 import { Separator } from "./radix/Separator";
 import { TooltipProvider } from "./radix/Tooltip";
 
-export const ReviewCommentInput = ({
+export const RichTextInput = ({
 	initialEditorState,
 	serializedState,
 	onSerializedStateChange,
 	onImageUpload,
-	placeholder = "Provide a review comment",
+	placeholder = "Provide a value",
 	className,
 	children
 }: {
@@ -176,8 +176,8 @@ export const ReviewCommentInput = ({
 			ImagesExtension,
 			DateTimeExtension
 		],
-		name: "review-comment-input",
-		namespace: "review-comment-input",
+		name: "rich-text-input",
+		namespace: "rich-text-input",
 		nodes: [
 			OverflowNode,
 			EmojiNode,
@@ -424,10 +424,10 @@ export const ReviewCommentInput = ({
 	);
 };
 
-export const ReviewCommentPreview = ({
+export const RichTextPreview = ({
 	initialEditorState,
 	serializedState,
-	placeholder = "No review comment provided",
+	placeholder = "No value provided",
 	className,
 	contentClassName,
 	placeholderClassName,
@@ -487,8 +487,8 @@ export const ReviewCommentPreview = ({
 			ImagesExtension,
 			DateTimeExtension
 		],
-		name: "review-comment-input",
-		namespace: "review-comment-input",
+		name: "rich-text-input",
+		namespace: "rich-text-input",
 		nodes: [
 			OverflowNode,
 			EmojiNode,
