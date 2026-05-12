@@ -1014,17 +1014,18 @@ export function useMenuRowValueRenderer<R, C>(
 				/>
 			) :
 				column.type == "null" ? null :
-					column.type == "select" ? `${value}` :
-						column.type == "select_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
-							column.type == "date" ? `${value}` :
-								column.type == "date_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
-									column.type == "text" ? `${value}` :
-										column.type == "text_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
-											column.type == "number" ? `${value}` :
-												column.type == "number_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
-													column.type == "boolean" ? `${value}` :
-														column.type == "boolean_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
-															null
+					value == null ? "-" :
+						column.type == "select" ? `${value}` :
+							column.type == "select_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
+								column.type == "date" ? `${value}` :
+									column.type == "date_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
+										column.type == "text" ? `${value}` :
+											column.type == "text_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
+												column.type == "number" ? `${value}` :
+													column.type == "number_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
+														column.type == "boolean" ? `${value}` :
+															column.type == "boolean_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
+																null
 		);
 		if(detailsTriggerColumnKey != columnKey)
 			return node;
@@ -1041,12 +1042,12 @@ export function useMenuRowValueRenderer<R, C>(
 	};
 }
 
-export const defaultRelationUserRenderer = ({ description }: { description: React.ReactNode }) =>
-	(userId: string, row: { id: string }, context: { relationValues?: Record<`users:${string}`, RelationUser> }) => (userRelation => (
+export const defaultRelationUserRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(userId: string | null, row: { id: string }, context: { relationValues?: Record<`users:${string}`, RelationUser> }) => userId == null ? "-" : (userRelation => (
 		<RelationNavigationLink
 			relationType="users"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
 			relationId={userId}
-			relationSource={`roles:${row.id}`}
 			fallback={{
 				title: userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>),
 				description: description,
@@ -1060,6 +1061,36 @@ export const defaultRelationUserRenderer = ({ description }: { description: Reac
 			{userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>)}
 		</RelationNavigationLink>
 	))(context?.relationValues?.[`users:${userId}`]);
+export const defaultRelationUsersRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(userIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`users:${string}`, RelationUser> }) => userIds == null || userIds.length == 0 ? "-" : (
+		<RelationNavigationLink
+			relationType="users"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			pickerTitle="Select users"
+			pickerDescription={description}
+			relationChoices={userIds.map(userId => (userRelation => ({
+				id: userId,
+				name: userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>),
+				description: userRelation?.email,
+				fallback: {
+					title: userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>),
+					description: userRelation?.email,
+					fields: [
+						{ label: "Id", value: (<span className="font-mono">{userId}</span>) },
+						...(userRelation != null ? [{ label: "Email", value: userRelation.email }] : []),
+						...(userRelation != null ? [{ label: "Name", value: userRelation.name }] : [])
+					]
+				}
+			}))(context?.relationValues?.[`users:${userId}`]))}
+		>
+			{userIds.map((userId, i) => (userRelation => (
+				<React.Fragment key={userId}>
+					{userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>)}
+					{i != userIds.length - 1 ? " " : ""}
+				</React.Fragment>
+			))(context?.relationValues?.[`users:${userId}`]))}
+		</RelationNavigationLink>
+	);
 export const defaultChangeRequestRenderer = () =>
 	(_, row: { createdAt?: string, updatedAt?: string, deletedAt?: string }, { setChangeRequestDrawerRow, setChangeRequestDrawerOpen }) => (
 		<Button
@@ -1068,7 +1099,9 @@ export const defaultChangeRequestRenderer = () =>
 			onClick={() => { setChangeRequestDrawerRow(row); setChangeRequestDrawerOpen(true); }}
 			className="text-primary h-auto p-0 select-auto"
 		>
-			{row.deletedAt != null ? "Delete" : row.createdAt == null || row.updatedAt == null ? "Update" : row.createdAt == row.updatedAt ? "Create" : "Update"}
+			{row.deletedAt != null ? "Delete" :
+				row.createdAt == null || row.updatedAt == null ? "Update" :
+					row.createdAt == row.updatedAt ? "Create" : "Update"}
 		</Button>
 	);
 export const defaultStatusRenderer = () =>

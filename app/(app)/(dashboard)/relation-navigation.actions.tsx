@@ -5,24 +5,28 @@ import { unauthorized } from "next/navigation";
 import { Payload, getPayload } from "payload";
 
 import { getRelationshipId } from "@/utils/payload";
-import { User } from "@/payload-types";
 import payloadConfig from "@/payload.config";
 
 import { dashboardRoleLabels } from "./layout.shared";
+import { RelationUser } from "./relation-navigation.shared";
 
 export async function resolveRelationUsers(
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`users:${string}`, Pick<User, "id" | "name" | "email">>> {
+): Promise<Record<`users:${string}`, RelationUser>> {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
 		collection: "users",
 		pagination: false,
 		where: { id: { in: ids } },
-		select: { name: true, email: true }
+		select: { name: true, email: true, stagedUser: true }
 	});
-	return Object.fromEntries(result.docs.map(doc => [`users:${doc.id}`, doc]));
+	return Object.fromEntries(result.docs.map(doc => [`users:${doc.id}`, {
+		name: doc.name,
+		email: doc.email,
+		stagedUserId: getRelationshipId(doc.stagedUser)
+	}]));
 }
 
 export type RelationSummary = Awaited<ReturnType<typeof getRelationSummaryAction>>;
@@ -219,5 +223,66 @@ export async function searchRelationUsersAction(keyword: string, selectedIds: st
 	return result.docs.map(doc => ({
 		value: doc.id,
 		label: (<>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>)
+	}));
+}
+
+export async function searchRelationUsersByRoleLevelAction(roleLevel: "admin" | "manager" | "supervisor" | "officer", keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "users",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { and: [
+			{ "role.level": { equals: roleLevel } },
+			{ or: [
+				{ id: { in: selectedIds } },
+				{ id: { like: keyword } },
+				{ name: { like: keyword } }
+			] }
+		] },
+		select: { name: true, email: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: (<>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>)
+	}));
+}
+
+export async function searchRelationTeamsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "teams",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } }
+		] },
+		select: { name: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
 	}));
 }

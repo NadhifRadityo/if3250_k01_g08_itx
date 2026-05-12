@@ -14,6 +14,7 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 import { Input } from "@/components/radix/Input";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
+import { Role } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, useDashboardShellContext, defaultRelationUserRenderer, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
@@ -463,9 +464,17 @@ export function ReviewDrawer(
 export type FormState = {
 	id?: string;
 	name?: string;
-	level?: (typeof levelSelectOptions)[number]["value"];
-	menus?: (typeof menusSelectOptions)[number]["value"][];
+	level?: Role["level"];
+	menus?: Role["menus"];
 };
+export function toFormState(data: Role) {
+	return {
+		id: data.id,
+		name: data.name,
+		level: data.level,
+		menus: data.menus
+	} as FormState;
+}
 export function FormDrawer(
 	{ open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: FormState, onFormStateChange: (v: FormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }

@@ -257,7 +257,7 @@ export function RelationNavigationLink(
 		{ relationType: string, relationSource?: string, children: React.ReactNode } & React.ComponentProps<typeof Link | typeof Button> &
 		(
 			{ relationId: string, fallback: RelationFallback, pickerTitle?: never, pickerDescription?: never, relationChoices?: never } |
-			{ relationId?: never, fallback?: never, pickerTitle: string, pickerDescription?: string, relationChoices: { id: string, name: string, description?: string, fallback: RelationFallback }[] }
+			{ relationId?: never, fallback?: never, pickerTitle: React.ReactNode, pickerDescription?: React.ReactNode, relationChoices: { id: string, name: React.ReactNode, description?: React.ReactNode, fallback: RelationFallback }[] }
 		)
 ) {
 	const relationNavigation = useRelationNavigation();

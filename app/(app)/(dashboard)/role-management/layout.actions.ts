@@ -186,11 +186,12 @@ export async function getDifferenceAction(id: string) {
 	})).docs[0]?.version;
 	if(requestedVersion == null)
 		throw new Error("Draft role request could not be found.");
+	const relations = await resolveRelations({ payload, docs: [approvedVersion, requestedVersion] });
 	return {
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
 		approvedVersion: approvedVersion,
 		requestedVersion: requestedVersion,
-		relations: {}
+		relations: relations
 	};
 }
 

@@ -11,10 +11,7 @@ import { Switch } from "@/components/radix/Switch";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryEditorAction, cancelRequestAction, requestDeleteAction, requestUpsertAction, requestRestoreAction } from "../layout.actions";
-import { ColumnData, FormDrawer, DeleteDialog, DetailsDrawer, HistoryDrawer, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, filterConfigColumns, RevertApprovedDialog, RestoreDeletionDialog, CancelPendingRequestDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
-import {
-	type FormState
-} from "../layout.components";
+import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, HistoryDrawer, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, filterConfigColumns, RevertApprovedDialog, RestoreDeletionDialog, CancelPendingRequestDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../layout.components";
 import { levelSelectOptions, menusSelectOptions } from "../layout.shared";
 
 const columnConfigColumnsWithActions = Object.freeze([
@@ -35,7 +32,7 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 						type="button"
 						size="sm"
 						variant="outline"
-						onClick={() => { setEditFormDrawerState!(row); setEditFormDrawerOpen!(true); }}
+						onClick={() => { setEditFormDrawerState!(toFormState(row)); setEditFormDrawerOpen!(true); }}
 						disabled={isMutating}
 					>
 						<PencilIcon />
