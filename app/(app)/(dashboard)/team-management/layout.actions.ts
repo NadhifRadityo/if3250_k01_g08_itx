@@ -40,9 +40,6 @@ async function resolveRelations(
 		const deletedBy = getRelationshipId(doc.deletedBy);
 		if(deletedBy != null)
 			userIds.add(deletedBy);
-		const reviewedBy = getRelationshipId(doc.reviewedBy);
-		if(reviewedBy != null)
-			userIds.add(reviewedBy);
 		const supervisor = getRelationshipId(doc.supervisor);
 		if(supervisor != null)
 			userIds.add(supervisor);
@@ -50,6 +47,9 @@ async function resolveRelations(
 			if(officer != null)
 				userIds.add(officer);
 		}
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
+		if(reviewedBy != null)
+			userIds.add(reviewedBy);
 	}
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
@@ -120,16 +120,16 @@ export async function getDetailsAction(teamId: string) {
 		id: teamId,
 		depth: 0,
 		select: {
+			_status: true,
+			createdAt: true,
+			createdBy: true,
+			updatedAt: true,
+			updatedBy: true,
+			deletedAt: true,
+			deletedBy: true,
 			name: true,
 			supervisor: true,
 			officers: true,
-			createdBy: true,
-			updatedBy: true,
-			deletedBy: true,
-			createdAt: true,
-			updatedAt: true,
-			deletedAt: true,
-			_status: true,
 			reviewedAt: true,
 			reviewedBy: true,
 			reviewApproved: true,
@@ -169,6 +169,8 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft team request could not be found.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		collection: "teams",
@@ -192,8 +194,6 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
-	if(requestedVersion == null)
-		throw new Error("Draft team request could not be found.");
 	const relations = await resolveRelations({ payload, docs: [approvedVersion, requestedVersion] });
 	return {
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
@@ -222,15 +222,15 @@ export async function getHistoryAction(teamId: string) {
 			updatedAt: true,
 			version: {
 				id: true,
+				createdAt: true,
+				createdBy: true,
+				updatedAt: true,
+				updatedBy: true,
+				deletedAt: true,
+				deletedBy: true,
 				name: true,
 				supervisor: true,
 				officers: true,
-				createdBy: true,
-				updatedBy: true,
-				deletedBy: true,
-				createdAt: true,
-				updatedAt: true,
-				deletedAt: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -265,11 +265,11 @@ export async function requestUpsertAction(formState: FormState) {
 			draft: true,
 			data: {
 				_status: "draft",
+				deletedAt: null,
+				deletedBy: null,
 				name: formState.name,
 				supervisor: formState.supervisor,
 				officers: formState.officers,
-				deletedAt: null,
-				deletedBy: null,
 				reviewedAt: null,
 				reviewedBy: null,
 				reviewApproved: null,
@@ -287,11 +287,11 @@ export async function requestUpsertAction(formState: FormState) {
 		trash: true,
 		data: {
 			_status: "draft",
+			deletedAt: null,
+			deletedBy: null,
 			name: formState.name,
 			supervisor: formState.supervisor,
 			officers: formState.officers,
-			deletedAt: null,
-			deletedBy: null,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -359,11 +359,11 @@ export async function cancelRequestAction(id: string) {
 		select: {
 			version: {
 				_status: true,
+				deletedAt: true,
+				deletedBy: true,
 				name: true,
 				supervisor: true,
 				officers: true,
-				deletedAt: true,
-				deletedBy: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -399,11 +399,11 @@ export async function cancelRequestAction(id: string) {
 		trash: true,
 		data: {
 			_status: "published",
+			deletedAt: approvedVersion.deletedAt,
+			deletedBy: approvedVersion.deletedBy,
 			name: approvedVersion.name,
 			supervisor: approvedVersion.supervisor,
 			officers: approvedVersion.officers,
-			deletedAt: approvedVersion.deletedAt,
-			deletedBy: approvedVersion.deletedBy,
 			reviewedAt: approvedVersion.reviewedAt,
 			reviewedBy: approvedVersion.reviewedBy,
 			reviewApproved: approvedVersion.reviewApproved,

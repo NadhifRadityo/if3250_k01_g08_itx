@@ -6,11 +6,11 @@ import { Payload, getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
 import { lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
-import type { CreditApplicationAssignment, User } from "@/payload-types";
+import type { CreditApplicationAssignment } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationCreditApplications, resolveRelationUsers } from "../relation-navigation.actions";
-import { RelationCreditApplication, RelationUser } from "../relation-navigation.shared";
+import { resolveRelationUsers, resolveRelationCreditApplications } from "../relation-navigation.actions";
+import { RelationUser, RelationCreditApplication } from "../relation-navigation.shared";
 import { FormState } from "./layout.components";
 
 const PAGE_LIMIT = 20;
@@ -42,79 +42,20 @@ async function resolveRelations(
 		const deletedBy = getRelationshipId(doc.deletedBy);
 		if(deletedBy != null)
 			userIds.add(deletedBy);
-		const reviewedBy = getRelationshipId(doc.reviewedBy);
-		if(reviewedBy != null)
-			userIds.add(reviewedBy);
 		const creditApplication = getRelationshipId(doc.creditApplication);
 		if(creditApplication != null)
 			creditApplicationIds.add(creditApplication);
 		const officer = getRelationshipId(doc.officer);
 		if(officer != null)
 			userIds.add(officer);
+		const reviewedBy = getRelationshipId(doc.reviewedBy);
+		if(reviewedBy != null)
+			userIds.add(reviewedBy);
 	}
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
 	Object.assign(relations, await resolveRelationCreditApplications({ payload, ids: [...creditApplicationIds] }));
 	return relations;
-}
-
-async function findCreditApplicationAssignmentsByCreditApplicationIds(payload: Payload, user: User, creditApplicationIds: string[]) {
-	if(creditApplicationIds.length == 0)
-		return new Map<string, { id: string, deletedAt: string | null }>();
-	const result = await payload.find({
-		user: user,
-		overrideAccess: false,
-		collection: "credit-application-assignments",
-		draft: true,
-		trash: true,
-		pagination: false,
-		depth: 0,
-		limit: Math.max(creditApplicationIds.length, 1),
-		where: { creditApplication: { in: creditApplicationIds } },
-		select: {
-			creditApplication: true,
-			deletedAt: true
-		}
-	});
-	return new Map(result.docs.flatMap(doc => {
-		const creditApplication = getRelationshipId(doc.creditApplication);
-		return creditApplication != null ? [[creditApplication, {
-			id: doc.id,
-			deletedAt: doc.deletedAt ?? null
-		}] as const] : [];
-	}));
-}
-
-async function ensureOfficerUser(payload: Payload, user: User, officerId: string) {
-	const officer = await payload.findByID({
-		user: user,
-		overrideAccess: false,
-		collection: "users",
-		id: officerId,
-		depth: 1,
-		select: {
-			role: true
-		}
-	});
-	const roleLevel = typeof officer.role == "object" && officer.role != null && "level" in officer.role ? officer.role.level : null;
-	if(roleLevel != "officer")
-		throw new Error("Selected user must have officer role.");
-}
-
-async function ensureCreditApplicationExists(payload: Payload, user: User, creditApplicationId: string) {
-	const creditApplication = await payload.findByID({
-		user: user,
-		overrideAccess: false,
-		collection: "credit-applications",
-		id: creditApplicationId,
-		depth: 0,
-		select: {
-			_status: true,
-			deletedAt: true
-		}
-	});
-	if(creditApplication._status != "published" || creditApplication.deletedAt != null)
-		throw new Error("Selected credit application must be an active published credit application.");
 }
 
 async function queryAction(
@@ -181,15 +122,15 @@ export async function getDetailsAction(id: string) {
 		id: id,
 		depth: 0,
 		select: {
+			_status: true,
+			createdAt: true,
+			createdBy: true,
+			updatedAt: true,
+			updatedBy: true,
+			deletedAt: true,
+			deletedBy: true,
 			creditApplication: true,
 			officer: true,
-			createdBy: true,
-			updatedBy: true,
-			deletedBy: true,
-			createdAt: true,
-			updatedAt: true,
-			deletedAt: true,
-			_status: true,
 			reviewedAt: true,
 			reviewedBy: true,
 			reviewApproved: true,
@@ -226,6 +167,8 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft credit application assignment request could not be found.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
@@ -246,8 +189,6 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
-	if(requestedVersion == null)
-		throw new Error("Draft credit application assignment request could not be found.");
 	const relations = await resolveRelations({
 		payload,
 		docs: [
@@ -282,14 +223,14 @@ export async function getHistoryAction(id: string) {
 			updatedAt: true,
 			version: {
 				id: true,
+				createdAt: true,
+				createdBy: true,
+				updatedAt: true,
+				updatedBy: true,
+				deletedAt: true,
+				deletedBy: true,
 				creditApplication: true,
 				officer: true,
-				createdBy: true,
-				updatedBy: true,
-				deletedBy: true,
-				createdAt: true,
-				updatedAt: true,
-				deletedAt: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -313,24 +254,63 @@ export async function requestUpsertAction(formState: FormState) {
 		throw new Error("Credit application is required.");
 	if(formState.officer == null || formState.officer.trim().length == 0)
 		throw new Error("Officer is required.");
-
-	await ensureOfficerUser(payload, user, formState.officer);
-	for(const creditApplication of formState.creditApplications)
-		await ensureCreditApplicationExists(payload, user, creditApplication);
+	const officer = await payload.findByID({
+		user: user,
+		overrideAccess: false,
+		collection: "users",
+		id: formState.officer,
+		depth: 1,
+		select: {
+			role: true
+		}
+	});
+	const roleLevel = typeof officer.role == "object" && officer.role != null && "level" in officer.role ? officer.role.level : null;
+	if(roleLevel != "officer")
+		throw new Error("Selected user must have officer role.");
+	const creditApplications = (await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "credit-applications",
+		pagination: false,
+		depth: 0,
+		where: { id: { in: formState.creditApplications } },
+		select: {
+			_status: true,
+			deletedAt: true
+		}
+	})).docs;
+	if(formState.creditApplications.map(creditApplicationId => creditApplications.find(creditApplication => creditApplication.id == creditApplicationId))
+		.some(creditApplication => creditApplication == null || creditApplication._status != "published" || creditApplication.deletedAt != null))
+		throw new Error("Selected credit application must exists and be an active published credit application.");
 
 	if(formState.id == null) {
-		const requestData = {
-			_status: "draft" as const,
-			officer: formState.officer,
-			deletedAt: null,
-			deletedBy: null,
-			reviewedAt: null,
-			reviewedBy: null,
-			reviewApproved: null,
-			reviewComment: null
-		};
-		const assignmentsByCreditApplication = await findCreditApplicationAssignmentsByCreditApplicationIds(payload, user, formState.creditApplications);
-		if(formState.creditApplications.some(creditApplication => assignmentsByCreditApplication.get(creditApplication)?.deletedAt == null))
+		const assignmentsByCreditApplication = await (async creditApplicationIds => {
+			if(creditApplicationIds.length == 0)
+				return new Map<string, { id: string, deletedAt: string | null }>();
+			const creditApplicationAssignments = await payload.find({
+				user: user,
+				overrideAccess: false,
+				collection: "credit-application-assignments",
+				draft: true,
+				trash: true,
+				pagination: false,
+				depth: 0,
+				limit: Math.max(creditApplicationIds.length, 1),
+				where: { creditApplication: { in: creditApplicationIds } },
+				select: {
+					creditApplication: true,
+					deletedAt: true
+				}
+			});
+			return new Map(creditApplicationAssignments.docs.flatMap(doc => {
+				const creditApplication = getRelationshipId(doc.creditApplication);
+				return creditApplication != null ? [[creditApplication, {
+					id: doc.id,
+					deletedAt: doc.deletedAt
+				}] as const] : [];
+			}));
+		})(formState.creditApplications);
+		if(formState.creditApplications.some(creditApplication => assignmentsByCreditApplication.get(creditApplication)?.deletedAt != null))
 			throw new Error("One or more selected credit applications already have an assignment.");
 		const assignmentIds = [] as string[];
 		for(const creditApplication of formState.creditApplications) {
@@ -342,8 +322,15 @@ export async function requestUpsertAction(formState: FormState) {
 					overrideAccess: true,
 					draft: true,
 					data: {
-						...requestData,
-						creditApplication: creditApplication
+						_status: "draft",
+						deletedAt: null,
+						deletedBy: null,
+						creditApplication: creditApplication,
+						officer: formState.officer,
+						reviewedAt: null,
+						reviewedBy: null,
+						reviewApproved: null,
+						reviewComment: null
 					}
 				});
 				assignmentIds.push(created.id);
@@ -357,13 +344,20 @@ export async function requestUpsertAction(formState: FormState) {
 				draft: true,
 				trash: true,
 				data: {
-					...requestData,
-					creditApplication: creditApplication
+					_status: "draft",
+					deletedAt: null,
+					deletedBy: null,
+					creditApplication: creditApplication,
+					officer: formState.officer,
+					reviewedAt: null,
+					reviewedBy: null,
+					reviewApproved: null,
+					reviewComment: null
 				}
 			});
 			assignmentIds.push(restored.id);
 		}
-		return { id: assignmentIds[0] };
+		return { ids: assignmentIds };
 	}
 	await payload.update({
 		user: user,
@@ -374,10 +368,10 @@ export async function requestUpsertAction(formState: FormState) {
 		trash: true,
 		data: {
 			_status: "draft",
-			creditApplication: formState.creditApplications[0],
-			officer: formState.officer,
 			deletedAt: null,
 			deletedBy: null,
+			creditApplication: formState.creditApplications[0],
+			officer: formState.officer,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -445,10 +439,10 @@ export async function cancelRequestAction(id: string) {
 		select: {
 			version: {
 				_status: true,
-				creditApplication: true,
-				officer: true,
 				deletedAt: true,
 				deletedBy: true,
+				creditApplication: true,
+				officer: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -484,10 +478,10 @@ export async function cancelRequestAction(id: string) {
 		trash: true,
 		data: {
 			_status: "published",
-			creditApplication: approvedVersion.creditApplication,
-			officer: approvedVersion.officer,
 			deletedAt: approvedVersion.deletedAt,
 			deletedBy: approvedVersion.deletedBy,
+			creditApplication: approvedVersion.creditApplication,
+			officer: approvedVersion.officer,
 			reviewedAt: approvedVersion.reviewedAt,
 			reviewedBy: approvedVersion.reviewedBy,
 			reviewApproved: approvedVersion.reviewApproved,

@@ -1,330 +1,297 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, PencilIcon, Trash2Icon, CircleAlertIcon } from "lucide-react";
 
-import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
+import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
-import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
-import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
-import * as importActions from "../import.actions";
-import {
-	resolveActionError,
-	CreditApplicationImportRequestsTable,
-	useCreditApplicationImportCellRenderer,
-	CreditApplicationImportColumnConfigCard,
-	defaultCreditApplicationImportFormState,
-	useCreditApplicationImportRequestsQuery,
-	CreditApplicationImportRequestFilterCard,
-	CreditApplicationImportRequestFormDrawer,
-	useCreditApplicationImportRequestFilters,
-	CreditApplicationImportActiveFiltersSummary,
-	CreditApplicationImportRequestDetailsDrawer,
-	useCreditApplicationImportColumnPreferences,
-	useCreditApplicationImportFilterColumnConfig,
-	useCreditApplicationImportManagementQueryState,
-	getEligibleDetailTriggerCreditApplicationImportColumnId,
-	type ActionError,
-	type CreditApplicationImportTableRow
-} from "../import.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
+import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { queryEditorAction, requestCreateAction, requestDeleteAction, requestRestoreAction, requestUpdateDescriptionAction } from "../import.actions";
+import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, tableConfigColumns, columnConfigColumns, filterConfigColumns, RestoreDeletionDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../import.components";
 
-export default function CreditApplicationImportEditorPage() {
-	const [showSoftDeleted, setShowSoftDeleted] = useState(false);
-	const [formError, setFormError] = useState<ActionError | null>(null);
-	const [pageError, setPageError] = useState<ActionError | null>(null);
-	const [formOpen, setFormOpen] = useState(false);
-	const [detailRow, setDetailRow] = useState<CreditApplicationImportTableRow | null>(null);
-	const [formState, setFormState] = useState(defaultCreditApplicationImportFormState);
-	const [isMutating, startMutationTransition] = useTransition();
+const columnConfigColumnsWithActions = Object.freeze([
+	...columnConfigColumns,
+	{ key: "#actions", label: "Actions" }
+]);
+const tableConfigColumnsWithActions = Object.freeze([
+	...tableConfigColumns,
+	{ key: "#actions", label: "Actions", sortable: false }
+]);
+const rowValueRendererConfigColumnsWithActions = Object.freeze([
+	...rowValueRendererConfigColumns,
+	{ key: "#actions", type: "null", render: (_, row, { isMutating, setEditFormDrawerState, setEditFormDrawerOpen, setDeleteTargetRow, setRestoreDeletionTargetRow }) => (
+		<>
+			{row.deletedAt == null && row.reviewedAt == null ? (
+				<Button
+					type="button"
+					size="sm"
+					variant="outline"
+					onClick={() => { setEditFormDrawerState!(toFormState(row)); setEditFormDrawerOpen!(true); }}
+					disabled={isMutating}
+				>
+					<PencilIcon />
+					Edit
+				</Button>
+			) : null}
+			{row.deletedAt == null && row.reviewApproved != true ? (
+				<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTargetRow!(row)} disabled={isMutating}>
+					<Trash2Icon />
+					Delete
+				</Button>
+			) : null}
+			{row.deletedAt != null ? (
+				<Button type="button" size="sm" variant="outline" onClick={() => setRestoreDeletionTargetRow!(row)} disabled={isMutating}>
+					<PlusIcon />
+					Restore
+				</Button>
+			) : null}
+		</>
+	) } satisfies (typeof rowValueRendererConfigColumns)[number]
+]);
 
+export default function Page() {
 	const queryClient = useQueryClient();
-	const relationNavigation = useDashboardRelationNavigation();
-	const columnPreferences = useCreditApplicationImportColumnPreferences();
-	const queryState = useCreditApplicationImportManagementQueryState();
-	const { getResolvedFilterColumnConfig } = useCreditApplicationImportFilterColumnConfig();
-	const filters = useCreditApplicationImportRequestFilters({ getResolvedFilterColumnConfig });
-	const includeSoftDeleted = showSoftDeleted;
-
-	const {
-		pageIndex,
-		setPageIndex,
-		queryResult,
-		isLoading,
-		queryErrorMessage
-	} = useCreditApplicationImportRequestsQuery({
-		queryScope: "import-editor",
-		queryAction: importActions.queryCreditApplicationImportEditorAction,
-		debouncedKeyword: queryState.debouncedKeyword,
-		sortTokens: queryState.sortTokens,
-		appliedFilters: filters.appliedFilters,
-		isFilterStateReady: filters.isFilterStateReady,
-		includeSoftDeleted
+	const { roles } = useDashboardShellContext();
+	const [keyword, setKeyword] = useState("");
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: [] as string[] });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: [] as string[] });
+	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "credit-application-manaagement-import.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: [] });
+	const [pageIndex, setPageIndex] = useState(1);
+	const query = useQuery({
+		queryKey: ["credit-application-manaagement-import", "editor", {
+			keyword,
+			filters,
+			columnsSort,
+			includeDeleted,
+			pageIndex
+		}],
+		queryFn: async () => await queryEditorAction({
+			keyword: keyword,
+			filters: filters,
+			columnsSort: columnsSort,
+			includeDeleted: includeDeleted,
+			pageIndex: pageIndex
+		})
 	});
-
-	const renderCreditApplicationImportCell = useCreditApplicationImportCellRenderer({
-		relations: queryResult.relations,
-		relationNavigation: {
-			getHrefBase: relationNavigation.getTargetHrefBase,
-			onRelationLinkClick: relationNavigation.onRelationLinkClick,
-			onOpenSummary: relationNavigation.openSummary
+	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
+	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+	const [editFormDrawerState, setEditFormDrawerState] = useState({} as FormState);
+	const [editFormDrawerOpen, setEditFormDrawerOpen] = useState(false);
+	const [addFormDrawerState, setAddFormDrawerState] = useState({ description: lexicalPlainText("") } as FormState);
+	const [addFormDrawerOpen, setAddFormDrawerOpen] = useState(false);
+	const [isMutating, startMutationTransition] = useTransition();
+	const [genericMutationError, setGenericMutationError] = useState(null as any);
+	const [editFormMutationError, setEditFormMutationError] = useState(null as any);
+	const [addFormMutationError, setAddFormMutationError] = useState(null as any);
+	const [deleteTargetRow, setDeleteTargetRow] = useState(null as ColumnData | null);
+	const [restoreDeletionTargetRow, setRestoreDeletionTargetRow] = useState(null as ColumnData | null);
+	const renderCell = useMenuRowValueRenderer({
+		columns: rowValueRendererConfigColumnsWithActions,
+		context: {
+			relationValues: query.data?.relations,
+			isMutating: isMutating,
+			setEditFormDrawerState: setEditFormDrawerState,
+			setEditFormDrawerOpen: setEditFormDrawerOpen,
+			setDeleteTargetRow: setDeleteTargetRow,
+			setRestoreDeletionTargetRow: setRestoreDeletionTargetRow
+		},
+		detailsTriggerColumnKey: eligibleDetailsTriggerColumns.find(columnKey => columnsShown.includes(columnKey)),
+		onOpenDetails: row => {
+			setDetailsDrawerOpen(true);
+			setDetailsDrawerRow(row);
 		}
 	});
-
-	const detailTriggerColumnId = getEligibleDetailTriggerCreditApplicationImportColumnId(columnPreferences.visibleColumns);
-	const displayError = pageError ?? (queryErrorMessage != null ? {
-		title: "Error",
-		message: queryErrorMessage
-	} : null);
-
-	const runMutation = (
-		action: () => Promise<void>,
-		options?: {
-			onError?: (error: ActionError) => void;
-			fallbackMessage?: string;
-			clearPageError?: boolean;
-		}
-	) => {
-		startMutationTransition(() => {
-			void (async () => {
-				if(options?.clearPageError ?? true)
-					setPageError(null);
-				try {
-					await action();
-					await queryClient.invalidateQueries({ queryKey: ["credit-application-management", "imports"] });
-				} catch(error) {
-					const actionError = resolveActionError(error, options?.fallbackMessage ?? "Operation failed.");
-					if(options?.onError != null) {
-						options.onError(actionError);
-						return;
-					}
-					setPageError(actionError);
-				}
-			})();
-		});
-	};
-
-	const openCreateDialog = () => {
-		setFormError(null);
-		setFormState(defaultCreditApplicationImportFormState);
-		setFormOpen(true);
-	};
-
-	const openEditDescriptionDialog = (row: CreditApplicationImportTableRow) => {
-		setFormError(null);
-		setFormState({
-			importId: row.id,
-			file: null,
-			filename: row.filename,
-			filesize: row.filesize,
-			fileUrl: row.fileUrl,
-			description: row.description ?? createEmptyReviewComment()
-		});
-		setFormOpen(true);
-	};
-
-	const submitForm = () => {
-		setFormError(null);
-
-		if(formState.importId == null) {
-			if(formState.file == null)
-				return setFormError({ title: "ValidationError", message: "Please select an Excel file." });
-
-			runMutation(async () => {
-				const formData = new FormData();
-				formData.set("file", formState.file!);
-				formData.set("description", JSON.stringify(formState.description));
-				await importActions.createCreditApplicationImportAction(formData);
-				setFormOpen(false);
-				setFormState(defaultCreditApplicationImportFormState);
-			}, {
-				onError: setFormError,
-				fallbackMessage: "Failed to upload import.",
-				clearPageError: false
-			});
-			return;
-		}
-
-		runMutation(async () => {
-			await importActions.updateCreditApplicationImportDescriptionAction({
-				importId: formState.importId!,
-				description: formState.description
-			});
-			setFormOpen(false);
-			setFormState(defaultCreditApplicationImportFormState);
-		}, {
-			onError: setFormError,
-			fallbackMessage: "Failed to update description.",
-			clearPageError: false
-		});
-	};
-
-	const renderCreditApplicationImportActions = (row: CreditApplicationImportTableRow) => {
-		return (
-			<>
-				{row.reviewedAt == null ? (
-					<Button type="button" variant="outline" size="sm" onClick={() => openEditDescriptionDialog(row)} disabled={isMutating || row.deletedAt != null}>
-						<PencilIcon />
-						Edit
-					</Button>
-				) : null}
-				{row.deletedAt == null && row.status != "approved" ? (
-					<Button
-						type="button"
-						variant="destructive"
-						size="sm"
-						onClick={() => runMutation(async () => {
-							await importActions.deleteCreditApplicationImportAction(row.id);
-						})}
-						disabled={isMutating}
-					>
-						<Trash2Icon />
-						Delete
-					</Button>
-				) : null}
-				{row.deletedAt != null ? (
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onClick={() => runMutation(async () => {
-							await importActions.restoreCreditApplicationImportAction(row.id);
-						})}
-						disabled={isMutating}
-					>
-						<PlusIcon />
-						Restore
-					</Button>
-				) : null}
-			</>
-		);
-	};
 
 	return (
-		<>
-			<DashboardManagementPageFrame
-				title="Credit Application Import"
-				description="Upload imports, maintain description before review, and cancel or restore pending or rejected imports."
-			>
-				<DashboardManagementToolbar
-					keyword={queryState.keyword}
-					onKeywordChange={queryState.setKeyword}
-					searchPlaceholder="Search imports by filename, id, or MIME type"
-					filterCount={filters.appliedFilters.length}
-					onToggleFilter={filters.toggleFilterPanel}
-					onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
-					isLoading={isLoading}
-					isMutating={isMutating}
+		<MenuPage
+			title="Credit Application Import"
+			description="Manage spreadsheet import requests before they reach approver review."
+		>
+			<RelationNavigationProvider>
+				<MenuToolbar
+					keyword={keyword}
+					onKeywordChange={setKeyword}
+					searchPlaceholder="Search imports by id, filename, or MIME type"
+					filterCount={filters.length}
+					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
+					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
+					isLoading={query.isLoading}
 					rightSlot={(
 						<>
-							<div className="flex items-center gap-2">
-								<label htmlFor="credit-application-import-show-deleted" className="text-sm">Show Deleted</label>
-								<Switch
-									id="credit-application-import-show-deleted"
-									checked={showSoftDeleted}
-									onCheckedChange={checked => setShowSoftDeleted(checked)}
-									disabled={isLoading || isMutating}
-								/>
-							</div>
-							<Button type="button" onClick={openCreateDialog} disabled={isLoading || isMutating}>
+							{roles.includes("credit-application-management-auditor") ? (
+								<div className="flex items-center gap-2">
+									<label htmlFor="credit-application-manaagement-import-editor-show-deleted" className="text-sm">
+										Show Deleted
+									</label>
+									<Switch
+										id="credit-application-manaagement-import-editor-show-deleted"
+										checked={includeDeleted}
+										onCheckedChange={setIncludeDeleted}
+										disabled={query.isLoading || isMutating}
+									/>
+								</div>
+							) : null}
+							<Button
+								type="button"
+								onClick={() => setAddFormDrawerOpen(true)}
+								disabled={query.isLoading || isMutating}
+							>
 								<PlusIcon />
 								Add
 							</Button>
 						</>
 					)}
 				/>
-
-				<CreditApplicationImportRequestFilterCard
-					isLoading={isLoading}
-					isMutating={isMutating}
+				<MenuFilterConfigCard
+					open={filterConfigCardOpen}
+					onOpenChange={setFilterConfigCardOpen}
+					columns={filterConfigColumns}
 					filters={filters}
-					getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
+					onFiltersChange={setFilters}
+					disabled={query.isLoading}
 				/>
-
-				<CreditApplicationImportColumnConfigCard
-					isOpen={columnPreferences.isColumnOpen}
-					onOpenChange={columnPreferences.setIsColumnOpen}
-					orderedColumns={columnPreferences.orderedColumns}
-					hiddenColumnIds={columnPreferences.hiddenColumnIds}
-					visibleColumnCount={columnPreferences.visibleColumns.length}
-					onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
-					onReset={columnPreferences.resetColumnPreferences}
-					onColumnDragStart={columnPreferences.handleColumnDragStart}
-					onColumnDragOver={columnPreferences.handleColumnDragOver}
-					onColumnDragEnd={columnPreferences.handleColumnDragEnd}
+				<MenuColumnConfigCard
+					open={columnConfigCardOpen}
+					onOpenChange={setColumnConfigCardOpen}
+					columns={columnConfigColumnsWithActions}
+					columnOrder={columnOrder}
+					onColumnOrderChange={setColumnOrder}
+					columnsShown={columnsShown}
+					onColumnsShownChange={setColumnsShown}
 				/>
-
-				<CreditApplicationImportActiveFiltersSummary items={filters.filterSummaryItems} />
-
-				{displayError != null ? (
+				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
+				{query.error != null ? (
 					<Alert variant="destructive">
 						<CircleAlertIcon />
-						<AlertTitle>{displayError.title}</AlertTitle>
-						<AlertDescription>{displayError.message}</AlertDescription>
+						<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
 					</Alert>
 				) : null}
-
-				<CreditApplicationImportRequestsTable
-					queryResult={queryResult}
-					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
-					detailTriggerColumnId={detailTriggerColumnId}
-					isLoading={isLoading}
-					isMutating={isMutating}
-					getSortDirection={queryState.getSortDirection}
-					onToggleSortField={queryState.toggleSortField}
-					onOpenDetails={setDetailRow}
-					renderCreditApplicationImportCell={renderCreditApplicationImportCell}
-					renderActions={renderCreditApplicationImportActions}
+				{genericMutationError != null ? (
+					<Alert variant="destructive">
+						<CircleAlertIcon />
+						<AlertTitle>{`${genericMutationError?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${genericMutationError?.message ?? "An error occured while querying data."}`}</AlertDescription>
+					</Alert>
+				) : null}
+				<DashboardMenuTable
+					columns={tableConfigColumnsWithActions}
+					columnsSort={columnsSort}
+					onColumnsSortChange={setColumnsSort}
+					columnOrder={columnOrder}
+					columnsShown={columnsShown}
+					rows={query.data?.docs ?? []}
+					renderCell={renderCell}
+					isLoading={query.isLoading}
 				/>
-
-				<DashboardManagementPagination
+				<MenuPagination
 					pageIndex={pageIndex}
-					totalRequests={queryResult.totalDocs}
-					hasPreviousPage={queryResult.hasPreviousPage}
-					hasNextPage={queryResult.hasNextPage}
-					isLoading={isLoading}
-					isMutating={isMutating}
+					totalRequests={query.data?.totalDocs ?? 0}
+					hasPreviousPage={query.data?.hasPrevPage ?? false}
+					hasNextPage={query.data?.hasNextPage ?? false}
+					isLoading={query.isLoading}
+					isMutating={false}
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
-			</DashboardManagementPageFrame>
-
-			<CreditApplicationImportRequestDetailsDrawer
-				open={detailRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setDetailRow(null);
-				}}
-				row={detailRow}
-				renderActions={renderCreditApplicationImportActions}
-				relationNavigation={{
-					getHrefBase: relationNavigation.getTargetHrefBase,
-					onRelationLinkClick: relationNavigation.onRelationLinkClick,
-					onOpenSummary: relationNavigation.openSummary
-				}}
-			/>
-
-			<CreditApplicationImportRequestFormDrawer
-				open={formOpen}
-				onOpenChange={open => {
-					setFormOpen(open);
-					if(!open) {
-						setFormError(null);
-						setFormState(defaultCreditApplicationImportFormState);
-					}
-				}}
-				formState={formState}
-				formError={formError}
-				isMutating={isMutating}
-				onFormStateChange={setFormState}
-				onSubmit={submitForm}
-			/>
-
-			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
-		</>
+				<DetailsDrawer
+					open={detailsDrawerOpen}
+					onOpenChange={setDetailsDrawerOpen}
+					row={detailsDrawerRow}
+				/>
+				<FormDrawer
+					open={editFormDrawerOpen}
+					onOpenChange={setEditFormDrawerOpen}
+					title="Edit Credit Application Import"
+					formState={editFormDrawerState}
+					onFormStateChange={setEditFormDrawerState}
+					isMutating={isMutating}
+					mutationError={editFormMutationError}
+					onSubmit={() => startMutationTransition(async () => {
+						if(editFormDrawerState.id == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Import id is required." });
+						setEditFormMutationError(null);
+						try {
+							await requestUpdateDescriptionAction({
+								id: editFormDrawerState.id,
+								description: editFormDrawerState.description ?? lexicalPlainText("")
+							});
+							setEditFormDrawerOpen(false);
+						} catch(error) {
+							setEditFormMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-manaagement-import"] });
+						}
+					})}
+				/>
+				<FormDrawer
+					open={addFormDrawerOpen}
+					onOpenChange={setAddFormDrawerOpen}
+					title="Add Credit Application Import"
+					formState={addFormDrawerState}
+					onFormStateChange={setAddFormDrawerState}
+					isMutating={isMutating}
+					mutationError={addFormMutationError}
+					onSubmit={() => startMutationTransition(async () => {
+						if(addFormDrawerState.file == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "Spreadsheet file is required." });
+						setAddFormMutationError(null);
+						try {
+							const formData = new FormData();
+							formData.set("file", addFormDrawerState.file as File);
+							formData.set("description", JSON.stringify(addFormDrawerState.description));
+							await requestCreateAction(formData);
+							setAddFormDrawerOpen(false);
+							setAddFormDrawerState({});
+						} catch(error) {
+							setAddFormMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-manaagement-import"] });
+						}
+					})}
+				/>
+				<DeleteDialog
+					open={deleteTargetRow != null}
+					onOpenChange={open => !open ? setDeleteTargetRow(null) : undefined}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await requestDeleteAction(deleteTargetRow!.id);
+							setDeleteTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-manaagement-import"] });
+						}
+					})}
+				/>
+				<RestoreDeletionDialog
+					open={restoreDeletionTargetRow != null}
+					onOpenChange={open => !open ? setRestoreDeletionTargetRow(null) : undefined}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await requestRestoreAction(restoreDeletionTargetRow!.id);
+							setRestoreDeletionTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-manaagement-import"] });
+						}
+					})}
+				/>
+			</RelationNavigationProvider>
+		</MenuPage>
 	);
 }

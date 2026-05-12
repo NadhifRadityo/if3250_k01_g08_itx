@@ -77,18 +77,18 @@ export const tableConfigColumns = Object.freeze([
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text" },
 	{ key: "createdAt", type: "date" },
-	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "teams" }) },
+	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "teams.createdBy" }) },
 	{ key: "updatedAt", type: "date" },
-	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "teams" }) },
+	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "teams.updatedBy" }) },
 	{ key: "deletedAt", type: "date" },
-	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "teams" }) },
+	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "teams.deletedBy" }) },
 	{ key: "name", type: "text" },
-	{ key: "supervisor", type: "relation", render: defaultRelationUserRenderer({ description: "Supervisor", relationSource: "teams" }) },
-	{ key: "officers", type: "relation_hasMany", render: defaultRelationUsersRenderer({ description: "Officer", relationSource: "teams" }) },
+	{ key: "supervisor", type: "relation", render: defaultRelationUserRenderer({ description: "Supervisor", relationSource: "teams.supervisor" }) },
+	{ key: "officers", type: "relation_hasMany", render: defaultRelationUsersRenderer({ description: "Officer", relationSource: "teams.officers" }) },
 	{ key: "#changeRequest", type: "select", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "select", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
-	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "teams" }) },
+	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "teams.reviewedBy" }) },
 	{ key: "reviewApproved", type: "boolean" },
 	{ key: "reviewComment", type: "richText" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, {
@@ -122,10 +122,10 @@ export function DetailsDrawer(
 ) {
 	const { roles } = useDashboardShellContext();
 	const canAccessHistory = roles.includes("team-management-auditor");
-	const detailsQuery = useQuery({
+	const query = useQuery({
 		queryKey: ["team-management", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => getDetailsAction(row!.id),
+		queryFn: async () => await getDetailsAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -144,20 +144,20 @@ export function DetailsDrawer(
 						<p className="text-muted-foreground text-sm">
 							No team request selected.
 						</p>
-					) : detailsQuery.isPending ? (
+					) : query.isPending ? (
 						<div className="space-y-2">
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 						</div>
-					) : detailsQuery.isError || detailsQuery.data == null ? (
+					) : query.isError || query.data == null ? (
 						<Alert variant="destructive">
 							<CircleAlertIcon />
 							<AlertTitle>
-								{`${detailsQuery.error?.name ?? "Error"}`}
+								{`${query.error?.name ?? "Error"}`}
 							</AlertTitle>
 							<AlertDescription>
-								{`${detailsQuery.error?.message ?? "Unable to load team request details."}`}
+								{`${query.error?.message ?? "Unable to load team request details."}`}
 							</AlertDescription>
 						</Alert>
 					) : (
@@ -197,7 +197,7 @@ export function HistoryDrawer(
 	const query = useQuery({
 		queryKey: ["team-management", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
-		queryFn: () => getHistoryAction(row!.id),
+		queryFn: async () => await getHistoryAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -284,7 +284,7 @@ export function ChangeRequestDrawer(
 	const query = useQuery({
 		queryKey: ["team-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => getDifferenceAction(row!.id),
+		queryFn: async () => await getDifferenceAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -375,7 +375,7 @@ export function ReviewDrawer(
 	const query = useQuery({
 		queryKey: ["team-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => getDifferenceAction(row!.id),
+		queryFn: async () => await getDifferenceAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -490,7 +490,7 @@ export function toFormState(data: Team) {
 	} as FormState;
 }
 export function FormDrawer(
-	{ open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating }:
+	{ open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating = false }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: FormState, onFormStateChange: (v: FormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
 ) {
 	return (
@@ -565,8 +565,8 @@ export function FormDrawer(
 }
 
 export function DeleteDialog(
-	{ open, onOpenChange, onConfirm, isMutating }:
-	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating: boolean }
+	{ open, onOpenChange, onConfirm, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -587,8 +587,8 @@ export function DeleteDialog(
 }
 
 export function CancelPendingRequestDialog(
-	{ open, onOpenChange, onConfirm, isMutating }:
-	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating: boolean }
+	{ open, onOpenChange, onConfirm, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -609,8 +609,8 @@ export function CancelPendingRequestDialog(
 }
 
 export function RevertApprovedDialog(
-	{ open, onOpenChange, onConfirm, isMutating }:
-	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating: boolean }
+	{ open, onOpenChange, onConfirm, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -631,8 +631,8 @@ export function RevertApprovedDialog(
 }
 
 export function RestoreDeletionDialog(
-	{ open, onOpenChange, onConfirm, isMutating }:
-	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating: boolean }
+	{ open, onOpenChange, onConfirm, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>

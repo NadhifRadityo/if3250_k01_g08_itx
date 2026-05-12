@@ -17,8 +17,8 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { CreditApplicationAssignment } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, useDashboardShellContext, defaultRelationUserRenderer, defaultChangeRequestRenderer, defaultRelationCreditApplicationRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction, searchRelationUsersAction, searchRelationUsersByRoleLevelAction, searchAvailableRelationCreditApplicationsAction } from "../relation-navigation.actions";
+import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, useDashboardShellContext, defaultRelationUserRenderer, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationRenderer } from "../layout.components";
+import { searchRelationUsersAction, searchRelationUsersByRoleLevelAction, searchRelationCreditApplicationsAction, searchAvailableRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
@@ -73,17 +73,17 @@ export const tableConfigColumns = Object.freeze([
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text" },
 	{ key: "createdAt", type: "date" },
-	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "credit-application-assignment" }) },
+	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "credit-application-assignments.createdBy" }) },
 	{ key: "updatedAt", type: "date" },
-	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "credit-application-assignment" }) },
+	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "credit-application-assignments.updatedBy" }) },
 	{ key: "deletedAt", type: "date" },
-	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "credit-application-assignment" }) },
-	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "credit-application-assignment" }) },
-	{ key: "officer", type: "relation", render: defaultRelationUserRenderer({ description: "Officer", relationSource: "credit-application-assignment" }) },
+	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "credit-application-assignments.deletedBy" }) },
+	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "credit-application-assignments.creditApplication" }) },
+	{ key: "officer", type: "relation", render: defaultRelationUserRenderer({ description: "Officer", relationSource: "credit-application-assignments.officer" }) },
 	{ key: "#changeRequest", type: "select", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "select", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
-	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "credit-application-assignment" }) },
+	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "credit-application-assignments.reviewedBy" }) },
 	{ key: "reviewApproved", type: "boolean" },
 	{ key: "reviewComment", type: "richText" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, {
@@ -116,17 +116,17 @@ export function DetailsDrawer(
 ) {
 	const { roles } = useDashboardShellContext();
 	const canAccessHistory = roles.includes("credit-application-assignment-auditor");
-	const detailsQuery = useQuery({
+	const query = useQuery({
 		queryKey: ["credit-application-assignment", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => getDetailsAction(row!.id),
+		queryFn: async () => await getDetailsAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
 		context: {
-			relationValues: detailsQuery.data?.relations
+			relationValues: query.data?.relations
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
@@ -143,20 +143,20 @@ export function DetailsDrawer(
 						<p className="text-muted-foreground text-sm">
 							No credit application assignment request selected.
 						</p>
-					) : detailsQuery.isPending ? (
+					) : query.isPending ? (
 						<div className="space-y-2">
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 							<Skeleton className="h-20 w-full" />
 						</div>
-					) : detailsQuery.isError || detailsQuery.data == null ? (
+					) : query.isError || query.data == null ? (
 						<Alert variant="destructive">
 							<CircleAlertIcon />
 							<AlertTitle>
-								{`${detailsQuery.error?.name ?? "Error"}`}
+								{`${query.error?.name ?? "Error"}`}
 							</AlertTitle>
 							<AlertDescription>
-								{`${detailsQuery.error?.message ?? "Unable to load credit application assignment request details."}`}
+								{`${query.error?.message ?? "Unable to load credit application assignment request details."}`}
 							</AlertDescription>
 						</Alert>
 					) : (
@@ -165,7 +165,7 @@ export function DetailsDrawer(
 								<p className="text-muted-foreground text-xs font-medium">
 									{columnLabels[column.key]}
 								</p>
-								{renderValue(detailsQuery.data.row, column.key)}
+								{renderValue(query.data.row, column.key)}
 							</div>
 						))
 					)}
@@ -196,7 +196,7 @@ export function HistoryDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
-		queryFn: () => getHistoryAction(row!.id),
+		queryFn: async () => await getHistoryAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -283,7 +283,7 @@ export function ChangeRequestDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => getDifferenceAction(row!.id),
+		queryFn: async () => await getDifferenceAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -374,7 +374,7 @@ export function ReviewDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => getDifferenceAction(row!.id),
+		queryFn: async () => await getDifferenceAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -484,7 +484,7 @@ export function toFormState(data: CreditApplicationAssignment) {
 	return {
 		id: data.id,
 		creditApplications: creditApplication != null ? [creditApplication] : [],
-		officer: getRelationshipId(data.officer) ?? undefined
+		officer: getRelationshipId(data.officer)
 	} as FormState;
 }
 export function FormDrawer(

@@ -1,253 +1,213 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
-import { createEmptyReviewComment, type ReviewCommentRichText } from "@/utils/reviewCommentRichText";
+import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
+import { Switch } from "@/components/radix/Switch";
 
-import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
-import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
-import * as importActions from "../import.actions";
-import {
-	resolveActionError,
-	CreditApplicationImportRequestsTable,
-	useCreditApplicationImportCellRenderer,
-	CreditApplicationImportColumnConfigCard,
-	useCreditApplicationImportRequestsQuery,
-	CreditApplicationImportRequestFilterCard,
-	useCreditApplicationImportRequestFilters,
-	CreditApplicationImportRequestReviewDrawer,
-	CreditApplicationImportActiveFiltersSummary,
-	CreditApplicationImportRequestDetailsDrawer,
-	useCreditApplicationImportColumnPreferences,
-	useCreditApplicationImportFilterColumnConfig,
-	useCreditApplicationImportManagementQueryState,
-	getEligibleDetailTriggerCreditApplicationImportColumnId,
-	type ActionError,
-	type CreditApplicationImportTableRow
-} from "../import.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
+import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { reviewAction, queryApproverAction } from "../import.actions";
+import { ColumnData, ReviewDrawer, DetailsDrawer, tableConfigColumns, columnConfigColumns, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../import.components";
 
-export default function CreditApplicationImportApproverPage() {
-	const [detailRow, setDetailRow] = useState<CreditApplicationImportTableRow | null>(null);
-	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: CreditApplicationImportTableRow } | null>(null);
-	const [reviewComment, setReviewComment] = useState<ReviewCommentRichText>(() => createEmptyReviewComment());
-	const [reviewError, setReviewError] = useState<ActionError | null>(null);
-	const [pageError, setPageError] = useState<ActionError | null>(null);
-	const [isMutating, startMutationTransition] = useTransition();
+const columnConfigColumnsWithActions = Object.freeze([
+	...columnConfigColumns,
+	{ key: "#actions", label: "Actions" }
+]);
+const tableConfigColumnsWithActions = Object.freeze([
+	...tableConfigColumns,
+	{ key: "#actions", label: "Actions", sortable: false }
+]);
+const rowValueRendererConfigColumnsWithActions = Object.freeze([
+	...rowValueRendererConfigColumns,
+	{ key: "#actions", type: "null", render: (_, row, { isMutating, setReviewDrawerRow, setReviewDrawerOpen }) => (
+		<Button
+			type="button"
+			size="sm"
+			variant="default"
+			onClick={() => { setReviewDrawerRow!(row); setReviewDrawerOpen!(true); }}
+			disabled={row.reviewedAt != null || isMutating}
+		>
+			<CheckIcon />
+			Review
+		</Button>
+	) } satisfies (typeof rowValueRendererConfigColumns)[number]
+]);
 
+export default function Page() {
 	const queryClient = useQueryClient();
-	const relationNavigation = useDashboardRelationNavigation();
-	const columnPreferences = useCreditApplicationImportColumnPreferences();
-	const queryState = useCreditApplicationImportManagementQueryState();
-	const { getResolvedFilterColumnConfig } = useCreditApplicationImportFilterColumnConfig();
-	const filters = useCreditApplicationImportRequestFilters({ getResolvedFilterColumnConfig });
-
-	const {
-		pageIndex,
-		setPageIndex,
-		queryResult,
-		isLoading,
-		queryErrorMessage
-	} = useCreditApplicationImportRequestsQuery({
-		queryScope: "import-approver",
-		queryAction: importActions.queryCreditApplicationImportApproverAction,
-		debouncedKeyword: queryState.debouncedKeyword,
-		sortTokens: queryState.sortTokens,
-		appliedFilters: filters.appliedFilters,
-		isFilterStateReady: filters.isFilterStateReady,
-		includeSoftDeleted: false
+	const { roles } = useDashboardShellContext();
+	const [keyword, setKeyword] = useState("");
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: [] as string[] });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: [] as string[] });
+	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "credit-application-management-import.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "credit-application-management-import.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "credit-application-management-import.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: [] });
+	const [pageIndex, setPageIndex] = useState(1);
+	const query = useQuery({
+		queryKey: ["credit-application-management-import", "approver", {
+			keyword,
+			filters,
+			columnsSort,
+			includeDeleted,
+			pageIndex
+		}],
+		queryFn: async () => await queryApproverAction({
+			keyword: keyword,
+			filters: filters,
+			columnsSort: columnsSort,
+			includeDeleted: includeDeleted,
+			pageIndex: pageIndex
+		})
 	});
-
-	const renderCreditApplicationImportCell = useCreditApplicationImportCellRenderer({
-		relations: queryResult.relations,
-		relationNavigation: {
-			getHrefBase: relationNavigation.getTargetHrefBase,
-			onRelationLinkClick: relationNavigation.onRelationLinkClick,
-			onOpenSummary: relationNavigation.openSummary
+	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
+	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+	const [reviewDrawerRow, setReviewDrawerRow] = useState(null as ColumnData | null);
+	const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
+	const [reviewComment, setReviewComment] = useState(lexicalPlainText(""));
+	const [isMutating, startMutationTransition] = useTransition();
+	const [reviewMutationError, setReviewMutationError] = useState(null as any);
+	const renderCell = useMenuRowValueRenderer({
+		columns: rowValueRendererConfigColumnsWithActions,
+		context: {
+			relationValues: query.data?.relations,
+			isMutating: isMutating,
+			setReviewDrawerRow: setReviewDrawerRow,
+			setReviewDrawerOpen: setReviewDrawerOpen
+		},
+		detailsTriggerColumnKey: eligibleDetailsTriggerColumns.find(columnKey => columnsShown.includes(columnKey)),
+		onOpenDetails: row => {
+			setDetailsDrawerOpen(true);
+			setDetailsDrawerRow(row);
 		}
 	});
-
-	const detailTriggerColumnId = getEligibleDetailTriggerCreditApplicationImportColumnId(columnPreferences.visibleColumns);
-	const displayError = pageError ?? (queryErrorMessage != null ? {
-		title: "Error",
-		message: queryErrorMessage
-	} : null);
-
-	const runMutation = (
-		action: () => Promise<void>,
-		options?: {
-			onError?: (error: ActionError) => void;
-			fallbackMessage?: string;
-			clearPageError?: boolean;
-		}
-	) => {
-		startMutationTransition(() => {
-			void (async () => {
-				if(options?.clearPageError ?? true)
-					setPageError(null);
-				try {
-					await action();
-					await queryClient.invalidateQueries({ queryKey: ["credit-application-management", "imports"] });
-				} catch(error) {
-					const actionError = resolveActionError(error, options?.fallbackMessage ?? "Operation failed.");
-					if(options?.onError != null) {
-						options.onError(actionError);
-						return;
-					}
-					setPageError(actionError);
-				}
-			})();
-		});
-	};
-
-	const submitReview = (decision: "approve" | "reject") => {
-		if(reviewDrawerState == null)
-			return;
-
-		runMutation(async () => {
-			await importActions.reviewCreditApplicationImportAction({
-				importId: reviewDrawerState.row.id,
-				decision,
-				reviewComment
-			});
-			setReviewDrawerState(null);
-			setReviewComment(createEmptyReviewComment());
-			setReviewError(null);
-		}, {
-			onError: setReviewError,
-			fallbackMessage: "Failed to submit review.",
-			clearPageError: false
-		});
-	};
-
-	const renderCreditApplicationImportActions = (row: CreditApplicationImportTableRow) => {
-		return (
-			<Button
-				type="button"
-				size="sm"
-				onClick={() => {
-					setReviewComment(createEmptyReviewComment());
-					setReviewError(null);
-					setReviewDrawerState({ row });
-				}}
-				disabled={isMutating || row.reviewedAt != null}
-			>
-				<CheckIcon />
-				Review
-			</Button>
-		);
-	};
 
 	return (
-		<>
-			<DashboardManagementPageFrame
-				title="Credit Application Import"
-				description="Approve or reject pending imports. Approval re-parses the uploaded file and publishes its rows into credit applications."
-			>
-				<DashboardManagementToolbar
-					keyword={queryState.keyword}
-					onKeywordChange={queryState.setKeyword}
-					searchPlaceholder="Search pending imports by filename, id, or MIME type"
-					filterCount={filters.appliedFilters.length}
-					onToggleFilter={filters.toggleFilterPanel}
-					onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
-					isLoading={isLoading}
-					isMutating={isMutating}
+		<MenuPage
+			title="Credit Application Import"
+			description="Review pending spreadsheet imports before publishing their credit applications."
+		>
+			<RelationNavigationProvider>
+				<MenuToolbar
+					keyword={keyword}
+					onKeywordChange={setKeyword}
+					searchPlaceholder="Search imports by id, filename, or MIME type"
+					filterCount={filters.length}
+					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
+					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
+					isLoading={query.isLoading}
+					rightSlot={roles.includes("credit-application-management-auditor") ? (
+						<div className="flex items-center gap-2">
+							<label htmlFor="credit-application-management-import-approver-show-deleted" className="text-sm">
+								Show Deleted
+							</label>
+							<Switch
+								id="credit-application-management-import-approver-show-deleted"
+								checked={includeDeleted}
+								onCheckedChange={setIncludeDeleted}
+								disabled={query.isLoading || isMutating}
+							/>
+						</div>
+					) : null}
 				/>
-
-				<CreditApplicationImportRequestFilterCard
-					isLoading={isLoading}
-					isMutating={isMutating}
+				<MenuFilterConfigCard
+					open={filterConfigCardOpen}
+					onOpenChange={setFilterConfigCardOpen}
+					columns={filterConfigColumns}
 					filters={filters}
-					getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
+					onFiltersChange={setFilters}
+					disabled={query.isLoading}
 				/>
-
-				<CreditApplicationImportColumnConfigCard
-					isOpen={columnPreferences.isColumnOpen}
-					onOpenChange={columnPreferences.setIsColumnOpen}
-					orderedColumns={columnPreferences.orderedColumns}
-					hiddenColumnIds={columnPreferences.hiddenColumnIds}
-					visibleColumnCount={columnPreferences.visibleColumns.length}
-					onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
-					onReset={columnPreferences.resetColumnPreferences}
-					onColumnDragStart={columnPreferences.handleColumnDragStart}
-					onColumnDragOver={columnPreferences.handleColumnDragOver}
-					onColumnDragEnd={columnPreferences.handleColumnDragEnd}
+				<MenuColumnConfigCard
+					open={columnConfigCardOpen}
+					onOpenChange={setColumnConfigCardOpen}
+					columns={columnConfigColumnsWithActions}
+					columnOrder={columnOrder}
+					onColumnOrderChange={setColumnOrder}
+					columnsShown={columnsShown}
+					onColumnsShownChange={setColumnsShown}
 				/>
-
-				<CreditApplicationImportActiveFiltersSummary items={filters.filterSummaryItems} />
-
-				{displayError != null ? (
+				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
+				{query.error != null ? (
 					<Alert variant="destructive">
 						<CircleAlertIcon />
-						<AlertTitle>{displayError.title}</AlertTitle>
-						<AlertDescription>{displayError.message}</AlertDescription>
+						<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
 					</Alert>
 				) : null}
-
-				<CreditApplicationImportRequestsTable
-					queryResult={queryResult}
-					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
-					detailTriggerColumnId={detailTriggerColumnId}
-					isLoading={isLoading}
-					isMutating={isMutating}
-					getSortDirection={queryState.getSortDirection}
-					onToggleSortField={queryState.toggleSortField}
-					onOpenDetails={setDetailRow}
-					renderCreditApplicationImportCell={renderCreditApplicationImportCell}
-					renderActions={renderCreditApplicationImportActions}
+				<DashboardMenuTable
+					columns={tableConfigColumnsWithActions}
+					columnsSort={columnsSort}
+					onColumnsSortChange={setColumnsSort}
+					columnOrder={columnOrder}
+					columnsShown={columnsShown}
+					rows={query.data?.docs ?? []}
+					renderCell={renderCell}
+					isLoading={query.isLoading}
 				/>
-
-				<DashboardManagementPagination
+				<MenuPagination
 					pageIndex={pageIndex}
-					totalRequests={queryResult.totalDocs}
-					hasPreviousPage={queryResult.hasPreviousPage}
-					hasNextPage={queryResult.hasNextPage}
-					isLoading={isLoading}
-					isMutating={isMutating}
+					totalRequests={query.data?.totalDocs ?? 0}
+					hasPreviousPage={query.data?.hasPrevPage ?? false}
+					hasNextPage={query.data?.hasNextPage ?? false}
+					isLoading={query.isLoading}
+					isMutating={false}
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
-			</DashboardManagementPageFrame>
-
-			<CreditApplicationImportRequestDetailsDrawer
-				open={detailRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setDetailRow(null);
-				}}
-				row={detailRow}
-				renderActions={renderCreditApplicationImportActions}
-				relationNavigation={{
-					getHrefBase: relationNavigation.getTargetHrefBase,
-					onRelationLinkClick: relationNavigation.onRelationLinkClick,
-					onOpenSummary: relationNavigation.openSummary
-				}}
-			/>
-
-			<CreditApplicationImportRequestReviewDrawer
-				open={reviewDrawerState != null}
-				onOpenChange={open => {
-					if(!open) {
-						setReviewDrawerState(null);
-						setReviewComment(createEmptyReviewComment());
-						setReviewError(null);
-					}
-				}}
-				reviewDrawerState={reviewDrawerState}
-				reviewError={reviewError}
-				reviewComment={reviewComment}
-				onReviewCommentChange={setReviewComment}
-				onApprove={() => submitReview("approve")}
-				onReject={() => submitReview("reject")}
-				isMutating={isMutating}
-			/>
-
-			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
-		</>
+				<DetailsDrawer
+					open={detailsDrawerOpen}
+					onOpenChange={setDetailsDrawerOpen}
+					row={detailsDrawerRow}
+				/>
+				<ReviewDrawer
+					open={reviewDrawerOpen}
+					onOpenChange={setReviewDrawerOpen}
+					row={reviewDrawerRow}
+					reviewComment={reviewComment}
+					onReviewCommentChange={setReviewComment}
+					mutationError={reviewMutationError}
+					isMutating={isMutating}
+					onApprove={() => startMutationTransition(async () => {
+						setReviewMutationError(null);
+						try {
+							await reviewAction({
+								id: reviewDrawerRow!.id,
+								decision: "approve",
+								reviewComment: reviewComment
+							});
+							setReviewDrawerOpen(false);
+							setReviewComment(lexicalPlainText(""));
+						} catch(error) {
+							setReviewMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-management-import"] });
+						}
+					})}
+					onReject={() => startMutationTransition(async () => {
+						setReviewMutationError(null);
+						try {
+							await reviewAction({
+								id: reviewDrawerRow!.id,
+								decision: "reject",
+								reviewComment: reviewComment
+							});
+							setReviewDrawerOpen(false);
+							setReviewComment(lexicalPlainText(""));
+						} catch(error) {
+							setReviewMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-management-import"] });
+						}
+					})}
+				/>
+			</RelationNavigationProvider>
+		</MenuPage>
 	);
 }

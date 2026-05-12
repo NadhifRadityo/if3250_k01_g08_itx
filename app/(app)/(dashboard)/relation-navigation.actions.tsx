@@ -9,7 +9,7 @@ import { getRelationshipId } from "@/utils/payload";
 import payloadConfig from "@/payload.config";
 
 import { dashboardRoleLabels } from "./layout.shared";
-import { RelationUser, RelationCreditApplication } from "./relation-navigation.shared";
+import { RelationUser, RelationCreditApplication, RelationCreditApplicationImport } from "./relation-navigation.shared";
 
 export async function resolveRelationUsers(
 	{ payload, ids }:
@@ -48,13 +48,32 @@ export async function resolveRelationCreditApplications(
 	}]));
 }
 
+export async function resolveRelationCreditApplicationImports(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`credit-application-imports:${string}`, RelationCreditApplicationImport>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "credit-application-imports",
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { filename: true, filesize: true, mimeType: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`credit-application-imports:${doc.id}`, {
+		filename: doc.filename!,
+		filesize: doc.filesize!,
+		mimeType: doc.mimeType!
+	}]));
+}
+
 export type RelationSummary = Awaited<ReturnType<typeof getRelationSummaryAction>>;
 export async function getRelationSummaryAction({ relationType, relationId }: { relationType: string, relationId: string }) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return null;
-	if(relationType == "user") {
+	if(relationType == "users") {
 		const doc = await payload.findByID({
 			collection: "users",
 			id: relationId,
@@ -82,7 +101,7 @@ export async function getRelationSummaryAction({ relationType, relationId }: { r
 		})).name : "-";
 		return {
 			relationType: relationType,
-			relationId: String(doc.id),
+			relationId: doc.id,
 			title: doc.name,
 			description: doc.email,
 			fields: [
@@ -93,7 +112,7 @@ export async function getRelationSummaryAction({ relationType, relationId }: { r
 			]
 		};
 	}
-	if(relationType == "role") {
+	if(relationType == "roles") {
 		const doc = await payload.findByID({
 			collection: "roles",
 			id: relationId,
@@ -117,7 +136,7 @@ export async function getRelationSummaryAction({ relationType, relationId }: { r
 		}[doc.level];
 		return {
 			relationType: relationType,
-			relationId: String(doc.id),
+			relationId: doc.id,
 			title: doc.name,
 			description: `${levelLabel} role`,
 			fields: [
@@ -145,7 +164,7 @@ export async function getRelationSummaryAction({ relationType, relationId }: { r
 		});
 		return {
 			relationType: relationType,
-			relationId: String(doc.id),
+			relationId: doc.id,
 			title: doc.name,
 			description: "Team entry",
 			fields: [
@@ -154,7 +173,7 @@ export async function getRelationSummaryAction({ relationType, relationId }: { r
 			]
 		};
 	}
-	if(relationType == "credit-application") {
+	if(relationType == "credit-applications") {
 		const doc = await payload.findByID({
 			user: user,
 			overrideAccess: false,
@@ -165,19 +184,47 @@ export async function getRelationSummaryAction({ relationType, relationId }: { r
 			select: {
 				name: true,
 				email: true,
-				_status: true,
 				deletedAt: true
 			}
 		});
 		return {
 			relationType: relationType,
-			relationId: String(doc.id),
+			relationId: doc.id,
 			title: doc.name,
 			description: doc.email ?? "",
 			fields: [
 				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
 				{ label: "Name", value: doc.name },
 				{ label: "Email", value: doc.email ?? "-" },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt) : "-" }
+			]
+		};
+	}
+	if(relationType == "credit-application-imports") {
+		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
+			collection: "credit-application-imports",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+				filename: true,
+				filesize: true,
+				mimeType: true,
+				deletedAt: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.filename,
+			description: "",
+			fields: [
+				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "File Name", value: doc.filename },
+				{ label: "File Size", value: doc.filesize },
+				{ label: "Mime Type", value: doc.mimeType },
 				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt) : "-" }
 			]
 		};
@@ -316,19 +363,17 @@ export async function searchRelationCreditApplicationsAction(keyword: string, se
 		user: user,
 		overrideAccess: false,
 		collection: "credit-applications",
+		draft: true,
+		trash: true,
 		pagination: false,
 		depth: 0,
 		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
 		sort: "-updatedAt",
-		where: { and: [
-			{ _status: { equals: "published" } },
-			{ deletedAt: { exists: false } },
-			{ or: [
-				{ id: { in: selectedIds } },
-				{ id: { like: keyword } },
-				{ name: { like: keyword } },
-				{ email: { like: keyword } }
-			] }
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } },
+			{ email: { like: keyword } }
 		] },
 		select: { name: true, email: true }
 	});
@@ -381,7 +426,7 @@ export async function searchAvailableRelationCreditApplicationsAction(keyword: s
 			] },
 			select: { name: true, email: true }
 		});
-		return new Map(creditApplications.docs.map(doc => [String(doc.id), {
+		return new Map(creditApplications.docs.map(doc => [doc.id, {
 			name: doc.name,
 			email: doc.email
 		}] as const));
@@ -412,7 +457,7 @@ export async function searchAvailableRelationCreditApplicationsAction(keyword: s
 	const selectedIdSet = new Set(selectedIds);
 	const optionsById = new Map<string, { id: string, label: ReactNode }>();
 	for(const doc of result.docs) {
-		const creditApplication = String(doc.id);
+		const creditApplication = doc.id;
 		const assignment = assignmentsByCreditApplication.get(creditApplication);
 		if(!selectedIdSet.has(creditApplication) && assignment != null && assignment.deletedAt == null)
 			continue;
@@ -460,5 +505,34 @@ export async function searchRelationCreditApplicationAssignmentsAction(keyword: 
 	return result.docs.map(doc => ({
 		id: doc.id,
 		label: <span className="font-mono">{doc.id}</span>
+	}));
+}
+
+export async function searchRelationCreditApplicationImportsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "credit-application-imports",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ filename: { like: keyword } }
+		] },
+		select: { filename: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.filename}</>
 	}));
 }

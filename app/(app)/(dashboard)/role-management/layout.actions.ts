@@ -112,16 +112,16 @@ export async function getDetailsAction(roleId: string) {
 		id: roleId,
 		depth: 0,
 		select: {
+			_status: true,
+			createdAt: true,
+			createdBy: true,
+			updatedAt: true,
+			updatedBy: true,
+			deletedAt: true,
+			deletedBy: true,
 			name: true,
 			level: true,
 			menus: true,
-			createdBy: true,
-			updatedBy: true,
-			deletedBy: true,
-			createdAt: true,
-			updatedAt: true,
-			deletedAt: true,
-			_status: true,
 			reviewedAt: true,
 			reviewedBy: true,
 			reviewApproved: true,
@@ -161,6 +161,8 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
+	if(requestedVersion == null)
+		throw new Error("Draft role request could not be found.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		collection: "roles",
@@ -184,8 +186,6 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
-	if(requestedVersion == null)
-		throw new Error("Draft role request could not be found.");
 	const relations = await resolveRelations({ payload, docs: [approvedVersion, requestedVersion] });
 	return {
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
@@ -214,15 +214,16 @@ export async function getHistoryAction(roleId: string) {
 			updatedAt: true,
 			version: {
 				id: true,
+				_status: true,
+				createdAt: true,
+				createdBy: true,
+				updatedAt: true,
+				updatedBy: true,
+				deletedAt: true,
+				deletedBy: true,
 				name: true,
 				level: true,
 				menus: true,
-				createdBy: true,
-				updatedBy: true,
-				deletedBy: true,
-				createdAt: true,
-				updatedAt: true,
-				deletedAt: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -259,11 +260,11 @@ export async function requestUpsertAction(formState: FormState) {
 			draft: true,
 			data: {
 				_status: "draft",
+				deletedAt: null,
+				deletedBy: null,
 				name: formState.name,
 				level: formState.level,
 				menus: formState.menus,
-				deletedAt: null,
-				deletedBy: null,
 				reviewedAt: null,
 				reviewedBy: null,
 				reviewApproved: null,
@@ -281,11 +282,11 @@ export async function requestUpsertAction(formState: FormState) {
 		trash: true,
 		data: {
 			_status: "draft",
+			deletedAt: null,
+			deletedBy: null,
 			name: formState.name,
 			level: formState.level,
 			menus: formState.menus,
-			deletedAt: null,
-			deletedBy: null,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -353,11 +354,11 @@ export async function cancelRequestAction(id: string) {
 		select: {
 			version: {
 				_status: true,
+				deletedAt: true,
+				deletedBy: true,
 				name: true,
 				level: true,
 				menus: true,
-				deletedAt: true,
-				deletedBy: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -393,11 +394,11 @@ export async function cancelRequestAction(id: string) {
 		trash: true,
 		data: {
 			_status: "published",
+			deletedAt: approvedVersion.deletedAt,
+			deletedBy: approvedVersion.deletedBy,
 			name: approvedVersion.name,
 			level: approvedVersion.level,
 			menus: approvedVersion.menus,
-			deletedAt: approvedVersion.deletedAt,
-			deletedBy: approvedVersion.deletedBy,
 			reviewedAt: approvedVersion.reviewedAt,
 			reviewedBy: approvedVersion.reviewedBy,
 			reviewApproved: approvedVersion.reviewApproved,
