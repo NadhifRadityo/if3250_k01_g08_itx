@@ -14,7 +14,9 @@
 		"seed:credit-application-import": "payload run ./scripts/seedCreditApplicationImport.ts",
 		"seed:gps": "payload run ./scripts/seedGPSLogs.ts",
 		"seed:otp": "payload run ./scripts/seedOTP.ts",
-		"seed:officer-task-report-monitor": "payload run ./scripts/seedOfficerTaskReportMonitor.ts"
+		"seed:officer-task-report-monitor": "payload run ./scripts/seedOfficerTaskReportMonitor.ts",
+		"seed:survey-result-report": "payload run ./scripts/seedSurveyResultReport.ts",
+		"verify:survey-result-report": "payload run ./scripts/verifySurveyResultReport.ts"
 	},
 	"packageManager": "pnpm@10.33.0",
 	"dependencies": {

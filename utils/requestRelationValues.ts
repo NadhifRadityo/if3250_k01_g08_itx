@@ -17,6 +17,7 @@ export type RelationRole = {
 export type RelationCreditApplication = {
 	name: string;
 	email: string;
+	assetId?: string | null;
 };
 
 export type RequestDiffPair<T> = [T, T];

@@ -24,8 +24,7 @@ import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import type { DashboardMode, DashboardManagementKey, DashboardManagementNavigationItem } from "./layout.actions";
 
-
-const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|officer-task-reporting|officer-task-monitoring|survey-management|satisfaction-survey-management|monitoring-officer-tracking|monitoring-log-gps|monitoring-log-recording|monitoring-log-otp|login-activity-log)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
+const managementPathRegex = /^\/(user-management|role-management|team-management|credit-application-management|credit-application-assignment|officer-task-reporting|officer-task-monitoring|survey-management|satisfaction-survey-management|survey-result|monitoring-officer-tracking|monitoring-log-gps|monitoring-log-recording|monitoring-log-otp|login-activity-log)(?:\/(viewer|editor|approver|import-viewer|import-editor|import-approver))?$/;
 
 function parseManagementPath(pathname: string): { key: DashboardManagementKey, mode: DashboardMode | null } | null {
 	const match = pathname.match(managementPathRegex);
@@ -52,6 +51,8 @@ function getManagementIcon(key: DashboardManagementKey) {
 		return MapPinnedIcon;
 	if(key == "survey-management")
 		return ClipboardListIcon;
+	if(key == "survey-result")
+		return ClipboardListIcon;
 	if(key == "satisfaction-survey-management")
 		return SmileIcon;
 	if(key == "login-activity-log")
@@ -60,7 +61,9 @@ function getManagementIcon(key: DashboardManagementKey) {
 }
 
 function isManagementItemActive(pathname: string, item: DashboardManagementNavigationItem): boolean {
-	return pathname == item.baseHref || pathname.startsWith(`${item.baseHref}/`);
+	if(pathname == item.baseHref || pathname.startsWith(`${item.baseHref}/`))
+		return true;
+	return item.links.some(link => pathname == link.href || pathname.startsWith(`${link.href}/`));
 }
 
 function getBreadcrumbModel(pathname: string, managementNavigation: DashboardManagementNavigationItem[]): {
@@ -75,8 +78,18 @@ function getBreadcrumbModel(pathname: string, managementNavigation: DashboardMan
 		return { managementLabel: "Login Activity Log", modeLabel: "Viewer", isCreditApplication: false };
 
 	const parsedPath = parseManagementPath(pathname);
-	if(parsedPath == null)
-		return { managementLabel: null, modeLabel: null, isCreditApplication: false };
+	if(parsedPath == null) {
+		const matchedItem = managementNavigation.find(item => item.links.some(link => pathname == link.href || pathname.startsWith(`${link.href}/`)));
+		if(matchedItem == null)
+			return { managementLabel: null, modeLabel: null, isCreditApplication: false };
+
+		const matchedLink = matchedItem.links.find(link => pathname == link.href || pathname.startsWith(`${link.href}/`)) ?? null;
+		return {
+			managementLabel: matchedItem.label,
+			modeLabel: matchedItem.hasSubmenu && matchedLink != null ? matchedLink.label : null,
+			isCreditApplication: false
+		};
+	}
 
 	const item = managementNavigation.find(candidate => candidate.key == parsedPath.key);
 	if(item == null)

@@ -10,17 +10,18 @@ import type { Role, User } from "@/payload-types";
 import { getClientIpFromHeaders } from "@/utils/clientIp";
 import { writeLoginLogEntry } from "@/utils/loginLogWriter";
 
-
-const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management", "login-activity-log", "officer-task-reporting", "officer-task-monitoring","monitoring-officer-tracking", "monitoring-log-gps", "monitoring-log-recording", "monitoring-log-otp"] as const;
+const dashboardManagementKeys = ["user-management", "role-management", "team-management", "credit-application-management", "credit-application-assignment", "survey-management", "satisfaction-survey-management", "survey-result", "login-activity-log", "officer-task-reporting", "officer-task-monitoring", "monitoring-officer-tracking", "monitoring-log-gps", "monitoring-log-recording", "monitoring-log-otp"] as const;
 
 export type DashboardManagementKey = (typeof dashboardManagementKeys)[number];
 type DashboardSingleViewerKey = "officer-task-reporting" | "officer-task-monitoring";
 type DashboardRoleManagedKey = Exclude<DashboardManagementKey, DashboardSingleViewerKey>;
+type DashboardStandardRoleManagedKey = Exclude<DashboardRoleManagedKey, "survey-result">;
 export type DashboardMode = "viewer" | "editor" | "approver" | "import-viewer" | "import-editor" | "import-approver";
 type DashboardRoleMenuMode = "viewer" | "editor" | "approver" | "auditor";
 type DashboardCreditApplicationImportRoleMenu = `credit-application-management-import-${"viewer" | "editor" | "approver"}`;
 type DashboardSingleViewerRoleMenu = `${DashboardSingleViewerKey}-viewer`;
-export type DashboardRoleMenu = `${DashboardRoleManagedKey}-${DashboardRoleMenuMode}` | DashboardCreditApplicationImportRoleMenu | DashboardSingleViewerRoleMenu;
+type DashboardSurveyResultRoleMenu = "survey-result-monitoring" | "survey-result-reporting";
+export type DashboardRoleMenu = `${DashboardStandardRoleManagedKey}-${DashboardRoleMenuMode}` | DashboardCreditApplicationImportRoleMenu | DashboardSingleViewerRoleMenu | DashboardSurveyResultRoleMenu;
 
 export type DashboardNavLink = {
 	label: string;
@@ -73,6 +74,7 @@ const managementLabelMap: Record<DashboardManagementKey, string> = {
 	"officer-task-monitoring": "Officer Task Monitoring",
 	"survey-management": "Survey Management",
 	"satisfaction-survey-management": "Satisfaction Survey Management",
+	"survey-result": "Survey Result",
 	"monitoring-officer-tracking": "Officer Tracking",
 	"monitoring-log-gps": "Log GPS",
 	"monitoring-log-recording": "Log Recording",
@@ -130,7 +132,9 @@ const dashboardRoleMenus = [
 	"monitoring-log-recording-viewer", 
 	"monitoring-log-otp-viewer",
 	"login-activity-log-viewer",
-	"login-activity-log-auditor"
+	"login-activity-log-auditor",
+	"survey-result-monitoring",
+	"survey-result-reporting"
 ] as const satisfies DashboardRoleMenu[];
 
 const dashboardRoleMenuSet = new Set<DashboardRoleMenu>(dashboardRoleMenus);
@@ -157,7 +161,7 @@ function normalizeDashboardRoleMenus(value: unknown): DashboardRoleMenu[] {
 	return [...new Set(normalized)];
 }
 
-function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardRoleManagedKey): {
+function getModeFlags(menus: Set<DashboardRoleMenu>, key: DashboardStandardRoleManagedKey): {
 	hasViewer: boolean;
 	hasAuditor: boolean;
 	hasEditor: boolean;
@@ -202,6 +206,30 @@ function buildManagementNavigationItem(menus: Set<DashboardRoleMenu>, key: Dashb
 			],
 			defaultHref: baseHref,
 			defaultMode: "viewer"
+		};
+	}
+
+	if(key == "survey-result") {
+		const hasMonitoring = menus.has("survey-result-monitoring");
+		const hasReporting = menus.has("survey-result-reporting");
+		if(!hasMonitoring && !hasReporting)
+			return null;
+
+		const links: DashboardNavLink[] = [];
+		if(hasMonitoring)
+			links.push({ label: "Monitoring", mode: "viewer", href: "/survey-result/monitoring" });
+		if(hasReporting)
+			links.push({ label: "Reporting", mode: "editor", href: "/survey-result/reporting" });
+
+		const defaultLink = links[0];
+		return {
+			key,
+			label: managementLabelMap[key],
+			baseHref: "/survey-result",
+			hasSubmenu: true,
+			links,
+			defaultHref: defaultLink.href,
+			defaultMode: defaultLink.mode
 		};
 	}
 
@@ -300,6 +328,16 @@ function resolveDefaultManagementHref(menus: DashboardRoleMenu[], key: Dashboard
 function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: DashboardManagementKey, mode: DashboardMode): string | null {
 	if(isDashboardSingleViewerKey(key))
 		return mode == "viewer" && menus.includes(`${key}-viewer`) ? null : "/";
+	if(key == "survey-result") {
+		const hasMonitoring = menus.includes("survey-result-monitoring");
+		const hasReporting = menus.includes("survey-result-reporting");
+
+		if(mode == "viewer")
+			return hasMonitoring ? null : (hasReporting ? "/survey-result/reporting" : "/");
+		if(mode == "editor")
+			return hasReporting ? null : "/";
+		return "/";
+	}
 
 	const menuSet = new Set(menus);
 	const {
@@ -348,8 +386,21 @@ function resolveManagementModeRedirectHref(menus: DashboardRoleMenu[], key: Dash
 
 function resolveViewerEditorTarget(menus: DashboardRoleMenu[], key: DashboardRoleManagedKey): DashboardViewerEditorTarget {
 	const menuSet = new Set(menus);
+	if(key == "survey-result") {
+		const hasMonitoring = menuSet.has("survey-result-monitoring");
+		const hasReporting = menuSet.has("survey-result-reporting");
+		const viewerHref = hasMonitoring ? "/survey-result/monitoring" : hasReporting ? "/survey-result/reporting" : null;
+		const editorHref = hasReporting ? "/survey-result/reporting" : null;
+		return {
+			key,
+			viewerHref,
+			editorHref,
+			preferredHref: viewerHref ?? editorHref
+		};
+	}
 	const hasViewer = menuSet.has(`${key}-viewer`) || menuSet.has(`${key}-auditor`);
 	const hasEditor = menuSet.has(`${key}-editor`);
+
 	const viewerHref = hasViewer ? `/${key}/viewer` : null;
 	const editorHref = hasEditor ? `/${key}/editor` : null;
 
@@ -382,6 +433,7 @@ function resolveViewerEditorTargets(menus: DashboardRoleMenu[]): DashboardViewer
 		},
 		"survey-management": resolveViewerEditorTarget(menus, "survey-management"),
 		"satisfaction-survey-management": resolveViewerEditorTarget(menus, "satisfaction-survey-management"),
+		"survey-result": resolveViewerEditorTarget(menus, "survey-result"),
 		"monitoring-officer-tracking": resolveViewerEditorTarget(menus, "monitoring-officer-tracking"),
 		"monitoring-log-gps": resolveViewerEditorTarget(menus, "monitoring-log-gps"),
 		"monitoring-log-recording": resolveViewerEditorTarget(menus, "monitoring-log-recording"),
@@ -461,6 +513,10 @@ function formatMenuLabel(menu: Role["menus"][number]): string {
 		return "Satisfaction Survey Management - Editor";
 	if(menu == "satisfaction-survey-management-approver")
 		return "Satisfaction Survey Management - Approver";
+	if(menu == "survey-result-monitoring")
+		return "Survey Result - Monitoring";
+	if(menu == "survey-result-reporting")
+		return "Survey Result - Reporting";
 	if(menu == "monitoring-officer-tracking-viewer")
 		return "Monitoring - Officer Tracking";
 	if(menu == "monitoring-log-gps-viewer")
@@ -581,6 +637,7 @@ export async function getDashboardViewerEditorTargetsAction(): Promise<Dashboard
 			"officer-task-monitoring": { key: "officer-task-monitoring", viewerHref: null, editorHref: null, preferredHref: null },
 			"survey-management": { key: "survey-management", viewerHref: null, editorHref: null, preferredHref: null },
 			"satisfaction-survey-management": { key: "satisfaction-survey-management", viewerHref: null, editorHref: null, preferredHref: null },
+			"survey-result": { key: "survey-result", viewerHref: null, editorHref: null, preferredHref: null },
 			"monitoring-officer-tracking": { key: "monitoring-officer-tracking", viewerHref: null, editorHref: null, preferredHref: null },
 			"monitoring-log-gps": { key: "monitoring-log-gps", viewerHref: null, editorHref: null, preferredHref: null },
 			"monitoring-log-recording": { key: "monitoring-log-recording", viewerHref: null, editorHref: null, preferredHref: null },
