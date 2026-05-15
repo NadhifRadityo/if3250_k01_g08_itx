@@ -7,7 +7,6 @@ import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { getClientIpFromHeaders } from "@/utils/clientIp";
-import { writeLoginLogEntry } from "@/utils/loginLogWriter";
 
 export async function loginAction(email: string, password: string) {
 	const headers = await nextHeaders();
@@ -15,7 +14,7 @@ export async function loginAction(email: string, password: string) {
 	const { user: loggedInuser } = await payload.auth({ headers });
 	if(loggedInuser != null)
 		throw new Error("Already logged in");
-	const ip = getClientIpFromHeaders(headers);
+	const ipAddress = getClientIpFromHeaders(headers);
 	try {
 		const { user } = await payloadLogin({
 			config: payloadConfig,
@@ -25,15 +24,21 @@ export async function loginAction(email: string, password: string) {
 		});
 		if(user == null)
 			throw new Error("Login failed");
-		await writeLoginLogEntry(payload, {
-			userId: String(user.id),
-			ip,
-			event: "login",
-			outcome: "success"
-		});
+		try {
+			await payload.create({
+				collection: "login-logs",
+				overrideAccess: true,
+				depth: 0,
+				data: {
+					event: "login",
+					user: user.id,
+					ipAddress: ipAddress,
+					outcome: "success"
+				}
+			});
+		} catch{}
 		return redirect("/", RedirectType.push);
-	}
-	catch (error) {
+	} catch (error) {
 		try {
 			const found = await payload.find({
 				collection: "users",
@@ -42,15 +47,19 @@ export async function loginAction(email: string, password: string) {
 				depth: 0,
 				overrideAccess: true
 			});
-			const uid = found.docs[0] != null ? String(found.docs[0].id) : null;
-			await writeLoginLogEntry(payload, {
-				userId: uid,
-				ip,
-				event: "login",
-				outcome: "failure"
+			const userId = found.docs[0] != null ? String(found.docs[0].id) : null;
+			await payload.create({
+				collection: "login-logs",
+				overrideAccess: true,
+				depth: 0,
+				data: {
+					event: "login",
+					user: userId,
+					ipAddress: ipAddress,
+					outcome: "failure"
+				}
 			});
-		}
-		catch {}
+		} catch{}
 		throw error;
 	}
 }

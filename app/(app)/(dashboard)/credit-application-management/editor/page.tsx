@@ -19,7 +19,7 @@ const columnConfigColumnsWithActions = Object.freeze([
 ]);
 const tableConfigColumnsWithActions = Object.freeze([
 	...tableConfigColumns,
-	{ key: "#actions", label: "Actions", sortable: false }
+	{ key: "#actions", label: "Actions", sortable: false, className: "flex flex-wrap gap-2" }
 ]);
 const rowValueRendererConfigColumnsWithActions = Object.freeze([
 	...rowValueRendererConfigColumns,
@@ -64,13 +64,21 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 		</>
 	) } satisfies (typeof rowValueRendererConfigColumns)[number]
 ]);
+const defaultColumnOrderWithActions = Object.freeze([
+	...defaultColumnOrder,
+	"#actions"
+]) as string[];
+const defaultColumnsShownWithActions = Object.freeze([
+	...defaultColumnsShown,
+	"#actions"
+]) as string[];
 
 export default function Page() {
 	const queryClient = useQueryClient();
 	const { roles } = useDashboardShellContext();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
 	const [filters, setFilters] = useConfigStorage({ localStorageKey: "credit-application-management.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
@@ -110,21 +118,27 @@ export default function Page() {
 	const [cancelPendingRequestTargetRow, setCancelPendingRequestTargetRow] = useState(null as ColumnData | null);
 	const [revertApprovedTargetRow, setRevertApprovedTargetRow] = useState(null as ColumnData | null);
 	const [restoreDeletionTargetRow, setRestoreDeletionTargetRow] = useState(null as ColumnData | null);
+	const rowValueRendererContext = {
+		relationValues: query.data?.relations,
+		isMutating: isMutating,
+		setChangeRequestDrawerRow: setChangeRequestDrawerRow,
+		setChangeRequestDrawerOpen: setChangeRequestDrawerOpen,
+		setEditFormDrawerState: setEditFormDrawerState,
+		setEditFormDrawerOpen: setEditFormDrawerOpen,
+		setDeleteTargetRow: setDeleteTargetRow,
+		setCancelPendingRequestTargetRow: setCancelPendingRequestTargetRow,
+		setRevertApprovedTargetRow: setRevertApprovedTargetRow,
+		setRestoreDeletionTargetRow: setRestoreDeletionTargetRow
+	};
 	const renderCell = useMenuRowValueRenderer({
 		columns: rowValueRendererConfigColumnsWithActions,
 		context: {
-			relationValues: query.data?.relations,
-			isMutating: isMutating,
-			setChangeRequestDrawerRow: setChangeRequestDrawerRow,
-			setChangeRequestDrawerOpen: setChangeRequestDrawerOpen,
-			setEditFormDrawerState: setEditFormDrawerState,
-			setEditFormDrawerOpen: setEditFormDrawerOpen,
-			setDeleteTargetRow: setDeleteTargetRow,
-			setCancelPendingRequestTargetRow: setCancelPendingRequestTargetRow,
-			setRevertApprovedTargetRow: setRevertApprovedTargetRow,
-			setRestoreDeletionTargetRow: setRestoreDeletionTargetRow
+			...rowValueRendererContext,
+			richTextCard: false,
+			richTextClamp: false
 		},
-		detailsTriggerColumnKey: eligibleDetailsTriggerColumns.find(columnKey => columnsShown.includes(columnKey)),
+		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
+			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
 		onOpenDetails: row => {
 			setDetailsDrawerOpen(true);
 			setDetailsDrawerRow(row);
@@ -187,6 +201,8 @@ export default function Page() {
 					onColumnOrderChange={setColumnOrder}
 					columnsShown={columnsShown}
 					onColumnsShownChange={setColumnsShown}
+					defaultColumnOrder={defaultColumnOrderWithActions}
+					defaultColumnsShown={defaultColumnsShownWithActions}
 				/>
 				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
 				{query.error != null ? (
@@ -227,17 +243,20 @@ export default function Page() {
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 					onOpenHistory={() => setHistoryDrawerOpen(true)}
 				/>
 				<HistoryDrawer
 					open={historyDrawerOpen}
 					onOpenChange={setHistoryDrawerOpen}
 					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 				/>
 				<ChangeRequestDrawer
 					open={changeRequestDrawerOpen}
 					onOpenChange={setChangeRequestDrawerOpen}
 					row={changeRequestDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 				/>
 				<FormDrawer
 					open={editFormDrawerOpen}

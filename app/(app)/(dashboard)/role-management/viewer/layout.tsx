@@ -6,7 +6,7 @@ import { getDashboardShellContextAction } from "../../layout.actions";
 export default async function Layout({ children }: { children: ReactNode }) {
 	const dashboardContext = await getDashboardShellContextAction();
 	if(dashboardContext == null) return redirect("/login");
-	const thisMenu = dashboardContext.menus.find(menu => menu.key == "user-management");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "role-management");
 	if(thisMenu == null) return redirect("/");
 	const editorMode = thisMenu.modes["editor"];
 	if(editorMode != null) return redirect(editorMode.href);

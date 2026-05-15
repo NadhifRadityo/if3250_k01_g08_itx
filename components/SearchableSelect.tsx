@@ -112,6 +112,8 @@ export function SearchableSelect({
 	searchRefetchInterval = 10000,
 	searchRefetchOnWindowFocus = true
 }: SearchableSelectProps) {
+	value ??= "";
+	options ??= [];
 	const [open, setOpen] = useState(false);
 	const [searchValue, setSearchValue] = useState("");
 	const queryId = useId();
@@ -236,6 +238,8 @@ export function SearchableMultiSelect({
 	searchRefetchInterval = 10000,
 	searchRefetchOnWindowFocus = true
 }: SearchableMultiSelectProps) {
+	values ??= [];
+	options ??= [];
 	const [open, setOpen] = useState(false);
 	const [searchValue, setSearchValue] = useState("");
 	const queryId = useId();
@@ -313,7 +317,9 @@ export function SearchableMultiSelect({
 				>
 					<span className="truncate text-left">
 						{selectedLabels.length > 0 ? selectedLabels.map((label, i) => (
-							<React.Fragment key={i}>{label}</React.Fragment>
+							<span key={i} className="not-last:after:content-[',_']">
+								{label}
+							</span>
 						)) : placeholder}
 					</span>
 					<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />

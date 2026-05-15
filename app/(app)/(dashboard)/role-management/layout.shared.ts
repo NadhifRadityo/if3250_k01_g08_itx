@@ -36,16 +36,16 @@ export const menusSelectOptions = Object.freeze([
 	{ value: "satisfaction-survey-management-auditor", label: "Satisfaction Survey Management - Auditor" },
 	{ value: "satisfaction-survey-management-editor", label: "Satisfaction Survey Management - Editor" },
 	{ value: "satisfaction-survey-management-approver", label: "Satisfaction Survey Management - Approver" },
-	{ value: "officer-task-reporting", label: "Officer Task - Reporting" },
 	{ value: "officer-task-monitoring", label: "Officer Task - Monitoring" },
-	{ value: "officer-tracking-reporting", label: "Officer Tracking - Reporting" },
+	{ value: "officer-task-reporting", label: "Officer Task - Reporting" },
 	{ value: "officer-tracking-monitoring", label: "Officer Tracking - Monitoring" },
-	{ value: "login-activity-log-reporting", label: "Login Activity Log - Reporting" },
+	{ value: "officer-tracking-reporting", label: "Officer Tracking - Reporting" },
 	{ value: "login-activity-log-monitoring", label: "Login Activity Log - Monitoring" },
-	{ value: "otp-log-reporting", label: "OTP Log - Reporting" },
+	{ value: "login-activity-log-reporting", label: "Login Activity Log - Reporting" },
 	{ value: "otp-log-monitoring", label: "OTP Log - Monitoring" },
-	{ value: "gps-log-reporting", label: "GPS Log - Reporting" },
+	{ value: "otp-log-reporting", label: "OTP Log - Reporting" },
 	{ value: "gps-log-monitoring", label: "GPS Log - Monitoring" },
-	{ value: "recording-log-reporting", label: "Recording Log - Reporting" },
-	{ value: "recording-log-monitoring", label: "Recording Log - Monitoring" }
+	{ value: "gps-log-reporting", label: "GPS Log - Reporting" },
+	{ value: "recording-log-monitoring", label: "Recording Log - Monitoring" },
+	{ value: "recording-log-reporting", label: "Recording Log - Reporting" }
 ] as const);

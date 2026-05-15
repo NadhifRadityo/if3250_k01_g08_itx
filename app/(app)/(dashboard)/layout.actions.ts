@@ -7,11 +7,10 @@ import { getPayload, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { getClientIpFromHeaders } from "@/utils/clientIp";
-import { writeLoginLogEntry } from "@/utils/loginLogWriter";
 import { getRelationshipId } from "@/utils/payload";
 import type { User } from "@/payload-types";
 
-import { dashboardMenuKeys, dashboardRoleHrefs, preferredMenuModes, dashboardMenuLabels, dashboardRoleLabels } from "./layout.shared";
+import { dashboardMenuKeys, dashboardRoleHrefs, preferredMenuModes, dashboardMenuLabels, dashboardRoleLabels, dashboardRoleSubLabels } from "./layout.shared";
 
 export type DashboardMenu = ReturnType<typeof getDashboardMenus>[number];
 
@@ -20,7 +19,7 @@ function getDashboardMenus(roles: string[]) {
 		menuKey,
 		Object.fromEntries(roles
 			.filter(role => role.startsWith(`${menuKey}-`) && dashboardRoleHrefs[role] != null)
-			.map(rols => [rols, { label: dashboardRoleLabels[rols] as string, href: dashboardRoleHrefs[rols] as string }]))
+			.map(role => [role.slice(`${menuKey}-`.length), { label: dashboardRoleLabels[role] as string, shortLabel: dashboardRoleSubLabels[role], href: dashboardRoleHrefs[role] as string }]))
 	] as const)
 		.filter(([_, modes]) => Object.keys(modes).length > 0)
 		.map(([menuKey, modes]) => ({
@@ -78,15 +77,22 @@ export async function logoutAction() {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
+	await payloadLogout({ config: payloadConfig });
 	if(user != null) {
+		const ipAddress = getClientIpFromHeaders(headers);
 		try {
-			await writeLoginLogEntry(payload, {
-				userId: String(user.id),
-				ip: getClientIpFromHeaders(headers),
-				event: "logout"
+			await payload.create({
+				collection: "login-logs",
+				overrideAccess: true,
+				depth: 0,
+				data: {
+					event: "login",
+					user: user.id,
+					ipAddress: ipAddress,
+					outcome: "success"
+				}
 			});
 		} catch{}
 	}
-	await payloadLogout({ config: payloadConfig });
 	return redirect("/login", RedirectType.push);
 }

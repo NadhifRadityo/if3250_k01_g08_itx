@@ -45,10 +45,11 @@ const templateColumns = [
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
-	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator] as const))
+	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
 		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
 			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
-			[...termGroups, [unit]], [] as Where[][])
+			[...termGroups, [unit]], [[]] as Where[][])
+		.filter(termGroups => termGroups.length > 0)
 		.map(termGroups => ({ and: termGroups }))
 });
 
@@ -347,8 +348,8 @@ export async function requestCreateAction(formData: FormData) {
 
 	const result = await payload.create({
 		user: user,
-		collection: "credit-application-imports",
 		overrideAccess: true,
+		collection: "credit-application-imports",
 		file: {
 			name: fileName,
 			data: Buffer.from(fileBuffer),

@@ -9,7 +9,7 @@ import { lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@
 import type { StagedUser } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationUsers, resolveRelationRoles } from "../relation-navigation.actions";
+import { resolveRelationRoles, resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationRole, RelationUser } from "../relation-navigation.shared";
 import { FormState } from "./layout.components";
 
@@ -18,10 +18,11 @@ export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
 	Partial<Record<`roles:${string}`, RelationRole>>;
 
 const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
-	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator] as const))
+	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
 		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
 			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
-			[...termGroups, [unit]], [] as Where[][])
+			[...termGroups, [unit]], [[]] as Where[][])
+		.filter(termGroups => termGroups.length > 0)
 		.map(termGroups => ({ and: termGroups }))
 });
 
@@ -74,6 +75,7 @@ async function queryAction(
 		trash: true,
 		page: pageIndex,
 		limit: PAGE_LIMIT,
+		depth: 0,
 		sort: columnsSort.map(([columnKey, ascending]) => `${!ascending ? "-" : ""}${columnKey}`),
 		where: { and: [
 			...(mode == "approver" ? [
@@ -136,6 +138,7 @@ export async function getDetailsAction(id: string) {
 			employeeId: true,
 			role: true,
 			supervisor: true,
+			initialPassword: true,
 			reviewedAt: true,
 			reviewedBy: true,
 			reviewApproved: true,
@@ -152,19 +155,23 @@ export async function getDifferenceAction(id: string) {
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const requestedVersion = (await payload.findVersions({
+	const requestedDoc = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
 		collection: "staged-users",
 		trash: true,
 		pagination: false,
 		limit: 1,
+		depth: 0,
 		sort: "-updatedAt",
-		where: { and: [
-			{ parent: { equals: id } },
-			{ "version._status": { equals: "draft" } }
-		] },
+		where: {
+			and: [
+				{ parent: { equals: id } },
+				{ "version._status": { equals: "draft" } }
+			]
+		},
 		select: {
+			updatedAt: true,
 			version: {
 				deletedAt: true,
 				email: true,
@@ -175,7 +182,8 @@ export async function getDifferenceAction(id: string) {
 				initialPassword: true
 			}
 		}
-	})).docs[0]?.version;
+	})).docs[0];
+	const requestedVersion = requestedDoc?.version;
 	if(requestedVersion == null)
 		throw new Error("Draft staged user request could not be found.");
 	const approvedVersion = (await payload.findVersions({
@@ -185,11 +193,15 @@ export async function getDifferenceAction(id: string) {
 		trash: true,
 		pagination: false,
 		limit: 1,
+		depth: 0,
 		sort: "-updatedAt",
-		where: { and: [
-			{ parent: { equals: id } },
-			{ "version._status": { equals: "published" } }
-		] },
+		where: {
+			and: [
+				{ parent: { equals: id } },
+				{ "version._status": { equals: "published" } },
+				{ updatedAt: { less_than: requestedDoc.updatedAt } }
+			]
+		},
 		select: {
 			version: {
 				deletedAt: true,
@@ -224,6 +236,7 @@ export async function getHistoryAction(id: string) {
 		trash: true,
 		pagination: false,
 		limit: 100,
+		depth: 0,
 		sort: "-updatedAt",
 		where: { parent: { equals: id } },
 		select: {
@@ -241,6 +254,7 @@ export async function getHistoryAction(id: string) {
 				employeeId: true,
 				role: true,
 				supervisor: true,
+				initialPassword: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -416,6 +430,7 @@ export async function cancelRequestAction(id: string) {
 		trash: true,
 		pagination: false,
 		limit: 1,
+		depth: 0,
 		sort: "-updatedAt",
 		where: { and: [
 			{ parent: { equals: id } },

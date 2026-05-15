@@ -390,7 +390,7 @@ export const RichTextInput = ({
 						</div>
 						<ActionsPlugin>
 							<div className="clear-both flex items-center justify-between gap-2 overflow-auto border-t p-1">
-								<div className="flex flex-1 justify-start text-xs text-gray-500">
+								<div className="px-2 flex flex-1 justify-start text-xs text-gray-500">
 									<CharacterLimitPlugin maxLength={8000} charset="UTF-16" renderer={({ remainingCharacters }) => <>{!isMobile ? "Remaining Characters: " : "-"}{remainingCharacters}</>} />
 								</div>
 								<div className="flex flex-1 justify-end">

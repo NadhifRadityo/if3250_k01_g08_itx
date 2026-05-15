@@ -18,7 +18,7 @@ import importTemplateLogo from "@/app/_static/favicons/logo.png";
 import { CreditApplicationImport } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererConfigColumn, MenuRowValueRendererContext } from "../layout.components";
 import { searchRelationUsersAction, searchRelationCreditApplicationImportsAction } from "../relation-navigation.actions";
 import { getDetailsAction, queryViewerAction, parsePreviewAction } from "./import.actions";
 
@@ -92,7 +92,8 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "credit-application-imports.reviewedBy" }) },
 	{ key: "reviewApproved", type: "boolean" },
 	{ key: "reviewComment", type: "richText" }
-] as MenuRowValueRendererConfigColumn<ColumnData, {
+] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
+export type RowValueRendererContext = {
 	relationValues?: RelationValues;
 	isMutating?: boolean;
 	setEditFormDrawerState?: (v: FormState) => void;
@@ -101,7 +102,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	setRestoreDeletionTargetRow?: (v: ColumnData | null) => void;
 	setReviewDrawerRow?: (v: ColumnData | null) => void;
 	setReviewDrawerOpen?: (v: boolean) => void;
-}>[]);
+} & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",
 	"createdAt",
@@ -405,7 +406,7 @@ function ImportFileBox(
 		return JSON.stringify(value);
 	};
 	const downloadFile = () => {
-		const downloadUrl = file instanceof File ? URL.createObjectURL(file) : `/api/credit-applications-import/${encodeURIComponent(file.filename)}`;
+		const downloadUrl = file instanceof File ? URL.createObjectURL(file) : `/api/credit-application-imports/file/${encodeURIComponent(file.filename)}`;
 		const anchorElement = document.createElement("a");
 		anchorElement.href = downloadUrl;
 		anchorElement.download = downloadUrl;
@@ -440,7 +441,7 @@ function ImportFileBox(
 									`${query.data.rows.length} parsed row(s)`}
 						</p>
 					</div>
-					<Button variant="ghost" onClick={() => downloadFile()}>
+					<Button variant="ghost" onClick={e => { e.stopPropagation(); downloadFile(); }}>
 						<DownloadIcon className="size-4 shrink-0" />
 					</Button>
 				</div>
@@ -532,8 +533,8 @@ function ImportFileBox(
 }
 
 export function DetailsDrawer(
-	{ open, onOpenChange, row, renderActions }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, renderActions?: (r: ColumnData) => React.ReactNode }
+	{ open, onOpenChange, row, rowValueRendererContext, renderActions }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode }
 ) {
 	const query = useQuery({
 		queryKey: ["credit-application-import", "details", row?.id ?? null],
@@ -545,7 +546,8 @@ export function DetailsDrawer(
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
 		context: {
-			relationValues: query.data?.relations
+			...rowValueRendererContext,
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
@@ -624,73 +626,71 @@ export function FormDrawer(
 					<DrawerTitle>{title}</DrawerTitle>
 					<DrawerDescription>Upload a spreadsheet import or update the pending import description before approver review.</DrawerDescription>
 				</DrawerHeader>
-				<div className="flex-1 overflow-y-auto px-4">
-					<div className="grid gap-3 pb-4">
-						{formState.id == null ? (
-							<div className="bg-muted/40 space-y-2 rounded-lg border p-3">
-								<p className="text-sm font-medium">Need a starter workbook?</p>
-								<p className="text-muted-foreground text-xs">Download the XLSX template with every supported column, built-in validation rules, and the same layout used by the importer.</p>
-								<Button
-									type="button"
-									variant="link"
-									className="h-auto px-0"
-									onClick={async () => {
-										setGeneratingTemplate(true);
-										try {
-											await generateTemplate();
-										} finally {
-											setGeneratingTemplate(false);
-										}
-									}}
-									disabled={isMutating || generatingTemplate}
-								>
-									<DownloadIcon />
-									{generatingTemplate ? "Generating template..." : "Download import template"}
-								</Button>
-							</div>
-						) : null}
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Excel File</label>
-							<Input
-								type="file"
-								accept=".xlsx,.xls"
-								onChange={event => onFormStateChange({ ...formState, file: event.target.files?.[0] })}
-								disabled={formState.id != null || isMutating}
-							/>
-							{formState.id != null ? (
-								<p className="text-muted-foreground text-xs">
-									File is immutable after upload. Create a new import to change the file.
-								</p>
-							) : formState.file == null ? (
-								<p className="text-muted-foreground text-xs">
-									No file selected.
-								</p>
-							) : null}
+				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
+					{formState.id == null ? (
+						<div className="bg-muted/40 space-y-2 rounded-lg border p-3">
+							<p className="text-sm font-medium">Need a starter workbook?</p>
+							<p className="text-muted-foreground text-xs">Download the XLSX template with every supported column, built-in validation rules, and the same layout used by the importer.</p>
+							<Button
+								type="button"
+								variant="link"
+								className="h-auto px-0"
+								onClick={async () => {
+									setGeneratingTemplate(true);
+									try {
+										await generateTemplate();
+									} finally {
+										setGeneratingTemplate(false);
+									}
+								}}
+								disabled={isMutating || generatingTemplate}
+							>
+								<DownloadIcon />
+								{generatingTemplate ? "Generating template..." : "Download import template"}
+							</Button>
 						</div>
-						{formState.file != null ? (
-							<div className="space-y-2">
-								<ImportFileBox
-									importId={formState.id}
-									file={formState.file}
-								/>
-							</div>
-						) : null}
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Description</label>
-							<RichTextInput
-								serializedState={formState.description}
-								onSerializedStateChange={value => onFormStateChange({ ...formState, description: value })}
-								onImageUpload={uploadGenericRichtextImage}
-							/>
-						</div>
-						{mutationError != null ? (
-							<Alert variant="destructive">
-								<CircleAlertIcon />
-								<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
-								<AlertDescription>{`${mutationError?.message ?? "Unable to submit form."}`}</AlertDescription>
-							</Alert>
+					) : null}
+					<div className="space-y-2">
+						<label className="text-sm font-medium">Excel File</label>
+						<Input
+							type="file"
+							accept=".xlsx,.xls"
+							onChange={event => onFormStateChange({ ...formState, file: event.target.files?.[0] })}
+							disabled={formState.id != null || isMutating}
+						/>
+						{formState.id != null ? (
+							<p className="text-muted-foreground text-xs">
+								File is immutable after upload. Create a new import to change the file.
+							</p>
+						) : formState.file == null ? (
+							<p className="text-muted-foreground text-xs">
+								No file selected.
+							</p>
 						) : null}
 					</div>
+					{formState.file != null ? (
+						<div className="space-y-2">
+							<ImportFileBox
+								importId={formState.id}
+								file={formState.file}
+							/>
+						</div>
+					) : null}
+					<div className="space-y-2">
+						<label className="text-sm font-medium">Description</label>
+						<RichTextInput
+							serializedState={formState.description}
+							onSerializedStateChange={value => onFormStateChange({ ...formState, description: value })}
+							onImageUpload={uploadGenericRichtextImage}
+						/>
+					</div>
+					{mutationError != null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
+							<AlertDescription>{`${mutationError?.message ?? "Unable to submit form."}`}</AlertDescription>
+						</Alert>
+					) : null}
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
@@ -702,8 +702,8 @@ export function FormDrawer(
 }
 
 export function ReviewDrawer(
-	{ open, onOpenChange, row, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
+	{ open, onOpenChange, row, rowValueRendererContext, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
 ) {
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -729,9 +729,7 @@ export function ReviewDrawer(
 								</p>
 								<RichTextPreview
 									serializedState={row.description as any}
-									className="bg-transparent shadow-none border-none rounded-none"
-									contentClassName="line-clamp-2 min-h-5 max-h-28 p-0"
-									placeholderClassName="p-0"
+									contentClassName="min-h-8"
 								/>
 							</div>
 						</div>

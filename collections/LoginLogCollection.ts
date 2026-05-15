@@ -1,4 +1,4 @@
-import { CollectionConfig } from "payload";
+import { APIError, CollectionConfig } from "payload";
 
 export const LoginLogs = (): CollectionConfig => ({
 	slug: "login-logs",
@@ -8,36 +8,42 @@ export const LoginLogs = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "id",
-		defaultColumns: ["occurredAt", "user", "event", "outcome", "ip"],
-		group: "System"
+		defaultColumns: ["createdAt", "ipAddress", "user", "event", "outcome"]
 	},
-	access: {
-		create: () => false,
-		read: () => false,
-		update: () => false,
-		delete: () => false
+	hooks: {
+		beforeChange: [
+			({ operation }) => {
+				if(operation != "update")
+					throw new APIError("Login logs are append only");
+			}
+		]
 	},
 	fields: [
+		{
+			name: "createdAt",
+			label: "Created At",
+			type: "date",
+			required: true,
+			index: true,
+			defaultValue: () => new Date(),
+			admin: {
+				hidden: true,
+				disableBulkEdit: true,
+				readOnly: true
+			}
+		},
+		{
+			name: "ipAddress",
+			label: "IP Address",
+			type: "text",
+			required: true
+		},
 		{
 			name: "user",
 			label: "User",
 			type: "relationship",
 			relationTo: "users",
-			required: false,
 			index: true
-		},
-		{
-			name: "occurredAt",
-			label: "Occurred At",
-			type: "date",
-			required: true,
-			index: true
-		},
-		{
-			name: "ip",
-			label: "IP",
-			type: "text",
-			required: true
 		},
 		{
 			name: "event",
@@ -56,8 +62,8 @@ export const LoginLogs = (): CollectionConfig => ({
 			type: "select",
 			required: false,
 			options: [
-				{ value: "success", label: "Success (S)" },
-				{ value: "failure", label: "Failure (F)" }
+				{ value: "success", label: "Success" },
+				{ value: "failure", label: "Failure" }
 			]
 		}
 	]

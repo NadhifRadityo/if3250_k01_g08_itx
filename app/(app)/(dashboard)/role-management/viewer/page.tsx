@@ -44,14 +44,20 @@ export default function Page() {
 	const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
 	const [changeRequestDrawerRow, setChangeRequestDrawerRow] = useState(null as ColumnData | null);
 	const [changeRequestDrawerOpen, setChangeRequestDrawerOpen] = useState(false);
+	const rowValueRendererContext = {
+		relationValues: query.data?.relations,
+		setChangeRequestDrawerRow: setChangeRequestDrawerRow,
+		setChangeRequestDrawerOpen: setChangeRequestDrawerOpen
+	};
 	const renderCell = useMenuRowValueRenderer({
 		columns: rowValueRendererConfigColumns,
 		context: {
-			relationValues: query.data?.relations,
-			setChangeRequestDrawerRow: setChangeRequestDrawerRow,
-			setChangeRequestDrawerOpen: setChangeRequestDrawerOpen
+			...rowValueRendererContext,
+			richTextCard: false,
+			richTextClamp: false
 		},
-		detailsTriggerColumnKey: eligibleDetailsTriggerColumns.find(columnKey => columnsShown.includes(columnKey)),
+		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
+			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
 		onOpenDetails: row => {
 			setDetailsDrawerOpen(true);
 			setDetailsDrawerRow(row);
@@ -102,6 +108,8 @@ export default function Page() {
 					onColumnOrderChange={setColumnOrder}
 					columnsShown={columnsShown}
 					onColumnsShownChange={setColumnsShown}
+					defaultColumnOrder={defaultColumnOrder}
+					defaultColumnsShown={defaultColumnsShown}
 				/>
 				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
 				{query.error != null ? (
@@ -135,17 +143,20 @@ export default function Page() {
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 					onOpenHistory={() => setHistoryDrawerOpen(true)}
 				/>
 				<HistoryDrawer
 					open={historyDrawerOpen}
 					onOpenChange={setHistoryDrawerOpen}
 					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 				/>
 				<ChangeRequestDrawer
 					open={changeRequestDrawerOpen}
 					onOpenChange={setChangeRequestDrawerOpen}
 					row={changeRequestDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 				/>
 			</RelationNavigationProvider>
 		</MenuPage>

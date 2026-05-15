@@ -236,7 +236,8 @@ export const Users = (): CollectionConfig => ({
 			name: "stagedUser",
 			label: "Staged User",
 			type: "relationship",
-			relationTo: "staged-users"
+			relationTo: "staged-users",
+			unique: true
 		}
 	]
 });
@@ -371,7 +372,10 @@ export const StagedUsers = (): CollectionConfig => ({
 		{
 			name: "initialPassword",
 			label: "Initial Password",
-			type: "text"
+			type: "text",
+			access: {
+				read: () => false
+			}
 		},
 		{
 			name: "name",

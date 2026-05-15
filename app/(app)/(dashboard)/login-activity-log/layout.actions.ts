@@ -1,0 +1,105 @@
+"use server";
+
+import { headers as nextHeaders } from "next/headers";
+import { unauthorized } from "next/navigation";
+import { Payload, getPayload, type Where } from "payload";
+
+import payloadConfig from "@payload-config";
+import { getRelationshipId } from "@/utils/payload";
+import { LoginLog } from "@/payload-types";
+
+import { MenuFilterState } from "../layout.components";
+import { resolveRelationUsers } from "../relation-navigation.actions";
+import { RelationUser } from "../relation-navigation.shared";
+
+const PAGE_LIMIT = 20;
+export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
+
+const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
+	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
+		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
+			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
+			[...termGroups, [unit]], [[]] as Where[][])
+		.filter(termGroups => termGroups.length > 0)
+		.map(termGroups => ({ and: termGroups }))
+});
+
+async function resolveRelations(
+	{ payload, docs }:
+	{ payload?: Payload, docs: LoginLog[] }
+) {
+	payload ??= await getPayload({ config: payloadConfig });
+	const userIds = new Set<string>();
+	for(const doc of docs) {
+		const userId = getRelationshipId(doc.user);
+		if(userId != null)
+			userIds.add(userId);
+	}
+	const relations = {} as RelationValues;
+	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
+	return relations;
+}
+
+async function queryAction(
+	{ mode, keyword, filters, columnsSort, pageIndex }:
+	{ mode: "monitoring" | "reporting", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
+) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "login-logs",
+		depth: 0,
+		page: pageIndex,
+		limit: PAGE_LIMIT,
+		sort: columnsSort.map(([columnKey, ascending]) => `${!ascending ? "-" : ""}${columnKey}`),
+		where: { and: [
+			...(mode == "monitoring" || mode == "reporting" ? [] : []),
+			...(keyword.length > 0 ? [{ or: [
+				{ id: { like: keyword } },
+				{ "user.name": { like: keyword } },
+				{ "user.email": { like: keyword } },
+				{ ipAddress: { like: keyword } },
+				{ event: { equals: keyword } },
+				{ outcome: { equals: keyword } }
+			] }] : []),
+			buildFilterWhere(filters)
+		] }
+	});
+	const relations = await resolveRelations({ payload, docs: result.docs });
+	return { ...result, relations };
+}
+
+export async function queryReportingAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+	return await queryAction({ ...p, mode: "reporting" });
+}
+export async function queryMonitoringAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+	return await queryAction({ ...p, mode: "monitoring" });
+}
+
+export async function getDetailsAction(id: string) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.findByID({
+		user: user,
+		overrideAccess: false,
+		collection: "login-logs",
+		id: id,
+		depth: 0,
+		select: {
+			createdAt: true,
+			user: true,
+			ipAddress: true,
+			event: true,
+			outcome: true
+		}
+	});
+	const relations = await resolveRelations({ payload, docs: [result] });
+	return { row: result, relations };
+}

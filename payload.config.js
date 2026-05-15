@@ -7,20 +7,18 @@ import { CreditApplicationAssignments } from "./collections/CreditApplicationAss
 import { CreditApplications, CreditApplicationImports, CreditApplicationFieldMasks, CreditApplicationDefaultFieldMask } from "./collections/CreditApplicationCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { GenericRichtextUploads } from "./collections/GenericCollection";
+import { GpsLogs } from "./collections/GpsLogCollection";
+import { LoginLogs } from "./collections/LoginLogCollection";
+import { OtpLogs } from "./collections/OtpLogCollection";
+import { RecordingLogs, RecordingLogAudioFiles, RecordingLogTranscriptions } from "./collections/RecordingLogCollection";
 import { Roles } from "./collections/RoleCollection";
 import { SatisfactionSurveys } from "./collections/SatisfactionSurveyCollection";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
-import { LoginLogs } from "./collections/LoginLogCollection";
 import { Surveys } from "./collections/SurveyCollection";
 import { Teams } from "./collections/TeamCollection";
 import { Users, StagedUsers } from "./collections/UserCollection";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
-import { RecordingLogs } from './collections/RecordingLogsCollection'
-import { AudioFiles } from './collections/AudioFiles'
-import { TextFiles } from './collections/TextFiles'
-import { GPSRequestLogs } from "./collections/GPSRequestLogsCollection";
-import { OTPLogsCollection } from "./collections/OTPLogsCollection";
 
 export default buildConfig({
 	secret: process.env.PAYLOAD_SECRET,
@@ -48,11 +46,11 @@ export default buildConfig({
 		CreditApplicationFieldMasks(),
 		Surveys(),
 		SatisfactionSurveys(),
+		GpsLogs(),
+		OtpLogs(),
 		RecordingLogs(),
-		AudioFiles(),
-		TextFiles(),
-		GPSRequestLogs(),
-		OTPLogsCollection()
+		RecordingLogAudioFiles(),
+		RecordingLogTranscriptions()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),

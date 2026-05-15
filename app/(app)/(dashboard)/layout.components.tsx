@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useMemo, useState, useEffect, useContext, createContext, type ReactNode } from "react";
+import React, { useRef, useMemo, useState, useEffect, useContext, createContext, type ReactNode } from "react";
 import { redirect, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
 
+import cn from "@/utils/cn";
 import useIsMobile from "@/utils/useIsMobile";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Image } from "@/components/Image";
@@ -13,7 +14,7 @@ import { RichTextPreview } from "@/components/RichText";
 import { SearchableSelect, SearchableMultiSelect } from "@/components/SearchableSelect";
 import { Avatar, AvatarFallback } from "@/components/radix/Avatar";
 import { Badge } from "@/components/radix/Badge";
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from "@/components/radix/Breadcrumb";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/radix/Breadcrumb";
 import { Button } from "@/components/radix/Button";
 import { Card, CardContent } from "@/components/radix/Card";
 import { Checkbox } from "@/components/radix/Checkbox";
@@ -29,9 +30,9 @@ import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@
 import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import { DashboardMenu, getDashboardShellContextAction } from "./layout.actions";
-import { dashboardMenuGroups } from "./layout.shared";
+import { dashboardRoleKeys, dashboardMenuGroups } from "./layout.shared";
 import { RelationNavigationLink } from "./relation-navigation.components";
-import { RelationRole, RelationUser, RelationCreditApplication, RelationCreditApplicationImport } from "./relation-navigation.shared";
+import { RelationRole, RelationUser, RelationCreditApplication, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription } from "./relation-navigation.shared";
 
 const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
 	"user-management": UserCogIcon,
@@ -53,14 +54,20 @@ function DashboardMenuKey(
 	{ pathname, openSubmenuKeys, setOpenSubmenuKeys, menu }:
 	{ pathname: string, openSubmenuKeys: string[], setOpenSubmenuKeys: (cb: (v: string[]) => string[]) => void, menu: DashboardMenu }
 ) {
-	const { state: sidebarState } = useSidebar();
+	const { isMobile, state: sidebarState } = useSidebar();
 	const [lastSidebarState, setLastSidebarState] = useState(sidebarState);
 	useEffect(() => {
 		const handle = setTimeout(() => setLastSidebarState(sidebarState), 500);
 		return () => { clearTimeout(handle); };
 	}, [sidebarState]);
+	const menuModes = useMemo(() => {
+		return dashboardRoleKeys.filter(roleKey => roleKey.startsWith(`${menu.key}-`))
+			.map(roleKey => roleKey.slice(`${menu.key}-`.length))
+			.filter(modeKey => modeKey in menu.modes)
+			.map(modeKey => [modeKey, menu.modes[modeKey]] as const);
+	}, [menu]);
+	const isActive = menuModes.some(([_, mode]) => mode.href == pathname);
 	const Icon = MenuIcons[menu.key];
-	const isActive = Object.values(menu.modes).some(mode => mode.href == pathname);
 	if(Object.keys(menu.modes).length == 1) {
 		return (
 			<SidebarMenuItem>
@@ -73,7 +80,7 @@ function DashboardMenuKey(
 			</SidebarMenuItem>
 		);
 	}
-	if(sidebarState == "expanded" || lastSidebarState == "expanded") {
+	if(isMobile || sidebarState == "expanded" || lastSidebarState == "expanded") {
 		return (
 			<Collapsible
 				asChild
@@ -91,11 +98,13 @@ function DashboardMenuKey(
 					</CollapsibleTrigger>
 					<CollapsibleContent>
 						<SidebarMenuSub className="py-2">
-							{Object.entries(menu.modes).map(([modeKey, mode]) => (
+							{menuModes.map(([modeKey, mode]) => (
 								<SidebarMenuSubItem key={modeKey}>
 									<SidebarMenuSubButton asChild isActive={pathname == mode.href}>
 										<Link href={mode.href}>
-											<span className="whitespace-nowrap line-clamp-1 text-clip">{mode.label}</span>
+											<span className="whitespace-nowrap line-clamp-1 text-clip">
+												{mode.shortLabel}
+											</span>
 										</Link>
 									</SidebarMenuSubButton>
 								</SidebarMenuSubItem>
@@ -117,9 +126,9 @@ function DashboardMenuKey(
 			</HoverCardTrigger>
 			<HoverCardContent side="right" align="start" sideOffset={12} className="w-64 p-2 flex flex-col gap-1 bg-sidebar brightness-150">
 				<p className="p-1 brightness-80 text-xs text-sidebar-foreground">{menu.label}</p>
-				{Object.entries(menu.modes).map(([modeKey, mode]) => (
+				{menuModes.map(([modeKey, mode]) => (
 					<Link key={modeKey} href={mode.href} data-active={pathname == mode.href} className="brightness-[66.6%] text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground [&>svg]:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground h-7 gap-2 rounded-md px-2 focus-visible:ring-2 data-[size=md]:text-sm data-[size=sm]:text-xs [&>svg]:size-4 flex min-w-0 -translate-x-px items-center overflow-hidden outline-hidden group-data-[collapsible=icon]:hidden disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:shrink-0">
-						<span className="whitespace-nowrap line-clamp-1 text-clip">{mode.label}</span>
+						<span className="whitespace-nowrap line-clamp-1 text-clip">{mode.shortLabel}</span>
 					</Link>
 				))}
 			</HoverCardContent>
@@ -148,7 +157,23 @@ export function DashboardShell(
 	const pathname = usePathname();
 	const isMobile = useIsMobile();
 	const [openSubmenuKeys, setOpenSubmenuKeys] = useState([] as string[]);
-	const activeMenu = menus.find(menu => Object.values(menu.modes).some(mode => mode.href == pathname));
+	const menusWithoutMasked = useMemo(() => {
+		const menusWithoutMasked = structuredClone(menus);
+		for(const menu of menusWithoutMasked) {
+			if(menu.modes["editor"] != null && menu.modes["viewer"] != null) {
+				delete menu.modes["viewer"];
+				if(menu.defaultMode == "viewer")
+					menu.defaultMode = "editor";
+			}
+			if(menu.modes["import-editor"] != null && menu.modes["import-viewer"] != null) {
+				delete menu.modes["import-viewer"];
+				if(menu.defaultMode == "import-viewer")
+					menu.defaultMode = "import-editor";
+			}
+		}
+		return menusWithoutMasked;
+	}, [menus]);
+	const activeMenu = menusWithoutMasked.find(menu => Object.values(menu.modes).some(mode => mode.href == pathname));
 	const activeMode = activeMenu != null ? Object.values(activeMenu.modes).find(mode => mode.href == pathname)! : null;
 	useEffect(() => {
 		if(activeMenu == null) return;
@@ -180,10 +205,11 @@ export function DashboardShell(
 					</SidebarHeader>
 					<SidebarContent>
 						{dashboardMenuGroups
-							.map(([groupName, groupMenus]) => [groupName, menus.filter(menu => groupMenus.includes(menu.key))] as const)
+							.map(([groupName, groupMenus]) => [groupName, groupMenus.map(groupMenu =>
+								menusWithoutMasked.find(menu => menu.key == groupMenu)).filter(menu => menu != null)] as const)
 							.filter(([_, menus]) => menus.length > 0)
 							.map(([groupName, menus]) => (
-								<SidebarGroup>
+								<SidebarGroup key={groupName}>
 									<SidebarGroupLabel>{groupName}</SidebarGroupLabel>
 									<SidebarMenu className="gap-2">
 										{menus.map(menu => (
@@ -248,7 +274,7 @@ export function DashboardShell(
 					</mask>
 				</svg>
 				<SidebarInset className="md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-1 m-0! rounded-none sm:py-2 sm:pr-2">
-					<header className="flex bg-muted rounded-tl-xl rounded-tr-xl h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+					<header className="flex bg-muted h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
 						<div className="flex items-center gap-2 px-4">
 							<SidebarTrigger className="-ml-1" />
 							<Separator orientation="vertical" className="mr-1 my-auto data-[orientation=vertical]:h-4" />
@@ -259,11 +285,13 @@ export function DashboardShell(
 											<BreadcrumbItem>
 												{dashboardMenuGroups.find(([_, groupMenus]) => groupMenus.includes(activeMenu.key))?.[0]}
 											</BreadcrumbItem>
+											<BreadcrumbSeparator />
 											<BreadcrumbItem>
 												{activeMenu.label}
 											</BreadcrumbItem>
+											<BreadcrumbSeparator />
 											<BreadcrumbItem>
-												{activeMode.label}
+												{activeMode.shortLabel}
 											</BreadcrumbItem>
 										</>
 									) : (
@@ -372,7 +400,7 @@ export function useConfigStorage<T>(
 	p: { localStorageKey?: string, updateIfThisSearhParamExists?: string, defaultValue: T }
 ): [T, React.Dispatch<React.SetStateAction<T>>];
 export function useConfigStorage<T>(
-	{ localStorageKey, updateIfThisSearhParamExists, defaultValue }:
+	{ localStorageKey: localStorageKey, updateIfThisSearhParamExists: updateIfThisSearhParamExists, defaultValue }:
 	{ localStorageKey?: string, updateIfThisSearhParamExists?: string, defaultValue: T | (() => T) }
 ): [T, React.Dispatch<React.SetStateAction<T>>] {
 	return useState<T>(defaultValue);
@@ -383,8 +411,8 @@ export type MenuColumnConfigColumn = {
 	label: string;
 };
 export function MenuColumnConfigCard(
-	{ open, onOpenChange, columns, columnOrder, onColumnOrderChange, columnsShown, onColumnsShownChange, reset }:
-	{ open: boolean, onOpenChange: (o: boolean) => void, columns: readonly MenuColumnConfigColumn[], columnOrder: string[], onColumnOrderChange: (v: string[]) => void, columnsShown: string[], onColumnsShownChange: (v: string[]) => void, reset?: () => void }
+	{ open, onOpenChange, columns, columnOrder, onColumnOrderChange, columnsShown, onColumnsShownChange, defaultColumnOrder, defaultColumnsShown }:
+	{ open: boolean, onOpenChange: (o: boolean) => void, columns: readonly MenuColumnConfigColumn[], columnOrder: string[], onColumnOrderChange: (v: string[]) => void, columnsShown: string[], onColumnsShownChange: (v: string[]) => void, defaultColumnOrder: readonly string[], defaultColumnsShown: readonly string[] }
 ) {
 	const [draggedColumn, setDraggedColumn] = useState(null as string | null);
 	return (
@@ -398,9 +426,9 @@ export function MenuColumnConfigCard(
 						</div>
 						<div className="flex items-center gap-2">
 							<p className="text-muted-foreground text-sm">Visible {columnsShown.length} of {Object.keys(columns).length}</p>
-							{reset != null ? (
-								<Button type="button" variant="outline" size="sm" onClick={reset}>Reset</Button>
-							) : null}
+							<Button type="button" variant="outline" size="sm" onClick={() => { onColumnOrderChange([...defaultColumnOrder]); onColumnsShownChange([...defaultColumnsShown]); }}>
+								Reset
+							</Button>
 						</div>
 					</div>
 					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -510,16 +538,25 @@ const filterTypeOperators = Object.freeze({
 	"boolean_hasMany": ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"]
 });
 export function MenuFilterConfigCard(
-	{ open, onOpenChange, columns, filters, onFiltersChange, clear, disabled = false }:
-	{ open: boolean, onOpenChange: (o: boolean) => void, columns: readonly MenuFilterConfigColumn[], filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void, clear?: () => void, disabled?: boolean }
+	{ open, onOpenChange, columns, filters, onFiltersChange, disabled = false }:
+	{ open: boolean, onOpenChange: (o: boolean) => void, columns: readonly MenuFilterConfigColumn[], filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void, disabled?: boolean }
 ) {
 	const [draftedFilters, setDraftedFilters] = useState(filters as Partial<MenuFilterState>[]);
-	useEffect(() => setDraftedFilters(filters), [filters]);
-	const validFilters = useMemo(() => draftedFilters.filter((draftedFilter): draftedFilter is MenuFilterState => draftedFilter.columnKey != null && draftedFilter.operator != null &&
-		draftedFilter.combinator != null && draftedFilter.value != null && (!Array.isArray(draftedFilter.value) || draftedFilter.value.every(v => v != null))), [draftedFilters]);
-	useEffect(() => onFiltersChange(validFilters), [JSON.stringify(validFilters)]);
-	const updateFilter = (i: number, filter: Partial<MenuFilterState>) => draftedFilters.with(i, filter);
-	const removeFilter = (i: number) => draftedFilters.toSpliced(i, 1);
+	const validFilters = useMemo(() => draftedFilters.filter((draftedFilter, i): draftedFilter is MenuFilterState => draftedFilter.columnKey != null && draftedFilter.operator != null &&
+		(i == 0 || draftedFilter.combinator != null) && draftedFilter.value != null && (!Array.isArray(draftedFilter.value) || draftedFilter.value.every(v => v != null))), [draftedFilters]);
+	const serializedFilters = useMemo(() => JSON.stringify(filters), [filters]);
+	const serializedValidFilters = useMemo(() => JSON.stringify(validFilters), [validFilters]);
+	const lastSyncedFilters = useRef(serializedFilters);
+	useEffect(() => {
+		if(serializedFilters == lastSyncedFilters.current) return;
+		setDraftedFilters(filters);
+		lastSyncedFilters.current = serializedFilters;
+	}, [filters, serializedFilters]);
+	useEffect(() => {
+		if(serializedValidFilters == lastSyncedFilters.current) return;
+		lastSyncedFilters.current = serializedValidFilters;
+		onFiltersChange(validFilters);
+	}, [onFiltersChange, validFilters, serializedValidFilters]);
 	return (
 		<Collapsible open={open} onOpenChange={onOpenChange}>
 			<CollapsibleContent>
@@ -529,8 +566,8 @@ export function MenuFilterConfigCard(
 							<h3 className="text-sm font-semibold">Configure Filters</h3>
 							<p className="text-muted-foreground text-sm">Build multiple filters and combine them with AND or OR.</p>
 						</div>
-						{filters.length > 0 ? (
-							<Button type="button" variant="outline" size="sm" onClick={clear} disabled={disabled}>Clear Filter</Button>
+						{draftedFilters.length > 0 ? (
+							<Button type="button" variant="outline" size="sm" onClick={() => setDraftedFilters([])} disabled={disabled}>Clear Filter</Button>
 						) : null}
 					</div>
 					{draftedFilters.map((draftedFilter, i) => {
@@ -542,7 +579,7 @@ export function MenuFilterConfigCard(
 										<label className="text-sm font-medium">Combinator with previous filter</label>
 										<Select
 											value={draftedFilter.combinator}
-											onValueChange={value => updateFilter(i, { ...draftedFilter, combinator: value as any })}
+											onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, combinator: value as any }))}
 											disabled={disabled}
 										>
 											<SelectTrigger className="w-full">
@@ -558,7 +595,7 @@ export function MenuFilterConfigCard(
 								<div className="space-y-3 rounded-lg border p-3">
 									<div className="flex items-center justify-between">
 										<p className="text-sm font-medium">Filter {i + 1}</p>
-										<Button type="button" variant="ghost" size="sm" onClick={() => removeFilter(i)} disabled={disabled}>
+										<Button type="button" variant="ghost" size="sm" onClick={() => setDraftedFilters(draftedFilters.toSpliced(i, 1))} disabled={disabled}>
 											<XIcon />
 											Remove
 										</Button>
@@ -568,7 +605,7 @@ export function MenuFilterConfigCard(
 											<label className="text-sm font-medium">Column</label>
 											<Select
 												value={draftedFilter.columnKey}
-												onValueChange={value => updateFilter(i, { ...draftedFilter, columnKey: value, operator: undefined, value: undefined })}
+												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, columnKey: value, operator: undefined, value: undefined }))}
 												disabled={disabled}
 											>
 												<SelectTrigger className="w-full">
@@ -581,7 +618,7 @@ export function MenuFilterConfigCard(
 												</SelectContent>
 											</Select>
 										</div>
-										<div className="space-y-2">
+										<div className="space-y-2" key={`${draftedFilter.columnKey}`}>
 											<label className="text-sm font-medium">Operator</label>
 											{draftedFilter.columnKey == null || draftedFilterColumn == null ? (
 												<Select disabled>
@@ -592,7 +629,7 @@ export function MenuFilterConfigCard(
 											) : (
 												<Select
 													value={draftedFilter.operator}
-													onValueChange={value => updateFilter(i, { ...draftedFilter, operator: value, value: undefined })}
+													onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, operator: value, value: undefined }))}
 													disabled={disabled}
 												>
 													<SelectTrigger className="w-full">
@@ -607,7 +644,7 @@ export function MenuFilterConfigCard(
 											)}
 										</div>
 									</div>
-									<div className="space-y-2">
+									<div className="space-y-2" key={`${draftedFilter.columnKey}:${draftedFilter.operator}`}>
 										<label className="text-sm font-medium">Filter Value</label>
 										{draftedFilter.operator == null || draftedFilter.columnKey == null || draftedFilterColumn == null ? (
 											<Select disabled>
@@ -618,7 +655,7 @@ export function MenuFilterConfigCard(
 										) : draftedFilter.operator == "exists" ? (
 											<Select
 												value={draftedFilter.value != null ? draftedFilter.value != "false" ? "true" : "false" : undefined}
-												onValueChange={value => updateFilter(i, { ...draftedFilter, value: value != "false" })}
+												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value != "false" }))}
 												disabled={disabled}
 											>
 												<SelectTrigger className="w-full">
@@ -634,7 +671,7 @@ export function MenuFilterConfigCard(
 												draftedFilterColumn.type == "relation" ? (
 													<SearchableSelect
 														value={draftedFilter.value}
-														onValueChange={value => updateFilter(i, { ...draftedFilter, value })}
+														onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value }))}
 														options={[]}
 														onSearch={(keyword, selectedValues) => draftedFilterColumn.relationSearch(keyword, selectedValues).then(vs => vs.map(v => ({ value: v.id, label: v.label })))}
 														disabled={disabled}
@@ -643,7 +680,7 @@ export function MenuFilterConfigCard(
 												) : draftedFilterColumn.type == "select" ? (
 													<Select
 														value={draftedFilter.value}
-														onValueChange={value => updateFilter(i, { ...draftedFilter, value: value })}
+														onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
 														disabled={disabled}
 													>
 														<SelectTrigger className="w-full">
@@ -660,7 +697,7 @@ export function MenuFilterConfigCard(
 														className="flex-1"
 														mode="datetime"
 														value={draftedFilter.value != null ? new Date(draftedFilter.value).toISOString() : undefined}
-														onChange={value => updateFilter(i, { ...draftedFilter, value: value })}
+														onChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
 														disabled={disabled}
 														placeholder="Select date and time"
 														precision="second"
@@ -668,7 +705,7 @@ export function MenuFilterConfigCard(
 												) : draftedFilterColumn.type == "text" ? (
 													<Input
 														value={draftedFilter.value}
-														onChange={e => updateFilter(i, { ...draftedFilter, value: e.target.value })}
+														onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: e.target.value }))}
 														disabled={disabled}
 														placeholder="Enter value"
 													/>
@@ -676,14 +713,14 @@ export function MenuFilterConfigCard(
 													<Input
 														type="number"
 														value={draftedFilter.value}
-														onChange={e => updateFilter(i, { ...draftedFilter, value: e.target.valueAsNumber })}
+														onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: e.target.valueAsNumber }))}
 														disabled={disabled}
 														placeholder="Enter value"
 													/>
 												) : draftedFilterColumn.type == "boolean" ? (
 													<Select
 														value={draftedFilter.value != null ? draftedFilter.value != "false" ? "true" : "false" : undefined}
-														onValueChange={value => updateFilter(i, { ...draftedFilter, value: value })}
+														onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
 														disabled={disabled}
 													>
 														<SelectTrigger className="w-full">
@@ -699,7 +736,7 @@ export function MenuFilterConfigCard(
 												draftedFilterColumn.type == "relation" ? (
 													<SearchableMultiSelect
 														values={draftedFilter.value}
-														onValuesChange={value => updateFilter(i, { ...draftedFilter, value })}
+														onValuesChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value }))}
 														options={[]}
 														onSearch={(keyword, selectedValues) => draftedFilterColumn.relationSearch(keyword, selectedValues).then(vs => vs.map(v => ({ value: v.id, label: v.label })))}
 														disabled={disabled}
@@ -712,7 +749,7 @@ export function MenuFilterConfigCard(
 															<Button
 																type="button"
 																variant="outline"
-																onClick={() => updateFilter(i, { ...draftedFilter, value: [...(draftedFilter.value ?? []), null] })}
+																onClick={() => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: [...(draftedFilter.value ?? []), null] }))}
 																disabled={disabled}
 															>
 																<PlusIcon />Add Value
@@ -727,7 +764,7 @@ export function MenuFilterConfigCard(
 																		{draftedFilterColumn.type == "select" ? (
 																			<Select
 																				value={value}
-																				onValueChange={value => updateFilter(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) })}
+																				onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) }))}
 																				disabled={disabled}
 																			>
 																				<SelectTrigger className="w-full">
@@ -744,7 +781,7 @@ export function MenuFilterConfigCard(
 																				className="flex-1"
 																				mode="datetime"
 																				value={value != null ? new Date(value).toISOString() : undefined}
-																				onChange={value => updateFilter(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, Date.parse(value)) })}
+																				onChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, Date.parse(value)) }))}
 																				disabled={disabled}
 																				placeholder="Select date and time"
 																				precision="second"
@@ -752,7 +789,7 @@ export function MenuFilterConfigCard(
 																		) : draftedFilterColumn.type == "text" ? (
 																			<Input
 																				value={value}
-																				onChange={e => updateFilter(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.value) })}
+																				onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.value) }))}
 																				disabled={disabled}
 																				placeholder="Enter value"
 																			/>
@@ -760,14 +797,14 @@ export function MenuFilterConfigCard(
 																			<Input
 																				type="number"
 																				value={value}
-																				onChange={e => updateFilter(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.valueAsNumber) })}
+																				onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.valueAsNumber) }))}
 																				disabled={disabled}
 																				placeholder="Enter value"
 																			/>
 																		) : draftedFilterColumn.type == "boolean" ? (
 																			<Select
 																				value={value != null ? value != "false" ? "true" : "false" : undefined}
-																				onValueChange={value => updateFilter(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) })}
+																				onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) }))}
 																				disabled={disabled}
 																			>
 																				<SelectTrigger className="w-full">
@@ -783,7 +820,7 @@ export function MenuFilterConfigCard(
 																			type="button"
 																			variant="outline"
 																			className="shrink-0"
-																			onClick={() => updateFilter(i, { ...draftedFilter, value: draftedFilter.value.toSpliced(valueIndex, 1) })}
+																			onClick={() => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.toSpliced(valueIndex, 1) }))}
 																			disabled={disabled}
 																		>
 																			<XIcon />Remove
@@ -800,6 +837,10 @@ export function MenuFilterConfigCard(
 							</div>
 						);
 					})}
+					<Button type="button" variant="outline" onClick={() => setDraftedFilters([...draftedFilters, {}])} disabled={disabled}>
+						<PlusIcon />
+						Add Filter
+					</Button>
 				</div>
 			</CollapsibleContent>
 		</Collapsible>
@@ -887,31 +928,31 @@ export function DashboardMenuTable<T>(
 							);
 						})}
 					</TableRow>
-					<TableBody>
-						{isLoading ? (
-							<TableRow>
-								<TableCell colSpan={columnsShown.length} className="text-muted-foreground py-8 text-center">
-									Loading...
-								</TableCell>
-							</TableRow>
-						) : rows.length == 0 ? (
-							<TableRow>
-								<TableCell colSpan={columnsShown.length} className="text-muted-foreground py-8 text-center">
-									No data found.
-								</TableCell>
-							</TableRow>
-						) : null}
-						{rows.map((row, i) => (
-							<TableRow key={(row as any).id ?? i}>
-								{orderedShownColumns.map(column => (
-									<TableCell key={column.key} className={column.className}>
-										{renderCell(row, column.key)}
-									</TableCell>
-								))}
-							</TableRow>
-						))}
-					</TableBody>
 				</TableHeader>
+				<TableBody>
+					{isLoading ? (
+						<TableRow>
+							<TableCell colSpan={columnsShown.length} className="text-muted-foreground py-8 text-center">
+								Loading...
+							</TableCell>
+						</TableRow>
+					) : rows.length == 0 ? (
+						<TableRow>
+							<TableCell colSpan={columnsShown.length} className="text-muted-foreground py-8 text-center">
+								No data found.
+							</TableCell>
+						</TableRow>
+					) : null}
+					{rows.map((row, i) => (
+						<TableRow key={(row as any).id ?? i}>
+							{orderedShownColumns.map(column => (
+								<TableCell key={column.key} className={cn("whitespace-normal", column.className)}>
+									{renderCell(row, column.key)}
+								</TableCell>
+							))}
+						</TableRow>
+					))}
+				</TableBody>
 			</Table>
 		</div>
 	);
@@ -934,8 +975,10 @@ export type MenuRowValueRendererConfigColumn<R, C> =
 			type: "null";
 		} | {
 			type: "select";
+			selectOptions?: { value: any, label: React.ReactNode }[];
 		} | {
 			type: "select_hasMany";
+			selectOptions?: { value: any, label: React.ReactNode }[];
 		} | {
 			type: "date";
 		} | {
@@ -970,8 +1013,10 @@ export type MenuRowValueRendererConfigColumn<R, C> =
 		type: "null";
 	} | {
 		type: "select";
+		selectOptions?: { value: any, label: React.ReactNode }[];
 	} | {
 		type: "select_hasMany";
+		selectOptions?: { value: any, label: React.ReactNode }[];
 	} | {
 		type: "date";
 	} | {
@@ -989,36 +1034,53 @@ export type MenuRowValueRendererConfigColumn<R, C> =
 	} | {
 		type: "boolean_hasMany";
 	})>;
-export function useMenuRowValueRenderer<R, C = undefined>(
+export type MenuRowValueRendererContext = {
+	richTextCard?: boolean;
+	richTextClamp?: boolean;
+	richTextClassName?: string;
+	richTextContentClassName?: string;
+	richTextPlaceholderClassName?: string;
+};
+export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext = object>(
 	{ columns, detailsTriggerColumnKey, onOpenDetails, context }:
 	{ columns: readonly MenuRowValueRendererConfigColumn<R, C | undefined>[], detailsTriggerColumnKey?: string, onOpenDetails?: (row: R) => void, context?: undefined }
 ): (row: R, columnKey: string) => React.ReactNode;
-export function useMenuRowValueRenderer<R, C>(
+export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext>(
 	{ columns, detailsTriggerColumnKey, onOpenDetails, context }:
 	{ columns: readonly MenuRowValueRendererConfigColumn<R, C>[], detailsTriggerColumnKey?: string, onOpenDetails?: (row: R) => void, context: C }
 ): (row: R, columnKey: string) => React.ReactNode;
-export function useMenuRowValueRenderer<R, C>(
+export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext>(
 	{ columns, detailsTriggerColumnKey, onOpenDetails, context }:
 	{ columns: readonly MenuRowValueRendererConfigColumn<R, C>[], detailsTriggerColumnKey?: string, onOpenDetails?: (row: R) => void, context: C }
 ) {
 	return (row: R, columnKey: string) => {
 		const column = columns.find(column => column.key == columnKey)!;
 		const value = row[column.property ?? columnKey];
+		const richTextCard = context.richTextCard ?? true;
+		const richTextClamp = context.richTextClamp ?? true;
 		const node = column.render != null ? column.render(value, row, context) : (
 			column.type == "richText" ? (
 				<RichTextPreview
 					serializedState={value}
-					className="bg-transparent shadow-none border-none rounded-none"
-					contentClassName="line-clamp-2 min-h-5 max-h-28 p-0"
-					placeholderClassName="p-0"
+					className={cn(!richTextCard ? "bg-transparent shadow-none border-none rounded-none" : null, context.richTextClassName)}
+					contentClassName={cn("min-h-8", !richTextCard ? "p-0" : null, !richTextClamp ? "line-clamp-2 max-h-28" : null, context.richTextContentClassName)}
+					placeholderClassName={cn(!richTextCard ? "p-0" : null, context.richTextPlaceholderClassName)}
 				/>
 			) :
 				column.type == "null" ? null :
 					value == null ? "-" :
-						column.type == "select" ? `${value}` :
-							column.type == "select_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
-								column.type == "date" ? `${value}` :
-									column.type == "date_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
+						column.type == "select" ? column.selectOptions?.find(option => option.value == value)?.label ?? value :
+							column.type == "select_hasMany" ? (
+								<ul className="inline">
+									{value.map((v, i) => (
+										<li key={i} className="inline not-last:after:content-[',_']">
+											{column.selectOptions?.find(option => option.value == v)?.label ?? value}
+										</li>
+									))}
+								</ul>
+							) :
+								column.type == "date" ? `${new Date(value).toLocaleString()}` :
+									column.type == "date_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${new Date(value).toLocaleString()}`}</li>))}</ul>) :
 										column.type == "text" ? `${value}` :
 											column.type == "text_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
 												column.type == "number" ? `${value}` :
@@ -1148,6 +1210,46 @@ export const defaultRelationCreditApplicationImportRenderer = ({ description, re
 			{creditApplicationImportRelation?.filename ?? (<>Credit Application Import <span className="font-mono">{creditApplicationImportId}</span></>)}
 		</RelationNavigationLink>
 	))(context?.relationValues?.[`credit-application-imports:${creditApplicationImportId}`]);
+export const defaultRelationRecordingLogAudioFileRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(audioFileId: string | null, row: { id: string }, context: { relationValues?: Record<`recording-log-audio-files:${string}`, RelationRecordingLogAudioFile> }) => audioFileId == null ? "-" : (audioFileRelation => (
+		<RelationNavigationLink
+			relationType="recording-log-audio-files"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			relationId={audioFileId}
+			fallback={{
+				title: audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>),
+				description: description,
+				fields: [
+					{ label: "Id", value: (<span className="font-mono">{audioFileId}</span>) },
+					...(audioFileRelation != null ? [{ label: "File Name", value: audioFileRelation.filename }] : []),
+					...(audioFileRelation != null ? [{ label: "File Size", value: audioFileRelation.filesize }] : []),
+					...(audioFileRelation != null ? [{ label: "Mime Type", value: audioFileRelation.mimeType }] : [])
+				]
+			}}
+		>
+			{audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>)}
+		</RelationNavigationLink>
+	))(context?.relationValues?.[`recording-log-audio-files:${audioFileId}`]);
+export const defaultRelationRecordingLogTranscriptionRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(transcriptionId: string | null, row: { id: string }, context: { relationValues?: Record<`recording-log-transcriptions:${string}`, RelationRecordingLogTranscription> }) => transcriptionId == null ? "-" : (transcriptionRelation => (
+		<RelationNavigationLink
+			relationType="recording-log-transcriptions"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			relationId={transcriptionId}
+			fallback={{
+				title: transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>),
+				description: description,
+				fields: [
+					{ label: "Id", value: (<span className="font-mono">{transcriptionId}</span>) },
+					...(transcriptionRelation != null ? [{ label: "File Name", value: transcriptionRelation.filename }] : []),
+					...(transcriptionRelation != null ? [{ label: "File Size", value: transcriptionRelation.filesize }] : []),
+					...(transcriptionRelation != null ? [{ label: "Mime Type", value: transcriptionRelation.mimeType }] : [])
+				]
+			}}
+		>
+			{transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>)}
+		</RelationNavigationLink>
+	))(context?.relationValues?.[`recording-log-transcriptions:${transcriptionId}`]);
 export const defaultChangeRequestRenderer = () =>
 	(_, row: { createdAt?: string, updatedAt?: string, deletedAt?: string }, { setChangeRequestDrawerRow, setChangeRequestDrawerOpen }) => (
 		<Button

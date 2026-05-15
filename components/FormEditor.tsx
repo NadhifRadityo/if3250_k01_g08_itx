@@ -1255,42 +1255,40 @@ function AddInsertControl<TValue extends string>({
 						<span>{label}</span>
 					</button>
 				</HoverCardTrigger>
-				<HoverCardContent align="center" className="w-56 p-1.5">
-					<div className="space-y-1">
-						{items.map(item => (
-							<Button
-								className="w-full justify-start text-left h-auto py-2"
-								disabled={disabled}
-								key={item.value}
-								onClick={() => onAdd(item.value)}
-								size="sm"
-								type="button"
-								variant="ghost"
-							>
-								<div className="space-y-0.5">
-									<div className="text-sm">{item.label}</div>
-									{item.description ? (
-										<div className="text-muted-foreground text-xs leading-relaxed">
-											{item.description}
-										</div>
-									) : null}
-								</div>
-							</Button>
-						))}
-						{onPaste ? (
-							<Button
-								className="w-full justify-start"
-								disabled={disabled || !canPaste}
-								onClick={event => onPaste(!event.altKey)}
-								size="sm"
-								type="button"
-								variant="ghost"
-							>
-								<ClipboardPasteIcon className="size-3 mr-2" />
-								Paste
-							</Button>
-						) : null}
-					</div>
+				<HoverCardContent align="center" className="w-64 max-h-128 overflow-auto overflow-x-hidden p-1.5">
+					{items.map(item => (
+						<Button
+							className="w-full justify-start text-left h-auto py-1"
+							disabled={disabled}
+							key={item.value}
+							onClick={() => onAdd(item.value)}
+							size="sm"
+							type="button"
+							variant="ghost"
+						>
+							<div className="space-y-0.5">
+								<div className="text-sm">{item.label}</div>
+								{item.description ? (
+									<div className="text-muted-foreground text-xs leading-relaxed">
+										{item.description}
+									</div>
+								) : null}
+							</div>
+						</Button>
+					))}
+					{onPaste ? (
+						<Button
+							className="w-full justify-start"
+							disabled={disabled || !canPaste}
+							onClick={event => onPaste(!event.altKey)}
+							size="sm"
+							type="button"
+							variant="ghost"
+						>
+							<ClipboardPasteIcon className="size-3 mr-2" />
+							Paste
+						</Button>
+					) : null}
 				</HoverCardContent>
 			</HoverCard>
 		</div>

@@ -53,6 +53,7 @@ export function consumePendingRelationNavigationRedirectData(relationType: strin
 
 type RelationFallback = { title: React.ReactNode, description?: React.ReactNode, fields?: { label: React.ReactNode, value: React.ReactNode }[] };
 function useRelationNavigationSummary() {
+	const intentOpen = useRef(false);
 	const [drawerOpen, setDrawerOpen] = useState(false);
 	const [pickerDrawerOpen, setPickerDrawerOpen] = useState(false);
 	const [relationType, setRelationType] = useState(null as string | null);
@@ -69,6 +70,7 @@ function useRelationNavigationSummary() {
 		{ relationType, relationId, fallback }:
 		{ relationType: string, relationId: string, fallback: RelationFallback }
 	) => {
+		intentOpen.current = true;
 		setDrawerOpen(true);
 		setPickerDrawerOpen(false);
 		setRelationType(relationType);
@@ -82,6 +84,7 @@ function useRelationNavigationSummary() {
 		{ relationType, pickerTitle, pickerDescription, relationChoices }:
 		{ relationType: string, pickerTitle: React.ReactNode, pickerDescription?: React.ReactNode, relationChoices: { id: string, name: React.ReactNode, description?: React.ReactNode, fallback: RelationFallback }[] }
 	) => {
+		intentOpen.current = true;
 		setDrawerOpen(false);
 		setPickerDrawerOpen(true);
 		setRelationType(relationType);
@@ -92,8 +95,9 @@ function useRelationNavigationSummary() {
 		setPickedFallback(null);
 	}, []);
 	useEffect(() => {
-		if(relationType == null || pickedId == null || pickedFallback == null)
+		if(!intentOpen.current || relationType == null || pickedId == null || pickedFallback == null)
 			return;
+		intentOpen.current = false;
 		startTransition(async () => {
 			setDrawerOpen(true);
 			try {
@@ -195,6 +199,23 @@ function useRelationNavigationSummary() {
 		pickerDrawer
 	};
 }
+const relationToMenuMap = {
+	// "users": "user-management",
+	"staged-users": "user-management",
+	"roles": "role-management",
+	"teams": "team-management",
+	"credit-applications": "credit-application-management",
+	"credit-application-imports": "credit-application-management",
+	"credit-application-assignments": "credit-application-assignment",
+	"surveys": "survey-management",
+	"satisfaction-surveys": "satisfaction-survey-management",
+	// "": "officer-task",
+	// "": "officer-tracking",
+	"login-activity-logs": "login-activity-log",
+	"otp-logs": "otp-log",
+	"gps-logs": "gps-log",
+	"recording-logs": "recording-log"
+};
 function useRelationNavigationRedirect() {
 	const router = useRouter();
 	const { menus } = useDashboardShellContext();
@@ -208,7 +229,8 @@ function useRelationNavigationRedirect() {
 		));
 		if(redirectData.relationSource != null)
 			searchParams.set("relationSource", redirectData.relationSource);
-		const menu = menusRef.current.find(menu => menu.key == redirectData.relationType)!;
+		const requiredMenu = relationToMenuMap[redirectData.relationType];
+		const menu = menusRef.current.find(menu => menu.key == requiredMenu)!;
 		return `${menu.modes[menu.defaultMode].href}?${searchParams.toString()}`;
 	}, []);
 	const redirectMenu = useCallback((redirectData: PendingRelationRedirectData) => {
@@ -216,7 +238,8 @@ function useRelationNavigationRedirect() {
 		router.push(getRedirectMenuLink(redirectData));
 	}, []);
 	const hasAccessToRelationMenu = useCallback((relationType: string) => {
-		return menusRef.current.some(menu => menu.key == relationType);
+		const requiredMenu = relationToMenuMap[relationType];
+		return menusRef.current.some(menu => menu.key == requiredMenu);
 	}, []);
 	return {
 		getRedirectMenuLink,
@@ -284,26 +307,29 @@ export function RelationNavigationLink(
 		relationId != null ? { relationType, relationSource, relationId } :
 			{ relationType, relationSource, relationIds: relationChoices.map(r => r.id) }
 	);
-	<Link
-		{...(props as any)}
-		href={redirectMenuLink}
-		onClick={event => {
-			event.preventDefault();
-			if(!event.altKey) {
-				relationNavigation.redirectMenu(
-					relationId != null ? { relationType, relationSource, relationId } :
-						{ relationType, relationSource, relationIds: relationChoices.map(r => r.id) }
-				);
-			}
-			if(relationId != null) {
-				relationNavigation.openDrawer({ relationType, relationId, fallback });
+	return (
+		<Link
+			{...(props as any)}
+			href={redirectMenuLink}
+			onClick={event => {
+				event.preventDefault();
+				if(!event.altKey) {
+					relationNavigation.redirectMenu(
+						relationId != null ? { relationType, relationSource, relationId } :
+							{ relationType, relationSource, relationIds: relationChoices.map(r => r.id) }
+					);
+					return;
+				}
+				if(relationId != null) {
+					relationNavigation.openDrawer({ relationType, relationId, fallback });
+					return;
+				}
+				relationNavigation.openPickerDrawer({ relationType, pickerTitle, pickerDescription, relationChoices });
 				return;
-			}
-			relationNavigation.openPickerDrawer({ relationType, pickerTitle, pickerDescription, relationChoices });
-			return;
-		}}
-		className={cn("text-primary underline underline-offset-2 hover:opacity-80", className)}
-	>
-		{children}
-	</Link>;
+			}}
+			className={cn("text-primary underline underline-offset-2 hover:opacity-80", className)}
+		>
+			{children}
+		</Link>
+	);
 }

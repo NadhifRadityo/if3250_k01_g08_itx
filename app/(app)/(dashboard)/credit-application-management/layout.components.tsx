@@ -17,7 +17,7 @@ import { Textarea } from "@/components/radix/Textarea";
 import { CreditApplication } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, useDashboardShellContext, defaultRelationUserRenderer, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationImportRenderer } from "../layout.components";
+import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, useDashboardShellContext, defaultRelationUserRenderer, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationImportRenderer, MenuRowValueRendererContext } from "../layout.components";
 import { searchRelationUsersAction, searchRelationCreditApplicationsAction, searchRelationCreditApplicationImportsAction } from "../relation-navigation.actions";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
@@ -178,7 +178,8 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "credit-applications.reviewedBy" }) },
 	{ key: "reviewApproved", type: "boolean" },
 	{ key: "reviewComment", type: "richText" }
-] as MenuRowValueRendererConfigColumn<ColumnData, {
+] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
+export type RowValueRendererContext = {
 	relationValues?: RelationValues;
 	isMutating?: boolean;
 	setChangeRequestDrawerRow?: (v: ColumnData | null) => void;
@@ -191,9 +192,11 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	setCancelPendingRequestTargetRow?: (v: ColumnData | null) => void;
 	setRevertApprovedTargetRow?: (v: ColumnData | null) => void;
 	setRestoreDeletionTargetRow?: (v: ColumnData | null) => void;
-}>[]);
+} & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",
+	"name",
+	"email",
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
@@ -260,8 +263,8 @@ export const defaultColumnsSort = Object.freeze([
 ]) as [string, boolean][];
 
 export function DetailsDrawer(
-	{ open, onOpenChange, row, renderActions, onOpenHistory }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, renderActions?: (r: ColumnData) => React.ReactNode, onOpenHistory?: () => void }
+	{ open, onOpenChange, row, rowValueRendererContext, renderActions, onOpenHistory }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode, onOpenHistory?: () => void }
 ) {
 	const { roles } = useDashboardShellContext();
 	const canAccessHistory = roles.includes("credit-application-management-auditor");
@@ -275,7 +278,8 @@ export function DetailsDrawer(
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
 		context: {
-			relationValues: query.data?.relations
+			...rowValueRendererContext,
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
@@ -337,8 +341,8 @@ export function DetailsDrawer(
 	);
 }
 export function HistoryDrawer(
-	{ open, onOpenChange, row }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null }
+	{ open, onOpenChange, row, rowValueRendererContext }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
 	const { roles } = useDashboardShellContext();
 	const canAccessHistory = roles.includes("credit-application-management-auditor");
@@ -352,7 +356,8 @@ export function HistoryDrawer(
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
 		context: {
-			relationValues: query.data?.relations
+			...rowValueRendererContext,
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
@@ -426,8 +431,8 @@ export function HistoryDrawer(
 	);
 }
 export function ChangeRequestDrawer(
-	{ open, onOpenChange, row }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null }
+	{ open, onOpenChange, row, rowValueRendererContext }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
 	const query = useQuery({
 		queryKey: ["credit-application-management", "change-request-diff", row?.id ?? null],
@@ -436,12 +441,13 @@ export function ChangeRequestDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion ?? {})])]
-		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey] ?? null)] as const) : null;
+	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion ?? {}), ...Object.keys(query.data.requestedVersion)])]
+		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion?.[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion[columnKey] ?? null)] as const) : null;
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
 		context: {
-			relationValues: query.data?.relations
+			...rowValueRendererContext,
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
@@ -517,8 +523,8 @@ export function ChangeRequestDrawer(
 }
 
 export function ReviewDrawer(
-	{ open, onOpenChange, row, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
+	{ open, onOpenChange, row, rowValueRendererContext, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
 ) {
 	const query = useQuery({
 		queryKey: ["credit-application-management", "change-request-diff", row?.id ?? null],
@@ -527,12 +533,13 @@ export function ReviewDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion), ...Object.keys(query.data.requestedVersion ?? {})])]
-		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion?.[columnKey] ?? null)] as const) : null;
+	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion ?? {}), ...Object.keys(query.data.requestedVersion)])]
+		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion?.[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion[columnKey] ?? null)] as const) : null;
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
 		context: {
-			relationValues: query.data?.relations
+			...rowValueRendererContext,
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>

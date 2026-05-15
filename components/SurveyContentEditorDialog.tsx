@@ -34,7 +34,7 @@ export function SurveyContentEditorDialog({
 				type="button"
 				variant="outline"
 				onClick={() => setOpen(true)}
-				className={cn("h-auto justify-start whitespace-normal text-left", buttonClassName)}
+				className={cn("py-1 h-auto justify-start whitespace-normal text-left", buttonClassName)}
 			>
 				{buttonLabel ?? (!disabled ? "Edit content" : "View content")}
 			</Button>

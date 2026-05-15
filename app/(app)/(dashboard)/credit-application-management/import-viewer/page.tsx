@@ -41,12 +41,18 @@ export default function Page() {
 	});
 	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
 	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+	const rowValueRendererContext = {
+		relationValues: query.data?.relations
+	};
 	const renderCell = useMenuRowValueRenderer({
 		columns: rowValueRendererConfigColumns,
 		context: {
-			relationValues: query.data?.relations
+			...rowValueRendererContext,
+			richTextCard: false,
+			richTextClamp: false
 		},
-		detailsTriggerColumnKey: eligibleDetailsTriggerColumns.find(columnKey => columnsShown.includes(columnKey)),
+		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
+			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
 		onOpenDetails: row => {
 			setDetailsDrawerOpen(true);
 			setDetailsDrawerRow(row);
@@ -97,6 +103,8 @@ export default function Page() {
 					onColumnOrderChange={setColumnOrder}
 					columnsShown={columnsShown}
 					onColumnsShownChange={setColumnsShown}
+					defaultColumnOrder={defaultColumnOrder}
+					defaultColumnsShown={defaultColumnsShown}
 				/>
 				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
 				{query.error != null ? (
@@ -130,6 +138,7 @@ export default function Page() {
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 				/>
 			</RelationNavigationProvider>
 		</MenuPage>

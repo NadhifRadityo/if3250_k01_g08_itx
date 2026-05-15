@@ -1,5 +1,11 @@
-import { redirect, RedirectType } from "next/navigation";
+import { redirect } from "next/navigation";
 
-export default function LoginActivityLogRootPage() {
-	return redirect("/login-activity-log/viewer", RedirectType.push);
+import { getDashboardShellContextAction } from "../layout.actions";
+
+export default async function Page() {
+	const dashboardContext = await getDashboardShellContextAction();
+	if(dashboardContext == null) return redirect("/login");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "login-activity-log");
+	if(thisMenu == null) return redirect("/");
+	return redirect(thisMenu.modes[thisMenu.defaultMode].href);
 }

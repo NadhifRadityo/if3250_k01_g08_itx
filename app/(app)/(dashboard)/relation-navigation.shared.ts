@@ -24,3 +24,17 @@ export type RelationCreditApplicationImport = {
 	filesize: number;
 	mimeType: string;
 };
+
+export type RelationRecordingLogAudioFile = {
+	filename: string;
+	filesize: number | null;
+	mimeType: string | null;
+	url?: string | null;
+};
+
+export type RelationRecordingLogTranscription = {
+	filename: string;
+	filesize: number | null;
+	mimeType: string | null;
+	url?: string | null;
+};

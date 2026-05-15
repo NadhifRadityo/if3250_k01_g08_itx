@@ -18,10 +18,11 @@ const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
-	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator] as const))
+	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
 		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
 			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
-			[...termGroups, [unit]], [] as Where[][])
+			[...termGroups, [unit]], [[]] as Where[][])
+		.filter(termGroups => termGroups.length > 0)
 		.map(termGroups => ({ and: termGroups }))
 });
 
@@ -66,6 +67,7 @@ async function queryAction(
 		trash: true,
 		page: pageIndex,
 		limit: PAGE_LIMIT,
+		depth: 0,
 		sort: columnsSort.map(([columnKey, ascending]) => `${!ascending ? "-" : ""}${columnKey}`),
 		where: { and: [
 			...(mode == "approver" ? [
@@ -138,13 +140,14 @@ export async function getDifferenceAction(id: string) {
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const requestedVersion = (await payload.findVersions({
+	const requestedDoc = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
 		collection: "roles",
 		trash: true,
 		pagination: false,
 		limit: 1,
+		depth: 0,
 		sort: "-updatedAt",
 		where: {
 			and: [
@@ -153,6 +156,7 @@ export async function getDifferenceAction(id: string) {
 			]
 		},
 		select: {
+			updatedAt: true,
 			version: {
 				deletedAt: true,
 				name: true,
@@ -160,21 +164,24 @@ export async function getDifferenceAction(id: string) {
 				menus: true
 			}
 		}
-	})).docs[0]?.version;
+	})).docs[0];
+	const requestedVersion = requestedDoc?.version;
 	if(requestedVersion == null)
 		throw new Error("Draft role request could not be found.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		collection: "roles",
 		overrideAccess: true,
+		collection: "roles",
 		trash: true,
 		pagination: false,
 		limit: 1,
+		depth: 0,
 		sort: "-updatedAt",
 		where: {
 			and: [
 				{ parent: { equals: id } },
-				{ "version._status": { equals: "published" } }
+				{ "version._status": { equals: "published" } },
+				{ updatedAt: { less_than: requestedDoc.updatedAt } }
 			]
 		},
 		select: {
@@ -208,6 +215,7 @@ export async function getHistoryAction(roleId: string) {
 		trash: true,
 		pagination: false,
 		limit: 100,
+		depth: 0,
 		sort: "-updatedAt",
 		where: { parent: { equals: roleId } },
 		select: {
@@ -346,6 +354,7 @@ export async function cancelRequestAction(id: string) {
 		trash: true,
 		pagination: false,
 		limit: 1,
+		depth: 0,
 		sort: "-updatedAt",
 		where: { and: [
 			{ parent: { equals: id } },

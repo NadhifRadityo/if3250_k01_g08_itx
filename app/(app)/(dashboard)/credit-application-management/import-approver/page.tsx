@@ -20,7 +20,7 @@ const columnConfigColumnsWithActions = Object.freeze([
 ]);
 const tableConfigColumnsWithActions = Object.freeze([
 	...tableConfigColumns,
-	{ key: "#actions", label: "Actions", sortable: false }
+	{ key: "#actions", label: "Actions", sortable: false, className: "flex flex-wrap gap-2" }
 ]);
 const rowValueRendererConfigColumnsWithActions = Object.freeze([
 	...rowValueRendererConfigColumns,
@@ -37,13 +37,21 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 		</Button>
 	) } satisfies (typeof rowValueRendererConfigColumns)[number]
 ]);
+const defaultColumnOrderWithActions = Object.freeze([
+	...defaultColumnOrder,
+	"#actions"
+]) as string[];
+const defaultColumnsShownWithActions = Object.freeze([
+	...defaultColumnsShown,
+	"#actions"
+]) as string[];
 
 export default function Page() {
 	const queryClient = useQueryClient();
 	const { roles } = useDashboardShellContext();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
 	const [filters, setFilters] = useConfigStorage({ localStorageKey: "credit-application-management-import.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
@@ -73,15 +81,21 @@ export default function Page() {
 	const [reviewComment, setReviewComment] = useState(lexicalPlainText(""));
 	const [isMutating, startMutationTransition] = useTransition();
 	const [reviewMutationError, setReviewMutationError] = useState(null as any);
+	const rowValueRendererContext = {
+		relationValues: query.data?.relations,
+		isMutating: isMutating,
+		setReviewDrawerRow: setReviewDrawerRow,
+		setReviewDrawerOpen: setReviewDrawerOpen
+	};
 	const renderCell = useMenuRowValueRenderer({
 		columns: rowValueRendererConfigColumnsWithActions,
 		context: {
-			relationValues: query.data?.relations,
-			isMutating: isMutating,
-			setReviewDrawerRow: setReviewDrawerRow,
-			setReviewDrawerOpen: setReviewDrawerOpen
+			...rowValueRendererContext,
+			richTextCard: false,
+			richTextClamp: false
 		},
-		detailsTriggerColumnKey: eligibleDetailsTriggerColumns.find(columnKey => columnsShown.includes(columnKey)),
+		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
+			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
 		onOpenDetails: row => {
 			setDetailsDrawerOpen(true);
 			setDetailsDrawerRow(row);
@@ -132,6 +146,8 @@ export default function Page() {
 					onColumnOrderChange={setColumnOrder}
 					columnsShown={columnsShown}
 					onColumnsShownChange={setColumnsShown}
+					defaultColumnOrder={defaultColumnOrderWithActions}
+					defaultColumnsShown={defaultColumnsShownWithActions}
 				/>
 				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
 				{query.error != null ? (
@@ -165,11 +181,13 @@ export default function Page() {
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 				/>
 				<ReviewDrawer
 					open={reviewDrawerOpen}
 					onOpenChange={setReviewDrawerOpen}
 					row={reviewDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
 					reviewComment={reviewComment}
 					onReviewCommentChange={setReviewComment}
 					mutationError={reviewMutationError}

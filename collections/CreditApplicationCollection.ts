@@ -49,7 +49,7 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 					if(resolvedDeletedAt != null && resolvedReviewedAt != null && resolvedReviewApproved == true)
 						throw new APIError("Approved imports cannot be deleted.", 400, undefined, true);
 					if(originalDoc.reviewedAt != null && "description" in data) {
-						const nextDescription = (data as Record<string, unknown>).description;
+						const nextDescription = (data).description;
 						const previousDescription = (originalDoc as Record<string, unknown>).description;
 						if(JSON.stringify(nextDescription) != JSON.stringify(previousDescription))
 							throw new APIError("Cannot modify 'description' after import review.", 400, undefined, true);
@@ -57,7 +57,7 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 					for(const field of ["filename", "filesize", "mimeType", "url"]) {
 						if(!(field in data))
 							continue;
-						const nextValue = (data as Record<string, unknown>)[field];
+						const nextValue = (data)[field];
 						const previousValue = (originalDoc as Record<string, unknown>)[field];
 						if(JSON.stringify(nextValue) != JSON.stringify(previousValue))
 							throw new APIError(`Cannot modify '${field}' after import upload. Create a new import instead.`, 400, undefined, true);
@@ -294,8 +294,7 @@ export const CreditApplications = (): CollectionConfig => ({
 			name: "import",
 			label: "Import",
 			type: "relationship",
-			relationTo: "credit-application-imports",
-			required: true
+			relationTo: "credit-application-imports"
 		},
 		{
 			name: "name",
@@ -324,7 +323,7 @@ export const CreditApplications = (): CollectionConfig => ({
 		},
 		{
 			name: "whatsappNumber",
-			label: "Whatsapp Number",
+			label: "WhatsApp Number",
 			type: "text",
 			required: true
 		},

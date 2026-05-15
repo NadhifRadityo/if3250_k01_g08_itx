@@ -62,18 +62,18 @@ export const dashboardRoleKeys = Object.freeze([
 	"satisfaction-survey-management-auditor",
 	"satisfaction-survey-management-editor",
 	"satisfaction-survey-management-approver",
-	"officer-task-reporting",
 	"officer-task-monitoring",
-	"officer-tracking-reporting",
+	"officer-task-reporting",
 	"officer-tracking-monitoring",
-	"login-activity-log-reporting",
+	"officer-tracking-reporting",
 	"login-activity-log-monitoring",
-	"otp-log-reporting",
+	"login-activity-log-reporting",
 	"otp-log-monitoring",
-	"gps-log-reporting",
+	"otp-log-reporting",
 	"gps-log-monitoring",
-	"recording-log-reporting",
-	"recording-log-monitoring"
+	"gps-log-reporting",
+	"recording-log-monitoring",
+	"recording-log-reporting"
 ] as const);
 
 export const dashboardRoleLabels = Object.freeze({
@@ -108,18 +108,64 @@ export const dashboardRoleLabels = Object.freeze({
 	"satisfaction-survey-management-auditor": "Satisfaction Survey Management — Auditor",
 	"satisfaction-survey-management-editor": "Satisfaction Survey Management — Editor",
 	"satisfaction-survey-management-approver": "Satisfaction Survey Management — Approver",
-	"officer-task-reporting": "Officer Task — Reporting",
 	"officer-task-monitoring": "Officer Task — Monitoring",
-	"officer-tracking-reporting": "Officer Tracking — Reporting",
+	"officer-task-reporting": "Officer Task — Reporting",
 	"officer-tracking-monitoring": "Officer Tracking — Monitoring",
-	"login-activity-log-reporting": "Login Activity Log — Reporting",
+	"officer-tracking-reporting": "Officer Tracking — Reporting",
 	"login-activity-log-monitoring": "Login Activity Log — Monitoring",
-	"otp-log-reporting": "Otp Log — Reporting",
+	"login-activity-log-reporting": "Login Activity Log — Reporting",
 	"otp-log-monitoring": "Otp Log — Monitoring",
-	"gps-log-reporting": "Gps Log — Reporting",
+	"otp-log-reporting": "Otp Log — Reporting",
 	"gps-log-monitoring": "Gps Log — Monitoring",
-	"recording-log-reporting": "Recording Log — Reporting",
-	"recording-log-monitoring": "Recording Log — Monitoring"
+	"gps-log-reporting": "Gps Log — Reporting",
+	"recording-log-monitoring": "Recording Log — Monitoring",
+	"recording-log-reporting": "Recording Log — Reporting"
+} as const);
+
+export const dashboardRoleSubLabels = Object.freeze({
+	"user-management-viewer": "Viewer",
+	"user-management-auditor": "Auditor",
+	"user-management-editor": "Editor",
+	"user-management-approver": "Approver",
+	"role-management-viewer": "Viewer",
+	"role-management-auditor": "Auditor",
+	"role-management-editor": "Editor",
+	"role-management-approver": "Approver",
+	"team-management-viewer": "Viewer",
+	"team-management-auditor": "Auditor",
+	"team-management-editor": "Editor",
+	"team-management-approver": "Approver",
+	"credit-application-management-viewer": "Viewer",
+	"credit-application-management-auditor": "Auditor",
+	"credit-application-management-editor": "Editor",
+	"credit-application-management-approver": "Approver",
+	"credit-application-management-import-viewer": "Import Viewer",
+	"credit-application-management-import-editor": "Import Editor",
+	"credit-application-management-import-approver": "Import Approver",
+	"credit-application-assignment-viewer": "Viewer",
+	"credit-application-assignment-auditor": "Auditor",
+	"credit-application-assignment-editor": "Editor",
+	"credit-application-assignment-approver": "Approver",
+	"survey-management-viewer": "Viewer",
+	"survey-management-auditor": "Auditor",
+	"survey-management-editor": "Editor",
+	"survey-management-approver": "Approver",
+	"satisfaction-survey-management-viewer": "Viewer",
+	"satisfaction-survey-management-auditor": "Auditor",
+	"satisfaction-survey-management-editor": "Editor",
+	"satisfaction-survey-management-approver": "Approver",
+	"officer-task-monitoring": "Monitoring",
+	"officer-task-reporting": "Reporting",
+	"officer-tracking-monitoring": "Monitoring",
+	"officer-tracking-reporting": "Reporting",
+	"login-activity-log-monitoring": "Monitoring",
+	"login-activity-log-reporting": "Reporting",
+	"otp-log-monitoring": "Monitoring",
+	"otp-log-reporting": "Reporting",
+	"gps-log-monitoring": "Monitoring",
+	"gps-log-reporting": "Reporting",
+	"recording-log-monitoring": "Monitoring",
+	"recording-log-reporting": "Reporting"
 } as const);
 
 export const dashboardRoleHrefs = Object.freeze({
@@ -154,18 +200,18 @@ export const dashboardRoleHrefs = Object.freeze({
 	"satisfaction-survey-management-auditor": null,
 	"satisfaction-survey-management-editor": "/satisfaction-survey-management/editor",
 	"satisfaction-survey-management-approver": "/satisfaction-survey-management/approver",
-	"officer-task-reporting": "/officer-task/reporting",
 	"officer-task-monitoring": "/officer-task/monitoring",
-	"officer-tracking-reporting": "/officer-tracking/reporting",
+	"officer-task-reporting": "/officer-task/reporting",
 	"officer-tracking-monitoring": "/officer-tracking/monitoring",
-	"login-activity-log-reporting": "/login-activity-log/reporting",
+	"officer-tracking-reporting": "/officer-tracking/reporting",
 	"login-activity-log-monitoring": "/login-activity-log/monitoring",
-	"otp-log-reporting": "/otp-log/reporting",
+	"login-activity-log-reporting": "/login-activity-log/reporting",
 	"otp-log-monitoring": "/otp-log/monitoring",
-	"gps-log-reporting": "/gps-log/reporting",
+	"otp-log-reporting": "/otp-log/reporting",
 	"gps-log-monitoring": "/gps-log/monitoring",
-	"recording-log-reporting": "/recording-log/reporting",
-	"recording-log-monitoring": "/recording-log/monitoring"
+	"gps-log-reporting": "/gps-log/reporting",
+	"recording-log-monitoring": "/recording-log/monitoring",
+	"recording-log-reporting": "/recording-log/reporting"
 } as const);
 
 export const preferredMenuModes = Object.freeze([
@@ -175,8 +221,8 @@ export const preferredMenuModes = Object.freeze([
 	"import-editor",
 	"import-viewer",
 	"import-approver",
-	"reporting",
-	"monitoring"
+	"monitoring",
+	"reporting"
 ]);
 
 export const dashboardMenuGroups = Object.freeze([
