@@ -1,6 +1,7 @@
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { menusSelectOptions } from "@/app/(app)/(dashboard)/role-management/layout.shared";
 import type { Role, StagedUser } from "@/payload-types";
 
 const DEFAULT_ADMIN_ROLE_NAME = "Admin";
@@ -9,39 +10,7 @@ const DEFAULT_ADMIN_PASSWORD = "admin";
 const DEFAULT_ADMIN_NAME = "Admin";
 const DEFAULT_ADMIN_EMPLOYEE_ID = "ADMIN-1";
 const DEFAULT_REVIEW_COMMENT = "Seeded admin role and admin user for local bootstrap.";
-const ALL_MENUS: Role["menus"] = [
-	"user-management-viewer",
-	"user-management-auditor",
-	"user-management-editor",
-	"user-management-approver",
-	"role-management-viewer",
-	"role-management-auditor",
-	"role-management-editor",
-	"role-management-approver",
-	"team-management-viewer",
-	"team-management-auditor",
-	"team-management-editor",
-	"team-management-approver",
-	"credit-application-management-viewer",
-	"credit-application-management-auditor",
-	"credit-application-management-editor",
-	"credit-application-management-approver",
-	"credit-application-management-import-viewer",
-	"credit-application-management-import-editor",
-	"credit-application-management-import-approver",
-	"credit-application-assignment-viewer",
-	"credit-application-assignment-auditor",
-	"credit-application-assignment-editor",
-	"credit-application-assignment-approver",
-	"monitoring-officer-tracking-viewer",
-	"monitoring-log-gps-viewer",
-	"monitoring-log-recording-viewer",
-	"monitoring-log-otp-viewer",
-	"officer-task-reporting-viewer",
-	"officer-task-monitoring-viewer",
-	"login-activity-log-viewer",
-	"login-activity-log-auditor"
-];
+const ALL_MENUS: Role["menus"] = menusSelectOptions.map(option => option.value);
 
 type ReviewCommentValue = NonNullable<Role["reviewComment"]>;
 
@@ -167,8 +136,8 @@ if(roleDocs.length > 0) {
 	console.log(`Normalized role '${DEFAULT_ADMIN_ROLE_NAME}' to seeded state.`);
 } else {
 	const createdRole = await payload.create({
-		collection: "roles",
 		overrideAccess: true,
+		collection: "roles",
 		data: normalizeRoleData(roleReviewedAt),
 		draft: false
 	});
@@ -208,8 +177,8 @@ if(userDocs.length > 0) {
 	console.log(`Normalized admin user '${DEFAULT_ADMIN_EMAIL}' to seeded state.`);
 } else {
 	const createdAdminUser = await payload.create({
-		collection: "users",
 		overrideAccess: true,
+		collection: "users",
 		data: normalizeUserData(adminRoleId, null)
 	});
 	adminUserId = createdAdminUser.id;
@@ -268,8 +237,8 @@ if(existingStagedUser != null) {
 	console.log(`Normalized staged user '${DEFAULT_ADMIN_EMAIL}' to seeded state.`);
 } else {
 	const createdStagedUser = await payload.create({
-		collection: "staged-users",
 		overrideAccess: true,
+		collection: "staged-users",
 		data: normalizeStagedUserData(adminRoleId, stagedReviewedAt, adminUserId),
 		draft: false
 	});

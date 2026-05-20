@@ -1,15 +1,18 @@
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { lexicalPlainText } from "@/utils/payload";
 import type { User, CreditApplication, CreditApplicationImport } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
 
 const USER_EMAILS: Record<string, string> = {
+	"admin": "seed.admin@local.local",
 	"officer-bandung-1": "officer.bandung.01@local.local",
 	"officer-bandung-2": "officer.bandung.02@local.local",
-	"officer-jakarta-1": "officer.jakarta.01@local.local"
+	"officer-jakarta-1": "officer.jakarta.01@local.local",
+	"officer-jakarta-2": "officer.jakarta.02@local.local"
 };
 
 const CREDIT_APPLICATION_SEEDS = [
@@ -18,14 +21,7 @@ const CREDIT_APPLICATION_SEEDS = [
 	{ key: "CA-SEED-003", name: "Mila Kartika", email: "mila.kartika@seed.local" }
 ];
 
-type SeedGps = {
-	createdAt: string;
-	creditApplicationKey: null | string;
-	latitude: number;
-	longitude: number;
-	officerKey: string;
-	sessionId: string;
-};
+const OFFICER_ROTATION = ["officer-bandung-1", "officer-jakarta-1", "officer-bandung-2"];
 
 function isoAt(minutesOffset: number): string {
 	const value = new Date(BASE_TIMESTAMP);
@@ -33,42 +29,23 @@ function isoAt(minutesOffset: number): string {
 	return value.toISOString();
 }
 
-const GPS_LOG_SEEDS: SeedGps[] = [
-	{
-		createdAt: isoAt(800),
-		officerKey: "officer-bandung-1",
-		sessionId: "GPS-SESSION-001",
-		creditApplicationKey: "CA-SEED-001",
-		latitude: -6.914744,
-		longitude: 107.60981
-	},
-	{
-		createdAt: isoAt(805),
-		officerKey: "officer-bandung-1",
-		sessionId: "GPS-SESSION-001",
-		creditApplicationKey: "CA-SEED-001",
-		latitude: -6.915201,
-		longitude: 107.61112
-	},
-	{
-		createdAt: isoAt(810),
-		officerKey: "officer-bandung-2",
-		sessionId: "GPS-SESSION-002",
-		creditApplicationKey: "CA-SEED-003",
-		latitude: -6.92712,
-		longitude: 107.62783
-	},
-	{
-		createdAt: isoAt(815),
-		officerKey: "officer-jakarta-1",
-		sessionId: "GPS-SESSION-003",
-		creditApplicationKey: "CA-SEED-002",
-		latitude: -6.21462,
-		longitude: 106.84513
-	}
-];
-
 const payload = await getPayload({ config: payloadConfig });
+
+// Get acting user (admin)
+const actingUserResult = await payload.find({
+	collection: "users" as any,
+	overrideAccess: true,
+	where: {
+		email: { equals: "seed.admin@local.local" }
+	},
+	limit: 1,
+	sort: "-updatedAt",
+	draft: false,
+	trash: true,
+	depth: 0
+});
+const actingUser = (actingUserResult.docs[0] as User | undefined) ?? null;
+if(actingUser == null) throw new Error("Seed admin user is missing. Run 'payload run ./scripts/seedUsers.ts' first.");
 
 // Build user ID map
 const userIdMap = new Map<string, string>();
@@ -128,42 +105,95 @@ for(const seed of CREDIT_APPLICATION_SEEDS) {
 	creditApplicationIdMap.set(seed.key, ca.id);
 }
 
-// Seed GPS logs
-for(const seed of GPS_LOG_SEEDS) {
+// Seed assignments
+for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
+	const publishedAt = isoAt(600 + index * 6);
+	const pendingAt = isoAt(600 + index * 6 + 3);
+
 	const existingResult = await payload.find({
-		collection: "gps-logs" as any,
+		collection: "credit-application-assignments" as any,
 		overrideAccess: true,
 		where: {
-			and: [
-				{ createdAt: { equals: seed.createdAt } },
-				{ sessionId: { equals: seed.sessionId } },
-				{ latitude: { equals: seed.latitude } },
-				{ longitude: { equals: seed.longitude } }
-			]
+			creditApplication: { equals: creditApplicationIdMap.get(seed.key) }
 		},
 		limit: 1,
 		sort: "-updatedAt",
-		draft: false,
+		draft: true,
 		trash: true,
 		depth: 0
 	});
 	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
 
+	const publishedData = {
+		creditApplication: creditApplicationIdMap.get(seed.key),
+		officer: userIdMap.get(OFFICER_ROTATION[index % OFFICER_ROTATION.length])!,
+		createdAt: publishedAt,
+		updatedAt: publishedAt,
+		deletedAt: null,
+		deletedBy: null,
+		_status: "published" as const,
+		reviewedAt: publishedAt,
+		reviewedBy: actingUser.id,
+		reviewApproved: true,
+		reviewComment: lexicalPlainText(`Seed approved baseline for assignment '${seed.key}'.`)
+	};
+
+	const pendingData = {
+		creditApplication: creditApplicationIdMap.get(seed.key),
+		officer: userIdMap.get(OFFICER_ROTATION[index % OFFICER_ROTATION.length])!,
+		createdAt: publishedAt,
+		updatedAt: pendingAt,
+		deletedAt: null,
+		deletedBy: null,
+		_status: "draft" as const,
+		reviewedAt: null,
+		reviewedBy: null,
+		reviewApproved: null,
+		reviewComment: null
+	};
+
+	let id: string;
 	if(existing == null) {
-		await payload.create({
-			collection: "gps-logs",
+		const created = await payload.create({
+			collection: "credit-application-assignments",
+			user: actingUser,
 			overrideAccess: true,
-			data: {
-				createdAt: seed.createdAt,
-				updatedAt: seed.createdAt,
-				officer: userIdMap.get(seed.officerKey)!,
-				sessionId: seed.sessionId,
-				creditApplication: seed.creditApplicationKey == null ? null : creditApplicationIdMap.get(seed.creditApplicationKey),
-				latitude: seed.latitude,
-				longitude: seed.longitude
-			}
+			data: pendingData,
+			draft: true
+		});
+		id = created.id;
+	} else {
+		id = existing.id;
+		await payload.update({
+			collection: "credit-application-assignments",
+			user: actingUser,
+			overrideAccess: true,
+			trash: true,
+			id,
+			data: pendingData,
+			draft: true
 		});
 	}
+
+	await payload.update({
+		collection: "credit-application-assignments",
+		user: actingUser,
+		overrideAccess: true,
+		trash: true,
+		id,
+		data: publishedData,
+		draft: false
+	});
+
+	await payload.update({
+		collection: "credit-application-assignments",
+		user: actingUser,
+		overrideAccess: true,
+		trash: true,
+		id,
+		data: pendingData,
+		draft: true
+	});
 }
 
-console.log(`Seeded ${GPS_LOG_SEEDS.length} GPS logs.`);
+console.log(`Seeded ${CREDIT_APPLICATION_SEEDS.length} credit application assignments with pending drafts.`);

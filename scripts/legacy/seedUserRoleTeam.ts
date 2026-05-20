@@ -534,8 +534,8 @@ async function ensureTeam(seedTeam: SeedTeam, userIdByEmail: Map<string, string>
 	}
 
 	await payload.create({
-		collection: "teams",
 		overrideAccess: true,
+		collection: "teams",
 		data: normalizeTeamData(seedTeam, supervisorId, officerIds, reviewedAt, reviewerId),
 		draft: false
 	});

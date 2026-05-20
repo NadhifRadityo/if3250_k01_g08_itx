@@ -69,7 +69,6 @@ export interface Config {
   collections: {
     'generic-richtext-uploads': GenericRichtextUpload;
     users: User;
-    'login-logs': LoginLog;
     'staged-users': StagedUser;
     roles: Role;
     teams: Team;
@@ -79,6 +78,7 @@ export interface Config {
     'credit-application-field-masks': CreditApplicationFieldMask;
     surveys: Survey;
     'satsifaction-surveys': SatsifactionSurvey;
+    'login-logs': LoginLog;
     'gps-logs': GpsLog;
     'otp-logs': OtpLog;
     'recording-logs': RecordingLog;
@@ -100,7 +100,6 @@ export interface Config {
   collectionsSelect: {
     'generic-richtext-uploads': GenericRichtextUploadsSelect<false> | GenericRichtextUploadsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
-    'login-logs': LoginLogsSelect<false> | LoginLogsSelect<true>;
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
@@ -110,6 +109,7 @@ export interface Config {
     'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
     'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
+    'login-logs': LoginLogsSelect<false> | LoginLogsSelect<true>;
     'gps-logs': GpsLogsSelect<false> | GpsLogsSelect<true>;
     'otp-logs': OtpLogsSelect<false> | OtpLogsSelect<true>;
     'recording-logs': RecordingLogsSelect<false> | RecordingLogsSelect<true>;
@@ -340,19 +340,6 @@ export interface StagedUser {
     [k: string]: unknown;
   } | null;
   _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "login-logs".
- */
-export interface LoginLog {
-  id: string;
-  createdAt: string;
-  ipAddress: string;
-  user?: (string | null) | User;
-  event: 'login' | 'logout';
-  outcome?: ('success' | 'failure') | null;
-  updatedAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -735,6 +722,19 @@ export interface SatsifactionSurvey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs".
+ */
+export interface LoginLog {
+  id: string;
+  createdAt: string;
+  ipAddress: string;
+  user?: (string | null) | User;
+  event: 'login' | 'logout';
+  outcome?: ('success' | 'failure') | null;
+  updatedAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "gps-logs".
  */
 export interface GpsLog {
@@ -759,9 +759,9 @@ export interface OtpLog {
   email?: string | null;
   whatsappNumber?: string | null;
   smsNumber?: string | null;
-  emailDeliveryStatus?: ('Sent' | 'Failed' | 'Pending') | null;
-  whatsappDeliveryStatus?: ('Sent' | 'Failed' | 'Pending') | null;
-  smsDeliveryStatus?: ('Sent' | 'Failed' | 'Pending') | null;
+  emailDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
+  whatsappDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
+  smsDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
   updatedAt: string;
 }
 /**
@@ -1009,10 +1009,6 @@ export interface PayloadLockedDocument {
         value: string | User;
       } | null)
     | ({
-        relationTo: 'login-logs';
-        value: string | LoginLog;
-      } | null)
-    | ({
         relationTo: 'staged-users';
         value: string | StagedUser;
       } | null)
@@ -1047,6 +1043,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'satsifaction-surveys';
         value: string | SatsifactionSurvey;
+      } | null)
+    | ({
+        relationTo: 'login-logs';
+        value: string | LoginLog;
       } | null)
     | ({
         relationTo: 'gps-logs';
@@ -1170,18 +1170,6 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "login-logs_select".
- */
-export interface LoginLogsSelect<T extends boolean = true> {
-  createdAt?: T;
-  ipAddress?: T;
-  user?: T;
-  event?: T;
-  outcome?: T;
-  updatedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1401,6 +1389,18 @@ export interface SatsifactionSurveysSelect<T extends boolean = true> {
   reviewApproved?: T;
   reviewComment?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs_select".
+ */
+export interface LoginLogsSelect<T extends boolean = true> {
+  createdAt?: T;
+  ipAddress?: T;
+  user?: T;
+  event?: T;
+  outcome?: T;
+  updatedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -18,8 +18,8 @@ async function getOrCreateCreditApplicationId() {
 	}
 
 	const created = await payload.create({
-		collection: "credit-applications",
 		overrideAccess: true,
+		collection: "credit-applications",
 		draft: true,
 		data: {
 			name: "CA-2026-OTP-0001",

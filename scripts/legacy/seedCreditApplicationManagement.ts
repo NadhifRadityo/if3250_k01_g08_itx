@@ -305,8 +305,8 @@ async function ensureSeedImportDocument(payload: Awaited<ReturnType<typeof getPa
 	}
 
 	const createdDoc = await payload.create({
-		collection: "credit-application-imports",
 		overrideAccess: true,
+		collection: "credit-application-imports",
 		file: {
 			name: SEEDED_IMPORT_FILENAME,
 			data: placeholderData,

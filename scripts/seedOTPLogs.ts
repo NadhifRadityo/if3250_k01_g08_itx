@@ -1,16 +1,10 @@
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { User, CreditApplication, CreditApplicationImport } from "@/payload-types";
+import type { CreditApplication, CreditApplicationImport } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
-
-const USER_EMAILS: Record<string, string> = {
-	"officer-bandung-1": "officer.bandung.01@local.local",
-	"officer-bandung-2": "officer.bandung.02@local.local",
-	"officer-jakarta-1": "officer.jakarta.01@local.local"
-};
 
 const CREDIT_APPLICATION_SEEDS = [
 	{ key: "CA-SEED-001", name: "Sinta Maharani", email: "sinta.maharani@seed.local" },
@@ -18,13 +12,16 @@ const CREDIT_APPLICATION_SEEDS = [
 	{ key: "CA-SEED-003", name: "Mila Kartika", email: "mila.kartika@seed.local" }
 ];
 
-type SeedGps = {
+type SeedOtp = {
+	content: string;
 	createdAt: string;
-	creditApplicationKey: null | string;
-	latitude: number;
-	longitude: number;
-	officerKey: string;
-	sessionId: string;
+	creditApplicationKey: string;
+	email: string;
+	emailDeliveryStatus: "failed" | "pending" | "sent";
+	smsDeliveryStatus: "failed" | "pending" | "sent";
+	smsNumber: string;
+	whatsappDeliveryStatus: "failed" | "pending" | "sent";
+	whatsappNumber: string;
 };
 
 function isoAt(minutesOffset: number): string {
@@ -33,60 +30,43 @@ function isoAt(minutesOffset: number): string {
 	return value.toISOString();
 }
 
-const GPS_LOG_SEEDS: SeedGps[] = [
+const OTP_LOG_SEEDS: SeedOtp[] = [
 	{
-		createdAt: isoAt(800),
-		officerKey: "officer-bandung-1",
-		sessionId: "GPS-SESSION-001",
+		createdAt: isoAt(900),
 		creditApplicationKey: "CA-SEED-001",
-		latitude: -6.914744,
-		longitude: 107.60981
+		content: "Kode OTP Anda adalah 514223 untuk verifikasi survey.",
+		email: "sinta.maharani@seed.local",
+		whatsappNumber: "081200000101",
+		smsNumber: "081200000101",
+		emailDeliveryStatus: "sent",
+		whatsappDeliveryStatus: "sent",
+		smsDeliveryStatus: "pending"
 	},
 	{
-		createdAt: isoAt(805),
-		officerKey: "officer-bandung-1",
-		sessionId: "GPS-SESSION-001",
-		creditApplicationKey: "CA-SEED-001",
-		latitude: -6.915201,
-		longitude: 107.61112
-	},
-	{
-		createdAt: isoAt(810),
-		officerKey: "officer-bandung-2",
-		sessionId: "GPS-SESSION-002",
-		creditApplicationKey: "CA-SEED-003",
-		latitude: -6.92712,
-		longitude: 107.62783
-	},
-	{
-		createdAt: isoAt(815),
-		officerKey: "officer-jakarta-1",
-		sessionId: "GPS-SESSION-003",
+		createdAt: isoAt(905),
 		creditApplicationKey: "CA-SEED-002",
-		latitude: -6.21462,
-		longitude: 106.84513
+		content: "Kode OTP Anda adalah 884211 untuk verifikasi login.",
+		email: "doni.saputra@seed.local",
+		whatsappNumber: "081200000102",
+		smsNumber: "081200000102",
+		emailDeliveryStatus: "sent",
+		whatsappDeliveryStatus: "failed",
+		smsDeliveryStatus: "sent"
+	},
+	{
+		createdAt: isoAt(910),
+		creditApplicationKey: "CA-SEED-003",
+		content: "Kode OTP Anda adalah 772640 untuk otorisasi pembaruan data.",
+		email: "mila.kartika@seed.local",
+		whatsappNumber: "081200000103",
+		smsNumber: "081200000203",
+		emailDeliveryStatus: "pending",
+		whatsappDeliveryStatus: "sent",
+		smsDeliveryStatus: "sent"
 	}
 ];
 
 const payload = await getPayload({ config: payloadConfig });
-
-// Build user ID map
-const userIdMap = new Map<string, string>();
-for(const [key, email] of Object.entries(USER_EMAILS)) {
-	const userResult = await payload.find({
-		collection: "users" as any,
-		overrideAccess: true,
-		where: { email: { equals: email } },
-		limit: 1,
-		sort: "-updatedAt",
-		draft: false,
-		trash: true,
-		depth: 0
-	});
-	const user = (userResult.docs[0] as User | undefined) ?? null;
-	if(user == null) throw new Error(`User '${email}' is missing. Run 'payload run ./scripts/seedUsers.ts' first.`);
-	userIdMap.set(key, user.id);
-}
 
 // Get approved import
 const approvedImportResult = await payload.find({
@@ -128,17 +108,16 @@ for(const seed of CREDIT_APPLICATION_SEEDS) {
 	creditApplicationIdMap.set(seed.key, ca.id);
 }
 
-// Seed GPS logs
-for(const seed of GPS_LOG_SEEDS) {
+// Seed OTP logs
+for(const seed of OTP_LOG_SEEDS) {
 	const existingResult = await payload.find({
-		collection: "gps-logs" as any,
+		collection: "otp-logs" as any,
 		overrideAccess: true,
 		where: {
 			and: [
 				{ createdAt: { equals: seed.createdAt } },
-				{ sessionId: { equals: seed.sessionId } },
-				{ latitude: { equals: seed.latitude } },
-				{ longitude: { equals: seed.longitude } }
+				{ content: { equals: seed.content } },
+				{ creditApplication: { equals: creditApplicationIdMap.get(seed.creditApplicationKey) } }
 			]
 		},
 		limit: 1,
@@ -151,19 +130,22 @@ for(const seed of GPS_LOG_SEEDS) {
 
 	if(existing == null) {
 		await payload.create({
-			collection: "gps-logs",
+			collection: "otp-logs",
 			overrideAccess: true,
 			data: {
 				createdAt: seed.createdAt,
 				updatedAt: seed.createdAt,
-				officer: userIdMap.get(seed.officerKey)!,
-				sessionId: seed.sessionId,
-				creditApplication: seed.creditApplicationKey == null ? null : creditApplicationIdMap.get(seed.creditApplicationKey),
-				latitude: seed.latitude,
-				longitude: seed.longitude
+				creditApplication: creditApplicationIdMap.get(seed.creditApplicationKey)!,
+				content: seed.content,
+				email: seed.email,
+				whatsappNumber: seed.whatsappNumber,
+				smsNumber: seed.smsNumber,
+				emailDeliveryStatus: seed.emailDeliveryStatus,
+				whatsappDeliveryStatus: seed.whatsappDeliveryStatus,
+				smsDeliveryStatus: seed.smsDeliveryStatus
 			}
 		});
 	}
 }
 
-console.log(`Seeded ${GPS_LOG_SEEDS.length} GPS logs.`);
+console.log(`Seeded ${OTP_LOG_SEEDS.length} OTP logs.`);

@@ -36,7 +36,6 @@ export default buildConfig({
 	collections: [
 		GenericRichtextUploads(),
 		Users(),
-		LoginLogs(),
 		StagedUsers(),
 		Roles(),
 		Teams(),
@@ -46,6 +45,7 @@ export default buildConfig({
 		CreditApplicationFieldMasks(),
 		Surveys(),
 		SatisfactionSurveys(),
+		LoginLogs(),
 		GpsLogs(),
 		OtpLogs(),
 		RecordingLogs(),

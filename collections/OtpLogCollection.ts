@@ -65,9 +65,9 @@ export const OtpLogs = (): CollectionConfig => ({
 			label: "Email Delivery Status",
 			type: "select",
 			options: [
-				{ label: "Sent", value: "Sent" },
-				{ label: "Failed", value: "Failed" },
-				{ label: "Pending", value: "Pending" }
+				{ label: "Sent", value: "sent" },
+				{ label: "Failed", value: "failed" },
+				{ label: "Pending", value: "pending" }
 			]
 		},
 		{
@@ -75,9 +75,9 @@ export const OtpLogs = (): CollectionConfig => ({
 			label: "WhatsApp Delivery Status",
 			type: "select",
 			options: [
-				{ label: "Sent", value: "Sent" },
-				{ label: "Failed", value: "Failed" },
-				{ label: "Pending", value: "Pending" }
+				{ label: "Sent", value: "sent" },
+				{ label: "Failed", value: "failed" },
+				{ label: "Pending", value: "pending" }
 			]
 		},
 		{
@@ -85,9 +85,9 @@ export const OtpLogs = (): CollectionConfig => ({
 			label: "SMS Delivery Status",
 			type: "select",
 			options: [
-				{ label: "Sent", value: "Sent" },
-				{ label: "Failed", value: "Failed" },
-				{ label: "Pending", value: "Pending" }
+				{ label: "Sent", value: "sent" },
+				{ label: "Failed", value: "failed" },
+				{ label: "Pending", value: "pending" }
 			]
 		}
 	]
