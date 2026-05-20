@@ -6,6 +6,7 @@ export const OtpLogs = (): CollectionConfig => ({
 		singular: "OTP Log",
 		plural: "OTP Logs"
 	},
+	timestamps: false,
 	admin: {
 		useAsTitle: "creditApplication",
 		defaultColumns: ["createdAt", "creditApplication", "content", "email", "whatsappNumber", "smsNumber", "emailDeliveryStatus", "whatsappDeliveryStatus", "smsDeliveryStatus"]

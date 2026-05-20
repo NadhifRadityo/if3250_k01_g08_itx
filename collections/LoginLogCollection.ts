@@ -6,6 +6,7 @@ export const LoginLogs = (): CollectionConfig => ({
 		singular: "Login Log",
 		plural: "Login Logs"
 	},
+	timestamps: false,
 	admin: {
 		useAsTitle: "id",
 		defaultColumns: ["createdAt", "ipAddress", "user", "event", "outcome"]

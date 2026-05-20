@@ -28,6 +28,11 @@ export const RecordingLogTranscriptions = (): CollectionConfig => ({
 
 export const RecordingLogs = (): CollectionConfig => ({
 	slug: "recording-logs",
+	labels: {
+		singular: "Recording Log",
+		plural: "Recording Logs"
+	},
+	timestamps: false,
 	admin: {
 		useAsTitle: "creditApplication",
 		defaultColumns: ["createdAt", "creditApplication", "officer", "phoneNumber", "audioFile", "transcription"]

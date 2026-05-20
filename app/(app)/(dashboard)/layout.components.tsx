@@ -50,6 +50,14 @@ const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSV
 	"recording-log": AudioLinesIcon
 };
 
+function DashboardMenuGroupLabel({ children }: { children: React.ReactNode }) {
+	const { state: sidebarState } = useSidebar();
+	return (
+		<SidebarGroupLabel className={cn(sidebarState != "expanded" ? "select-none pointer-events-none" : "")}>
+			{children}
+		</SidebarGroupLabel>
+	);
+}
 function DashboardMenuKey(
 	{ pathname, openSubmenuKeys, setOpenSubmenuKeys, menu }:
 	{ pathname: string, openSubmenuKeys: string[], setOpenSubmenuKeys: (cb: (v: string[]) => string[]) => void, menu: DashboardMenu }
@@ -210,7 +218,7 @@ export function DashboardShell(
 							.filter(([_, menus]) => menus.length > 0)
 							.map(([groupName, menus]) => (
 								<SidebarGroup key={groupName}>
-									<SidebarGroupLabel>{groupName}</SidebarGroupLabel>
+									<DashboardMenuGroupLabel>{groupName}</DashboardMenuGroupLabel>
 									<SidebarMenu className="gap-2">
 										{menus.map(menu => (
 											<DashboardMenuKey

@@ -6,6 +6,7 @@ export const GpsLogs = (): CollectionConfig => ({
 		singular: "GPS Log",
 		plural: "GPS Logs"
 	},
+	timestamps: false,
 	admin: {
 		useAsTitle: "createdAt",
 		defaultColumns: ["createdAt", "officer", "sessionId", "creditApplication", "latitude", "longitude"]

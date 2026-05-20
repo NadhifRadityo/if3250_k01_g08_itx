@@ -731,7 +731,6 @@ export interface LoginLog {
   user?: (string | null) | User;
   event: 'login' | 'logout';
   outcome?: ('success' | 'failure') | null;
-  updatedAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -745,7 +744,6 @@ export interface GpsLog {
   creditApplication?: (string | null) | CreditApplication;
   latitude: number;
   longitude: number;
-  updatedAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -762,7 +760,6 @@ export interface OtpLog {
   emailDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
   whatsappDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
   smsDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
-  updatedAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -776,7 +773,6 @@ export interface RecordingLog {
   phoneNumber: string;
   audioFile?: (string | null) | RecordingLogAudioFile;
   transcription?: (string | null) | RecordingLogTranscription;
-  updatedAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1400,7 +1396,6 @@ export interface LoginLogsSelect<T extends boolean = true> {
   user?: T;
   event?: T;
   outcome?: T;
-  updatedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1413,7 +1408,6 @@ export interface GpsLogsSelect<T extends boolean = true> {
   creditApplication?: T;
   latitude?: T;
   longitude?: T;
-  updatedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1429,7 +1423,6 @@ export interface OtpLogsSelect<T extends boolean = true> {
   emailDeliveryStatus?: T;
   whatsappDeliveryStatus?: T;
   smsDeliveryStatus?: T;
-  updatedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1442,7 +1435,6 @@ export interface RecordingLogsSelect<T extends boolean = true> {
   phoneNumber?: T;
   audioFile?: T;
   transcription?: T;
-  updatedAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
