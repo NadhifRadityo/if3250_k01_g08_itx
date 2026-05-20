@@ -10,8 +10,10 @@ const TRANSCRIPT_SOURCE_PATH = path.join(SCRIPT_DIRECTORY, "Saphir-Whorf Hypothe
 const payload = await getPayload({ config: payloadConfig });
 
 const filename = path.basename(TRANSCRIPT_SOURCE_PATH);
-const existingResult = await payload.find({
-	collection: "recording-log-transcriptions" as any,
+
+console.log(`[seedRecordingLogTranscriptions] Checking existing transcription '${filename}'...`);
+const existing = (await payload.find({
+	collection: "recording-log-transcriptions",
 	overrideAccess: true,
 	where: {
 		filename: { equals: filename }
@@ -21,16 +23,17 @@ const existingResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+})).docs[0];
 
 if(existing == null) {
+	console.log(`[seedRecordingLogTranscriptions] Creating transcription '${filename}'...`);
 	await payload.create({
 		collection: "recording-log-transcriptions",
 		overrideAccess: true,
 		filePath: TRANSCRIPT_SOURCE_PATH,
 		data: {}
 	});
-}
+} else
+	console.log(`[seedRecordingLogTranscriptions] Transcription '${filename}' already exists (id: ${existing.id}), skipping.`);
 
-console.log(`Seeded recording log transcription '${filename}'.`);
+console.log(`[seedRecordingLogTranscriptions] Done. Seeded recording log transcription '${filename}'.`);

@@ -2,7 +2,6 @@ import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
-import type { Role, User } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 
@@ -43,9 +42,12 @@ function isoAt(minutesOffset: number): string {
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedStagedUsers] Starting staged user seeding...");
+
 // Get acting user (admin)
-const actingUserResult = await payload.find({
-	collection: "users" as any,
+console.log("[seedStagedUsers] Looking up admin user...");
+const actingUser = (await payload.find({
+	collection: "users",
 	overrideAccess: true,
 	where: { email: { equals: "seed.admin@local.local" } },
 	limit: 1,
@@ -53,15 +55,15 @@ const actingUserResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const actingUser = (actingUserResult.docs[0] as User | undefined) ?? null;
+})).docs[0];
 if(actingUser == null) throw new Error("Seed admin user is missing. Run 'payload run ./scripts/seedUsers.ts' first.");
 
 // Build role ID map
+console.log("[seedStagedUsers] Building role ID map...");
 const roleIdMap = new Map<string, string>();
 for(const roleSeed of ROLE_SEEDS) {
-	const roleResult = await payload.find({
-		collection: "roles" as any,
+	const role = (await payload.find({
+		collection: "roles",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -74,17 +76,17 @@ for(const roleSeed of ROLE_SEEDS) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const role = (roleResult.docs[0] as Role | undefined) ?? null;
+	})).docs[0];
 	if(role == null) throw new Error(`Role '${roleSeed.name}' is missing. Run 'payload run ./scripts/seedRoles.ts' first.`);
 	roleIdMap.set(roleSeed.key, role.id);
 }
 
 // Build user ID map
+console.log("[seedStagedUsers] Building user ID map...");
 const userIdMap = new Map<string, string>();
 for(const userSeed of USER_SEEDS) {
-	const userResult = await payload.find({
-		collection: "users" as any,
+	const user = (await payload.find({
+		collection: "users",
 		overrideAccess: true,
 		where: { email: { equals: userSeed.email } },
 		limit: 1,
@@ -92,8 +94,7 @@ for(const userSeed of USER_SEEDS) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const user = (userResult.docs[0] as User | undefined) ?? null;
+	})).docs[0];
 	if(user == null) throw new Error(`User '${userSeed.email}' is missing. Run 'payload run ./scripts/seedUsers.ts' first.`);
 	userIdMap.set(userSeed.key, user.id);
 }
@@ -104,8 +105,9 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 	const pendingAt = isoAt(200 + index * 5 + 2);
 	const supervisorId = userSeed.supervisorKey == null ? null : userIdMap.get(userSeed.supervisorKey) ?? null;
 
-	const existingResult = await payload.find({
-		collection: "staged-users" as any,
+	console.log(`[seedStagedUsers] Checking existing staged user '${userSeed.email}'...`);
+	const existing = (await payload.find({
+		collection: "staged-users",
 		overrideAccess: true,
 		where: {
 			or: [
@@ -118,8 +120,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	const publishedData = {
 		email: userSeed.email,
@@ -159,6 +160,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 
 	let stagedUserId: string;
 	if(existing == null) {
+		console.log(`[seedStagedUsers] Creating staged user '${userSeed.email}' as draft...`);
 		const created = await payload.create({
 			collection: "staged-users",
 			user: actingUser,
@@ -168,6 +170,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 		});
 		stagedUserId = created.id;
 	} else {
+		console.log(`[seedStagedUsers] Updating existing staged user '${userSeed.email}' (id: ${existing.id})...`);
 		stagedUserId = existing.id;
 		await payload.update({
 			collection: "staged-users",
@@ -180,6 +183,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 		});
 	}
 
+	console.log(`[seedStagedUsers] Publishing staged user '${userSeed.email}'...`);
 	await payload.update({
 		collection: "staged-users",
 		user: actingUser,
@@ -190,6 +194,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 		draft: false
 	});
 
+	console.log(`[seedStagedUsers] Setting staged user '${userSeed.email}' back to draft...`);
 	await payload.update({
 		collection: "staged-users",
 		user: actingUser,
@@ -201,6 +206,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 	});
 
 	// Link staged user to user record
+	console.log(`[seedStagedUsers] Linking staged user to user record '${userSeed.email}'...`);
 	const userId = userIdMap.get(userSeed.key)!;
 	await payload.update({
 		collection: "users",
@@ -212,4 +218,4 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 	});
 }
 
-console.log(`Seeded ${USER_SEEDS.length} staged users and linked them to their user records.`);
+console.log(`[seedStagedUsers] Done. Seeded ${USER_SEEDS.length} staged users and linked them to their user records.`);

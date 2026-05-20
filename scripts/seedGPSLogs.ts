@@ -1,7 +1,6 @@
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { User, CreditApplication, CreditApplicationImport } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
@@ -70,11 +69,14 @@ const GPS_LOG_SEEDS: SeedGps[] = [
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedGPSLogs] Starting GPS log seeding...");
+
 // Build user ID map
+console.log("[seedGPSLogs] Building user ID map...");
 const userIdMap = new Map<string, string>();
 for(const [key, email] of Object.entries(USER_EMAILS)) {
-	const userResult = await payload.find({
-		collection: "users" as any,
+	const user = (await payload.find({
+		collection: "users",
 		overrideAccess: true,
 		where: { email: { equals: email } },
 		limit: 1,
@@ -82,15 +84,15 @@ for(const [key, email] of Object.entries(USER_EMAILS)) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const user = (userResult.docs[0] as User | undefined) ?? null;
+	})).docs[0];
 	if(user == null) throw new Error(`User '${email}' is missing. Run 'payload run ./scripts/seedUsers.ts' first.`);
 	userIdMap.set(key, user.id);
 }
 
 // Get approved import
-const approvedImportResult = await payload.find({
-	collection: "credit-application-imports" as any,
+console.log("[seedGPSLogs] Looking up approved import...");
+const approvedImport = (await payload.find({
+	collection: "credit-application-imports",
 	overrideAccess: true,
 	where: {
 		filename: { equals: APPROVED_IMPORT_FILENAME }
@@ -100,15 +102,15 @@ const approvedImportResult = await payload.find({
 	draft: true,
 	trash: true,
 	depth: 0
-});
-const approvedImport = (approvedImportResult.docs[0] as CreditApplicationImport | undefined) ?? null;
+})).docs[0];
 if(approvedImport == null) throw new Error("Approved import workbook is missing. Run 'payload run ./scripts/seedCreditApplicationImports.ts' first.");
 
 // Build credit application ID map
+console.log("[seedGPSLogs] Building credit application ID map...");
 const creditApplicationIdMap = new Map<string, string>();
 for(const seed of CREDIT_APPLICATION_SEEDS) {
-	const caResult = await payload.find({
-		collection: "credit-applications" as any,
+	const ca = (await payload.find({
+		collection: "credit-applications",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -122,16 +124,16 @@ for(const seed of CREDIT_APPLICATION_SEEDS) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const ca = (caResult.docs[0] as CreditApplication | undefined) ?? null;
+	})).docs[0];
 	if(ca == null) throw new Error(`Credit application '${seed.key}' is missing. Run 'payload run ./scripts/seedCreditApplications.ts' first.`);
 	creditApplicationIdMap.set(seed.key, ca.id);
 }
 
 // Seed GPS logs
 for(const seed of GPS_LOG_SEEDS) {
-	const existingResult = await payload.find({
-		collection: "gps-logs" as any,
+	console.log(`[seedGPSLogs] Checking existing GPS log (session: ${seed.sessionId}, lat: ${seed.latitude}, lng: ${seed.longitude})...`);
+	const existing = (await payload.find({
+		collection: "gps-logs",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -146,10 +148,10 @@ for(const seed of GPS_LOG_SEEDS) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	if(existing == null) {
+		console.log(`[seedGPSLogs] Creating GPS log for session ${seed.sessionId}...`);
 		await payload.create({
 			collection: "gps-logs",
 			overrideAccess: true,
@@ -163,7 +165,8 @@ for(const seed of GPS_LOG_SEEDS) {
 				longitude: seed.longitude
 			}
 		});
-	}
+	} else
+		console.log(`[seedGPSLogs] GPS log for session ${seed.sessionId} already exists (id: ${existing.id}), skipping.`);
 }
 
-console.log(`Seeded ${GPS_LOG_SEEDS.length} GPS logs.`);
+console.log(`[seedGPSLogs] Done. Seeded ${GPS_LOG_SEEDS.length} GPS logs.`);

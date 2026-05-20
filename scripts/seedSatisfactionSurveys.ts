@@ -2,7 +2,6 @@ import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
-import type { User } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 
@@ -121,9 +120,12 @@ function isoAt(minutesOffset: number): string {
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedSatisfactionSurveys] Starting satisfaction survey seeding...");
+
 // Get acting user (admin)
-const actingUserResult = await payload.find({
-	collection: "users" as any,
+console.log("[seedSatisfactionSurveys] Looking up admin user...");
+const actingUser = (await payload.find({
+	collection: "users",
 	overrideAccess: true,
 	where: {
 		email: { equals: "seed.admin@local.local" }
@@ -133,8 +135,7 @@ const actingUserResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const actingUser = (actingUserResult.docs[0] as User | undefined) ?? null;
+})).docs[0];
 if(actingUser == null) throw new Error("Seed admin user is missing. Run 'payload run ./scripts/seedUsers.ts' first.");
 
 // Seed satisfaction surveys
@@ -142,8 +143,9 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 	const publishedAt = isoAt(700 + index * 6);
 	const pendingAt = isoAt(700 + index * 6 + 2);
 
-	const existingResult = await payload.find({
-		collection: "satsifaction-surveys" as any,
+	console.log(`[seedSatisfactionSurveys] Checking existing satisfaction survey '${seed.title}'...`);
+	const existing = (await payload.find({
+		collection: "satsifaction-surveys",
 		overrideAccess: true,
 		where: {
 			title: { equals: seed.title }
@@ -153,8 +155,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	const publishedData = {
 		title: seed.title,
@@ -188,6 +189,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 
 	let id: string;
 	if(existing == null) {
+		console.log(`[seedSatisfactionSurveys] Creating satisfaction survey '${seed.title}' as draft...`);
 		const created = await payload.create({
 			collection: "satsifaction-surveys",
 			user: actingUser,
@@ -197,6 +199,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 		});
 		id = created.id;
 	} else {
+		console.log(`[seedSatisfactionSurveys] Updating existing satisfaction survey '${seed.title}' (id: ${existing.id})...`);
 		id = existing.id;
 		await payload.update({
 			collection: "satsifaction-surveys",
@@ -209,6 +212,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 		});
 	}
 
+	console.log(`[seedSatisfactionSurveys] Publishing satisfaction survey '${seed.title}'...`);
 	await payload.update({
 		collection: "satsifaction-surveys",
 		user: actingUser,
@@ -219,6 +223,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 		draft: false
 	});
 
+	console.log(`[seedSatisfactionSurveys] Setting satisfaction survey '${seed.title}' back to draft...`);
 	await payload.update({
 		collection: "satsifaction-surveys",
 		user: actingUser,
@@ -230,4 +235,4 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 	});
 }
 
-console.log(`Seeded ${SATISFACTION_SURVEY_SEEDS.length} satisfaction surveys with pending drafts.`);
+console.log(`[seedSatisfactionSurveys] Done. Seeded ${SATISFACTION_SURVEY_SEEDS.length} satisfaction surveys with pending drafts.`);

@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { User, CreditApplication, CreditApplicationImport } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
@@ -59,11 +58,14 @@ const RECORDING_LOG_SEEDS: SeedRecording[] = [
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedRecordingLogs] Starting recording log seeding...");
+
 // Build user ID map
+console.log("[seedRecordingLogs] Building user ID map...");
 const userIdMap = new Map<string, string>();
 for(const [key, email] of Object.entries(USER_EMAILS)) {
-	const userResult = await payload.find({
-		collection: "users" as any,
+	const user = (await payload.find({
+		collection: "users",
 		overrideAccess: true,
 		where: { email: { equals: email } },
 		limit: 1,
@@ -71,15 +73,15 @@ for(const [key, email] of Object.entries(USER_EMAILS)) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const user = (userResult.docs[0] as User | undefined) ?? null;
+	})).docs[0];
 	if(user == null) throw new Error(`User '${email}' is missing. Run 'payload run ./scripts/seedUsers.ts' first.`);
 	userIdMap.set(key, user.id);
 }
 
 // Get approved import
-const approvedImportResult = await payload.find({
-	collection: "credit-application-imports" as any,
+console.log("[seedRecordingLogs] Looking up approved import...");
+const approvedImport = (await payload.find({
+	collection: "credit-application-imports",
 	overrideAccess: true,
 	where: {
 		filename: { equals: APPROVED_IMPORT_FILENAME }
@@ -89,15 +91,15 @@ const approvedImportResult = await payload.find({
 	draft: true,
 	trash: true,
 	depth: 0
-});
-const approvedImport = (approvedImportResult.docs[0] as CreditApplicationImport | undefined) ?? null;
+})).docs[0];
 if(approvedImport == null) throw new Error("Approved import workbook is missing. Run 'payload run ./scripts/seedCreditApplicationImports.ts' first.");
 
 // Build credit application ID map
+console.log("[seedRecordingLogs] Building credit application ID map...");
 const creditApplicationIdMap = new Map<string, string>();
 for(const seed of CREDIT_APPLICATION_SEEDS) {
-	const caResult = await payload.find({
-		collection: "credit-applications" as any,
+	const ca = (await payload.find({
+		collection: "credit-applications",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -111,15 +113,15 @@ for(const seed of CREDIT_APPLICATION_SEEDS) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const ca = (caResult.docs[0] as CreditApplication | undefined) ?? null;
+	})).docs[0];
 	if(ca == null) throw new Error(`Credit application '${seed.key}' is missing. Run 'payload run ./scripts/seedCreditApplications.ts' first.`);
 	creditApplicationIdMap.set(seed.key, ca.id);
 }
 
 // Get audio file and transcription
-const audioFileResult = await payload.find({
-	collection: "recording-log-audio-files" as any,
+console.log("[seedRecordingLogs] Looking up audio file...");
+const audioFile = (await payload.find({
+	collection: "recording-log-audio-files",
 	overrideAccess: true,
 	where: {
 		filename: { equals: path.basename(AUDIO_SOURCE_PATH) }
@@ -129,12 +131,12 @@ const audioFileResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const audioFile = (audioFileResult.docs[0] as { id: string } | undefined) ?? null;
+})).docs[0];
 if(audioFile == null) throw new Error("Recording log audio file is missing. Run 'payload run ./scripts/seedRecordingLogAudioFiles.ts' first.");
 
-const transcriptionResult = await payload.find({
-	collection: "recording-log-transcriptions" as any,
+console.log("[seedRecordingLogs] Looking up transcription...");
+const transcription = (await payload.find({
+	collection: "recording-log-transcriptions",
 	overrideAccess: true,
 	where: {
 		filename: { equals: path.basename(TRANSCRIPT_SOURCE_PATH) }
@@ -144,14 +146,14 @@ const transcriptionResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const transcription = (transcriptionResult.docs[0] as { id: string } | undefined) ?? null;
+})).docs[0];
 if(transcription == null) throw new Error("Recording log transcription is missing. Run 'payload run ./scripts/seedRecordingLogTranscriptions.ts' first.");
 
 // Seed recording logs
 for(const seed of RECORDING_LOG_SEEDS) {
-	const existingResult = await payload.find({
-		collection: "recording-logs" as any,
+	console.log(`[seedRecordingLogs] Checking existing recording log (phone: ${seed.phoneNumber}, time: ${seed.createdAt})...`);
+	const existing = (await payload.find({
+		collection: "recording-logs",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -164,10 +166,10 @@ for(const seed of RECORDING_LOG_SEEDS) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	if(existing == null) {
+		console.log(`[seedRecordingLogs] Creating recording log for phone ${seed.phoneNumber}...`);
 		await payload.create({
 			collection: "recording-logs",
 			overrideAccess: true,
@@ -181,7 +183,8 @@ for(const seed of RECORDING_LOG_SEEDS) {
 				transcription: transcription.id
 			}
 		});
-	}
+	} else
+		console.log(`[seedRecordingLogs] Recording log for phone ${seed.phoneNumber} already exists (id: ${existing.id}), skipping.`);
 }
 
-console.log(`Seeded ${RECORDING_LOG_SEEDS.length} recording logs with valid audio and transcription references.`);
+console.log(`[seedRecordingLogs] Done. Seeded ${RECORDING_LOG_SEEDS.length} recording logs with valid audio and transcription references.`);

@@ -2,7 +2,6 @@ import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
-import type { User, CreditApplication, CreditApplicationImport } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
@@ -31,9 +30,12 @@ function isoAt(minutesOffset: number): string {
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedCreditApplicationAssignments] Starting credit application assignment seeding...");
+
 // Get acting user (admin)
-const actingUserResult = await payload.find({
-	collection: "users" as any,
+console.log("[seedCreditApplicationAssignments] Looking up admin user...");
+const actingUser = (await payload.find({
+	collection: "users",
 	overrideAccess: true,
 	where: {
 		email: { equals: "seed.admin@local.local" }
@@ -43,15 +45,15 @@ const actingUserResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const actingUser = (actingUserResult.docs[0] as User | undefined) ?? null;
+})).docs[0];
 if(actingUser == null) throw new Error("Seed admin user is missing. Run 'payload run ./scripts/seedUsers.ts' first.");
 
 // Build user ID map
+console.log("[seedCreditApplicationAssignments] Building user ID map...");
 const userIdMap = new Map<string, string>();
 for(const [key, email] of Object.entries(USER_EMAILS)) {
-	const userResult = await payload.find({
-		collection: "users" as any,
+	const user = (await payload.find({
+		collection: "users",
 		overrideAccess: true,
 		where: { email: { equals: email } },
 		limit: 1,
@@ -59,15 +61,15 @@ for(const [key, email] of Object.entries(USER_EMAILS)) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const user = (userResult.docs[0] as User | undefined) ?? null;
+	})).docs[0];
 	if(user == null) throw new Error(`User '${email}' is missing. Run 'payload run ./scripts/seedUsers.ts' first.`);
 	userIdMap.set(key, user.id);
 }
 
 // Get approved import
-const approvedImportResult = await payload.find({
-	collection: "credit-application-imports" as any,
+console.log("[seedCreditApplicationAssignments] Looking up approved import...");
+const approvedImport = (await payload.find({
+	collection: "credit-application-imports",
 	overrideAccess: true,
 	where: {
 		filename: { equals: APPROVED_IMPORT_FILENAME }
@@ -77,15 +79,15 @@ const approvedImportResult = await payload.find({
 	draft: true,
 	trash: true,
 	depth: 0
-});
-const approvedImport = (approvedImportResult.docs[0] as CreditApplicationImport | undefined) ?? null;
+})).docs[0];
 if(approvedImport == null) throw new Error("Approved import workbook is missing. Run 'payload run ./scripts/seedCreditApplicationImports.ts' first.");
 
 // Build credit application ID map
+console.log("[seedCreditApplicationAssignments] Building credit application ID map...");
 const creditApplicationIdMap = new Map<string, string>();
 for(const seed of CREDIT_APPLICATION_SEEDS) {
-	const caResult = await payload.find({
-		collection: "credit-applications" as any,
+	const ca = (await payload.find({
+		collection: "credit-applications",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -99,8 +101,7 @@ for(const seed of CREDIT_APPLICATION_SEEDS) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const ca = (caResult.docs[0] as CreditApplication | undefined) ?? null;
+	})).docs[0];
 	if(ca == null) throw new Error(`Credit application '${seed.key}' is missing. Run 'payload run ./scripts/seedCreditApplications.ts' first.`);
 	creditApplicationIdMap.set(seed.key, ca.id);
 }
@@ -110,8 +111,9 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 	const publishedAt = isoAt(600 + index * 6);
 	const pendingAt = isoAt(600 + index * 6 + 3);
 
-	const existingResult = await payload.find({
-		collection: "credit-application-assignments" as any,
+	console.log(`[seedCreditApplicationAssignments] Checking existing assignment for '${seed.key}'...`);
+	const existing = (await payload.find({
+		collection: "credit-application-assignments",
 		overrideAccess: true,
 		where: {
 			creditApplication: { equals: creditApplicationIdMap.get(seed.key) }
@@ -121,11 +123,10 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	const publishedData = {
-		creditApplication: creditApplicationIdMap.get(seed.key),
+		creditApplication: creditApplicationIdMap.get(seed.key)!,
 		officer: userIdMap.get(OFFICER_ROTATION[index % OFFICER_ROTATION.length])!,
 		createdAt: publishedAt,
 		updatedAt: publishedAt,
@@ -139,7 +140,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 	};
 
 	const pendingData = {
-		creditApplication: creditApplicationIdMap.get(seed.key),
+		creditApplication: creditApplicationIdMap.get(seed.key)!,
 		officer: userIdMap.get(OFFICER_ROTATION[index % OFFICER_ROTATION.length])!,
 		createdAt: publishedAt,
 		updatedAt: pendingAt,
@@ -154,6 +155,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 
 	let id: string;
 	if(existing == null) {
+		console.log(`[seedCreditApplicationAssignments] Creating assignment for '${seed.key}' as draft...`);
 		const created = await payload.create({
 			collection: "credit-application-assignments",
 			user: actingUser,
@@ -163,6 +165,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		});
 		id = created.id;
 	} else {
+		console.log(`[seedCreditApplicationAssignments] Updating existing assignment for '${seed.key}' (id: ${existing.id})...`);
 		id = existing.id;
 		await payload.update({
 			collection: "credit-application-assignments",
@@ -175,6 +178,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		});
 	}
 
+	console.log(`[seedCreditApplicationAssignments] Publishing assignment for '${seed.key}'...`);
 	await payload.update({
 		collection: "credit-application-assignments",
 		user: actingUser,
@@ -185,6 +189,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		draft: false
 	});
 
+	console.log(`[seedCreditApplicationAssignments] Setting assignment for '${seed.key}' back to draft...`);
 	await payload.update({
 		collection: "credit-application-assignments",
 		user: actingUser,
@@ -196,4 +201,4 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 	});
 }
 
-console.log(`Seeded ${CREDIT_APPLICATION_SEEDS.length} credit application assignments with pending drafts.`);
+console.log(`[seedCreditApplicationAssignments] Done. Seeded ${CREDIT_APPLICATION_SEEDS.length} credit application assignments with pending drafts.`);

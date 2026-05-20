@@ -1,7 +1,6 @@
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { User } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 
@@ -34,11 +33,14 @@ const LOGIN_LOG_SEEDS: SeedLogIn[] = [
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedLoginLogs] Starting login log seeding...");
+
 // Build user ID map (only users referenced in login logs)
+console.log("[seedLoginLogs] Building user ID map...");
 const userIdMap = new Map<string, string>();
 for(const entry of USER_EMAILS) {
-	const userResult = await payload.find({
-		collection: "users" as any,
+	const user = (await payload.find({
+		collection: "users",
 		overrideAccess: true,
 		where: { email: { equals: entry.email } },
 		limit: 1,
@@ -46,16 +48,16 @@ for(const entry of USER_EMAILS) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const user = (userResult.docs[0] as User | undefined) ?? null;
+	})).docs[0];
 	if(user == null) throw new Error(`User '${entry.email}' is missing. Run 'payload run ./scripts/seedUsers.ts' first.`);
 	userIdMap.set(entry.email, user.id);
 }
 
 // Seed login logs
 for(const seed of LOGIN_LOG_SEEDS) {
-	const existingResult = await payload.find({
-		collection: "login-logs" as any,
+	console.log(`[seedLoginLogs] Checking existing login log (ip: ${seed.ipAddress}, event: ${seed.event}, time: ${seed.createdAt})...`);
+	const existing = (await payload.find({
+		collection: "login-logs",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -69,10 +71,10 @@ for(const seed of LOGIN_LOG_SEEDS) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	if(existing == null) {
+		console.log(`[seedLoginLogs] Creating login log for ${seed.email} (${seed.event})...`);
 		await payload.create({
 			collection: "login-logs",
 			overrideAccess: true,
@@ -85,7 +87,8 @@ for(const seed of LOGIN_LOG_SEEDS) {
 				outcome: seed.outcome
 			}
 		});
-	}
+	} else
+		console.log(`[seedLoginLogs] Login log for ${seed.email} (${seed.event}) already exists (id: ${existing.id}), skipping.`);
 }
 
-console.log(`Seeded ${LOGIN_LOG_SEEDS.length} login logs.`);
+console.log(`[seedLoginLogs] Done. Seeded ${LOGIN_LOG_SEEDS.length} login logs.`);

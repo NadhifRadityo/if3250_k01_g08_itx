@@ -3,7 +3,6 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import ExcelJS from "@/utils/exceljs";
 import { lexicalPlainText } from "@/utils/payload";
-import type { User, CreditApplicationImport } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 const XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -268,9 +267,12 @@ async function buildImportWorkbookBuffer(rows: SeedCreditApplication[], title: s
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedCreditApplicationImports] Starting credit application import seeding...");
+
 // Get acting user (admin)
-const actingUserResult = await payload.find({
-	collection: "users" as any,
+console.log("[seedCreditApplicationImports] Looking up admin user...");
+const actingUser = (await payload.find({
+	collection: "users",
 	overrideAccess: true,
 	where: {
 		email: { equals: "seed.admin@local.local" }
@@ -280,16 +282,17 @@ const actingUserResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const actingUser = (actingUserResult.docs[0] as User | undefined) ?? null;
+})).docs[0];
 if(actingUser == null) throw new Error("Seed admin user is missing. Run 'payload run ./scripts/seedUsers.ts' first.");
 
 // Build workbooks
+console.log("[seedCreditApplicationImports] Building approved workbook...");
 const approvedBuffer = await buildImportWorkbookBuffer(
 	CREDIT_APPLICATION_SEEDS,
 	"Seed Credit Application Import",
 	"Approved import workbook containing the credit application rows used by the seed scripts."
 );
+console.log("[seedCreditApplicationImports] Building pending workbook...");
 const pendingBuffer = await buildImportWorkbookBuffer(
 	[CREDIT_APPLICATION_SEEDS[0]],
 	"Pending Credit Application Import",
@@ -297,8 +300,9 @@ const pendingBuffer = await buildImportWorkbookBuffer(
 );
 
 // Upsert approved import
-const existingApprovedResult = await payload.find({
-	collection: "credit-application-imports" as any,
+console.log(`[seedCreditApplicationImports] Checking existing approved import '${APPROVED_IMPORT_FILENAME}'...`);
+const existingApproved = (await payload.find({
+	collection: "credit-application-imports",
 	overrideAccess: true,
 	where: {
 		filename: { equals: APPROVED_IMPORT_FILENAME }
@@ -308,10 +312,10 @@ const existingApprovedResult = await payload.find({
 	draft: true,
 	trash: true,
 	depth: 0
-});
-const existingApproved = (existingApprovedResult.docs[0] as CreditApplicationImport | undefined) ?? null;
+})).docs[0];
 
 if(existingApproved == null) {
+	console.log("[seedCreditApplicationImports] Creating approved import...");
 	await payload.create({
 		collection: "credit-application-imports",
 		user: actingUser,
@@ -333,6 +337,7 @@ if(existingApproved == null) {
 		}
 	});
 } else {
+	console.log(`[seedCreditApplicationImports] Updating existing approved import (id: ${existingApproved.id})...`);
 	await payload.update({
 		collection: "credit-application-imports",
 		user: actingUser,
@@ -352,8 +357,9 @@ if(existingApproved == null) {
 }
 
 // Upsert pending import
-const existingPendingResult = await payload.find({
-	collection: "credit-application-imports" as any,
+console.log(`[seedCreditApplicationImports] Checking existing pending import '${PENDING_IMPORT_FILENAME}'...`);
+const existingPending = (await payload.find({
+	collection: "credit-application-imports",
 	overrideAccess: true,
 	where: {
 		filename: { equals: PENDING_IMPORT_FILENAME }
@@ -363,10 +369,10 @@ const existingPendingResult = await payload.find({
 	draft: true,
 	trash: true,
 	depth: 0
-});
-const existingPending = (existingPendingResult.docs[0] as CreditApplicationImport | undefined) ?? null;
+})).docs[0];
 
 if(existingPending == null) {
+	console.log("[seedCreditApplicationImports] Creating pending import...");
 	await payload.create({
 		collection: "credit-application-imports",
 		user: actingUser,
@@ -388,6 +394,7 @@ if(existingPending == null) {
 		}
 	});
 } else {
+	console.log(`[seedCreditApplicationImports] Updating existing pending import (id: ${existingPending.id})...`);
 	await payload.update({
 		collection: "credit-application-imports",
 		user: actingUser,
@@ -406,4 +413,4 @@ if(existingPending == null) {
 	});
 }
 
-console.log("Seeded credit application imports with one approved workbook and one pending workbook.");
+console.log("[seedCreditApplicationImports] Done. Seeded credit application imports with one approved workbook and one pending workbook.");

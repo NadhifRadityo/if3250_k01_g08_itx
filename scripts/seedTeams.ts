@@ -2,7 +2,6 @@ import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
-import type { User } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 
@@ -48,9 +47,12 @@ function isoAt(minutesOffset: number): string {
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedTeams] Starting team seeding...");
+
 // Get acting user (admin)
-const actingUserResult = await payload.find({
-	collection: "users" as any,
+console.log("[seedTeams] Looking up admin user...");
+const actingUser = (await payload.find({
+	collection: "users",
 	overrideAccess: true,
 	where: {
 		email: { equals: "seed.admin@local.local" }
@@ -60,15 +62,15 @@ const actingUserResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const actingUser = (actingUserResult.docs[0] as User | undefined) ?? null;
+})).docs[0];
 if(actingUser == null) throw new Error("Seed admin user is missing. Run 'payload run ./scripts/seedUsers.ts' first.");
 
 // Build user ID map
+console.log("[seedTeams] Building user ID map...");
 const userIdMap = new Map<string, string>();
 for(const [key, email] of Object.entries(USER_EMAILS)) {
-	const userResult = await payload.find({
-		collection: "users" as any,
+	const user = (await payload.find({
+		collection: "users",
 		overrideAccess: true,
 		where: {
 			email: { equals: email }
@@ -78,8 +80,7 @@ for(const [key, email] of Object.entries(USER_EMAILS)) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const user = (userResult.docs[0] as User | undefined) ?? null;
+	})).docs[0];
 	if(user == null) throw new Error(`User '${email}' is missing. Run 'payload run ./scripts/seedUsers.ts' first.`);
 	userIdMap.set(key, user.id);
 }
@@ -89,8 +90,9 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 	const publishedAt = isoAt(300 + index * 5);
 	const pendingAt = isoAt(300 + index * 5 + 2);
 
-	const existingResult = await payload.find({
-		collection: "teams" as any,
+	console.log(`[seedTeams] Checking existing team '${teamSeed.name}'...`);
+	const existing = (await payload.find({
+		collection: "teams",
 		overrideAccess: true,
 		where: {
 			name: { equals: teamSeed.name }
@@ -100,8 +102,7 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	const publishedData = {
 		name: teamSeed.name,
@@ -135,6 +136,7 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 
 	let id: string;
 	if(existing == null) {
+		console.log(`[seedTeams] Creating team '${teamSeed.name}' as draft...`);
 		const created = await payload.create({
 			collection: "teams",
 			user: actingUser,
@@ -144,6 +146,7 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 		});
 		id = created.id;
 	} else {
+		console.log(`[seedTeams] Updating existing team '${teamSeed.name}' (id: ${existing.id})...`);
 		id = existing.id;
 		await payload.update({
 			collection: "teams",
@@ -156,6 +159,7 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 		});
 	}
 
+	console.log(`[seedTeams] Publishing team '${teamSeed.name}'...`);
 	await payload.update({
 		collection: "teams",
 		user: actingUser,
@@ -166,6 +170,7 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 		draft: false
 	});
 
+	console.log(`[seedTeams] Setting team '${teamSeed.name}' back to draft...`);
 	await payload.update({
 		collection: "teams",
 		user: actingUser,
@@ -177,4 +182,4 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 	});
 }
 
-console.log(`Seeded ${TEAM_SEEDS.length} teams with pending requests.`);
+console.log(`[seedTeams] Done. Seeded ${TEAM_SEEDS.length} teams with pending requests.`);

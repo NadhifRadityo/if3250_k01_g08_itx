@@ -1,7 +1,6 @@
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
-import type { Role, User } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 
@@ -114,11 +113,15 @@ function isoAt(minutesOffset: number): string {
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedUsers] Starting user seeding...");
+
 // Build role ID map
+console.log("[seedUsers] Building role ID map...");
 const roleIdMap = new Map<string, string>();
 for(const roleSeed of ROLE_SEEDS) {
-	const roleResult = await payload.find({
-		collection: "roles" as any,
+	console.log(`[seedUsers] Looking up role '${roleSeed.name}'...`);
+	const role = (await payload.find({
+		collection: "roles",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -131,8 +134,7 @@ for(const roleSeed of ROLE_SEEDS) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const role = (roleResult.docs[0] as Role | undefined) ?? null;
+	})).docs[0];
 	if(role == null) throw new Error(`Role '${roleSeed.name}' is missing. Run 'payload run ./scripts/seedRoles.ts' first.`);
 	roleIdMap.set(roleSeed.key, role.id);
 }
@@ -141,8 +143,9 @@ for(const roleSeed of ROLE_SEEDS) {
 const ensuredUserIds = new Map<string, string>();
 
 for(const [index, userSeed] of USER_SEEDS.entries()) {
-	const existingResult = await payload.find({
-		collection: "users" as any,
+	console.log(`[seedUsers] Checking existing user '${userSeed.email}'...`);
+	const existing = (await payload.find({
+		collection: "users",
 		overrideAccess: true,
 		where: { email: { equals: userSeed.email } },
 		limit: 1,
@@ -150,8 +153,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 		draft: false,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as User | undefined) ?? null;
+	})).docs[0];
 	const supervisorId = userSeed.supervisorKey == null ? null : ensuredUserIds.get(userSeed.supervisorKey) ?? null;
 	if(userSeed.supervisorKey != null && supervisorId == null)
 		throw new Error(`Supervisor '${userSeed.supervisorKey}' must be seeded before '${userSeed.key}'.`);
@@ -175,6 +177,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 	};
 
 	if(existing == null) {
+		console.log(`[seedUsers] Creating user '${userSeed.email}'...`);
 		const created = await payload.create({
 			collection: "users",
 			overrideAccess: true,
@@ -182,6 +185,7 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 		});
 		ensuredUserIds.set(userSeed.key, created.id);
 	} else {
+		console.log(`[seedUsers] Updating existing user '${userSeed.email}' (id: ${existing.id})...`);
 		await payload.update({
 			collection: "users",
 			overrideAccess: true,
@@ -193,4 +197,4 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 	}
 }
 
-console.log(`Seeded ${USER_SEEDS.length} users.`);
+console.log(`[seedUsers] Done. Seeded ${USER_SEEDS.length} users.`);

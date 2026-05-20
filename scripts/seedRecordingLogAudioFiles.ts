@@ -10,8 +10,10 @@ const AUDIO_SOURCE_PATH = path.join(SCRIPT_DIRECTORY, "Saphir-Whorf Hypothesis.m
 const payload = await getPayload({ config: payloadConfig });
 
 const filename = path.basename(AUDIO_SOURCE_PATH);
-const existingResult = await payload.find({
-	collection: "recording-log-audio-files" as any,
+
+console.log(`[seedRecordingLogAudioFiles] Checking existing audio file '${filename}'...`);
+const existing = (await payload.find({
+	collection: "recording-log-audio-files",
 	overrideAccess: true,
 	where: {
 		filename: { equals: filename }
@@ -21,16 +23,17 @@ const existingResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+})).docs[0];
 
 if(existing == null) {
+	console.log(`[seedRecordingLogAudioFiles] Creating audio file '${filename}'...`);
 	await payload.create({
 		collection: "recording-log-audio-files",
 		overrideAccess: true,
 		filePath: AUDIO_SOURCE_PATH,
 		data: {}
 	});
-}
+} else
+	console.log(`[seedRecordingLogAudioFiles] Audio file '${filename}' already exists (id: ${existing.id}), skipping.`);
 
-console.log(`Seeded recording log audio file '${filename}'.`);
+console.log(`[seedRecordingLogAudioFiles] Done. Seeded recording log audio file '${filename}'.`);

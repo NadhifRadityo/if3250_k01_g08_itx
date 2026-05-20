@@ -2,7 +2,6 @@ import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
-import type { User, CreditApplicationImport } from "@/payload-types";
 
 const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
@@ -131,9 +130,12 @@ function isoAt(minutesOffset: number): string {
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedCreditApplications] Starting credit application seeding...");
+
 // Get acting user (admin)
-const actingUserResult = await payload.find({
-	collection: "users" as any,
+console.log("[seedCreditApplications] Looking up admin user...");
+const actingUser = (await payload.find({
+	collection: "users",
 	overrideAccess: true,
 	where: {
 		email: { equals: "seed.admin@local.local" }
@@ -143,13 +145,13 @@ const actingUserResult = await payload.find({
 	draft: false,
 	trash: true,
 	depth: 0
-});
-const actingUser = (actingUserResult.docs[0] as User | undefined) ?? null;
+})).docs[0];
 if(actingUser == null) throw new Error("Seed admin user is missing. Run 'payload run ./scripts/seedUsers.ts' first.");
 
 // Get approved import
-const importDocResult = await payload.find({
-	collection: "credit-application-imports" as any,
+console.log("[seedCreditApplications] Looking up approved import...");
+const importDoc = (await payload.find({
+	collection: "credit-application-imports",
 	overrideAccess: true,
 	where: {
 		filename: { equals: APPROVED_IMPORT_FILENAME }
@@ -159,8 +161,7 @@ const importDocResult = await payload.find({
 	draft: true,
 	trash: true,
 	depth: 0
-});
-const importDoc = (importDocResult.docs[0] as CreditApplicationImport | undefined) ?? null;
+})).docs[0];
 if(importDoc == null) throw new Error("Approved import workbook is missing. Run 'payload run ./scripts/seedCreditApplicationImports.ts' first.");
 
 // Seed credit applications
@@ -168,8 +169,9 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 	const publishedAt = isoAt(500 + index * 7);
 	const pendingAt = isoAt(500 + index * 7 + 3);
 
-	const existingResult = await payload.find({
-		collection: "credit-applications" as any,
+	console.log(`[seedCreditApplications] Checking existing credit application '${seed.key}'...`);
+	const existing = (await payload.find({
+		collection: "credit-applications",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -183,8 +185,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	const publishedData = {
 		import: importDoc.id,
@@ -264,6 +265,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 
 	let id: string;
 	if(existing == null) {
+		console.log(`[seedCreditApplications] Creating credit application '${seed.key}' as draft...`);
 		const created = await payload.create({
 			collection: "credit-applications",
 			user: actingUser,
@@ -273,6 +275,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		});
 		id = created.id;
 	} else {
+		console.log(`[seedCreditApplications] Updating existing credit application '${seed.key}' (id: ${existing.id})...`);
 		id = existing.id;
 		await payload.update({
 			collection: "credit-applications",
@@ -285,6 +288,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		});
 	}
 
+	console.log(`[seedCreditApplications] Publishing credit application '${seed.key}'...`);
 	await payload.update({
 		collection: "credit-applications",
 		user: actingUser,
@@ -295,6 +299,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		draft: false
 	});
 
+	console.log(`[seedCreditApplications] Setting credit application '${seed.key}' back to draft...`);
 	await payload.update({
 		collection: "credit-applications",
 		user: actingUser,
@@ -306,4 +311,4 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 	});
 }
 
-console.log(`Seeded ${CREDIT_APPLICATION_SEEDS.length} credit applications linked to a valid approved import workbook.`);
+console.log(`[seedCreditApplications] Done. Seeded ${CREDIT_APPLICATION_SEEDS.length} credit applications linked to a valid approved import workbook.`);

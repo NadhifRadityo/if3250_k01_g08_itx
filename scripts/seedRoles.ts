@@ -145,12 +145,15 @@ function isoAt(minutesOffset: number): string {
 
 const payload = await getPayload({ config: payloadConfig });
 
+console.log("[seedRoles] Starting role seeding...");
+
 for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 	const publishedAt = isoAt(index * 10);
 	const pendingAt = isoAt(index * 10 + 5);
 
-	const existingResult = await payload.find({
-		collection: "roles" as any,
+	console.log(`[seedRoles] Checking existing role '${roleSeed.name}'...`);
+	const existing = (await payload.find({
+		collection: "roles",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -163,8 +166,7 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		draft: true,
 		trash: true,
 		depth: 0
-	});
-	const existing = (existingResult.docs[0] as { id: string } | undefined) ?? null;
+	})).docs[0];
 
 	const publishedData = {
 		name: roleSeed.name,
@@ -198,6 +200,7 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 
 	let id: string;
 	if(existing == null) {
+		console.log(`[seedRoles] Creating role '${roleSeed.name}' as draft...`);
 		const created = await payload.create({
 			collection: "roles",
 			overrideAccess: true,
@@ -206,6 +209,7 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		});
 		id = created.id;
 	} else {
+		console.log(`[seedRoles] Updating existing role '${roleSeed.name}' (id: ${existing.id})...`);
 		id = existing.id;
 		await payload.update({
 			collection: "roles",
@@ -217,6 +221,7 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		});
 	}
 
+	console.log(`[seedRoles] Publishing role '${roleSeed.name}'...`);
 	await payload.update({
 		collection: "roles",
 		overrideAccess: true,
@@ -226,6 +231,7 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		draft: false
 	});
 
+	console.log(`[seedRoles] Setting role '${roleSeed.name}' back to draft...`);
 	await payload.update({
 		collection: "roles",
 		overrideAccess: true,
@@ -236,4 +242,4 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 	});
 }
 
-console.log(`Seeded ${ROLE_SEEDS.length} roles with approved history and pending draft requests.`);
+console.log(`[seedRoles] Done. Seeded ${ROLE_SEEDS.length} roles with approved history and pending draft requests.`);
