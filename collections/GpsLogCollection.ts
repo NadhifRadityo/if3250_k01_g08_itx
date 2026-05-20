@@ -13,7 +13,7 @@ export const GpsLogs = (): CollectionConfig => ({
 	hooks: {
 		beforeChange: [
 			({ operation }) => {
-				if(operation != "update")
+				if(operation != "create")
 					throw new APIError("GPS logs are append only");
 			}
 		]

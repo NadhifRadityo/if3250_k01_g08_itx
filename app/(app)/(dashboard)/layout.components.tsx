@@ -908,19 +908,19 @@ export function DashboardMenuTable<T>(
 											size="sm"
 											className="-ml-2 h-7 gap-1 px-2"
 											onClick={() => onColumnsSortChange(
-												columnSortIndex == -1 ? columnsSort.with(columnsSort.length, [column.key, true] as const) :
+												columnSortIndex == -1 ? [...columnsSort, [column.key, true] as const] :
 													columnsSort[columnSortIndex][1] ? columnsSort.with(columnSortIndex, [column.key, false] as const) :
 														columnsSort.toSpliced(columnSortIndex, 1)
 											)}
 											disabled={isLoading || isMutating}
 										>
 											{column.label}
-											{columnsSort[column.key] == "asc" ? (
-												<ArrowUpIcon className="size-3.5" />
-											) : columnsSort[column.key] == "desc" ? (
-												<ArrowDownIcon className="size-3.5" />
-											) : (
+											{columnSortIndex == -1 ? (
 												<ArrowUpDownIcon className="text-muted-foreground size-3.5" />
+											) : columnsSort[columnSortIndex][1] ? (
+												<ArrowUpIcon className="size-3.5" />
+											) : (
+												<ArrowDownIcon className="size-3.5" />
 											)}
 										</Button>
 									) : column.label}
@@ -1111,16 +1111,16 @@ export const defaultRelationUserRenderer = ({ description, relationSource }: { d
 			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
 			relationId={userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}
 			fallback={{
-				title: userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>),
+				title: userRelation?.name ?? (<>User <span className="font-mono">{userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}</span></>),
 				description: description,
 				fields: [
-					{ label: "Id", value: (<span className="font-mono">{userId}</span>) },
+					{ label: "Id", value: (<span className="font-mono">{userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}</span>) },
 					...(userRelation != null ? [{ label: "Email", value: userRelation.email }] : []),
 					...(userRelation != null ? [{ label: "Name", value: userRelation.name }] : [])
 				]
 			}}
 		>
-			{userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>)}
+			{userRelation?.name ?? (<>User <span className="font-mono">{userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}</span></>)}
 		</RelationNavigationLink>
 	))(context?.relationValues?.[`users:${userId}`]);
 export const defaultRelationUsersRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
@@ -1130,27 +1130,27 @@ export const defaultRelationUsersRenderer = ({ description, relationSource }: { 
 			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
 			pickerTitle="Select users"
 			pickerDescription={description}
-			relationChoices={userIds.map(userId => (userRelation => userRelation == null ? null : ({
-				id: userId,
+			relationChoices={userIds.map(userId => (userRelation => userRelation == null || userRelation.stagedUserId == null ? null : ({
+				id: userRelation.stagedUserId,
 				name: userRelation.name,
 				description: userRelation.email,
 				fallback: {
 					title: userRelation.name,
 					description: userRelation.email,
 					fields: [
-						{ label: "Id", value: (<span className="font-mono">{userId}</span>) },
+						{ label: "Id", value: (<span className="font-mono">{userRelation.stagedUserId}</span>) },
 						{ label: "Email", value: userRelation.email },
 						{ label: "Name", value: userRelation.name }
 					]
 				}
 			}))(context?.relationValues?.[`users:${userId}`])).filter(choice => choice != null)}
 		>
-			{userIds.map((userId, i) => (userRelation => userRelation == null ? null : (
+			{userIds.map((userId, i) => (userRelation => (
 				<React.Fragment key={userId}>
-					{userRelation.name}
-					{i != userIds.length - 1 ? " " : ""}
+					{userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>)}
+					{i != userIds.length - 1 ? ", " : ""}
 				</React.Fragment>
-			))(context?.relationValues?.[`users:${userId}`])).filter(choice => choice != null)}
+			))(context?.relationValues?.[`users:${userId}`]))}
 		</RelationNavigationLink>
 	);
 export const defaultRelationRoleRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>

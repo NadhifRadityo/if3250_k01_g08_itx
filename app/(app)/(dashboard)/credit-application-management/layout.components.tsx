@@ -98,7 +98,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "reviewComment", label: "Review Comment" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", sortable: true, className: "font-mono text-xs" },
+	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "createdBy", label: "Created By", sortable: false },
 	{ key: "updatedAt", label: "Updated At", sortable: true },
@@ -139,7 +139,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "reviewComment", label: "Review Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
-	{ key: "id", type: "text" },
+	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
 	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "credit-applications.createdBy" }) },
 	{ key: "updatedAt", type: "date" },
@@ -719,15 +719,15 @@ export function FormDrawer(
 								{(formState.addresses ?? []).length == 0 ? (
 									<p className="text-muted-foreground text-xs">No address values yet.</p>
 								) : (
-									(formState.addresses ?? []).map((address, index) => (
+									formState.addresses!.map((address, index) => (
 										<div key={index} className="flex items-start gap-2">
 											<Input
 												value={address}
-												onChange={event => onFormStateChange({ ...formState, addresses: (formState.addresses ?? []).with(index, event.target.value) })}
+												onChange={event => onFormStateChange({ ...formState, addresses: formState.addresses!.with(index, event.target.value) })}
 												placeholder="Jl. Sudirman No. 1"
 												className="flex-1"
 											/>
-											<Button type="button" variant="outline" onClick={() => onFormStateChange({ ...formState, addresses: (formState.addresses ?? []).toSpliced(index, 1) })}>
+											<Button type="button" variant="outline" onClick={() => onFormStateChange({ ...formState, addresses: formState.addresses!.toSpliced(index, 1) })}>
 												<XIcon />
 												Remove
 											</Button>

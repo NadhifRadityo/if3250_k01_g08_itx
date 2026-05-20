@@ -15,19 +15,19 @@ type SeedUser = {
 };
 
 const ROLE_SEEDS = [
-	{ key: "admin", name: "Seed Platform Admin", level: "admin" as const },
-	{ key: "manager", name: "Seed Regional Manager", level: "manager" as const },
-	{ key: "supervisor", name: "Seed Branch Supervisor", level: "supervisor" as const },
-	{ key: "officer", name: "Seed Field Officer", level: "officer" as const }
+	{ key: "admin", name: "Platform Admin", level: "admin" as const },
+	{ key: "manager", name: "Regional Manager", level: "manager" as const },
+	{ key: "supervisor", name: "Branch Supervisor", level: "supervisor" as const },
+	{ key: "officer", name: "Field Officer", level: "officer" as const }
 ];
 
 const USER_SEEDS: SeedUser[] = [
 	{
 		key: "admin",
-		email: "seed.admin@local.local",
-		name: "Seed Admin",
-		password: "SeedAdmin123!",
-		employeeId: "ADM-SEED-001",
+		email: "admin@local.local",
+		name: "Admin",
+		password: "admin",
+		employeeId: "ADM-001",
 		roleKey: "admin",
 		supervisorKey: null
 	},
@@ -35,8 +35,8 @@ const USER_SEEDS: SeedUser[] = [
 		key: "manager-bandung",
 		email: "manager.bandung@local.local",
 		name: "Raka Wirawan",
-		password: "SeedManager123!",
-		employeeId: "MGR-SEED-001",
+		password: "Manager123!",
+		employeeId: "MGR-001",
 		roleKey: "manager",
 		supervisorKey: "admin"
 	},
@@ -44,8 +44,8 @@ const USER_SEEDS: SeedUser[] = [
 		key: "manager-jakarta",
 		email: "manager.jakarta@local.local",
 		name: "Maya Pertiwi",
-		password: "SeedManager123!",
-		employeeId: "MGR-SEED-002",
+		password: "Manager123!",
+		employeeId: "MGR-002",
 		roleKey: "manager",
 		supervisorKey: "admin"
 	},
@@ -53,8 +53,8 @@ const USER_SEEDS: SeedUser[] = [
 		key: "supervisor-bandung",
 		email: "supervisor.bandung@local.local",
 		name: "Bagus Santoso",
-		password: "SeedSupervisor123!",
-		employeeId: "SPV-SEED-001",
+		password: "Supervisor123!",
+		employeeId: "SPV-001",
 		roleKey: "supervisor",
 		supervisorKey: "manager-bandung"
 	},
@@ -62,8 +62,8 @@ const USER_SEEDS: SeedUser[] = [
 		key: "supervisor-jakarta",
 		email: "supervisor.jakarta@local.local",
 		name: "Dewi Maharani",
-		password: "SeedSupervisor123!",
-		employeeId: "SPV-SEED-002",
+		password: "Supervisor123!",
+		employeeId: "SPV-002",
 		roleKey: "supervisor",
 		supervisorKey: "manager-jakarta"
 	},
@@ -71,8 +71,8 @@ const USER_SEEDS: SeedUser[] = [
 		key: "officer-bandung-1",
 		email: "officer.bandung.01@local.local",
 		name: "Rizky Aditya",
-		password: "SeedOfficer123!",
-		employeeId: "OFF-SEED-001",
+		password: "Officer123!",
+		employeeId: "OFF-001",
 		roleKey: "officer",
 		supervisorKey: "supervisor-bandung"
 	},
@@ -80,8 +80,8 @@ const USER_SEEDS: SeedUser[] = [
 		key: "officer-bandung-2",
 		email: "officer.bandung.02@local.local",
 		name: "Nadia Safitri",
-		password: "SeedOfficer123!",
-		employeeId: "OFF-SEED-002",
+		password: "Officer123!",
+		employeeId: "OFF-002",
 		roleKey: "officer",
 		supervisorKey: "supervisor-bandung"
 	},
@@ -89,8 +89,8 @@ const USER_SEEDS: SeedUser[] = [
 		key: "officer-jakarta-1",
 		email: "officer.jakarta.01@local.local",
 		name: "Fahmi Ramadhan",
-		password: "SeedOfficer123!",
-		employeeId: "OFF-SEED-003",
+		password: "Officer123!",
+		employeeId: "OFF-003",
 		roleKey: "officer",
 		supervisorKey: "supervisor-jakarta"
 	},
@@ -98,8 +98,8 @@ const USER_SEEDS: SeedUser[] = [
 		key: "officer-jakarta-2",
 		email: "officer.jakarta.02@local.local",
 		name: "Intan Permata",
-		password: "SeedOfficer123!",
-		employeeId: "OFF-SEED-004",
+		password: "Officer123!",
+		employeeId: "OFF-004",
 		roleKey: "officer",
 		supervisorKey: "supervisor-jakarta"
 	}

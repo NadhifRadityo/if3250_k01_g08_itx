@@ -245,6 +245,7 @@ export default function Page() {
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
+					renderActions={r => renderCell(r, "#actions")}
 					onOpenHistory={() => setHistoryDrawerOpen(true)}
 				/>
 				<HistoryDrawer

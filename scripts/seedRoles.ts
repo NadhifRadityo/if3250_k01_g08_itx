@@ -62,13 +62,13 @@ type SeedRole = {
 const ROLE_SEEDS: SeedRole[] = [
 	{
 		key: "admin",
-		name: "Seed Platform Admin",
+		name: "Platform Admin",
 		level: "admin",
 		menus: ALL_MENUS
 	},
 	{
 		key: "manager",
-		name: "Seed Regional Manager",
+		name: "Regional Manager",
 		level: "manager",
 		menus: [
 			"user-management-viewer",
@@ -108,7 +108,7 @@ const ROLE_SEEDS: SeedRole[] = [
 	},
 	{
 		key: "supervisor",
-		name: "Seed Branch Supervisor",
+		name: "Branch Supervisor",
 		level: "supervisor",
 		menus: [
 			"team-management-viewer",
@@ -125,7 +125,7 @@ const ROLE_SEEDS: SeedRole[] = [
 	},
 	{
 		key: "officer",
-		name: "Seed Field Officer",
+		name: "Field Officer",
 		level: "officer",
 		menus: [
 			"officer-task-reporting",

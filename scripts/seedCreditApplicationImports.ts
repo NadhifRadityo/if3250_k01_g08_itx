@@ -275,7 +275,7 @@ const actingUser = (await payload.find({
 	collection: "users",
 	overrideAccess: true,
 	where: {
-		email: { equals: "seed.admin@local.local" }
+		email: { equals: "admin@local.local" }
 	},
 	limit: 1,
 	sort: "-updatedAt",
@@ -336,25 +336,8 @@ if(existingApproved == null) {
 			reviewComment: lexicalPlainText("Seed approved import for imported credit applications.")
 		}
 	});
-} else {
-	console.log(`[seedCreditApplicationImports] Updating existing approved import (id: ${existingApproved.id})...`);
-	await payload.update({
-		collection: "credit-application-imports",
-		user: actingUser,
-		overrideAccess: true,
-		trash: true,
-		id: existingApproved.id,
-		data: {
-			description: lexicalPlainText("Approved seed import containing the canonical credit application rows."),
-			deletedAt: null,
-			deletedBy: null,
-			reviewedAt: isoAt(400),
-			reviewedBy: actingUser.id,
-			reviewApproved: true,
-			reviewComment: lexicalPlainText("Seed approved import for imported credit applications.")
-		}
-	});
-}
+} else
+	console.log(`[seedCreditApplicationImports] Approved import already exists (id: ${existingApproved.id}), skipping.`);
 
 // Upsert pending import
 console.log(`[seedCreditApplicationImports] Checking existing pending import '${PENDING_IMPORT_FILENAME}'...`);

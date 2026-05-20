@@ -34,7 +34,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "transcription", label: "Transcription" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", sortable: true, className: "font-mono text-xs" },
+	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "creditApplication", label: "Credit Application", sortable: false },
 	{ key: "officer", label: "Officer", sortable: false },
@@ -43,7 +43,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "transcription", label: "Transcription", sortable: false }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
-	{ key: "id", type: "text" },
+	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
 	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "recording-logs.creditApplication" }) },
 	{ key: "officer", type: "relation", render: defaultRelationUserRenderer({ description: "Officer", relationSource: "recording-logs.officer" }) },

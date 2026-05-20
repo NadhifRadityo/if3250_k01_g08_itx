@@ -1,10 +1,11 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import fs from "fs/promises";
+import path from "path";
+import url from "url";
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 
-const SCRIPT_DIRECTORY = path.dirname(fileURLToPath(import.meta.url));
+const SCRIPT_DIRECTORY = path.dirname(url.fileURLToPath(import.meta.url));
 const TRANSCRIPT_SOURCE_PATH = path.join(SCRIPT_DIRECTORY, "Saphir-Whorf Hypothesis.txt");
 
 const payload = await getPayload({ config: payloadConfig });
@@ -30,7 +31,12 @@ if(existing == null) {
 	await payload.create({
 		collection: "recording-log-transcriptions",
 		overrideAccess: true,
-		filePath: TRANSCRIPT_SOURCE_PATH,
+		file: {
+			name: filename,
+			data: await fs.readFile(TRANSCRIPT_SOURCE_PATH),
+			mimetype: "text/plain",
+			size: (await fs.stat(TRANSCRIPT_SOURCE_PATH)).size
+		},
 		data: {}
 	});
 } else

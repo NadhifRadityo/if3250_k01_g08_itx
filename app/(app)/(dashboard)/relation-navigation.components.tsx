@@ -53,6 +53,8 @@ export function consumePendingRelationNavigationRedirectData(relationType: strin
 
 type RelationFallback = { title: React.ReactNode, description?: React.ReactNode, fields?: { label: React.ReactNode, value: React.ReactNode }[] };
 function useRelationNavigationSummary() {
+	const [_, _rerender] = useState(0);
+	const rerender = useCallback(() => _rerender(v => v + 1), []);
 	const intentOpen = useRef(false);
 	const [drawerOpen, setDrawerOpen] = useState(false);
 	const [pickerDrawerOpen, setPickerDrawerOpen] = useState(false);
@@ -79,6 +81,7 @@ function useRelationNavigationSummary() {
 		setPickerChoices(null);
 		setPickedId(relationId);
 		setPickedFallback(fallback);
+		rerender();
 	}, []);
 	const openPickerDrawer = useCallback((
 		{ relationType, pickerTitle, pickerDescription, relationChoices }:
@@ -93,6 +96,7 @@ function useRelationNavigationSummary() {
 		setPickerChoices(relationChoices);
 		setPickedId(null);
 		setPickedFallback(null);
+		rerender();
 	}, []);
 	useEffect(() => {
 		if(!intentOpen.current || relationType == null || pickedId == null || pickedFallback == null)
@@ -109,11 +113,9 @@ function useRelationNavigationSummary() {
 				setError(error);
 			}
 		});
-	}, [relationType, pickedId, pickedFallback]);
-	const closeDrawer = useCallback(() => {
-		setDrawerOpen(false);
-		setPickerDrawerOpen(false);
-	}, []);
+	}, [intentOpen.current, relationType, pickedId, pickedFallback]);
+	const closeDrawer = useCallback(() => { setDrawerOpen(false); }, []);
+	const closePickerDrawer = useCallback(() => { setPickerDrawerOpen(false); }, []);
 
 	const drawer = (
 		<Drawer open={drawerOpen} onOpenChange={setDrawerOpen} direction="right">
@@ -151,6 +153,9 @@ function useRelationNavigationSummary() {
 						</div>
 					) : null}
 				</div>
+				<DrawerFooter className="border-t">
+					<Button type="button" variant="outline" onClick={() => setDrawerOpen(false)}>Close</Button>
+				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
 	);
@@ -169,8 +174,10 @@ function useRelationNavigationSummary() {
 							variant="outline"
 							className="h-auto w-full whitespace-normal px-3 py-2 text-left"
 							onClick={() => {
+								intentOpen.current = true;
 								setPickedId(pickerChoice.id);
 								setPickedFallback(pickerChoice.fallback);
+								rerender();
 							}}
 						>
 							<span className="grid w-full gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
@@ -185,7 +192,7 @@ function useRelationNavigationSummary() {
 					))}
 				</div>
 				<DrawerFooter className="border-t">
-					<Button type="button" variant="outline" onClick={() => closeDrawer}>Cancel</Button>
+					<Button type="button" variant="outline" onClick={() => setPickerDrawerOpen(false)}>Close</Button>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
@@ -195,6 +202,7 @@ function useRelationNavigationSummary() {
 		openDrawer,
 		openPickerDrawer,
 		closeDrawer,
+		closePickerDrawer,
 		drawer,
 		pickerDrawer
 	};

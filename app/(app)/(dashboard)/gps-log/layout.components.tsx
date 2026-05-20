@@ -34,7 +34,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "longitude", label: "Longitude" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", sortable: true, className: "font-mono text-xs" },
+	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "officer", label: "Officer", sortable: false },
 	{ key: "sessionId", label: "Session Id", sortable: true },
@@ -43,7 +43,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "longitude", label: "Longitude", sortable: true }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
-	{ key: "id", type: "text" },
+	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
 	{ key: "officer", type: "relation", render: defaultRelationUserRenderer({ description: "Officer", relationSource: "gps-logs.officer" }) },
 	{ key: "sessionId", type: "text" },

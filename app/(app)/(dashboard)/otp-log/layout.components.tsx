@@ -45,7 +45,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "smsDeliveryStatus", label: "SMS Delivery Status" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", sortable: true, className: "font-mono text-xs" },
+	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "creditApplication", label: "Credit Application", sortable: false },
 	{ key: "content", label: "Content", sortable: true, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
@@ -57,7 +57,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "smsDeliveryStatus", label: "SMS Delivery Status", sortable: true }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
-	{ key: "id", type: "text" },
+	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
 	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "otp-logs.creditApplication" }) },
 	{ key: "content", type: "text" },

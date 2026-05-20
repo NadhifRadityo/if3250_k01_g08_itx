@@ -7,7 +7,7 @@ const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
 
 const USER_EMAILS: Record<string, string> = {
-	"admin": "seed.admin@local.local",
+	"admin": "admin@local.local",
 	"officer-bandung-1": "officer.bandung.01@local.local",
 	"officer-bandung-2": "officer.bandung.02@local.local",
 	"officer-jakarta-1": "officer.jakarta.01@local.local",
@@ -38,7 +38,7 @@ const actingUser = (await payload.find({
 	collection: "users",
 	overrideAccess: true,
 	where: {
-		email: { equals: "seed.admin@local.local" }
+		email: { equals: "admin@local.local" }
 	},
 	limit: 1,
 	sort: "-updatedAt",

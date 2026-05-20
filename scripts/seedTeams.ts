@@ -13,7 +13,7 @@ type SeedTeam = {
 };
 
 const USER_EMAILS: Record<string, string> = {
-	"admin": "seed.admin@local.local",
+	"admin": "admin@local.local",
 	"manager-bandung": "manager.bandung@local.local",
 	"manager-jakarta": "manager.jakarta@local.local",
 	"supervisor-bandung": "supervisor.bandung@local.local",
@@ -55,7 +55,7 @@ const actingUser = (await payload.find({
 	collection: "users",
 	overrideAccess: true,
 	where: {
-		email: { equals: "seed.admin@local.local" }
+		email: { equals: "admin@local.local" }
 	},
 	limit: 1,
 	sort: "-updatedAt",

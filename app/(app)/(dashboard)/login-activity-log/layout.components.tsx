@@ -40,7 +40,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "outcome", label: "Outcome" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", sortable: true, className: "font-mono text-xs" },
+	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "user", label: "User", sortable: false },
 	{ key: "ipAddress", label: "IP Address", sortable: true },
@@ -48,7 +48,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "outcome", label: "Outcome", sortable: true }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
-	{ key: "id", type: "text" },
+	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
 	{ key: "user", type: "relation", render: defaultRelationUserRenderer({ description: "User", relationSource: "login-logs.user" }) },
 	{ key: "ipAddress", type: "text" },

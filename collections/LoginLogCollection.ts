@@ -13,7 +13,7 @@ export const LoginLogs = (): CollectionConfig => ({
 	hooks: {
 		beforeChange: [
 			({ operation }) => {
-				if(operation != "update")
+				if(operation != "create")
 					throw new APIError("Login logs are append only");
 			}
 		]

@@ -135,7 +135,7 @@ const actingUser = (await payload.find({
 	collection: "users",
 	overrideAccess: true,
 	where: {
-		email: { equals: "seed.admin@local.local" }
+		email: { equals: "admin@local.local" }
 	},
 	limit: 1,
 	sort: "-updatedAt",

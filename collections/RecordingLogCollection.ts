@@ -7,6 +7,7 @@ export const RecordingLogAudioFiles = (): CollectionConfig => ({
 		plural: "Recording Log Audio Files"
 	},
 	upload: {
+		staticDir: "uploads/recording-log-audio-files",
 		mimeTypes: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/webm", "audio/ogg"]
 	},
 	fields: []
@@ -19,6 +20,7 @@ export const RecordingLogTranscriptions = (): CollectionConfig => ({
 		plural: "Recording Log Transcriptions"
 	},
 	upload: {
+		staticDir: "uploads/recording-log-transcriptions",
 		mimeTypes: ["text/plain"]
 	},
 	fields: []
@@ -33,7 +35,7 @@ export const RecordingLogs = (): CollectionConfig => ({
 	hooks: {
 		beforeChange: [
 			({ operation }) => {
-				if(operation != "update")
+				if(operation != "create")
 					throw new APIError("Recording logs are append only");
 			}
 		]

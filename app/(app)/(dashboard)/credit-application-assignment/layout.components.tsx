@@ -54,7 +54,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "reviewComment", label: "Review Comment" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", sortable: true, className: "font-mono text-xs" },
+	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "createdBy", label: "Created By", sortable: false },
 	{ key: "updatedAt", label: "Updated At", sortable: true },
@@ -71,7 +71,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "reviewComment", label: "Review Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
-	{ key: "id", type: "text" },
+	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
 	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "credit-application-assignments.createdBy" }) },
 	{ key: "updatedAt", type: "date" },

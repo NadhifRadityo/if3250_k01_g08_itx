@@ -13,7 +13,7 @@ export const OtpLogs = (): CollectionConfig => ({
 	hooks: {
 		beforeChange: [
 			({ operation }) => {
-				if(operation != "update")
+				if(operation != "create")
 					throw new APIError("OTP logs are append only");
 			}
 		]
