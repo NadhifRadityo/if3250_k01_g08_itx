@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
@@ -9,10 +9,9 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationRenderer, MenuRowValueRendererContext } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationRenderer } from "../layout.components";
 import { searchRelationOtpLogsAction, searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
-import { RelationNavigationProvider } from "../relation-navigation.components";
-import { RelationValues, getDetailsAction, queryReportingAction, queryMonitoringAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
 export const deliveryStatusSelectOptions = Object.freeze([
@@ -170,126 +169,5 @@ export function DetailsDrawer(
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
-	);
-}
-
-export function OtpLogPage({ mode }: { mode: "monitoring" | "reporting" }) {
-	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "otp-log.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "otp-log.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
-	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: "otp-log.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
-	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "otp-log.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
-	const [pageIndex, setPageIndex] = useState(1);
-	const query = useQuery({
-		queryKey: ["otp-log", mode, {
-			keyword,
-			filters,
-			columnsSort,
-			pageIndex
-		}],
-		queryFn: async () => await (mode == "reporting" ? queryReportingAction({
-			keyword: keyword,
-			filters: filters,
-			columnsSort: columnsSort,
-			pageIndex: pageIndex
-		}) : queryMonitoringAction({
-			keyword: keyword,
-			filters: filters,
-			columnsSort: columnsSort,
-			pageIndex: pageIndex
-		}))
-	});
-	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
-	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
-	const rowValueRendererContext = {
-		relationValues: query.data?.relations
-	};
-	const renderCell = useMenuRowValueRenderer({
-		columns: rowValueRendererConfigColumns,
-		context: {
-			...rowValueRendererContext,
-			richTextCard: false,
-			richTextClamp: false
-		},
-		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
-			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
-		onOpenDetails: row => {
-			setDetailsDrawerOpen(true);
-			setDetailsDrawerRow(row);
-		}
-	});
-
-	return (
-		<MenuPage
-			title={mode == "reporting" ? "OTP Log Reporting" : "OTP Log Monitoring"}
-			description={mode == "reporting" ? "View OTP log entries through the reporting mode." : "View OTP log entries through the monitoring mode."}
-		>
-			<RelationNavigationProvider>
-				<MenuToolbar
-					keyword={keyword}
-					onKeywordChange={setKeyword}
-					searchPlaceholder="Search logs by credit application, delivery target, or content"
-					filterCount={filters.length}
-					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
-					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
-					isLoading={query.isLoading}
-				/>
-				<MenuFilterConfigCard
-					open={filterConfigCardOpen}
-					onOpenChange={setFilterConfigCardOpen}
-					columns={filterConfigColumns}
-					filters={filters}
-					onFiltersChange={setFilters}
-					disabled={query.isLoading}
-				/>
-				<MenuColumnConfigCard
-					open={columnConfigCardOpen}
-					onOpenChange={setColumnConfigCardOpen}
-					columns={columnConfigColumns}
-					columnOrder={columnOrder}
-					onColumnOrderChange={setColumnOrder}
-					columnsShown={columnsShown}
-					onColumnsShownChange={setColumnsShown}
-					defaultColumnOrder={defaultColumnOrder}
-					defaultColumnsShown={defaultColumnsShown}
-				/>
-				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
-				{query.error != null ? (
-					<Alert variant="destructive">
-						<CircleAlertIcon />
-						<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
-						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
-					</Alert>
-				) : null}
-				<DashboardMenuTable
-					columns={tableConfigColumns}
-					columnsSort={columnsSort}
-					onColumnsSortChange={setColumnsSort}
-					columnOrder={columnOrder}
-					columnsShown={columnsShown}
-					rows={query.data?.docs ?? []}
-					renderCell={renderCell}
-					isLoading={query.isLoading}
-				/>
-				<MenuPagination
-					pageIndex={pageIndex}
-					totalRequests={query.data?.totalDocs ?? 0}
-					hasPreviousPage={query.data?.hasPrevPage ?? false}
-					hasNextPage={query.data?.hasNextPage ?? false}
-					isLoading={query.isLoading}
-					isMutating={false}
-					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
-					onNext={() => setPageIndex(previous => previous + 1)}
-				/>
-				<DetailsDrawer
-					open={detailsDrawerOpen}
-					onOpenChange={setDetailsDrawerOpen}
-					row={detailsDrawerRow}
-					rowValueRendererContext={rowValueRendererContext}
-				/>
-			</RelationNavigationProvider>
-		</MenuPage>
 	);
 }
