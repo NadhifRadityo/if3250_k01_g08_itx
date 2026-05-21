@@ -16,6 +16,7 @@ import { SatisfactionSurveys } from "./collections/SatisfactionSurveyCollection"
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
 import { Surveys } from "./collections/SurveyCollection";
+import { SurveyResults } from "./collections/SurveyResultCollection";
 import { Teams } from "./collections/TeamCollection";
 import { Users, StagedUsers } from "./collections/UserCollection";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
@@ -44,6 +45,7 @@ export default buildConfig({
 		CreditApplications(),
 		CreditApplicationFieldMasks(),
 		Surveys(),
+		SurveyResults(),
 		SatisfactionSurveys(),
 		LoginLogs(),
 		GpsLogs(),
