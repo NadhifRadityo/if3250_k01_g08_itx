@@ -63,7 +63,10 @@ async function queryAction(
 		limit: PAGE_LIMIT,
 		sort: columnsSort.map(([columnKey, ascending]) => `${!ascending ? "-" : ""}${columnKey}`),
 		where: { and: [
-			...(mode == "monitoring" || mode == "reporting" ? [] : []),
+			...(mode == "monitoring" ? [
+				{ createdAt: { greater_than_equal: new Date(new Date().setHours(0, 0, 0, 0)).toISOString() } },
+				{ createdAt: { less_than_equal: new Date(new Date().setHours(23, 59, 59, 999)).toISOString() } }
+			] : []),
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
 				{ "officer.name": { like: keyword } },
