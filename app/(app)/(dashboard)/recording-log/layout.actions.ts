@@ -69,7 +69,7 @@ async function queryAction(
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "recording-logs" as any,
+		collection: "recording-logs",
 		depth: 0,
 		page: pageIndex,
 		limit: PAGE_LIMIT,
@@ -112,7 +112,7 @@ export async function getDetailsAction(id: string) {
 	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "recording-logs" as any,
+		collection: "recording-logs",
 		id: id,
 		depth: 0,
 		select: {

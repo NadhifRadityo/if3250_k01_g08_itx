@@ -57,7 +57,7 @@ async function queryAction(
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "gps-logs" as any,
+		collection: "gps-logs",
 		depth: 0,
 		page: pageIndex,
 		limit: PAGE_LIMIT,
@@ -98,7 +98,7 @@ export async function getDetailsAction(id: string) {
 	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "gps-logs" as any,
+		collection: "gps-logs",
 		id: id,
 		depth: 0,
 		select: {
