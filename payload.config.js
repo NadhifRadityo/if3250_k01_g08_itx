@@ -4,7 +4,7 @@ import { buildConfig, databaseKVAdapter } from "payload";
 import sharp from "sharp";
 
 import { CreditApplicationAssignments } from "./collections/CreditApplicationAssignmentCollection";
-import { CreditApplications, CreditApplicationImports, CreditApplicationFieldMasks, CreditApplicationDefaultFieldMask } from "./collections/CreditApplicationCollection";
+import { CreditApplications, CreditApplicationImports, CreditApplicationAccesses, CreditApplicationAccessMasks } from "./collections/CreditApplicationCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { GenericRichtextUploads } from "./collections/GenericCollection";
 import { GpsLogs } from "./collections/GpsLogCollection";
@@ -32,7 +32,6 @@ export default buildConfig({
 	sharp: sharp,
 	editor: lexicalEditor(),
 	globals: [
-		CreditApplicationDefaultFieldMask()
 	],
 	collections: [
 		GenericRichtextUploads(),
@@ -43,7 +42,8 @@ export default buildConfig({
 		CreditApplicationAssignments(),
 		CreditApplicationImports(),
 		CreditApplications(),
-		CreditApplicationFieldMasks(),
+		CreditApplicationAccesses(),
+		CreditApplicationAccessMasks(),
 		Surveys(),
 		SurveyResults(),
 		SatisfactionSurveys(),

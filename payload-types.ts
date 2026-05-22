@@ -75,7 +75,8 @@ export interface Config {
     'credit-application-assignments': CreditApplicationAssignment;
     'credit-application-imports': CreditApplicationImport;
     'credit-applications': CreditApplication;
-    'credit-application-field-masks': CreditApplicationFieldMask;
+    'credit-applications-accesses': CreditApplicationsAccess;
+    'credit-applications-access-masks': CreditApplicationsAccessMask;
     surveys: Survey;
     'survey-results': SurveyResult;
     'satsifaction-surveys': SatsifactionSurvey;
@@ -107,7 +108,8 @@ export interface Config {
     'credit-application-assignments': CreditApplicationAssignmentsSelect<false> | CreditApplicationAssignmentsSelect<true>;
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
-    'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
+    'credit-applications-accesses': CreditApplicationsAccessesSelect<false> | CreditApplicationsAccessesSelect<true>;
+    'credit-applications-access-masks': CreditApplicationsAccessMasksSelect<false> | CreditApplicationsAccessMasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
     'survey-results': SurveyResultsSelect<false> | SurveyResultsSelect<true>;
     'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
@@ -130,11 +132,9 @@ export interface Config {
   };
   fallbackLocale: null;
   globals: {
-    'credit-application-default-field-mask': CreditApplicationDefaultFieldMask;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
-    'credit-application-default-field-mask': CreditApplicationDefaultFieldMaskSelect<false> | CreditApplicationDefaultFieldMaskSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
@@ -241,51 +241,55 @@ export interface Role {
   name: string;
   level: 'admin' | 'manager' | 'supervisor' | 'officer';
   menus: (
-    | 'user-management-viewer'
-    | 'user-management-auditor'
-    | 'user-management-editor'
-    | 'user-management-approver'
-    | 'role-management-viewer'
-    | 'role-management-auditor'
-    | 'role-management-editor'
-    | 'role-management-approver'
-    | 'team-management-viewer'
-    | 'team-management-auditor'
-    | 'team-management-editor'
-    | 'team-management-approver'
-    | 'credit-application-management-viewer'
-    | 'credit-application-management-auditor'
-    | 'credit-application-management-editor'
-    | 'credit-application-management-approver'
-    | 'credit-application-management-import-viewer'
-    | 'credit-application-management-import-editor'
-    | 'credit-application-management-import-approver'
-    | 'credit-application-assignment-viewer'
-    | 'credit-application-assignment-auditor'
-    | 'credit-application-assignment-editor'
-    | 'credit-application-assignment-approver'
-    | 'survey-management-viewer'
-    | 'survey-management-auditor'
-    | 'survey-management-editor'
-    | 'survey-management-approver'
-    | 'satisfaction-survey-management-viewer'
-    | 'satisfaction-survey-management-auditor'
-    | 'satisfaction-survey-management-editor'
-    | 'satisfaction-survey-management-approver'
-    | 'officer-task-monitoring'
-    | 'officer-task-reporting'
-    | 'officer-tracking-monitoring'
-    | 'officer-tracking-reporting'
-    | 'survey-result-monitoring'
-    | 'survey-result-reporting'
-    | 'login-activity-log-monitoring'
-    | 'login-activity-log-reporting'
-    | 'otp-log-monitoring'
-    | 'otp-log-reporting'
-    | 'gps-log-monitoring'
-    | 'gps-log-reporting'
-    | 'recording-log-monitoring'
-    | 'recording-log-reporting'
+    | 'user-management#viewer'
+    | 'user-management#auditor'
+    | 'user-management#editor'
+    | 'user-management#approver'
+    | 'role-management#viewer'
+    | 'role-management#auditor'
+    | 'role-management#editor'
+    | 'role-management#approver'
+    | 'team-management#viewer'
+    | 'team-management#auditor'
+    | 'team-management#editor'
+    | 'team-management#approver'
+    | 'access-management#viewer'
+    | 'access-management#auditor'
+    | 'access-management#editor'
+    | 'access-management#approver'
+    | 'credit-application-management#viewer'
+    | 'credit-application-management#auditor'
+    | 'credit-application-management#editor'
+    | 'credit-application-management#approver'
+    | 'credit-application-management#import-viewer'
+    | 'credit-application-management#import-editor'
+    | 'credit-application-management#import-approver'
+    | 'credit-application-assignment#viewer'
+    | 'credit-application-assignment#auditor'
+    | 'credit-application-assignment#editor'
+    | 'credit-application-assignment#approver'
+    | 'survey-management#viewer'
+    | 'survey-management#auditor'
+    | 'survey-management#editor'
+    | 'survey-management#approver'
+    | 'satisfaction-survey-management#viewer'
+    | 'satisfaction-survey-management#auditor'
+    | 'satisfaction-survey-management#editor'
+    | 'satisfaction-survey-management#approver'
+    | 'officer-task#monitoring'
+    | 'officer-task#reporting'
+    | 'officer-tracking#monitoring'
+    | 'officer-tracking#reporting'
+    | 'survey-result#monitoring'
+    | 'survey-result#reporting'
+    | 'login-activity-log#monitoring'
+    | 'login-activity-log#reporting'
+    | 'otp-log#monitoring'
+    | 'otp-log#reporting'
+    | 'gps-log#monitoring'
+    | 'gps-log#reporting'
+    | 'recording-log#monitoring'
+    | 'recording-log#reporting'
   )[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
@@ -584,9 +588,9 @@ export interface CreditApplicationImport {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-field-masks".
+ * via the `definition` "credit-applications-accesses".
  */
-export interface CreditApplicationFieldMask {
+export interface CreditApplicationsAccess {
   id: string;
   createdAt: string;
   createdBy?: (string | null) | User;
@@ -594,20 +598,561 @@ export interface CreditApplicationFieldMask {
   updatedBy?: (string | null) | User;
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
-  creditApplication: string | CreditApplication;
-  maskName?: boolean | null;
-  maskEmail?: boolean | null;
-  maskAddresses?: boolean | null;
-  maskPhoneNumbers?: boolean | null;
-  maskWhatsappNumber?: boolean | null;
-  maskSmsNumber?: boolean | null;
-  maskRemarks?: boolean | null;
-  maskOtherText1?: boolean | null;
-  maskOtherText2?: boolean | null;
-  maskOtherNumber1?: boolean | null;
-  maskOtherNumber2?: boolean | null;
-  maskOtherDate1?: boolean | null;
-  maskOtherDate2?: boolean | null;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | CreditApplication)[];
+  forceHide: (string | CreditApplication)[];
+  mask: string | CreditApplicationsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-applications-access-masks".
+ */
+export interface CreditApplicationsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskImport: 'hide' | 'show';
+  maskName:
+    | 'hide'
+    | 'showFirstNameOnly'
+    | 'showMiddleNameOnly'
+    | 'showLastNameOnly'
+    | 'showFirstNameAndLastNameOnly'
+    | 'showFirstNameAndMiddleNameOnly'
+    | 'showMiddleNameAndLastNameOnly'
+    | 'show1CharacterFirstName'
+    | 'show2CharactersFirstName'
+    | 'show3CharactersFirstName'
+    | 'show1CharacterMiddleName'
+    | 'show2CharactersMiddleName'
+    | 'show3CharactersMiddleName'
+    | 'show1CharacterLastName'
+    | 'show2CharactersLastName'
+    | 'show3CharactersLastName'
+    | 'showFirstNameAnd1CharacterLastName'
+    | 'showFirstNameAnd2CharactersLastName'
+    | 'showFirstNameAnd3CharactersLastName'
+    | 'show1CharacterFirstNameAndLastName'
+    | 'show2CharactersFirstNameAndLastName'
+    | 'show3CharactersFirstNameAndLastName'
+    | 'show';
+  maskEmail:
+    | 'hide'
+    | 'showUsernameOnly'
+    | 'showDomainOnly'
+    | 'show1CharacterUsername'
+    | 'show2CharactersUsername'
+    | 'show3CharactersUsername'
+    | 'showLast1CharacterUsername'
+    | 'showLast2CharactersUsername'
+    | 'showLast3CharactersUsername'
+    | 'show1CharacterDomain'
+    | 'show2CharactersDomain'
+    | 'show3CharactersDomain'
+    | 'showLast1CharacterDomain'
+    | 'showLast2CharactersDomain'
+    | 'showLast3CharactersDomain'
+    | 'show1CharacterUsernameAndDomain'
+    | 'show2CharactersUsernameAndDomain'
+    | 'show3CharactersUsernameAndDomain'
+    | 'show';
+  maskAddresses:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskPhoneNumbers:
+    | 'hide'
+    | 'showFirst3Digits'
+    | 'showFirst4Digits'
+    | 'showFirst5Digits'
+    | 'showLast3Digits'
+    | 'showLast4Digits'
+    | 'showLast5Digits'
+    | 'showCountryCodeOnly'
+    | 'showCountryCodeAndLast3Digits'
+    | 'showCountryCodeAndLast4Digits'
+    | 'showCountryCodeAndFirst3Digits'
+    | 'showCountryCodeAndFirst4Digits'
+    | 'show';
+  maskWhatsappNumber:
+    | 'hide'
+    | 'showFirst3Digits'
+    | 'showFirst4Digits'
+    | 'showFirst5Digits'
+    | 'showLast3Digits'
+    | 'showLast4Digits'
+    | 'showLast5Digits'
+    | 'showCountryCodeOnly'
+    | 'showCountryCodeAndLast3Digits'
+    | 'showCountryCodeAndLast4Digits'
+    | 'showCountryCodeAndFirst3Digits'
+    | 'showCountryCodeAndFirst4Digits'
+    | 'show';
+  maskSmsNumber:
+    | 'hide'
+    | 'showFirst3Digits'
+    | 'showFirst4Digits'
+    | 'showFirst5Digits'
+    | 'showLast3Digits'
+    | 'showLast4Digits'
+    | 'showLast5Digits'
+    | 'showCountryCodeOnly'
+    | 'showCountryCodeAndLast3Digits'
+    | 'showCountryCodeAndLast4Digits'
+    | 'showCountryCodeAndFirst3Digits'
+    | 'showCountryCodeAndFirst4Digits'
+    | 'show';
+  maskCollateralRegistryName:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskCollateralName:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskCollateralDescription: 'hide' | 'show';
+  maskAssetId:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskAssetName:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskAssetDescription: 'hide' | 'show';
+  maskPeriod:
+    | 'hide'
+    | 'showFirst1Digit'
+    | 'showFirst2Digits'
+    | 'showFirst3Digits'
+    | 'showLast1Digit'
+    | 'showLast2Digits'
+    | 'showLast3Digits'
+    | 'showRoundedTens'
+    | 'showRoundedHundreds'
+    | 'showRoundedThousands'
+    | 'showDigitCountOnly'
+    | 'show';
+  maskInstallment:
+    | 'hide'
+    | 'showFirst1Digit'
+    | 'showFirst2Digits'
+    | 'showFirst3Digits'
+    | 'showLast1Digit'
+    | 'showLast2Digits'
+    | 'showLast3Digits'
+    | 'showRoundedTens'
+    | 'showRoundedHundreds'
+    | 'showRoundedThousands'
+    | 'showDigitCountOnly'
+    | 'show';
+  maskDownPayment:
+    | 'hide'
+    | 'showFirst1Digit'
+    | 'showFirst2Digits'
+    | 'showFirst3Digits'
+    | 'showLast1Digit'
+    | 'showLast2Digits'
+    | 'showLast3Digits'
+    | 'showRoundedTens'
+    | 'showRoundedHundreds'
+    | 'showRoundedThousands'
+    | 'showDigitCountOnly'
+    | 'show';
+  maskPlafond:
+    | 'hide'
+    | 'showFirst1Digit'
+    | 'showFirst2Digits'
+    | 'showFirst3Digits'
+    | 'showLast1Digit'
+    | 'showLast2Digits'
+    | 'showLast3Digits'
+    | 'showRoundedTens'
+    | 'showRoundedHundreds'
+    | 'showRoundedThousands'
+    | 'showDigitCountOnly'
+    | 'show';
+  maskVendor:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskRemarks: 'hide' | 'show';
+  maskOtherText1:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskOtherText2:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskOtherNumber1:
+    | 'hide'
+    | 'showFirst1Digit'
+    | 'showFirst2Digits'
+    | 'showFirst3Digits'
+    | 'showLast1Digit'
+    | 'showLast2Digits'
+    | 'showLast3Digits'
+    | 'showRoundedTens'
+    | 'showRoundedHundreds'
+    | 'showRoundedThousands'
+    | 'showDigitCountOnly'
+    | 'show';
+  maskOtherNumber2:
+    | 'hide'
+    | 'showFirst1Digit'
+    | 'showFirst2Digits'
+    | 'showFirst3Digits'
+    | 'showLast1Digit'
+    | 'showLast2Digits'
+    | 'showLast3Digits'
+    | 'showRoundedTens'
+    | 'showRoundedHundreds'
+    | 'showRoundedThousands'
+    | 'showDigitCountOnly'
+    | 'show';
+  maskOtherDate1:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskOtherDate2:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskOthers: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -1060,8 +1605,12 @@ export interface PayloadLockedDocument {
         value: string | CreditApplication;
       } | null)
     | ({
-        relationTo: 'credit-application-field-masks';
-        value: string | CreditApplicationFieldMask;
+        relationTo: 'credit-applications-accesses';
+        value: string | CreditApplicationsAccess;
+      } | null)
+    | ({
+        relationTo: 'credit-applications-access-masks';
+        value: string | CreditApplicationsAccessMask;
       } | null)
     | ({
         relationTo: 'surveys';
@@ -1356,22 +1905,78 @@ export interface CreditApplicationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-field-masks_select".
+ * via the `definition` "credit-applications-accesses_select".
  */
-export interface CreditApplicationFieldMasksSelect<T extends boolean = true> {
+export interface CreditApplicationsAccessesSelect<T extends boolean = true> {
   createdAt?: T;
   createdBy?: T;
   updatedAt?: T;
   updatedBy?: T;
   deletedAt?: T;
   deletedBy?: T;
-  creditApplication?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-applications-access-masks_select".
+ */
+export interface CreditApplicationsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskImport?: T;
   maskName?: T;
   maskEmail?: T;
   maskAddresses?: T;
   maskPhoneNumbers?: T;
   maskWhatsappNumber?: T;
   maskSmsNumber?: T;
+  maskCollateralRegistryName?: T;
+  maskCollateralName?: T;
+  maskCollateralDescription?: T;
+  maskAssetId?: T;
+  maskAssetName?: T;
+  maskAssetDescription?: T;
+  maskPeriod?: T;
+  maskInstallment?: T;
+  maskDownPayment?: T;
+  maskPlafond?: T;
+  maskVendor?: T;
   maskRemarks?: T;
   maskOtherText1?: T;
   maskOtherText2?: T;
@@ -1379,6 +1984,11 @@ export interface CreditApplicationFieldMasksSelect<T extends boolean = true> {
   maskOtherNumber2?: T;
   maskOtherDate1?: T;
   maskOtherDate2?: T;
+  maskOthers?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
   _status?: T;
 }
 /**
@@ -1626,30 +2236,6 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-default-field-mask".
- */
-export interface CreditApplicationDefaultFieldMask {
-  id: string;
-  updatedAt: string;
-  updatedBy?: (string | null) | User;
-  maskName: boolean;
-  maskEmail: boolean;
-  maskAddresses: boolean;
-  maskPhoneNumbers: boolean;
-  maskWhatsappNumber: boolean;
-  maskSmsNumber: boolean;
-  maskRemarks: boolean;
-  maskOtherText1: boolean;
-  maskOtherText2: boolean;
-  maskOtherNumber1: boolean;
-  maskOtherNumber2: boolean;
-  maskOtherDate1: boolean;
-  maskOtherDate2: boolean;
-  _status?: ('draft' | 'published') | null;
-  createdAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -1665,30 +2251,6 @@ export interface PayloadJobsStat {
     | null;
   updatedAt?: string | null;
   createdAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-default-field-mask_select".
- */
-export interface CreditApplicationDefaultFieldMaskSelect<T extends boolean = true> {
-  updatedAt?: T;
-  updatedBy?: T;
-  maskName?: T;
-  maskEmail?: T;
-  maskAddresses?: T;
-  maskPhoneNumbers?: T;
-  maskWhatsappNumber?: T;
-  maskSmsNumber?: T;
-  maskRemarks?: T;
-  maskOtherText1?: T;
-  maskOtherText2?: T;
-  maskOtherNumber1?: T;
-  maskOtherNumber2?: T;
-  maskOtherDate1?: T;
-  maskOtherDate2?: T;
-  _status?: T;
-  createdAt?: T;
-  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -18,8 +18,8 @@ function getDashboardMenus(roles: string[]) {
 	return dashboardMenuKeys.map(menuKey => [
 		menuKey,
 		Object.fromEntries(roles
-			.filter(role => role.startsWith(`${menuKey}-`) && dashboardRoleHrefs[role] != null)
-			.map(role => [role.slice(`${menuKey}-`.length), { label: dashboardRoleLabels[role] as string, shortLabel: dashboardRoleSubLabels[role], href: dashboardRoleHrefs[role] as string }]))
+			.filter(role => role.startsWith(`${menuKey}#`) && dashboardRoleHrefs[role] != null)
+			.map(role => [role.slice(`${menuKey}#`.length), { label: dashboardRoleLabels[role] as string, shortLabel: dashboardRoleSubLabels[role], href: dashboardRoleHrefs[role] as string }]))
 	] as const)
 		.filter(([_, modes]) => Object.keys(modes).length > 0)
 		.map(([menuKey, modes]) => ({

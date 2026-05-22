@@ -70,8 +70,8 @@ function DashboardMenuKey(
 		return () => { clearTimeout(handle); };
 	}, [sidebarState]);
 	const menuModes = useMemo(() => {
-		return dashboardRoleKeys.filter(roleKey => roleKey.startsWith(`${menu.key}-`))
-			.map(roleKey => roleKey.slice(`${menu.key}-`.length))
+		return dashboardRoleKeys.filter(roleKey => roleKey.startsWith(`${menu.key}#`))
+			.map(roleKey => roleKey.slice(`${menu.key}#`.length))
 			.filter(modeKey => modeKey in menu.modes)
 			.map(modeKey => [modeKey, menu.modes[modeKey]] as const);
 	}, [menu]);

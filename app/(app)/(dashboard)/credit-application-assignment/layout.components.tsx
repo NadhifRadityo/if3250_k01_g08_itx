@@ -144,7 +144,7 @@ export function DetailsDrawer(
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode, onOpenHistory?: () => void }
 ) {
 	const { roles } = useDashboardShellContext();
-	const canAccessHistory = roles.includes("credit-application-assignment-auditor");
+	const canAccessHistory = roles.includes("credit-application-assignment#auditor");
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "details", row?.id ?? null],
 		enabled: open && row != null,
@@ -222,7 +222,7 @@ export function HistoryDrawer(
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
 	const { roles } = useDashboardShellContext();
-	const canAccessHistory = roles.includes("credit-application-assignment-auditor");
+	const canAccessHistory = roles.includes("credit-application-assignment#auditor");
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
