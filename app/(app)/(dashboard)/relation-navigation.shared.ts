@@ -38,3 +38,7 @@ export type RelationRecordingLogTranscription = {
 	mimeType: string | null;
 	url?: string | null;
 };
+
+export type RelationSurvey = {
+	title: string;
+};

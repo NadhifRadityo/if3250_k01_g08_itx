@@ -8,6 +8,15 @@ export const SurveyResults = (): CollectionConfig => ({
 	},
 	trash: true,
 	timestamps: true,
+	versions: {
+		maxPerDoc: 0,
+		drafts: {
+			autosave: {
+				showSaveDraftButton: true
+			},
+			validate: true
+		}
+	},
 	admin: {
 		useAsTitle: "creditApplication",
 		defaultColumns: ["survey", "creditApplication", "officer", "createdAt"]
@@ -15,8 +24,7 @@ export const SurveyResults = (): CollectionConfig => ({
 	hooks: {
 		beforeChange: [
 			({ req, operation, data }) => {
-				if(req.user == null)
-					return data;
+				if(req.user == null) return;
 				if(data.deletedAt != null)
 					data = { deletedBy: req.user.id, ...data };
 				if(operation == "create")
@@ -111,6 +119,29 @@ export const SurveyResults = (): CollectionConfig => ({
 			index: true
 		},
 		{
+			name: "surveyVersion",
+			label: "Survey Version",
+			type: "text",
+			required: true,
+			hooks: {
+				beforeChange: [
+					async ({ value, previousValue, data, originalDoc, req, req: { payload } }) => {
+						const version = await payload.findVersionByID({
+							req: req,
+							disableErrors: true,
+							overrideAccess: true,
+							collection: "surveys",
+							id: value ?? previousValue,
+							depth: 0,
+							select: { parent: true }
+						});
+						if(version == null || version.parent != (data?.survey ?? originalDoc.survey))
+							throw new APIError("Invalid survey version", 400, undefined, true);
+					}
+				]
+			}
+		},
+		{
 			name: "creditApplication",
 			label: "Credit Application",
 			type: "relationship",
@@ -135,4 +166,3 @@ export const SurveyResults = (): CollectionConfig => ({
 		}
 	]
 });
-

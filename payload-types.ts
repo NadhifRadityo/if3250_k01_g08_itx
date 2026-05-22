@@ -276,6 +276,8 @@ export interface Role {
     | 'officer-task-reporting'
     | 'officer-tracking-monitoring'
     | 'officer-tracking-reporting'
+    | 'survey-result-monitoring'
+    | 'survey-result-reporting'
     | 'login-activity-log-monitoring'
     | 'login-activity-log-reporting'
     | 'otp-log-monitoring'
@@ -678,6 +680,7 @@ export interface SurveyResult {
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
   survey: string | Survey;
+  surveyVersion: string;
   creditApplication: string | CreditApplication;
   officer: string | User;
   answers:
@@ -689,6 +692,7 @@ export interface SurveyResult {
     | number
     | boolean
     | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1409,9 +1413,11 @@ export interface SurveyResultsSelect<T extends boolean = true> {
   deletedAt?: T;
   deletedBy?: T;
   survey?: T;
+  surveyVersion?: T;
   creditApplication?: T;
   officer?: T;
   answers?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

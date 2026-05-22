@@ -172,6 +172,8 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "officer-task-reporting", label: "Officer Task - Reporting" },
 				{ value: "officer-tracking-monitoring", label: "Officer Tracking - Monitoring" },
 				{ value: "officer-tracking-reporting", label: "Officer Tracking - Reporting" },
+				{ value: "survey-result-monitoring", label: "Survey Result - Monitoring" },
+				{ value: "survey-result-reporting", label: "Survey Result - Reporting" },
 				{ value: "login-activity-log-monitoring", label: "Login Activity Log - Monitoring" },
 				{ value: "login-activity-log-reporting", label: "Login Activity Log - Reporting" },
 				{ value: "otp-log-monitoring", label: "OTP Log - Monitoring" },

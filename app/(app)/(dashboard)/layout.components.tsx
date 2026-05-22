@@ -3,7 +3,7 @@
 import React, { useRef, useMemo, useState, useEffect, useContext, createContext, type ReactNode } from "react";
 import { redirect, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
+import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon, BarChart3Icon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import useIsMobile from "@/utils/useIsMobile";
@@ -32,7 +32,7 @@ import { logoutAction } from "./layout.actions";
 import { DashboardMenu, getDashboardShellContextAction } from "./layout.actions";
 import { dashboardRoleKeys, dashboardMenuGroups } from "./layout.shared";
 import { RelationNavigationLink } from "./relation-navigation.components";
-import { RelationRole, RelationUser, RelationCreditApplication, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription } from "./relation-navigation.shared";
+import { RelationRole, RelationUser, RelationSurvey, RelationCreditApplication, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription } from "./relation-navigation.shared";
 
 const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
 	"user-management": UserCogIcon,
@@ -44,6 +44,7 @@ const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSV
 	"satisfaction-survey-management": SmileIcon,
 	"officer-task": ClipboardCheckIcon,
 	"officer-tracking": MapPinnedIcon,
+	"survey-result": BarChart3Icon,
 	"login-activity-log": HistoryIcon,
 	"otp-log": KeyRoundIcon,
 	"gps-log": LocateFixedIcon,
@@ -1218,6 +1219,24 @@ export const defaultRelationCreditApplicationImportRenderer = ({ description, re
 			{creditApplicationImportRelation?.filename ?? (<>Credit Application Import <span className="font-mono">{creditApplicationImportId}</span></>)}
 		</RelationNavigationLink>
 	))(context?.relationValues?.[`credit-application-imports:${creditApplicationImportId}`]);
+export const defaultRelationSurveyRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(surveyId: string | null, row: { id: string }, context: { relationValues?: Record<`surveys:${string}`, RelationSurvey> }) => surveyId == null ? "-" : (surveyRelation => (
+		<RelationNavigationLink
+			relationType="surveys"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			relationId={surveyId}
+			fallback={{
+				title: surveyRelation?.title ?? (<>Survey <span className="font-mono">{surveyId}</span></>),
+				description: description,
+				fields: [
+					{ label: "Id", value: (<span className="font-mono">{surveyId}</span>) },
+					...(surveyRelation != null ? [{ label: "Title", value: surveyRelation.title }] : [])
+				]
+			}}
+		>
+			{surveyRelation?.title ?? (<>Survey <span className="font-mono">{surveyId}</span></>)}
+		</RelationNavigationLink>
+	))(context?.relationValues?.[`surveys:${surveyId}`]);
 export const defaultRelationRecordingLogAudioFileRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
 	(audioFileId: string | null, row: { id: string }, context: { relationValues?: Record<`recording-log-audio-files:${string}`, RelationRecordingLogAudioFile> }) => audioFileId == null ? "-" : (audioFileRelation => (
 		<RelationNavigationLink

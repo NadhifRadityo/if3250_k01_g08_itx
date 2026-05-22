@@ -1,15 +1,14 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
-import { getDashboardShellContext } from "../../layout.actions";
+import { getDashboardShellContextAction } from "../../layout.actions";
 
 export default async function Layout({ children }: { children: ReactNode }) {
-	const context = await getDashboardShellContext();
-	if(context == null)
-		return redirect("/login");
-
-	if(!context.roleMenus.includes("survey-result-reporting"))
-		return redirect(context.managementNavigation[0]?.defaultHref ?? "/login");
-
+	const dashboardContext = await getDashboardShellContextAction();
+	if(dashboardContext == null) return redirect("/login");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "survey-result");
+	if(thisMenu == null) return redirect("/");
+	const thisMode = thisMenu.modes["reporting"];
+	if(thisMode == null) return redirect(thisMenu.modes[thisMenu.defaultMode].href);
 	return children;
 }

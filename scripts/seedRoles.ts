@@ -42,6 +42,8 @@ const ALL_MENUS: Role["menus"] = [
 	"officer-task-reporting",
 	"officer-tracking-monitoring",
 	"officer-tracking-reporting",
+	"survey-result-monitoring",
+	"survey-result-reporting",
 	"login-activity-log-monitoring",
 	"login-activity-log-reporting",
 	"otp-log-monitoring",
