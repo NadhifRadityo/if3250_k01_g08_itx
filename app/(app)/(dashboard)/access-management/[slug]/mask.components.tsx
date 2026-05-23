@@ -3,25 +3,24 @@
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
-import { CheckIcon, HistoryIcon, CircleAlertIcon } from "lucide-react";
+import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
 import { RichTextInput } from "@/components/RichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
-import { Checkbox } from "@/components/radix/Checkbox";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
-import { CreditApplicationsAccessMask } from "@/payload-types";
+import { StagedUsersAccessMask } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../../layout.components";
 import { searchRelationUsersAction } from "../../relation-navigation.actions";
+import { maskOptions, type MaskFields } from "../layout.shared";
 import { MaskRelationValues, getMaskDetailsAction, getMaskHistoryAction, queryMaskViewerAction, getMaskDifferenceAction } from "./mask.actions";
-import { type MaskFields, maskOptions } from "../layout.shared";
 
 export type MaskColumnData = Awaited<ReturnType<typeof queryMaskViewerAction>>["docs"][number];
 
@@ -152,25 +151,6 @@ export type MaskRowValueRendererContext = {
 	setRevertApprovedTargetRow?: (v: MaskColumnData | null) => void;
 	setRestoreDeletionTargetRow?: (v: MaskColumnData | null) => void;
 } & MenuRowValueRendererContext;
-
-export type MaskFormState = {
-	id?: string;
-	name?: string;
-	description?: any;
-	defaultShowAll?: boolean;
-	[key: string]: any;
-};
-export function toMaskFormState(data: CreditApplicationsAccessMask, maskFields: MaskFields) {
-	const state: MaskFormState = {
-		id: data.id,
-		name: data.name,
-		description: data.description,
-		defaultShowAll: (data as any).defaultShowAll ?? false
-	};
-	for(const [fieldKey] of maskFields)
-		state[fieldKey] = (data as any)[fieldKey];
-	return state;
-}
 
 export function MaskDetailsDrawer(
 	{ slug, maskFields, open, onOpenChange, row, rowValueRendererContext, renderActions, onOpenHistory }:
@@ -548,6 +528,23 @@ export function MaskReviewDrawer(
 		</Drawer>
 	);
 }
+export type AccessMaskData = Omit<StagedUsersAccessMask, NonNullable<{ [K in keyof StagedUsersAccessMask]: K extends `mask${string}` ? K : never }[keyof StagedUsersAccessMask]>>;
+export type MaskFormState = {
+	id?: string;
+	name?: string;
+	description?: any;
+	[key: string]: any;
+};
+export function toMaskFormState(data: AccessMaskData, maskFields: MaskFields) {
+	const state: MaskFormState = {
+		id: data.id,
+		name: data.name,
+		description: data.description
+	};
+	for(const [fieldKey] of maskFields)
+		state[fieldKey] = data[fieldKey];
+	return state;
+}
 export function MaskFormDrawer(
 	{ maskFields, open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating = false }:
 	{ maskFields: MaskFields, open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: MaskFormState, onFormStateChange: (v: MaskFormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
@@ -562,22 +559,12 @@ export function MaskFormDrawer(
 				<div className="flex-1 overflow-y-auto px-4">
 					<div className="grid gap-3 pb-4 sm:grid-cols-2">
 						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Mask Name</label>
+							<label className="text-sm font-medium">Name</label>
 							<Input
 								value={formState.name}
 								onChange={event => onFormStateChange({ ...formState, name: event.target.value })}
-								placeholder="Mask configuration name"
+								placeholder="Configuration name"
 							/>
-						</div>
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Default Show All</label>
-							<div className="flex items-center gap-2">
-								<Checkbox
-									checked={formState.defaultShowAll ?? false}
-									onCheckedChange={v => onFormStateChange({ ...formState, defaultShowAll: v === true })}
-								/>
-								<span className="text-sm">Show all fields by default</span>
-							</div>
 						</div>
 						{maskFields.map(([fieldKey, fieldLabel, fieldType]) => (
 							<div key={fieldKey} className="space-y-2">

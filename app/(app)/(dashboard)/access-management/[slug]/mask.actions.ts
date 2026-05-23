@@ -11,7 +11,7 @@ import type { CreditApplicationsAccessMask } from "@/payload-types";
 import { MenuFilterState } from "../../layout.components";
 import { resolveRelationUsers } from "../../relation-navigation.actions";
 import { RelationUser } from "../../relation-navigation.shared";
-import { menuMaskFields, tabMenuKeys, slugAccessMaskCollectionMap } from "../layout.shared";
+import { tabMenuKeys, menuMaskFields, slugAccessMaskCollectionMap } from "../layout.shared";
 import { MaskFormState } from "./mask.components";
 
 const PAGE_LIMIT = 20;
@@ -30,7 +30,7 @@ function resolveCollection(slug: string) {
 	const collection = slugAccessMaskCollectionMap[slug as typeof tabMenuKeys[number]];
 	if(collection == null)
 		throw new Error("Invalid slug.");
-	return collection as "credit-applications-access-masks";
+	return collection as any;
 }
 
 function resolveMaskFields(slug: string) {
@@ -407,7 +407,7 @@ export async function cancelMaskRequestAction(slug: string, id: string) {
 			_status: "published",
 			...approvedVersion,
 			reviewComment: leixcalPreprendPlainText(approvedVersion.reviewComment, `Auto-reviewed by system on behalf of ${JSON.stringify(approvedVersion.reviewedBy)} because the change request was cancelled before approval.`)
-		} as any
+		}
 	});
 	return { id: id };
 }

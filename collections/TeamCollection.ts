@@ -1,5 +1,6 @@
 import { APIError, CollectionConfig } from "payload";
 
+import { buildAccesses, dateMaskOptions, textMaskOptions, buildAccessMasks, genericMaskOptions } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const Teams = (): CollectionConfig => ({
@@ -157,6 +158,121 @@ export const Teams = (): CollectionConfig => ({
 			label: "Review Comment",
 			type: "richText",
 			editor: ReviewRichTextEditor()
+		}
+	]
+});
+
+export const defaultTeamAccessMaskId = "a1b2c3d4-bbbb-4aaa-bbbb-00000000000b";
+export const TeamAccesses = () => buildAccesses({
+	collection: "teams",
+	defaultMaskId: defaultTeamAccessMaskId
+});
+export const TeamAccessMasks = () => buildAccessMasks({
+	collection: "teams",
+	fields: [
+		{
+			name: "maskCreatedAt",
+			label: "Mask Created At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskCreatedBy",
+			label: "Mask Created By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskUpdatedAt",
+			label: "Mask Updated At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskUpdatedBy",
+			label: "Mask Updated By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskDeletedAt",
+			label: "Mask Deleted At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskDeletedBy",
+			label: "Mask Deleted By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskName",
+			label: "Mask Name",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: textMaskOptions
+		},
+		{
+			name: "maskSupervisor",
+			label: "Mask Supervisor",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskOfficers",
+			label: "Mask Officers",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewedAt",
+			label: "Mask Reviewed At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskReviewedBy",
+			label: "Mask Reviewed By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewApproved",
+			label: "Mask Review Approved",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewComment",
+			label: "Mask Review Comment",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
 		}
 	]
 });

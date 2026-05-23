@@ -11,8 +11,8 @@ import type { CreditApplicationsAccess } from "@/payload-types";
 import { MenuFilterState } from "../../layout.components";
 import { resolveRelationUsers } from "../../relation-navigation.actions";
 import { RelationUser } from "../../relation-navigation.shared";
+import { tabMenuKeys, slugAccessCollectionMap } from "../layout.shared";
 import { FormState } from "./layout.components";
-import { slugAccessCollectionMap, tabMenuKeys } from "../layout.shared";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
@@ -30,7 +30,7 @@ function resolveCollection(slug: string) {
 	const collection = slugAccessCollectionMap[slug as typeof tabMenuKeys[number]];
 	if(collection == null)
 		throw new Error("Invalid slug.");
-	return collection as "credit-applications-accesses";
+	return collection as any;
 }
 
 async function resolveRelations(
@@ -534,7 +534,7 @@ export async function cancelRequestAction(slug: string, id: string) {
 			_status: "published",
 			...approvedVersion,
 			reviewComment: leixcalPreprendPlainText(approvedVersion.reviewComment, `Auto-reviewed by system on behalf of ${JSON.stringify(approvedVersion.reviewedBy)} because the change request was cancelled before approval.`)
-		} as any
+		}
 	});
 	return { id: id };
 }

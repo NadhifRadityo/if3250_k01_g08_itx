@@ -1,5 +1,6 @@
 import { APIError, CollectionConfig } from "payload";
 
+import { buildAccesses, dateMaskOptions, textMaskOptions, buildAccessMasks, genericMaskOptions } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const Roles = (): CollectionConfig => ({
@@ -216,6 +217,121 @@ export const Roles = (): CollectionConfig => ({
 			label: "Review Comment",
 			type: "richText",
 			editor: ReviewRichTextEditor()
+		}
+	]
+});
+
+export const defaultRoleAccessMaskId = "a1b2c3d4-7777-4aaa-bbbb-000000000007";
+export const RoleAccesses = () => buildAccesses({
+	collection: "roles",
+	defaultMaskId: defaultRoleAccessMaskId
+});
+export const RoleAccessMasks = () => buildAccessMasks({
+	collection: "roles",
+	fields: [
+		{
+			name: "maskCreatedAt",
+			label: "Mask Created At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskCreatedBy",
+			label: "Mask Created By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskUpdatedAt",
+			label: "Mask Updated At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskUpdatedBy",
+			label: "Mask Updated By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskDeletedAt",
+			label: "Mask Deleted At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskDeletedBy",
+			label: "Mask Deleted By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskName",
+			label: "Mask Name",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: textMaskOptions
+		},
+		{
+			name: "maskLevel",
+			label: "Mask Level",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskMenus",
+			label: "Mask Menus",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewedAt",
+			label: "Mask Reviewed At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskReviewedBy",
+			label: "Mask Reviewed By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewApproved",
+			label: "Mask Review Approved",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewComment",
+			label: "Mask Review Comment",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
 		}
 	]
 });

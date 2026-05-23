@@ -1,9 +1,31 @@
 export const tabMenuKeys = Object.freeze([
-	"credit-application-management"
+	"user-management",
+	"role-management",
+	"team-management",
+	"credit-application-assignment",
+	"credit-application-management",
+	"survey-management",
+	"survey-result",
+	"satisfaction-survey-management",
+	"login-activity-log",
+	"gps-log",
+	"otp-log",
+	"recording-log"
 ] as const);
 
 export const tabMenuLabels = Object.freeze({
-	"credit-application-management": "Credit Application"
+	"user-management": "User",
+	"role-management": "Role",
+	"team-management": "Team",
+	"credit-application-assignment": "Credit Application Assignment",
+	"credit-application-management": "Credit Application",
+	"survey-management": "Survey",
+	"survey-result": "Survey Result",
+	"satisfaction-survey-management": "Satisfaction Survey",
+	"login-activity-log": "Login Log",
+	"gps-log": "GPS Log",
+	"otp-log": "OTP Log",
+	"recording-log": "Recording Log"
 } as const);
 
 const genericMaskOptions = [
@@ -143,6 +165,27 @@ export const maskOptions = Object.freeze({
 
 export type MaskFields = [string, string, "generic" | "name" | "email" | "text" | "number" | "phoneNumber" | "date"][];
 export const menuMaskFields = Object.freeze({
+	"user-management": [
+		["maskEmail", "Mask Email", "email"],
+		["maskRole", "Mask Role", "generic"],
+		["maskName", "Mask Name", "text"],
+		["maskEmployeeId", "Mask Employee ID", "text"],
+		["maskSupervisor", "Mask Supervisor", "generic"]
+	] as MaskFields,
+	"role-management": [
+		["maskName", "Mask Name", "text"],
+		["maskLevel", "Mask Level", "generic"],
+		["maskMenus", "Mask Menus", "generic"]
+	] as MaskFields,
+	"team-management": [
+		["maskName", "Mask Name", "text"],
+		["maskSupervisor", "Mask Supervisor", "generic"],
+		["maskOfficers", "Mask Officers", "generic"]
+	] as MaskFields,
+	"credit-application-assignment": [
+		["maskCreditApplication", "Mask Credit Application", "generic"],
+		["maskOfficer", "Mask Officer", "generic"]
+	] as MaskFields,
 	"credit-application-management": [
 		["maskImport", "Mask Import", "generic"],
 		["maskName", "Mask Name", "name"],
@@ -170,17 +213,97 @@ export const menuMaskFields = Object.freeze({
 		["maskOtherDate1", "Mask Other Date 1", "date"],
 		["maskOtherDate2", "Mask Other Date 2", "date"],
 		["maskOthers", "Mask Others", "generic"]
+	] as MaskFields,
+	"survey-management": [
+		["maskTitle", "Mask Title", "text"],
+		["maskDescription", "Mask Description", "generic"],
+		["maskContent", "Mask Content", "generic"]
+	] as MaskFields,
+	"survey-result": [
+		["maskSurvey", "Mask Survey", "generic"],
+		["maskSurveyVersion", "Mask Survey Version", "generic"],
+		["maskCreditApplication", "Mask Credit Application", "generic"],
+		["maskOfficer", "Mask Officer", "generic"],
+		["maskAnswers", "Mask Answers", "generic"]
+	] as MaskFields,
+	"satisfaction-survey-management": [
+		["maskTitle", "Mask Title", "text"],
+		["maskDescription", "Mask Description", "generic"],
+		["maskContent", "Mask Content", "generic"]
+	] as MaskFields,
+	"login-activity-log": [
+		["maskIpAddress", "Mask IP Address", "text"],
+		["maskUser", "Mask User", "generic"],
+		["maskEvent", "Mask Event", "generic"],
+		["maskOutcome", "Mask Outcome", "generic"]
+	] as MaskFields,
+	"gps-log": [
+		["maskOfficer", "Mask Officer", "generic"],
+		["maskSessionId", "Mask Session Id", "text"],
+		["maskCreditApplication", "Mask Credit Application", "generic"],
+		["maskLatitude", "Mask Latitude", "number"],
+		["maskLongitude", "Mask Longitude", "number"]
+	] as MaskFields,
+	"otp-log": [
+		["maskCreditApplication", "Mask Credit Application", "generic"],
+		["maskContent", "Mask Content", "text"],
+		["maskEmail", "Mask Email", "email"],
+		["maskWhatsappNumber", "Mask WhatsApp Number", "phoneNumber"],
+		["maskSmsNumber", "Mask SMS Number", "phoneNumber"],
+		["maskEmailDeliveryStatus", "Mask Email Delivery Status", "generic"],
+		["maskWhatsappDeliveryStatus", "Mask WhatsApp Delivery Status", "generic"],
+		["maskSmsDeliveryStatus", "Mask SMS Delivery Status", "generic"]
+	] as MaskFields,
+	"recording-log": [
+		["maskCreditApplication", "Mask Credit Application", "generic"],
+		["maskOfficer", "Mask Officer", "generic"],
+		["maskPhoneNumber", "Mask Phone Number", "phoneNumber"],
+		["maskAudioFile", "Mask Audio File", "generic"],
+		["maskTranscription", "Mask Transcription", "generic"]
 	] as MaskFields
 });
 
 export const slugCollectionMap = Object.freeze({
-	"credit-application-management": "credit-applications"
+	"user-management": "staged-users",
+	"role-management": "roles",
+	"team-management": "teams",
+	"credit-application-assignment": "credit-application-assignments",
+	"credit-application-management": "credit-applications",
+	"survey-management": "surveys",
+	"survey-result": "survey-results",
+	"satisfaction-survey-management": "satsifaction-surveys",
+	"login-activity-log": "login-logs",
+	"gps-log": "gps-logs",
+	"otp-log": "otp-logs",
+	"recording-log": "recording-logs"
 });
 
 export const slugAccessCollectionMap = Object.freeze({
-	"credit-application-management": "credit-applications-accesses"
+	"user-management": "staged-users-accesses",
+	"role-management": "roles-accesses",
+	"team-management": "teams-accesses",
+	"credit-application-assignment": "credit-application-assignments-accesses",
+	"credit-application-management": "credit-applications-accesses",
+	"survey-management": "surveys-accesses",
+	"survey-result": "survey-results-accesses",
+	"satisfaction-survey-management": "satsifaction-surveys-accesses",
+	"login-activity-log": "login-logs-accesses",
+	"gps-log": "gps-logs-accesses",
+	"otp-log": "otp-logs-accesses",
+	"recording-log": "recording-logs-accesses"
 });
 
 export const slugAccessMaskCollectionMap = Object.freeze({
-	"credit-application-management": "credit-applications-access-masks"
+	"user-management": "staged-users-access-masks",
+	"role-management": "roles-access-masks",
+	"team-management": "teams-access-masks",
+	"credit-application-assignment": "credit-application-assignments-access-masks",
+	"credit-application-management": "credit-applications-access-masks",
+	"survey-management": "surveys-access-masks",
+	"survey-result": "survey-results-access-masks",
+	"satisfaction-survey-management": "satsifaction-surveys-access-masks",
+	"login-activity-log": "login-logs-access-masks",
+	"gps-log": "gps-logs-access-masks",
+	"otp-log": "otp-logs-access-masks",
+	"recording-log": "recording-logs-access-masks"
 });

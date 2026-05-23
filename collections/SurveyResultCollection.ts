@@ -1,5 +1,7 @@
 import { APIError, CollectionConfig } from "payload";
 
+import { buildAccesses, dateMaskOptions, buildAccessMasks, genericMaskOptions } from "./AccessCollection";
+
 export const SurveyResults = (): CollectionConfig => ({
 	slug: "survey-results",
 	labels: {
@@ -163,6 +165,137 @@ export const SurveyResults = (): CollectionConfig => ({
 			label: "Answers",
 			type: "json",
 			required: true
+		}
+	]
+});
+
+export const defaultSurveyResultAccessMaskId = "a1b2c3d4-aaaa-4aaa-bbbb-00000000000a";
+export const SurveyResultAccesses = () => buildAccesses({
+	collection: "survey-results",
+	defaultMaskId: defaultSurveyResultAccessMaskId
+});
+export const SurveyResultAccessMasks = () => buildAccessMasks({
+	collection: "survey-results",
+	fields: [
+		{
+			name: "maskCreatedAt",
+			label: "Mask Created At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskCreatedBy",
+			label: "Mask Created By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskUpdatedAt",
+			label: "Mask Updated At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskUpdatedBy",
+			label: "Mask Updated By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskDeletedAt",
+			label: "Mask Deleted At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskDeletedBy",
+			label: "Mask Deleted By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskSurvey",
+			label: "Mask Survey",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskSurveyVersion",
+			label: "Mask Survey Version",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskCreditApplication",
+			label: "Mask Credit Application",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskOfficer",
+			label: "Mask Officer",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskAnswers",
+			label: "Mask Answers",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewedAt",
+			label: "Mask Reviewed At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskReviewedBy",
+			label: "Mask Reviewed By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewApproved",
+			label: "Mask Review Approved",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewComment",
+			label: "Mask Review Comment",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
 		}
 	]
 });

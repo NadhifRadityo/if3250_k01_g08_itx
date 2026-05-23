@@ -148,7 +148,7 @@ const AccessRichTextEditor = () => lexicalEditor({
 	]
 });
 
-export const Accesses = (
+export const buildAccesses = (
 	{ collection, defaultMaskId }:
 	{ collection: CollectionSlug, defaultMaskId: string }
 ): CollectionConfig => ({
@@ -533,7 +533,7 @@ export const Accesses = (
 	]
 });
 
-export const AccessMasks = (
+export const buildAccessMasks = (
 	{ collection, fields }:
 	{ collection: CollectionSlug, fields: Field[] }
 ): CollectionConfig => ({

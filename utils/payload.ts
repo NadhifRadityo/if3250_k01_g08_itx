@@ -5,11 +5,6 @@ export function getRelationshipId(value: unknown): string | null {
 		return value.id;
 	return null;
 }
-export function getRelationshipIds(value: unknown): string[] {
-	if(!Array.isArray(value))
-		return [];
-	return value.map(getRelationshipId).filter((id): id is string => id != null);
-}
 
 export function leixcalPreprendPlainText(state: any, value: string) {
 	value = value.trim();

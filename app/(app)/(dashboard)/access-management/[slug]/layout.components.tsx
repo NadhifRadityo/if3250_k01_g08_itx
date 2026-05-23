@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
-import { CheckIcon, HistoryIcon, CircleAlertIcon } from "lucide-react";
+import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { getRelationshipId } from "@/utils/payload";
 import { RichTextInput } from "@/components/RichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -13,13 +14,12 @@ import { Button } from "@/components/radix/Button";
 import { Checkbox } from "@/components/radix/Checkbox";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
-import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
-import { CreditApplicationsAccess } from "@/payload-types";
+import { StagedUsersAccess } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../../layout.components";
-import { searchRelationUsersAction, searchRelationRolesAction, searchRelationTeamsAction } from "../../relation-navigation.actions";
+import { searchRelationUsersAction } from "../../relation-navigation.actions";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, searchRelationAccessesAction } from "./layout.actions";
 
 const levelSelectOptions = Object.freeze([
@@ -549,6 +549,7 @@ export function ReviewDrawer(
 		</Drawer>
 	);
 }
+export type AccessData = StagedUsersAccess;
 export type FormState = {
 	id?: string;
 	name?: string;
@@ -578,12 +579,35 @@ export type FormState = {
 	showIfReviewedByRoles?: string[];
 	hideIfReviewedByRoles?: string[];
 };
-export function toFormState(data: CreditApplicationsAccess) {
+export function toFormState(data: AccessData) {
 	return {
 		id: data.id,
 		name: data.name,
 		description: data.description,
-		defaultShowAll: data.defaultShowAll
+		subjectUsers: data.subjectUsers.map(u => getRelationshipId(u)),
+		subjectTeams: data.subjectTeams.map(t => getRelationshipId(t)),
+		subjectRoles: data.subjectRoles.map(r => getRelationshipId(r)),
+		subjectLevels: data.subjectLevels,
+		defaultShowAll: data.defaultShowAll,
+		forceShow: data.forceShow.map(d => getRelationshipId(d)),
+		forceHide: data.forceHide.map(d => getRelationshipId(d)),
+		mask: getRelationshipId(data.mask),
+		showIfCreatedByUsers: data.showIfCreatedByUsers.map(u => getRelationshipId(u)),
+		hideIfCreatedByUsers: data.hideIfCreatedByUsers.map(u => getRelationshipId(u)),
+		showIfUpdatedByUsers: data.showIfUpdatedByUsers.map(u => getRelationshipId(u)),
+		hideIfUpdatedByUsers: data.hideIfUpdatedByUsers.map(u => getRelationshipId(u)),
+		showIfDeletedByUsers: data.showIfDeletedByUsers.map(u => getRelationshipId(u)),
+		hideIfDeletedByUsers: data.hideIfDeletedByUsers.map(u => getRelationshipId(u)),
+		showIfReviewedByUsers: data.showIfReviewedByUsers.map(u => getRelationshipId(u)),
+		hideIfReviewedByUsers: data.hideIfReviewedByUsers.map(u => getRelationshipId(u)),
+		showIfCreatedByRoles: data.showIfCreatedByRoles.map(r => getRelationshipId(r)),
+		hideIfCreatedByRoles: data.hideIfCreatedByRoles.map(r => getRelationshipId(r)),
+		showIfUpdatedByRoles: data.showIfUpdatedByRoles.map(r => getRelationshipId(r)),
+		hideIfUpdatedByRoles: data.hideIfUpdatedByRoles.map(r => getRelationshipId(r)),
+		showIfDeletedByRoles: data.showIfDeletedByRoles.map(r => getRelationshipId(r)),
+		hideIfDeletedByRoles: data.hideIfDeletedByRoles.map(r => getRelationshipId(r)),
+		showIfReviewedByRoles: data.showIfReviewedByRoles.map(r => getRelationshipId(r)),
+		hideIfReviewedByRoles: data.hideIfReviewedByRoles.map(r => getRelationshipId(r))
 	} as FormState;
 }
 export function FormDrawer(
@@ -612,7 +636,7 @@ export function FormDrawer(
 							<div className="flex items-center gap-2">
 								<Checkbox
 									checked={formState.defaultShowAll ?? false}
-									onCheckedChange={v => onFormStateChange({ ...formState, defaultShowAll: v === true })}
+									onCheckedChange={v => onFormStateChange({ ...formState, defaultShowAll: v == true })}
 								/>
 								<span className="text-sm">Show all records by default</span>
 							</div>

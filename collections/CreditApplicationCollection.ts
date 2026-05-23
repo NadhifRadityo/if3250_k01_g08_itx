@@ -1,7 +1,7 @@
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
 import { APIError, CollectionConfig } from "payload";
 
-import { Accesses, AccessMasks, dateMaskOptions, nameMaskOptions, textMaskOptions, emailMaskOptions, numberMaskOptions, genericMaskOptions, phoneNumberMaskOptions } from "./AccessCollection";
+import { buildAccesses, dateMaskOptions, nameMaskOptions, textMaskOptions, buildAccessMasks, emailMaskOptions, numberMaskOptions, genericMaskOptions, phoneNumberMaskOptions } from "./AccessCollection";
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
 const CreditApplicationRichTextEditor = () => lexicalEditor({
@@ -176,6 +176,105 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 			type: "join",
 			collection: "credit-applications",
 			on: "import"
+		}
+	]
+});
+
+export const defaultCreditApplicationImportAccessMaskId = "a1b2c3d4-2222-4aaa-bbbb-000000000002";
+export const CreditApplicationImportAccesses = () => buildAccesses({
+	collection: "credit-application-imports",
+	defaultMaskId: defaultCreditApplicationImportAccessMaskId
+});
+export const CreditApplicationImportAccessMasks = () => buildAccessMasks({
+	collection: "credit-application-imports",
+	fields: [
+		{
+			name: "maskCreatedAt",
+			label: "Mask Created At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskCreatedBy",
+			label: "Mask Created By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskUpdatedAt",
+			label: "Mask Updated At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskUpdatedBy",
+			label: "Mask Updated By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskDeletedAt",
+			label: "Mask Deleted At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskDeletedBy",
+			label: "Mask Deleted By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskDescription",
+			label: "Mask Description",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewedAt",
+			label: "Mask Reviewed At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskReviewedBy",
+			label: "Mask Reviewed By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewApproved",
+			label: "Mask Review Approved",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewComment",
+			label: "Mask Review Comment",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
 		}
 	]
 });
@@ -457,13 +556,61 @@ export const CreditApplications = (): CollectionConfig => ({
 });
 
 export const defaultCreditApplicationAccessMaskId = "d22d9c8f-8f9b-418b-85fb-ba6335ed6ca2";
-export const CreditApplicationAccesses = () => Accesses({
+export const CreditApplicationAccesses = () => buildAccesses({
 	collection: "credit-applications",
 	defaultMaskId: defaultCreditApplicationAccessMaskId
 });
-export const CreditApplicationAccessMasks = () => AccessMasks({
+export const CreditApplicationAccessMasks = () => buildAccessMasks({
 	collection: "credit-applications",
 	fields: [
+		{
+			name: "maskCreatedAt",
+			label: "Mask Created At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskCreatedBy",
+			label: "Mask Created By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskUpdatedAt",
+			label: "Mask Updated At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskUpdatedBy",
+			label: "Mask Updated By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskDeletedAt",
+			label: "Mask Deleted At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskDeletedBy",
+			label: "Mask Deleted By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
 		{
 			name: "maskImport",
 			label: "Mask Import",
@@ -667,6 +814,38 @@ export const CreditApplicationAccessMasks = () => AccessMasks({
 		{
 			name: "maskOthers",
 			label: "Mask Others",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewedAt",
+			label: "Mask Reviewed At",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: dateMaskOptions
+		},
+		{
+			name: "maskReviewedBy",
+			label: "Mask Reviewed By",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewApproved",
+			label: "Mask Review Approved",
+			type: "select",
+			required: true,
+			defaultValue: "hide",
+			options: genericMaskOptions
+		},
+		{
+			name: "maskReviewComment",
+			label: "Mask Review Comment",
 			type: "select",
 			required: true,
 			defaultValue: "hide",

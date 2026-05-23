@@ -70,20 +70,44 @@ export interface Config {
     'generic-richtext-uploads': GenericRichtextUpload;
     users: User;
     'staged-users': StagedUser;
+    'staged-users-accesses': StagedUsersAccess;
+    'staged-users-access-masks': StagedUsersAccessMask;
     roles: Role;
+    'roles-accesses': RolesAccess;
+    'roles-access-masks': RolesAccessMask;
     teams: Team;
+    'teams-accesses': TeamsAccess;
+    'teams-access-masks': TeamsAccessMask;
     'credit-application-assignments': CreditApplicationAssignment;
+    'credit-application-assignments-accesses': CreditApplicationAssignmentsAccess;
+    'credit-application-assignments-access-masks': CreditApplicationAssignmentsAccessMask;
     'credit-application-imports': CreditApplicationImport;
+    'credit-application-imports-accesses': CreditApplicationImportsAccess;
+    'credit-application-imports-access-masks': CreditApplicationImportsAccessMask;
     'credit-applications': CreditApplication;
     'credit-applications-accesses': CreditApplicationsAccess;
     'credit-applications-access-masks': CreditApplicationsAccessMask;
     surveys: Survey;
+    'surveys-accesses': SurveysAccess;
+    'surveys-access-masks': SurveysAccessMask;
     'survey-results': SurveyResult;
+    'survey-results-accesses': SurveyResultsAccess;
+    'survey-results-access-masks': SurveyResultsAccessMask;
     'satsifaction-surveys': SatsifactionSurvey;
+    'satsifaction-surveys-accesses': SatsifactionSurveysAccess;
+    'satsifaction-surveys-access-masks': SatsifactionSurveysAccessMask;
     'login-logs': LoginLog;
+    'login-logs-accesses': LoginLogsAccess;
+    'login-logs-access-masks': LoginLogsAccessMask;
     'gps-logs': GpsLog;
+    'gps-logs-accesses': GpsLogsAccess;
+    'gps-logs-access-masks': GpsLogsAccessMask;
     'otp-logs': OtpLog;
+    'otp-logs-accesses': OtpLogsAccess;
+    'otp-logs-access-masks': OtpLogsAccessMask;
     'recording-logs': RecordingLog;
+    'recording-logs-accesses': RecordingLogsAccess;
+    'recording-logs-access-masks': RecordingLogsAccessMask;
     'recording-log-audio-files': RecordingLogAudioFile;
     'recording-log-transcriptions': RecordingLogTranscription;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSync;
@@ -103,20 +127,44 @@ export interface Config {
     'generic-richtext-uploads': GenericRichtextUploadsSelect<false> | GenericRichtextUploadsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
+    'staged-users-accesses': StagedUsersAccessesSelect<false> | StagedUsersAccessesSelect<true>;
+    'staged-users-access-masks': StagedUsersAccessMasksSelect<false> | StagedUsersAccessMasksSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
+    'roles-accesses': RolesAccessesSelect<false> | RolesAccessesSelect<true>;
+    'roles-access-masks': RolesAccessMasksSelect<false> | RolesAccessMasksSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
+    'teams-accesses': TeamsAccessesSelect<false> | TeamsAccessesSelect<true>;
+    'teams-access-masks': TeamsAccessMasksSelect<false> | TeamsAccessMasksSelect<true>;
     'credit-application-assignments': CreditApplicationAssignmentsSelect<false> | CreditApplicationAssignmentsSelect<true>;
+    'credit-application-assignments-accesses': CreditApplicationAssignmentsAccessesSelect<false> | CreditApplicationAssignmentsAccessesSelect<true>;
+    'credit-application-assignments-access-masks': CreditApplicationAssignmentsAccessMasksSelect<false> | CreditApplicationAssignmentsAccessMasksSelect<true>;
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
+    'credit-application-imports-accesses': CreditApplicationImportsAccessesSelect<false> | CreditApplicationImportsAccessesSelect<true>;
+    'credit-application-imports-access-masks': CreditApplicationImportsAccessMasksSelect<false> | CreditApplicationImportsAccessMasksSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-applications-accesses': CreditApplicationsAccessesSelect<false> | CreditApplicationsAccessesSelect<true>;
     'credit-applications-access-masks': CreditApplicationsAccessMasksSelect<false> | CreditApplicationsAccessMasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
+    'surveys-accesses': SurveysAccessesSelect<false> | SurveysAccessesSelect<true>;
+    'surveys-access-masks': SurveysAccessMasksSelect<false> | SurveysAccessMasksSelect<true>;
     'survey-results': SurveyResultsSelect<false> | SurveyResultsSelect<true>;
+    'survey-results-accesses': SurveyResultsAccessesSelect<false> | SurveyResultsAccessesSelect<true>;
+    'survey-results-access-masks': SurveyResultsAccessMasksSelect<false> | SurveyResultsAccessMasksSelect<true>;
     'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
+    'satsifaction-surveys-accesses': SatsifactionSurveysAccessesSelect<false> | SatsifactionSurveysAccessesSelect<true>;
+    'satsifaction-surveys-access-masks': SatsifactionSurveysAccessMasksSelect<false> | SatsifactionSurveysAccessMasksSelect<true>;
     'login-logs': LoginLogsSelect<false> | LoginLogsSelect<true>;
+    'login-logs-accesses': LoginLogsAccessesSelect<false> | LoginLogsAccessesSelect<true>;
+    'login-logs-access-masks': LoginLogsAccessMasksSelect<false> | LoginLogsAccessMasksSelect<true>;
     'gps-logs': GpsLogsSelect<false> | GpsLogsSelect<true>;
+    'gps-logs-accesses': GpsLogsAccessesSelect<false> | GpsLogsAccessesSelect<true>;
+    'gps-logs-access-masks': GpsLogsAccessMasksSelect<false> | GpsLogsAccessMasksSelect<true>;
     'otp-logs': OtpLogsSelect<false> | OtpLogsSelect<true>;
+    'otp-logs-accesses': OtpLogsAccessesSelect<false> | OtpLogsAccessesSelect<true>;
+    'otp-logs-access-masks': OtpLogsAccessMasksSelect<false> | OtpLogsAccessMasksSelect<true>;
     'recording-logs': RecordingLogsSelect<false> | RecordingLogsSelect<true>;
+    'recording-logs-accesses': RecordingLogsAccessesSelect<false> | RecordingLogsAccessesSelect<true>;
+    'recording-logs-access-masks': RecordingLogsAccessMasksSelect<false> | RecordingLogsAccessMasksSelect<true>;
     'recording-log-audio-files': RecordingLogAudioFilesSelect<false> | RecordingLogAudioFilesSelect<true>;
     'recording-log-transcriptions': RecordingLogTranscriptionsSelect<false> | RecordingLogTranscriptionsSelect<true>;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSyncsSelect<false> | DatabaseLockingPluginTransactionSyncsSelect<true>;
@@ -253,10 +301,14 @@ export interface Role {
     | 'team-management#auditor'
     | 'team-management#editor'
     | 'team-management#approver'
-    | 'access-management#viewer-access'
-    | 'access-management#auditor-access'
-    | 'access-management#editor-access'
-    | 'access-management#approver-access'
+    | 'access-management#viewer'
+    | 'access-management#auditor'
+    | 'access-management#editor'
+    | 'access-management#approver'
+    | 'access-management#mask-viewer'
+    | 'access-management#mask-auditor'
+    | 'access-management#mask-editor'
+    | 'access-management#mask-approver'
     | 'credit-application-management#viewer'
     | 'credit-application-management#auditor'
     | 'credit-application-management#editor'
@@ -351,6 +403,78 @@ export interface StagedUser {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "staged-users-accesses".
+ */
+export interface StagedUsersAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | StagedUser)[];
+  forceHide: (string | StagedUser)[];
+  mask: string | StagedUsersAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "teams".
  */
 export interface Team {
@@ -364,6 +488,610 @@ export interface Team {
   name: string;
   supervisor: string | User;
   officers: (string | User)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "staged-users-access-masks".
+ */
+export interface StagedUsersAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskEmail:
+    | 'hide'
+    | 'showUsernameOnly'
+    | 'showDomainOnly'
+    | 'show1CharacterUsername'
+    | 'show2CharactersUsername'
+    | 'show3CharactersUsername'
+    | 'showLast1CharacterUsername'
+    | 'showLast2CharactersUsername'
+    | 'showLast3CharactersUsername'
+    | 'show1CharacterDomain'
+    | 'show2CharactersDomain'
+    | 'show3CharactersDomain'
+    | 'showLast1CharacterDomain'
+    | 'showLast2CharactersDomain'
+    | 'showLast3CharactersDomain'
+    | 'show1CharacterUsernameAndDomain'
+    | 'show2CharactersUsernameAndDomain'
+    | 'show3CharactersUsernameAndDomain'
+    | 'show';
+  maskRole: 'hide' | 'show';
+  maskName:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskEmployeeId:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskSupervisor: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "roles-accesses".
+ */
+export interface RolesAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | Role)[];
+  forceHide: (string | Role)[];
+  mask: string | RolesAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "roles-access-masks".
+ */
+export interface RolesAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskName:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskLevel: 'hide' | 'show';
+  maskMenus: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "teams-accesses".
+ */
+export interface TeamsAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | Team)[];
+  forceHide: (string | Team)[];
+  mask: string | TeamsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "teams-access-masks".
+ */
+export interface TeamsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskName:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskSupervisor: 'hide' | 'show';
+  maskOfficers: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -588,6 +1316,357 @@ export interface CreditApplicationImport {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-assignments-accesses".
+ */
+export interface CreditApplicationAssignmentsAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | CreditApplicationAssignment)[];
+  forceHide: (string | CreditApplicationAssignment)[];
+  mask: string | CreditApplicationAssignmentsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-assignments-access-masks".
+ */
+export interface CreditApplicationAssignmentsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskCreditApplication: 'hide' | 'show';
+  maskOfficer: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-imports-accesses".
+ */
+export interface CreditApplicationImportsAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | CreditApplicationImport)[];
+  forceHide: (string | CreditApplicationImport)[];
+  mask: string | CreditApplicationImportsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-imports-access-masks".
+ */
+export interface CreditApplicationImportsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskDescription: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "credit-applications-accesses".
  */
 export interface CreditApplicationsAccess {
@@ -686,6 +1765,45 @@ export interface CreditApplicationsAccessMask {
     };
     [k: string]: unknown;
   } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
   maskImport: 'hide' | 'show';
   maskName:
     | 'hide'
@@ -1135,6 +2253,21 @@ export interface CreditApplicationsAccessMask {
     | 'showYearsOnly'
     | 'show';
   maskOthers: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -1214,6 +2347,214 @@ export interface Survey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "surveys-accesses".
+ */
+export interface SurveysAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | Survey)[];
+  forceHide: (string | Survey)[];
+  mask: string | SurveysAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "surveys-access-masks".
+ */
+export interface SurveysAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskTitle:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskDescription: 'hide' | 'show';
+  maskContent: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "survey-results".
  */
 export interface SurveyResult {
@@ -1237,6 +2578,185 @@ export interface SurveyResult {
     | number
     | boolean
     | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-results-accesses".
+ */
+export interface SurveyResultsAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | SurveyResult)[];
+  forceHide: (string | SurveyResult)[];
+  mask: string | SurveyResultsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-results-access-masks".
+ */
+export interface SurveyResultsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskSurvey: 'hide' | 'show';
+  maskSurveyVersion: 'hide' | 'show';
+  maskCreditApplication: 'hide' | 'show';
+  maskOfficer: 'hide' | 'show';
+  maskAnswers: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -1298,6 +2818,214 @@ export interface SatsifactionSurvey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satsifaction-surveys-accesses".
+ */
+export interface SatsifactionSurveysAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | SatsifactionSurvey)[];
+  forceHide: (string | SatsifactionSurvey)[];
+  mask: string | SatsifactionSurveysAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satsifaction-surveys-access-masks".
+ */
+export interface SatsifactionSurveysAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskTitle:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskDescription: 'hide' | 'show';
+  maskContent: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "login-logs".
  */
 export interface LoginLog {
@@ -1307,6 +3035,215 @@ export interface LoginLog {
   user?: (string | null) | User;
   event: 'login' | 'logout';
   outcome?: ('success' | 'failure') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs-accesses".
+ */
+export interface LoginLogsAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | LoginLog)[];
+  forceHide: (string | LoginLog)[];
+  mask: string | LoginLogsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs-access-masks".
+ */
+export interface LoginLogsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskIpAddress:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskUser: 'hide' | 'show';
+  maskEvent: 'hide' | 'show';
+  maskOutcome: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1323,6 +3260,240 @@ export interface GpsLog {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gps-logs-accesses".
+ */
+export interface GpsLogsAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | GpsLog)[];
+  forceHide: (string | GpsLog)[];
+  mask: string | GpsLogsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gps-logs-access-masks".
+ */
+export interface GpsLogsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskOfficer: 'hide' | 'show';
+  maskSessionId:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskCreditApplication: 'hide' | 'show';
+  maskLatitude:
+    | 'hide'
+    | 'showFirst1Digit'
+    | 'showFirst2Digits'
+    | 'showFirst3Digits'
+    | 'showLast1Digit'
+    | 'showLast2Digits'
+    | 'showLast3Digits'
+    | 'showRoundedTens'
+    | 'showRoundedHundreds'
+    | 'showRoundedThousands'
+    | 'showDigitCountOnly'
+    | 'show';
+  maskLongitude:
+    | 'hide'
+    | 'showFirst1Digit'
+    | 'showFirst2Digits'
+    | 'showFirst3Digits'
+    | 'showLast1Digit'
+    | 'showLast2Digits'
+    | 'showLast3Digits'
+    | 'showRoundedTens'
+    | 'showRoundedHundreds'
+    | 'showRoundedThousands'
+    | 'showDigitCountOnly'
+    | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "otp-logs".
  */
 export interface OtpLog {
@@ -1336,6 +3507,264 @@ export interface OtpLog {
   emailDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
   whatsappDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
   smsDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "otp-logs-accesses".
+ */
+export interface OtpLogsAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | OtpLog)[];
+  forceHide: (string | OtpLog)[];
+  mask: string | OtpLogsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "otp-logs-access-masks".
+ */
+export interface OtpLogsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskCreditApplication: 'hide' | 'show';
+  maskContent:
+    | 'hide'
+    | 'showFirst1Character'
+    | 'showFirst2Characters'
+    | 'showFirst3Characters'
+    | 'showFirst5Characters'
+    | 'showFirst10Characters'
+    | 'showLast1Character'
+    | 'showLast2Characters'
+    | 'showLast3Characters'
+    | 'showLast5Characters'
+    | 'showLast10Characters'
+    | 'showFirst1CharacterAndLast1Character'
+    | 'showFirst2CharactersAndLast2Characters'
+    | 'showFirst3CharactersAndLast3Characters'
+    | 'showFirst5CharactersAndLast5Characters'
+    | 'showFirst10CharactersAndLast10Characters'
+    | 'showFirstWordOnly'
+    | 'showLastWordOnly'
+    | 'showFirst2Words'
+    | 'showLast2Words'
+    | 'showFirst3Words'
+    | 'showLast3Words'
+    | 'showFirst5Words'
+    | 'showLast5Words'
+    | 'showFirst10Words'
+    | 'showLast10Words'
+    | 'showCharacterCountOnly'
+    | 'showWordCountOnly'
+    | 'showFirstSentenceOnly'
+    | 'showLastSentenceOnly'
+    | 'show';
+  maskEmail:
+    | 'hide'
+    | 'showUsernameOnly'
+    | 'showDomainOnly'
+    | 'show1CharacterUsername'
+    | 'show2CharactersUsername'
+    | 'show3CharactersUsername'
+    | 'showLast1CharacterUsername'
+    | 'showLast2CharactersUsername'
+    | 'showLast3CharactersUsername'
+    | 'show1CharacterDomain'
+    | 'show2CharactersDomain'
+    | 'show3CharactersDomain'
+    | 'showLast1CharacterDomain'
+    | 'showLast2CharactersDomain'
+    | 'showLast3CharactersDomain'
+    | 'show1CharacterUsernameAndDomain'
+    | 'show2CharactersUsernameAndDomain'
+    | 'show3CharactersUsernameAndDomain'
+    | 'show';
+  maskWhatsappNumber:
+    | 'hide'
+    | 'showFirst3Digits'
+    | 'showFirst4Digits'
+    | 'showFirst5Digits'
+    | 'showLast3Digits'
+    | 'showLast4Digits'
+    | 'showLast5Digits'
+    | 'showCountryCodeOnly'
+    | 'showCountryCodeAndLast3Digits'
+    | 'showCountryCodeAndLast4Digits'
+    | 'showCountryCodeAndFirst3Digits'
+    | 'showCountryCodeAndFirst4Digits'
+    | 'show';
+  maskSmsNumber:
+    | 'hide'
+    | 'showFirst3Digits'
+    | 'showFirst4Digits'
+    | 'showFirst5Digits'
+    | 'showLast3Digits'
+    | 'showLast4Digits'
+    | 'showLast5Digits'
+    | 'showCountryCodeOnly'
+    | 'showCountryCodeAndLast3Digits'
+    | 'showCountryCodeAndLast4Digits'
+    | 'showCountryCodeAndFirst3Digits'
+    | 'showCountryCodeAndFirst4Digits'
+    | 'show';
+  maskEmailDeliveryStatus: 'hide' | 'show';
+  maskWhatsappDeliveryStatus: 'hide' | 'show';
+  maskSmsDeliveryStatus: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1385,6 +3814,198 @@ export interface RecordingLogTranscription {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "recording-logs-accesses".
+ */
+export interface RecordingLogsAccess {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  subjectUsers: (string | User)[];
+  subjectTeams: (string | Team)[];
+  subjectRoles: (string | Role)[];
+  subjectLevels: ('admin' | 'manager' | 'supervisor' | 'officer')[];
+  defaultShowAll: boolean;
+  forceShow: (string | RecordingLog)[];
+  forceHide: (string | RecordingLog)[];
+  mask: string | RecordingLogsAccessMask;
+  showIfCreatedByUsers: (string | User)[];
+  hideIfCreatedByUsers: (string | User)[];
+  showIfUpdatedByUsers: (string | User)[];
+  hideIfUpdatedByUsers: (string | User)[];
+  showIfDeletedByUsers: (string | User)[];
+  hideIfDeletedByUsers: (string | User)[];
+  showIfReviewedByUsers: (string | User)[];
+  hideIfReviewedByUsers: (string | User)[];
+  showIfCreatedByRoles: (string | Role)[];
+  hideIfCreatedByRoles: (string | Role)[];
+  showIfUpdatedByRoles: (string | Role)[];
+  hideIfUpdatedByRoles: (string | Role)[];
+  showIfDeletedByRoles: (string | Role)[];
+  hideIfDeletedByRoles: (string | Role)[];
+  showIfReviewedByRoles: (string | Role)[];
+  hideIfReviewedByRoles: (string | Role)[];
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "recording-logs-access-masks".
+ */
+export interface RecordingLogsAccessMask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  maskCreatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskCreatedBy: 'hide' | 'show';
+  maskUpdatedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskUpdatedBy: 'hide' | 'show';
+  maskDeletedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskDeletedBy: 'hide' | 'show';
+  maskCreditApplication: 'hide' | 'show';
+  maskOfficer: 'hide' | 'show';
+  maskPhoneNumber:
+    | 'hide'
+    | 'showFirst3Digits'
+    | 'showFirst4Digits'
+    | 'showFirst5Digits'
+    | 'showLast3Digits'
+    | 'showLast4Digits'
+    | 'showLast5Digits'
+    | 'showCountryCodeOnly'
+    | 'showCountryCodeAndLast3Digits'
+    | 'showCountryCodeAndLast4Digits'
+    | 'showCountryCodeAndFirst3Digits'
+    | 'showCountryCodeAndFirst4Digits'
+    | 'show';
+  maskAudioFile: 'hide' | 'show';
+  maskTranscription: 'hide' | 'show';
+  maskReviewedAt:
+    | 'hide'
+    | 'showYearOnly'
+    | 'showMonthOnly'
+    | 'showDayOnly'
+    | 'showMonthAndYear'
+    | 'showDayAndMonth'
+    | 'showQuarterOnly'
+    | 'showWeekOnly'
+    | 'showAgeOnly'
+    | 'showYearsOnly'
+    | 'show';
+  maskReviewedBy: 'hide' | 'show';
+  maskReviewApproved: 'hide' | 'show';
+  maskReviewComment: 'hide' | 'show';
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1585,20 +4206,60 @@ export interface PayloadLockedDocument {
         value: string | StagedUser;
       } | null)
     | ({
+        relationTo: 'staged-users-accesses';
+        value: string | StagedUsersAccess;
+      } | null)
+    | ({
+        relationTo: 'staged-users-access-masks';
+        value: string | StagedUsersAccessMask;
+      } | null)
+    | ({
         relationTo: 'roles';
         value: string | Role;
+      } | null)
+    | ({
+        relationTo: 'roles-accesses';
+        value: string | RolesAccess;
+      } | null)
+    | ({
+        relationTo: 'roles-access-masks';
+        value: string | RolesAccessMask;
       } | null)
     | ({
         relationTo: 'teams';
         value: string | Team;
       } | null)
     | ({
+        relationTo: 'teams-accesses';
+        value: string | TeamsAccess;
+      } | null)
+    | ({
+        relationTo: 'teams-access-masks';
+        value: string | TeamsAccessMask;
+      } | null)
+    | ({
         relationTo: 'credit-application-assignments';
         value: string | CreditApplicationAssignment;
       } | null)
     | ({
+        relationTo: 'credit-application-assignments-accesses';
+        value: string | CreditApplicationAssignmentsAccess;
+      } | null)
+    | ({
+        relationTo: 'credit-application-assignments-access-masks';
+        value: string | CreditApplicationAssignmentsAccessMask;
+      } | null)
+    | ({
         relationTo: 'credit-application-imports';
         value: string | CreditApplicationImport;
+      } | null)
+    | ({
+        relationTo: 'credit-application-imports-accesses';
+        value: string | CreditApplicationImportsAccess;
+      } | null)
+    | ({
+        relationTo: 'credit-application-imports-access-masks';
+        value: string | CreditApplicationImportsAccessMask;
       } | null)
     | ({
         relationTo: 'credit-applications';
@@ -1617,28 +4278,84 @@ export interface PayloadLockedDocument {
         value: string | Survey;
       } | null)
     | ({
+        relationTo: 'surveys-accesses';
+        value: string | SurveysAccess;
+      } | null)
+    | ({
+        relationTo: 'surveys-access-masks';
+        value: string | SurveysAccessMask;
+      } | null)
+    | ({
         relationTo: 'survey-results';
         value: string | SurveyResult;
+      } | null)
+    | ({
+        relationTo: 'survey-results-accesses';
+        value: string | SurveyResultsAccess;
+      } | null)
+    | ({
+        relationTo: 'survey-results-access-masks';
+        value: string | SurveyResultsAccessMask;
       } | null)
     | ({
         relationTo: 'satsifaction-surveys';
         value: string | SatsifactionSurvey;
       } | null)
     | ({
+        relationTo: 'satsifaction-surveys-accesses';
+        value: string | SatsifactionSurveysAccess;
+      } | null)
+    | ({
+        relationTo: 'satsifaction-surveys-access-masks';
+        value: string | SatsifactionSurveysAccessMask;
+      } | null)
+    | ({
         relationTo: 'login-logs';
         value: string | LoginLog;
+      } | null)
+    | ({
+        relationTo: 'login-logs-accesses';
+        value: string | LoginLogsAccess;
+      } | null)
+    | ({
+        relationTo: 'login-logs-access-masks';
+        value: string | LoginLogsAccessMask;
       } | null)
     | ({
         relationTo: 'gps-logs';
         value: string | GpsLog;
       } | null)
     | ({
+        relationTo: 'gps-logs-accesses';
+        value: string | GpsLogsAccess;
+      } | null)
+    | ({
+        relationTo: 'gps-logs-access-masks';
+        value: string | GpsLogsAccessMask;
+      } | null)
+    | ({
         relationTo: 'otp-logs';
         value: string | OtpLog;
       } | null)
     | ({
+        relationTo: 'otp-logs-accesses';
+        value: string | OtpLogsAccess;
+      } | null)
+    | ({
+        relationTo: 'otp-logs-access-masks';
+        value: string | OtpLogsAccessMask;
+      } | null)
+    | ({
         relationTo: 'recording-logs';
         value: string | RecordingLog;
+      } | null)
+    | ({
+        relationTo: 'recording-logs-accesses';
+        value: string | RecordingLogsAccess;
+      } | null)
+    | ({
+        relationTo: 'recording-logs-access-masks';
+        value: string | RecordingLogsAccessMask;
       } | null)
     | ({
         relationTo: 'recording-log-audio-files';
@@ -1776,6 +4493,83 @@ export interface StagedUsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "staged-users-accesses_select".
+ */
+export interface StagedUsersAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "staged-users-access-masks_select".
+ */
+export interface StagedUsersAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskEmail?: T;
+  maskRole?: T;
+  maskName?: T;
+  maskEmployeeId?: T;
+  maskSupervisor?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "roles_select".
  */
 export interface RolesSelect<T extends boolean = true> {
@@ -1788,6 +4582,81 @@ export interface RolesSelect<T extends boolean = true> {
   name?: T;
   level?: T;
   menus?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "roles-accesses_select".
+ */
+export interface RolesAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "roles-access-masks_select".
+ */
+export interface RolesAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskName?: T;
+  maskLevel?: T;
+  maskMenus?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1816,6 +4685,81 @@ export interface TeamsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "teams-accesses_select".
+ */
+export interface TeamsAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "teams-access-masks_select".
+ */
+export interface TeamsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskName?: T;
+  maskSupervisor?: T;
+  maskOfficers?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "credit-application-assignments_select".
  */
 export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
@@ -1827,6 +4771,80 @@ export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
   deletedBy?: T;
   creditApplication?: T;
   officer?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-assignments-accesses_select".
+ */
+export interface CreditApplicationAssignmentsAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-assignments-access-masks_select".
+ */
+export interface CreditApplicationAssignmentsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskCreditApplication?: T;
+  maskOfficer?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1859,6 +4877,79 @@ export interface CreditApplicationImportsSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-imports-accesses_select".
+ */
+export interface CreditApplicationImportsAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-imports-access-masks_select".
+ */
+export interface CreditApplicationImportsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskDescription?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1959,6 +5050,12 @@ export interface CreditApplicationsAccessMasksSelect<T extends boolean = true> {
   deletedBy?: T;
   name?: T;
   description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
   maskImport?: T;
   maskName?: T;
   maskEmail?: T;
@@ -1985,6 +5082,10 @@ export interface CreditApplicationsAccessMasksSelect<T extends boolean = true> {
   maskOtherDate1?: T;
   maskOtherDate2?: T;
   maskOthers?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -2013,6 +5114,81 @@ export interface SurveysSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "surveys-accesses_select".
+ */
+export interface SurveysAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "surveys-access-masks_select".
+ */
+export interface SurveysAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskTitle?: T;
+  maskDescription?: T;
+  maskContent?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "survey-results_select".
  */
 export interface SurveyResultsSelect<T extends boolean = true> {
@@ -2027,6 +5203,83 @@ export interface SurveyResultsSelect<T extends boolean = true> {
   creditApplication?: T;
   officer?: T;
   answers?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-results-accesses_select".
+ */
+export interface SurveyResultsAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-results-access-masks_select".
+ */
+export interface SurveyResultsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskSurvey?: T;
+  maskSurveyVersion?: T;
+  maskCreditApplication?: T;
+  maskOfficer?: T;
+  maskAnswers?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
   _status?: T;
 }
 /**
@@ -2051,6 +5304,81 @@ export interface SatsifactionSurveysSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satsifaction-surveys-accesses_select".
+ */
+export interface SatsifactionSurveysAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satsifaction-surveys-access-masks_select".
+ */
+export interface SatsifactionSurveysAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskTitle?: T;
+  maskDescription?: T;
+  maskContent?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "login-logs_select".
  */
 export interface LoginLogsSelect<T extends boolean = true> {
@@ -2059,6 +5387,82 @@ export interface LoginLogsSelect<T extends boolean = true> {
   user?: T;
   event?: T;
   outcome?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs-accesses_select".
+ */
+export interface LoginLogsAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs-access-masks_select".
+ */
+export interface LoginLogsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskIpAddress?: T;
+  maskUser?: T;
+  maskEvent?: T;
+  maskOutcome?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2071,6 +5475,83 @@ export interface GpsLogsSelect<T extends boolean = true> {
   creditApplication?: T;
   latitude?: T;
   longitude?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gps-logs-accesses_select".
+ */
+export interface GpsLogsAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gps-logs-access-masks_select".
+ */
+export interface GpsLogsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskOfficer?: T;
+  maskSessionId?: T;
+  maskCreditApplication?: T;
+  maskLatitude?: T;
+  maskLongitude?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2089,6 +5570,86 @@ export interface OtpLogsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "otp-logs-accesses_select".
+ */
+export interface OtpLogsAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "otp-logs-access-masks_select".
+ */
+export interface OtpLogsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskCreditApplication?: T;
+  maskContent?: T;
+  maskEmail?: T;
+  maskWhatsappNumber?: T;
+  maskSmsNumber?: T;
+  maskEmailDeliveryStatus?: T;
+  maskWhatsappDeliveryStatus?: T;
+  maskSmsDeliveryStatus?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "recording-logs_select".
  */
 export interface RecordingLogsSelect<T extends boolean = true> {
@@ -2098,6 +5659,83 @@ export interface RecordingLogsSelect<T extends boolean = true> {
   phoneNumber?: T;
   audioFile?: T;
   transcription?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "recording-logs-accesses_select".
+ */
+export interface RecordingLogsAccessesSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  subjectUsers?: T;
+  subjectTeams?: T;
+  subjectRoles?: T;
+  subjectLevels?: T;
+  defaultShowAll?: T;
+  forceShow?: T;
+  forceHide?: T;
+  mask?: T;
+  showIfCreatedByUsers?: T;
+  hideIfCreatedByUsers?: T;
+  showIfUpdatedByUsers?: T;
+  hideIfUpdatedByUsers?: T;
+  showIfDeletedByUsers?: T;
+  hideIfDeletedByUsers?: T;
+  showIfReviewedByUsers?: T;
+  hideIfReviewedByUsers?: T;
+  showIfCreatedByRoles?: T;
+  hideIfCreatedByRoles?: T;
+  showIfUpdatedByRoles?: T;
+  hideIfUpdatedByRoles?: T;
+  showIfDeletedByRoles?: T;
+  hideIfDeletedByRoles?: T;
+  showIfReviewedByRoles?: T;
+  hideIfReviewedByRoles?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "recording-logs-access-masks_select".
+ */
+export interface RecordingLogsAccessMasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  name?: T;
+  description?: T;
+  maskCreatedAt?: T;
+  maskCreatedBy?: T;
+  maskUpdatedAt?: T;
+  maskUpdatedBy?: T;
+  maskDeletedAt?: T;
+  maskDeletedBy?: T;
+  maskCreditApplication?: T;
+  maskOfficer?: T;
+  maskPhoneNumber?: T;
+  maskAudioFile?: T;
+  maskTranscription?: T;
+  maskReviewedAt?: T;
+  maskReviewedBy?: T;
+  maskReviewApproved?: T;
+  maskReviewComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
