@@ -17,10 +17,10 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { CreditApplicationsAccessMask } from "@/payload-types";
 import { genericMaskOptions, nameMaskOptions, emailMaskOptions, textMaskOptions, numberMaskOptions, phoneNumberMaskOptions, dateMaskOptions } from "@/collections/AccessCollection";
 
-import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationUsersAction } from "../relation-navigation.actions";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./[slug]/mask.actions";
+import { uploadGenericRichtextImage } from "../../../editor-x.actions";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../../layout.components";
+import { searchRelationUsersAction } from "../../relation-navigation.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./mask.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
