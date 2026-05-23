@@ -12,6 +12,7 @@ import { MenuFilterState } from "../../layout.components";
 import { resolveRelationUsers } from "../../relation-navigation.actions";
 import { RelationUser } from "../../relation-navigation.shared";
 import { FormState } from "./layout.components";
+import { slugAccessCollectionMap, tabMenuKeys } from "../layout.shared";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
@@ -24,6 +25,13 @@ const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
 		.filter(termGroups => termGroups.length > 0)
 		.map(termGroups => ({ and: termGroups }))
 });
+
+function resolveCollection(slug: string) {
+	const collection = slugAccessCollectionMap[slug as typeof tabMenuKeys[number]];
+	if(collection == null)
+		throw new Error("Invalid slug.");
+	return collection as "credit-applications-accesses";
+}
 
 async function resolveRelations(
 	{ payload, docs }:
@@ -51,17 +59,18 @@ async function resolveRelations(
 }
 
 async function queryAction(
-	{ mode, keyword, filters, columnsSort, includeDeleted, pageIndex }:
-	{ mode: "viewer" | "approver" | "editor", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], includeDeleted: boolean, pageIndex: number }
+	{ slug, mode, keyword, filters, columnsSort, includeDeleted, pageIndex }:
+	{ slug: string, mode: "viewer" | "approver" | "editor", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], includeDeleted: boolean, pageIndex: number }
 ) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 	const result = await payload.find({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		draft: true,
 		trash: true,
 		page: pageIndex,
@@ -82,7 +91,7 @@ async function queryAction(
 			buildFilterWhere(filters)
 		] }
 	});
-	const relations = await resolveRelations({ payload, docs: result.docs });
+	const relations = await resolveRelations({ payload, docs: result.docs as CreditApplicationsAccess[] });
 	return { ...result, relations };
 }
 
@@ -96,16 +105,17 @@ export async function queryApproverAction(p: Omit<Parameters<typeof queryAction>
 	return await queryAction({ ...p, mode: "approver" });
 }
 
-export async function getDetailsAction(id: string) {
+export async function getDetailsAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		draft: true,
 		trash: true,
 		id: id,
@@ -150,20 +160,21 @@ export async function getDetailsAction(id: string) {
 			reviewComment: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
+	const relations = await resolveRelations({ payload, docs: [result as CreditApplicationsAccess] });
 	return { row: result, relations };
 }
 
-export async function getDifferenceAction(id: string) {
+export async function getDifferenceAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const requestedDoc = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -214,7 +225,7 @@ export async function getDifferenceAction(id: string) {
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -259,7 +270,7 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
-	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
+	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] as CreditApplicationsAccess[] });
 	return {
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
 		approvedVersion: approvedVersion,
@@ -268,16 +279,17 @@ export async function getDifferenceAction(id: string) {
 	};
 }
 
-export async function getHistoryAction(id: string) {
+export async function getHistoryAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const versionsResult = await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		trash: true,
 		pagination: false,
 		limit: 100,
@@ -328,88 +340,122 @@ export async function getHistoryAction(id: string) {
 			}
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: versionsResult.docs.map(v => v.version) });
+	const relations = await resolveRelations({ payload, docs: versionsResult.docs.map(v => v.version) as CreditApplicationsAccess[] });
 	const entries = versionsResult.docs.map(v => ({ ...v.version, versionId: v.id }));
 	return { entries, relations };
 }
 
-export async function requestUpsertAction(formState: FormState) {
+export async function requestUpsertAction(slug: string, formState: FormState) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	if(formState.name == null || formState.name.trim().length == 0)
-		throw new Error("Access name is required.");
-
-	const data = {
-		_status: "draft" as const,
-		deletedAt: null,
-		deletedBy: null,
-		name: formState.name,
-		description: formState.description ?? null,
-		subjectUsers: formState.subjectUsers ?? [],
-		subjectTeams: formState.subjectTeams ?? [],
-		subjectRoles: formState.subjectRoles ?? [],
-		subjectLevels: formState.subjectLevels ?? [],
-		defaultShowAll: formState.defaultShowAll ?? false,
-		forceShow: formState.forceShow ?? [],
-		forceHide: formState.forceHide ?? [],
-		mask: formState.mask ?? null,
-		showIfCreatedByUsers: formState.showIfCreatedByUsers ?? [],
-		hideIfCreatedByUsers: formState.hideIfCreatedByUsers ?? [],
-		showIfUpdatedByUsers: formState.showIfUpdatedByUsers ?? [],
-		hideIfUpdatedByUsers: formState.hideIfUpdatedByUsers ?? [],
-		showIfDeletedByUsers: formState.showIfDeletedByUsers ?? [],
-		hideIfDeletedByUsers: formState.hideIfDeletedByUsers ?? [],
-		showIfReviewedByUsers: formState.showIfReviewedByUsers ?? [],
-		hideIfReviewedByUsers: formState.hideIfReviewedByUsers ?? [],
-		showIfCreatedByRoles: formState.showIfCreatedByRoles ?? [],
-		hideIfCreatedByRoles: formState.hideIfCreatedByRoles ?? [],
-		showIfUpdatedByRoles: formState.showIfUpdatedByRoles ?? [],
-		hideIfUpdatedByRoles: formState.hideIfUpdatedByRoles ?? [],
-		showIfDeletedByRoles: formState.showIfDeletedByRoles ?? [],
-		hideIfDeletedByRoles: formState.hideIfDeletedByRoles ?? [],
-		showIfReviewedByRoles: formState.showIfReviewedByRoles ?? [],
-		hideIfReviewedByRoles: formState.hideIfReviewedByRoles ?? [],
-		reviewedAt: null,
-		reviewedBy: null,
-		reviewApproved: null,
-		reviewComment: null
-	};
+		throw new Error("Name is required.");
 
 	if(formState.id == null) {
 		const created = await payload.create({
 			user: user,
-			collection: "credit-applications-accesses",
+			collection: collection,
 			overrideAccess: true,
 			draft: true,
-			data: data
+			data: {
+				_status: "draft",
+				deletedAt: null,
+				deletedBy: null,
+				name: formState.name,
+				description: formState.description ?? null,
+				subjectUsers: formState.subjectUsers ?? [],
+				subjectTeams: formState.subjectTeams ?? [],
+				subjectRoles: formState.subjectRoles ?? [],
+				subjectLevels: formState.subjectLevels ?? [],
+				defaultShowAll: formState.defaultShowAll ?? false,
+				forceShow: formState.forceShow ?? [],
+				forceHide: formState.forceHide ?? [],
+				mask: formState.mask ?? null,
+				showIfCreatedByUsers: formState.showIfCreatedByUsers ?? [],
+				hideIfCreatedByUsers: formState.hideIfCreatedByUsers ?? [],
+				showIfUpdatedByUsers: formState.showIfUpdatedByUsers ?? [],
+				hideIfUpdatedByUsers: formState.hideIfUpdatedByUsers ?? [],
+				showIfDeletedByUsers: formState.showIfDeletedByUsers ?? [],
+				hideIfDeletedByUsers: formState.hideIfDeletedByUsers ?? [],
+				showIfReviewedByUsers: formState.showIfReviewedByUsers ?? [],
+				hideIfReviewedByUsers: formState.hideIfReviewedByUsers ?? [],
+				showIfCreatedByRoles: formState.showIfCreatedByRoles ?? [],
+				hideIfCreatedByRoles: formState.hideIfCreatedByRoles ?? [],
+				showIfUpdatedByRoles: formState.showIfUpdatedByRoles ?? [],
+				hideIfUpdatedByRoles: formState.hideIfUpdatedByRoles ?? [],
+				showIfDeletedByRoles: formState.showIfDeletedByRoles ?? [],
+				hideIfDeletedByRoles: formState.hideIfDeletedByRoles ?? [],
+				showIfReviewedByRoles: formState.showIfReviewedByRoles ?? [],
+				hideIfReviewedByRoles: formState.hideIfReviewedByRoles ?? [],
+				reviewedAt: null,
+				reviewedBy: null,
+				reviewApproved: null,
+				reviewComment: null
+			} as any
 		});
 		return { id: created.id };
 	}
 	await payload.update({
 		user: user,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		id: formState.id,
 		overrideAccess: true,
 		draft: true,
 		trash: true,
-		data: data
+		data: {
+			_status: "draft",
+			deletedAt: null,
+			deletedBy: null,
+			name: formState.name,
+			description: formState.description ?? null,
+			subjectUsers: formState.subjectUsers ?? [],
+			subjectTeams: formState.subjectTeams ?? [],
+			subjectRoles: formState.subjectRoles ?? [],
+			subjectLevels: formState.subjectLevels ?? [],
+			defaultShowAll: formState.defaultShowAll ?? false,
+			forceShow: formState.forceShow ?? [],
+			forceHide: formState.forceHide ?? [],
+			mask: formState.mask ?? null,
+			showIfCreatedByUsers: formState.showIfCreatedByUsers ?? [],
+			hideIfCreatedByUsers: formState.hideIfCreatedByUsers ?? [],
+			showIfUpdatedByUsers: formState.showIfUpdatedByUsers ?? [],
+			hideIfUpdatedByUsers: formState.hideIfUpdatedByUsers ?? [],
+			showIfDeletedByUsers: formState.showIfDeletedByUsers ?? [],
+			hideIfDeletedByUsers: formState.hideIfDeletedByUsers ?? [],
+			showIfReviewedByUsers: formState.showIfReviewedByUsers ?? [],
+			hideIfReviewedByUsers: formState.hideIfReviewedByUsers ?? [],
+			showIfCreatedByRoles: formState.showIfCreatedByRoles ?? [],
+			hideIfCreatedByRoles: formState.hideIfCreatedByRoles ?? [],
+			showIfUpdatedByRoles: formState.showIfUpdatedByRoles ?? [],
+			hideIfUpdatedByRoles: formState.hideIfUpdatedByRoles ?? [],
+			showIfDeletedByRoles: formState.showIfDeletedByRoles ?? [],
+			hideIfDeletedByRoles: formState.hideIfDeletedByRoles ?? [],
+			showIfReviewedByRoles: formState.showIfReviewedByRoles ?? [],
+			hideIfReviewedByRoles: formState.hideIfReviewedByRoles ?? [],
+			reviewedAt: null,
+			reviewedBy: null,
+			reviewApproved: null,
+			reviewComment: null
+		} as any
 	});
 	return { id: formState.id };
 }
 
-export async function requestDeleteAction(id: string) {
+export async function requestDeleteAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
@@ -426,16 +472,17 @@ export async function requestDeleteAction(id: string) {
 	return { id: id };
 }
 
-export async function cancelRequestAction(id: string) {
+export async function cancelRequestAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const doc = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
@@ -446,7 +493,7 @@ export async function cancelRequestAction(id: string) {
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -455,50 +502,13 @@ export async function cancelRequestAction(id: string) {
 		where: { and: [
 			{ parent: { equals: id } },
 			{ "version._status": { equals: "published" } }
-		] },
-		select: {
-			version: {
-				_status: true,
-				deletedAt: true,
-				deletedBy: true,
-				name: true,
-				description: true,
-				subjectUsers: true,
-				subjectTeams: true,
-				subjectRoles: true,
-				subjectLevels: true,
-				defaultShowAll: true,
-				forceShow: true,
-				forceHide: true,
-				mask: true,
-				showIfCreatedByUsers: true,
-				hideIfCreatedByUsers: true,
-				showIfUpdatedByUsers: true,
-				hideIfUpdatedByUsers: true,
-				showIfDeletedByUsers: true,
-				hideIfDeletedByUsers: true,
-				showIfReviewedByUsers: true,
-				hideIfReviewedByUsers: true,
-				showIfCreatedByRoles: true,
-				hideIfCreatedByRoles: true,
-				showIfUpdatedByRoles: true,
-				hideIfUpdatedByRoles: true,
-				showIfDeletedByRoles: true,
-				hideIfDeletedByRoles: true,
-				showIfReviewedByRoles: true,
-				hideIfReviewedByRoles: true,
-				reviewedAt: true,
-				reviewedBy: true,
-				reviewApproved: true,
-				reviewComment: true
-			}
-		}
+		] }
 	})).docs[0]?.version;
 	if(approvedVersion == null) {
 		await payload.update({
 			user: user,
 			overrideAccess: true,
-			collection: "credit-applications-accesses",
+			collection: collection,
 			id: id,
 			draft: true,
 			trash: true,
@@ -516,70 +526,41 @@ export async function cancelRequestAction(id: string) {
 	}
 	await payload.update({
 		user: user,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		id: id,
 		overrideAccess: true,
 		trash: true,
 		data: {
 			_status: "published",
-			deletedAt: approvedVersion.deletedAt,
-			deletedBy: approvedVersion.deletedBy,
-			name: approvedVersion.name,
-			description: approvedVersion.description,
-			subjectUsers: approvedVersion.subjectUsers,
-			subjectTeams: approvedVersion.subjectTeams,
-			subjectRoles: approvedVersion.subjectRoles,
-			subjectLevels: approvedVersion.subjectLevels,
-			defaultShowAll: approvedVersion.defaultShowAll,
-			forceShow: approvedVersion.forceShow,
-			forceHide: approvedVersion.forceHide,
-			mask: approvedVersion.mask,
-			showIfCreatedByUsers: approvedVersion.showIfCreatedByUsers,
-			hideIfCreatedByUsers: approvedVersion.hideIfCreatedByUsers,
-			showIfUpdatedByUsers: approvedVersion.showIfUpdatedByUsers,
-			hideIfUpdatedByUsers: approvedVersion.hideIfUpdatedByUsers,
-			showIfDeletedByUsers: approvedVersion.showIfDeletedByUsers,
-			hideIfDeletedByUsers: approvedVersion.hideIfDeletedByUsers,
-			showIfReviewedByUsers: approvedVersion.showIfReviewedByUsers,
-			hideIfReviewedByUsers: approvedVersion.hideIfReviewedByUsers,
-			showIfCreatedByRoles: approvedVersion.showIfCreatedByRoles,
-			hideIfCreatedByRoles: approvedVersion.hideIfCreatedByRoles,
-			showIfUpdatedByRoles: approvedVersion.showIfUpdatedByRoles,
-			hideIfUpdatedByRoles: approvedVersion.hideIfUpdatedByRoles,
-			showIfDeletedByRoles: approvedVersion.showIfDeletedByRoles,
-			hideIfDeletedByRoles: approvedVersion.hideIfDeletedByRoles,
-			showIfReviewedByRoles: approvedVersion.showIfReviewedByRoles,
-			hideIfReviewedByRoles: approvedVersion.hideIfReviewedByRoles,
-			reviewedAt: approvedVersion.reviewedAt,
-			reviewedBy: approvedVersion.reviewedBy,
-			reviewApproved: approvedVersion.reviewApproved,
+			...approvedVersion,
 			reviewComment: leixcalPreprendPlainText(approvedVersion.reviewComment, `Auto-reviewed by system on behalf of ${JSON.stringify(approvedVersion.reviewedBy)} because the change request was cancelled before approval.`)
-		}
+		} as any
 	});
 	return { id: id };
 }
 
-export async function requestRestoreAction(id: string) {
+export async function requestRestoreAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const doc = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
 		depth: 0
 	});
 	if(doc.deletedAt == null)
-		throw new Error("Access is not deleted.");
+		throw new Error("Entry is not deleted.");
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
@@ -597,18 +578,19 @@ export async function requestRestoreAction(id: string) {
 }
 
 export async function reviewAction(
-	{ id, decision, reviewComment }:
-	{ id: string, decision: "approve" | "reject", reviewComment: any }
+	{ slug, id, decision, reviewComment }:
+	{ slug: string, id: string, decision: "approve" | "reject", reviewComment: any }
 ) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const doc = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
@@ -620,7 +602,7 @@ export async function reviewAction(
 		await payload.update({
 			user: user,
 			overrideAccess: true,
-			collection: "credit-applications-accesses",
+			collection: collection,
 			id: id,
 			draft: true,
 			trash: true,
@@ -637,7 +619,7 @@ export async function reviewAction(
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-accesses",
+		collection: collection,
 		id: id,
 		trash: true,
 		data: {
@@ -649,4 +631,28 @@ export async function reviewAction(
 		}
 	});
 	return { id: id };
+}
+
+export async function searchRelationAccessesAction(slug: string, keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: true,
+		collection: collection,
+		draft: true,
+		trash: true,
+		pagination: false,
+		limit: 20,
+		depth: 0,
+		where: { or: [
+			...(keyword.length > 0 ? [{ name: { like: keyword } }] : []),
+			...(selectedIds.length > 0 ? [{ id: { in: selectedIds } }] : [])
+		] }
+	});
+	return result.docs.map(doc => ({ id: doc.id, label: doc.name }));
 }

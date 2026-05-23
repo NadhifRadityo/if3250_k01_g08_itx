@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { XIcon, PlusIcon, PencilIcon, Trash2Icon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -79,13 +79,13 @@ export default function Page() {
 	const queryClient = useQueryClient();
 	const { user } = useDashboardContext();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: `access-management-${slug}.column-order`, updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: `access-management-${slug}.columns-shown`, updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: `access-management.${slug}.column-order`, updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: `access-management.${slug}.columns-shown`, updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: `access-management-${slug}.filters`, updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: `access-management.${slug}.filters`, updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: `access-management-${slug}.include-deleted`, updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: `access-management-${slug}.columns-sort`, updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: `access-management.${slug}.include-deleted`, updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: `access-management.${slug}.columns-sort`, updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "editor", {
@@ -96,6 +96,7 @@ export default function Page() {
 			pageIndex
 		}],
 		queryFn: async () => await queryEditorAction({
+			slug: slug,
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -150,7 +151,7 @@ export default function Page() {
 	return (
 		<MenuPage
 			title="Access Management"
-			description="Manage access requests with editor workflows, including access rule changes."
+			description="Manage access requests with editor workflows, including subject and mask changes."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar
@@ -163,13 +164,13 @@ export default function Page() {
 					isLoading={query.isLoading}
 					rightSlot={(
 						<>
-							{user.roleMenus.includes(`${slug}#auditor`) ? (
+							{user.roleMenus.includes("access-management#auditor") ? (
 								<div className="flex items-center gap-2">
-									<label htmlFor={`access-management-${slug}-editor-show-deleted`} className="text-sm">
+									<label htmlFor="access-management-editor-show-deleted" className="text-sm">
 										Show Deleted
 									</label>
 									<Switch
-										id={`access-management-${slug}-editor-show-deleted`}
+										id="access-management-editor-show-deleted"
 										checked={includeDeleted}
 										onCheckedChange={setIncludeDeleted}
 										disabled={query.isLoading || isMutating}
@@ -237,11 +238,12 @@ export default function Page() {
 					hasPreviousPage={query.data?.hasPrevPage ?? false}
 					hasNextPage={query.data?.hasNextPage ?? false}
 					isLoading={query.isLoading}
-					isMutating={isMutating}
+					isMutating={false}
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 				<DetailsDrawer
+					slug={slug}
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
@@ -250,12 +252,14 @@ export default function Page() {
 					onOpenHistory={() => setHistoryDrawerOpen(true)}
 				/>
 				<HistoryDrawer
+					slug={slug}
 					open={historyDrawerOpen}
 					onOpenChange={setHistoryDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
 				/>
 				<ChangeRequestDrawer
+					slug={slug}
 					open={changeRequestDrawerOpen}
 					onOpenChange={setChangeRequestDrawerOpen}
 					row={changeRequestDrawerRow}
@@ -267,16 +271,22 @@ export default function Page() {
 					title="Edit Access"
 					formState={editFormDrawerState}
 					onFormStateChange={setEditFormDrawerState}
-					onSubmit={() => startMutationTransition(async () => {
-						try {
-							setEditFormMutationError(null);
-							await requestUpsertAction(editFormDrawerState);
-							setEditFormDrawerOpen(false);
-							queryClient.invalidateQueries({ queryKey: ["access-management"] });
-						} catch(e) { setEditFormMutationError(e); }
-					})}
-					mutationError={editFormMutationError}
 					isMutating={isMutating}
+					mutationError={editFormMutationError}
+					onSubmit={() => startMutationTransition(async () => {
+						if(editFormDrawerState.name == null || editFormDrawerState.name.trim().length == 0)
+							return setEditFormMutationError({ name: "ValidationError", message: "Name is required." });
+						setEditFormMutationError(null);
+						try {
+							await requestUpsertAction(slug, editFormDrawerState);
+							setEditFormDrawerOpen(false);
+							setEditFormDrawerState({});
+						} catch(error) {
+							setEditFormMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["access-management"] });
+						}
+					})}
 				/>
 				<FormDrawer
 					open={addFormDrawerOpen}
@@ -284,69 +294,86 @@ export default function Page() {
 					title="Add Access"
 					formState={addFormDrawerState}
 					onFormStateChange={setAddFormDrawerState}
+					isMutating={isMutating}
+					mutationError={addFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
+						if(addFormDrawerState.name == null || addFormDrawerState.name.trim().length == 0)
+							return setAddFormMutationError({ name: "ValidationError", message: "Name is required." });
+						setAddFormMutationError(null);
 						try {
-							setAddFormMutationError(null);
-							await requestUpsertAction(addFormDrawerState);
+							await requestUpsertAction(slug, addFormDrawerState);
 							setAddFormDrawerOpen(false);
 							setAddFormDrawerState({});
-							queryClient.invalidateQueries({ queryKey: ["access-management"] });
-						} catch(e) { setAddFormMutationError(e); }
+						} catch(error) {
+							setAddFormMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["access-management"] });
+						}
 					})}
-					mutationError={addFormMutationError}
-					isMutating={isMutating}
 				/>
 				<DeleteDialog
 					open={deleteTargetRow != null}
 					onOpenChange={open => { if(!open) setDeleteTargetRow(null); }}
-					onConfirm={() => startMutationTransition(async () => {
-						try {
-							setGenericMutationError(null);
-							await requestDeleteAction(deleteTargetRow!.id);
-							setDeleteTargetRow(null);
-							queryClient.invalidateQueries({ queryKey: ["access-management"] });
-						} catch(e) { setGenericMutationError(e); }
-					})}
 					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await requestDeleteAction(slug, deleteTargetRow!.id);
+							setDeleteTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["access-management"] });
+						}
+					})}
 				/>
 				<CancelPendingRequestDialog
 					open={cancelPendingRequestTargetRow != null}
 					onOpenChange={open => { if(!open) setCancelPendingRequestTargetRow(null); }}
-					onConfirm={() => startMutationTransition(async () => {
-						try {
-							setGenericMutationError(null);
-							await cancelRequestAction(cancelPendingRequestTargetRow!.id);
-							setCancelPendingRequestTargetRow(null);
-							queryClient.invalidateQueries({ queryKey: ["access-management"] });
-						} catch(e) { setGenericMutationError(e); }
-					})}
 					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await cancelRequestAction(slug, cancelPendingRequestTargetRow!.id);
+							setCancelPendingRequestTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["access-management"] });
+						}
+					})}
 				/>
 				<RevertApprovedDialog
 					open={revertApprovedTargetRow != null}
 					onOpenChange={open => { if(!open) setRevertApprovedTargetRow(null); }}
-					onConfirm={() => startMutationTransition(async () => {
-						try {
-							setGenericMutationError(null);
-							await cancelRequestAction(revertApprovedTargetRow!.id);
-							setRevertApprovedTargetRow(null);
-							queryClient.invalidateQueries({ queryKey: ["access-management"] });
-						} catch(e) { setGenericMutationError(e); }
-					})}
 					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await cancelRequestAction(slug, revertApprovedTargetRow!.id);
+							setRevertApprovedTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["access-management"] });
+						}
+					})}
 				/>
 				<RestoreDeletionDialog
 					open={restoreDeletionTargetRow != null}
 					onOpenChange={open => { if(!open) setRestoreDeletionTargetRow(null); }}
-					onConfirm={() => startMutationTransition(async () => {
-						try {
-							setGenericMutationError(null);
-							await requestRestoreAction(restoreDeletionTargetRow!.id);
-							setRestoreDeletionTargetRow(null);
-							queryClient.invalidateQueries({ queryKey: ["access-management"] });
-						} catch(e) { setGenericMutationError(e); }
-					})}
 					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await requestRestoreAction(slug, restoreDeletionTargetRow!.id);
+							setRestoreDeletionTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["access-management"] });
+						}
+					})}
 				/>
 			</RelationNavigationProvider>
 		</MenuPage>

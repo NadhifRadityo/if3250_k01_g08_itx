@@ -1,20 +1,27 @@
 import React, { Suspense } from "react";
-import { redirect, RedirectType } from "next/navigation";
+import { redirect } from "next/navigation";
 import { connection as nextConnection } from "next/server";
 
+import { getDashboardContextAction } from "../layout.actions";
 import { getTabContextAction } from "./layout.actions";
-import { AccessManagementShell } from "./layout.components";
+import { TabShell } from "./layout.components";
 
 async function SuspensedLayout({ children }: { children: React.ReactNode }) {
 	await nextConnection();
-	const context = await getTabContextAction();
-	if(context == null)
-		return redirect("/login", RedirectType.push);
+	const dashboardContext = await getDashboardContextAction();
+	if(dashboardContext == null)
+		return redirect("/login");
+	const tabContext = await getTabContextAction();
+	if(tabContext == null)
+		return redirect("/login");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "access-management");
+	if(thisMenu == null)
+		return redirect("/");
 
 	return (
-		<AccessManagementShell initialContext={context}>
+		<TabShell initialContext={tabContext}>
 			{children}
-		</AccessManagementShell>
+		</TabShell>
 	);
 }
 export default async function Layout({ children }: { children: React.ReactNode }) {

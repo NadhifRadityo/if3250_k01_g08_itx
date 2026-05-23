@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -17,13 +17,13 @@ export default function Page() {
 	const { slug } = useParams<{ slug: string }>();
 	const { user } = useDashboardContext();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: `access-management-${slug}.column-order`, updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: `access-management-${slug}.columns-shown`, updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: `access-management.${slug}.column-order`, updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: `access-management.${slug}.columns-shown`, updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: `access-management-${slug}.filters`, updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: `access-management.${slug}.filters`, updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: `access-management-${slug}.include-deleted`, updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: `access-management-${slug}.columns-sort`, updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: `access-management.${slug}.include-deleted`, updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: `access-management.${slug}.columns-sort`, updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "viewer", {
@@ -34,6 +34,7 @@ export default function Page() {
 			pageIndex
 		}],
 		queryFn: async () => await queryViewerAction({
+			slug: slug,
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -80,13 +81,13 @@ export default function Page() {
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
-					rightSlot={user.roleMenus.includes(`${slug}#auditor`) ? (
+					rightSlot={user.roleMenus.includes("access-management#auditor") ? (
 						<div className="flex items-center gap-2">
-							<label htmlFor={`access-management-${slug}-viewer-show-deleted`} className="text-sm">
+							<label htmlFor="access-management-viewer-show-deleted" className="text-sm">
 								Show Deleted
 							</label>
 							<Switch
-								id={`access-management-${slug}-viewer-show-deleted`}
+								id="access-management-viewer-show-deleted"
 								checked={includeDeleted}
 								onCheckedChange={setIncludeDeleted}
 								disabled={query.isLoading}
@@ -142,6 +143,7 @@ export default function Page() {
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
 				<DetailsDrawer
+					slug={slug}
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
@@ -149,12 +151,14 @@ export default function Page() {
 					onOpenHistory={() => setHistoryDrawerOpen(true)}
 				/>
 				<HistoryDrawer
+					slug={slug}
 					open={historyDrawerOpen}
 					onOpenChange={setHistoryDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
 				/>
 				<ChangeRequestDrawer
+					slug={slug}
 					open={changeRequestDrawerOpen}
 					onOpenChange={setChangeRequestDrawerOpen}
 					row={changeRequestDrawerRow}

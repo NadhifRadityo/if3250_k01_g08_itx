@@ -20,7 +20,7 @@ async function SuspensedLayout({ children }: { children: React.ReactNode }) {
 	await nextConnection();
 	const context = await getDashboardContextAction();
 	if(context == null)
-		return redirect("/login", RedirectType.push);
+		return redirect("/login");
 
 	return (
 		<DashboardShell initialContext={context}>

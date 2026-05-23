@@ -11,10 +11,11 @@ import type { CreditApplicationsAccessMask } from "@/payload-types";
 import { MenuFilterState } from "../../layout.components";
 import { resolveRelationUsers } from "../../relation-navigation.actions";
 import { RelationUser } from "../../relation-navigation.shared";
-import { FormState } from "../mask.components";
+import { menuMaskFields, tabMenuKeys, slugAccessMaskCollectionMap } from "../layout.shared";
+import { MaskFormState } from "./mask.components";
 
 const PAGE_LIMIT = 20;
-export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
+export type MaskRelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
 	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
@@ -24,6 +25,20 @@ const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
 		.filter(termGroups => termGroups.length > 0)
 		.map(termGroups => ({ and: termGroups }))
 });
+
+function resolveCollection(slug: string) {
+	const collection = slugAccessMaskCollectionMap[slug as typeof tabMenuKeys[number]];
+	if(collection == null)
+		throw new Error("Invalid slug.");
+	return collection as "credit-applications-access-masks";
+}
+
+function resolveMaskFields(slug: string) {
+	const fields = menuMaskFields[slug as typeof tabMenuKeys[number]];
+	if(fields == null)
+		throw new Error("Invalid slug.");
+	return fields;
+}
 
 async function resolveRelations(
 	{ payload, docs }:
@@ -45,23 +60,24 @@ async function resolveRelations(
 		if(reviewedBy != null)
 			userIds.add(reviewedBy);
 	}
-	const relations = {} as RelationValues;
+	const relations = {} as MaskRelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
 	return relations;
 }
 
-async function queryAction(
-	{ mode, keyword, filters, columnsSort, includeDeleted, pageIndex }:
-	{ mode: "viewer" | "approver" | "editor", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], includeDeleted: boolean, pageIndex: number }
+async function queryMaskAction(
+	{ slug, mode, keyword, filters, columnsSort, includeDeleted, pageIndex }:
+	{ slug: string, mode: "viewer" | "approver" | "editor", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], includeDeleted: boolean, pageIndex: number }
 ) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 	const result = await payload.find({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		draft: true,
 		trash: true,
 		page: pageIndex,
@@ -86,118 +102,78 @@ async function queryAction(
 	return { ...result, relations };
 }
 
-export async function queryViewerAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
-	return await queryAction({ ...p, mode: "viewer" });
+export async function queryMaskViewerAction(p: Omit<Parameters<typeof queryMaskAction>[0], "mode">) {
+	return await queryMaskAction({ ...p, mode: "viewer" });
 }
-export async function queryEditorAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
-	return await queryAction({ ...p, mode: "editor" });
+export async function queryMaskEditorAction(p: Omit<Parameters<typeof queryMaskAction>[0], "mode">) {
+	return await queryMaskAction({ ...p, mode: "editor" });
 }
-export async function queryApproverAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
-	return await queryAction({ ...p, mode: "approver" });
+export async function queryMaskApproverAction(p: Omit<Parameters<typeof queryMaskAction>[0], "mode">) {
+	return await queryMaskAction({ ...p, mode: "approver" });
 }
 
-export async function getDetailsAction(id: string) {
+export async function getMaskDetailsAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
+	const maskFields = resolveMaskFields(slug);
+
+	const selectFields: Record<string, boolean> = {
+		_status: true,
+		createdAt: true,
+		createdBy: true,
+		updatedAt: true,
+		updatedBy: true,
+		deletedAt: true,
+		deletedBy: true,
+		name: true,
+		description: true,
+		defaultShowAll: true,
+		reviewedAt: true,
+		reviewedBy: true,
+		reviewApproved: true,
+		reviewComment: true
+	};
+	for(const [fieldKey] of maskFields)
+		selectFields[fieldKey] = true;
 
 	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		draft: true,
 		trash: true,
 		id: id,
 		depth: 0,
-		select: {
-			_status: true,
-			createdAt: true,
-			createdBy: true,
-			updatedAt: true,
-			updatedBy: true,
-			deletedAt: true,
-			deletedBy: true,
-			name: true,
-			description: true,
-			maskImport: true,
-			maskName: true,
-			maskEmail: true,
-			maskAddresses: true,
-			maskPhoneNumbers: true,
-			maskWhatsappNumber: true,
-			maskSmsNumber: true,
-			maskCollateralRegistryName: true,
-			maskCollateralName: true,
-			maskCollateralDescription: true,
-			maskAssetId: true,
-			maskAssetName: true,
-			maskAssetDescription: true,
-			maskPeriod: true,
-			maskInstallment: true,
-			maskDownPayment: true,
-			maskPlafond: true,
-			maskVendor: true,
-			maskRemarks: true,
-			maskOtherText1: true,
-			maskOtherText2: true,
-			maskOtherNumber1: true,
-			maskOtherNumber2: true,
-			maskOtherDate1: true,
-			maskOtherDate2: true,
-			maskOthers: true,
-			reviewedAt: true,
-			reviewedBy: true,
-			reviewApproved: true,
-			reviewComment: true
-		}
+		select: selectFields
 	});
 	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: result, relations };
 }
 
-export async function getDifferenceAction(id: string) {
+export async function getMaskDifferenceAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
+	const maskFields = resolveMaskFields(slug);
 
-	const maskFields = {
+	const versionSelectFields: Record<string, boolean> = {
 		deletedAt: true,
 		name: true,
 		description: true,
-		maskImport: true,
-		maskName: true,
-		maskEmail: true,
-		maskAddresses: true,
-		maskPhoneNumbers: true,
-		maskWhatsappNumber: true,
-		maskSmsNumber: true,
-		maskCollateralRegistryName: true,
-		maskCollateralName: true,
-		maskCollateralDescription: true,
-		maskAssetId: true,
-		maskAssetName: true,
-		maskAssetDescription: true,
-		maskPeriod: true,
-		maskInstallment: true,
-		maskDownPayment: true,
-		maskPlafond: true,
-		maskVendor: true,
-		maskRemarks: true,
-		maskOtherText1: true,
-		maskOtherText2: true,
-		maskOtherNumber1: true,
-		maskOtherNumber2: true,
-		maskOtherDate1: true,
-		maskOtherDate2: true,
-		maskOthers: true
+		defaultShowAll: true
 	};
+	for(const [fieldKey] of maskFields)
+		versionSelectFields[fieldKey] = true;
 
 	const requestedDoc = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -211,8 +187,8 @@ export async function getDifferenceAction(id: string) {
 		},
 		select: {
 			updatedAt: true,
-			version: maskFields
-		}
+			version: versionSelectFields
+		} as any
 	})).docs[0];
 	const requestedVersion = requestedDoc?.version;
 	if(requestedVersion == null)
@@ -220,7 +196,7 @@ export async function getDifferenceAction(id: string) {
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -234,10 +210,10 @@ export async function getDifferenceAction(id: string) {
 			]
 		},
 		select: {
-			version: maskFields
-		}
+			version: versionSelectFields
+		} as any
 	})).docs[0]?.version;
-	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
+	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] as CreditApplicationsAccessMask[] });
 	return {
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
 		approvedVersion: approvedVersion,
@@ -246,16 +222,38 @@ export async function getDifferenceAction(id: string) {
 	};
 }
 
-export async function getHistoryAction(id: string) {
+export async function getMaskHistoryAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
+	const maskFields = resolveMaskFields(slug);
+
+	const versionSelectFields: Record<string, boolean> = {
+		id: true,
+		_status: true,
+		createdAt: true,
+		createdBy: true,
+		updatedAt: true,
+		updatedBy: true,
+		deletedAt: true,
+		deletedBy: true,
+		name: true,
+		description: true,
+		defaultShowAll: true,
+		reviewedAt: true,
+		reviewedBy: true,
+		reviewApproved: true,
+		reviewComment: true
+	};
+	for(const [fieldKey] of maskFields)
+		versionSelectFields[fieldKey] = true;
 
 	const versionsResult = await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		trash: true,
 		pagination: false,
 		limit: 100,
@@ -264,134 +262,73 @@ export async function getHistoryAction(id: string) {
 		where: { parent: { equals: id } },
 		select: {
 			updatedAt: true,
-			version: {
-				id: true,
-				_status: true,
-				createdAt: true,
-				createdBy: true,
-				updatedAt: true,
-				updatedBy: true,
-				deletedAt: true,
-				deletedBy: true,
-				name: true,
-				description: true,
-				maskImport: true,
-				maskName: true,
-				maskEmail: true,
-				maskAddresses: true,
-				maskPhoneNumbers: true,
-				maskWhatsappNumber: true,
-				maskSmsNumber: true,
-				maskCollateralRegistryName: true,
-				maskCollateralName: true,
-				maskCollateralDescription: true,
-				maskAssetId: true,
-				maskAssetName: true,
-				maskAssetDescription: true,
-				maskPeriod: true,
-				maskInstallment: true,
-				maskDownPayment: true,
-				maskPlafond: true,
-				maskVendor: true,
-				maskRemarks: true,
-				maskOtherText1: true,
-				maskOtherText2: true,
-				maskOtherNumber1: true,
-				maskOtherNumber2: true,
-				maskOtherDate1: true,
-				maskOtherDate2: true,
-				maskOthers: true,
-				reviewedAt: true,
-				reviewedBy: true,
-				reviewApproved: true,
-				reviewComment: true
-			}
-		}
+			version: versionSelectFields
+		} as any
 	});
 	const relations = await resolveRelations({ payload, docs: versionsResult.docs.map(v => v.version) });
 	const entries = versionsResult.docs.map(v => ({ ...v.version, versionId: v.id }));
 	return { entries, relations };
 }
 
-export async function requestUpsertAction(formState: FormState) {
+export async function requestMaskUpsertAction(slug: string, formState: MaskFormState) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
+	const maskFields = resolveMaskFields(slug);
 
 	if(formState.name == null || formState.name.trim().length == 0)
 		throw new Error("Mask name is required.");
 
-	const data = {
-		_status: "draft" as const,
+	const data: Record<string, any> = {
+		_status: "draft",
 		deletedAt: null,
 		deletedBy: null,
 		name: formState.name,
 		description: formState.description ?? null,
-		maskImport: formState.maskImport ?? "hide",
-		maskName: formState.maskName ?? "hide",
-		maskEmail: formState.maskEmail ?? "hide",
-		maskAddresses: formState.maskAddresses ?? "hide",
-		maskPhoneNumbers: formState.maskPhoneNumbers ?? "hide",
-		maskWhatsappNumber: formState.maskWhatsappNumber ?? "hide",
-		maskSmsNumber: formState.maskSmsNumber ?? "hide",
-		maskCollateralRegistryName: formState.maskCollateralRegistryName ?? "hide",
-		maskCollateralName: formState.maskCollateralName ?? "hide",
-		maskCollateralDescription: formState.maskCollateralDescription ?? "hide",
-		maskAssetId: formState.maskAssetId ?? "hide",
-		maskAssetName: formState.maskAssetName ?? "hide",
-		maskAssetDescription: formState.maskAssetDescription ?? "hide",
-		maskPeriod: formState.maskPeriod ?? "hide",
-		maskInstallment: formState.maskInstallment ?? "hide",
-		maskDownPayment: formState.maskDownPayment ?? "hide",
-		maskPlafond: formState.maskPlafond ?? "hide",
-		maskVendor: formState.maskVendor ?? "hide",
-		maskRemarks: formState.maskRemarks ?? "hide",
-		maskOtherText1: formState.maskOtherText1 ?? "hide",
-		maskOtherText2: formState.maskOtherText2 ?? "hide",
-		maskOtherNumber1: formState.maskOtherNumber1 ?? "hide",
-		maskOtherNumber2: formState.maskOtherNumber2 ?? "hide",
-		maskOtherDate1: formState.maskOtherDate1 ?? "hide",
-		maskOtherDate2: formState.maskOtherDate2 ?? "hide",
-		maskOthers: formState.maskOthers ?? "hide",
+		defaultShowAll: formState.defaultShowAll ?? false,
 		reviewedAt: null,
 		reviewedBy: null,
 		reviewApproved: null,
 		reviewComment: null
 	};
+	for(const [fieldKey] of maskFields)
+		data[fieldKey] = formState[fieldKey] ?? "hide";
 
 	if(formState.id == null) {
 		const created = await payload.create({
 			user: user,
-			collection: "credit-applications-access-masks",
+			collection: collection,
 			overrideAccess: true,
 			draft: true,
-			data: data
+			data: data as any
 		});
 		return { id: created.id };
 	}
 	await payload.update({
 		user: user,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		id: formState.id,
 		overrideAccess: true,
 		draft: true,
 		trash: true,
-		data: data
+		data: data as any
 	});
 	return { id: formState.id };
 }
 
-export async function requestDeleteAction(id: string) {
+export async function requestMaskDeleteAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
@@ -408,16 +345,17 @@ export async function requestDeleteAction(id: string) {
 	return { id: id };
 }
 
-export async function cancelRequestAction(id: string) {
+export async function cancelMaskRequestAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const doc = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
@@ -428,7 +366,7 @@ export async function cancelRequestAction(id: string) {
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -437,52 +375,13 @@ export async function cancelRequestAction(id: string) {
 		where: { and: [
 			{ parent: { equals: id } },
 			{ "version._status": { equals: "published" } }
-		] },
-		select: {
-			version: {
-				_status: true,
-				deletedAt: true,
-				deletedBy: true,
-				name: true,
-				description: true,
-				maskImport: true,
-				maskName: true,
-				maskEmail: true,
-				maskAddresses: true,
-				maskPhoneNumbers: true,
-				maskWhatsappNumber: true,
-				maskSmsNumber: true,
-				maskCollateralRegistryName: true,
-				maskCollateralName: true,
-				maskCollateralDescription: true,
-				maskAssetId: true,
-				maskAssetName: true,
-				maskAssetDescription: true,
-				maskPeriod: true,
-				maskInstallment: true,
-				maskDownPayment: true,
-				maskPlafond: true,
-				maskVendor: true,
-				maskRemarks: true,
-				maskOtherText1: true,
-				maskOtherText2: true,
-				maskOtherNumber1: true,
-				maskOtherNumber2: true,
-				maskOtherDate1: true,
-				maskOtherDate2: true,
-				maskOthers: true,
-				reviewedAt: true,
-				reviewedBy: true,
-				reviewApproved: true,
-				reviewComment: true
-			}
-		}
+		] }
 	})).docs[0]?.version;
 	if(approvedVersion == null) {
 		await payload.update({
 			user: user,
 			overrideAccess: true,
-			collection: "credit-applications-access-masks",
+			collection: collection,
 			id: id,
 			draft: true,
 			trash: true,
@@ -500,72 +399,41 @@ export async function cancelRequestAction(id: string) {
 	}
 	await payload.update({
 		user: user,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		id: id,
 		overrideAccess: true,
 		trash: true,
 		data: {
 			_status: "published",
-			deletedAt: approvedVersion.deletedAt,
-			deletedBy: approvedVersion.deletedBy,
-			name: approvedVersion.name,
-			description: approvedVersion.description,
-			maskImport: approvedVersion.maskImport,
-			maskName: approvedVersion.maskName,
-			maskEmail: approvedVersion.maskEmail,
-			maskAddresses: approvedVersion.maskAddresses,
-			maskPhoneNumbers: approvedVersion.maskPhoneNumbers,
-			maskWhatsappNumber: approvedVersion.maskWhatsappNumber,
-			maskSmsNumber: approvedVersion.maskSmsNumber,
-			maskCollateralRegistryName: approvedVersion.maskCollateralRegistryName,
-			maskCollateralName: approvedVersion.maskCollateralName,
-			maskCollateralDescription: approvedVersion.maskCollateralDescription,
-			maskAssetId: approvedVersion.maskAssetId,
-			maskAssetName: approvedVersion.maskAssetName,
-			maskAssetDescription: approvedVersion.maskAssetDescription,
-			maskPeriod: approvedVersion.maskPeriod,
-			maskInstallment: approvedVersion.maskInstallment,
-			maskDownPayment: approvedVersion.maskDownPayment,
-			maskPlafond: approvedVersion.maskPlafond,
-			maskVendor: approvedVersion.maskVendor,
-			maskRemarks: approvedVersion.maskRemarks,
-			maskOtherText1: approvedVersion.maskOtherText1,
-			maskOtherText2: approvedVersion.maskOtherText2,
-			maskOtherNumber1: approvedVersion.maskOtherNumber1,
-			maskOtherNumber2: approvedVersion.maskOtherNumber2,
-			maskOtherDate1: approvedVersion.maskOtherDate1,
-			maskOtherDate2: approvedVersion.maskOtherDate2,
-			maskOthers: approvedVersion.maskOthers,
-			reviewedAt: approvedVersion.reviewedAt,
-			reviewedBy: approvedVersion.reviewedBy,
-			reviewApproved: approvedVersion.reviewApproved,
+			...approvedVersion,
 			reviewComment: leixcalPreprendPlainText(approvedVersion.reviewComment, `Auto-reviewed by system on behalf of ${JSON.stringify(approvedVersion.reviewedBy)} because the change request was cancelled before approval.`)
-		}
+		} as any
 	});
 	return { id: id };
 }
 
-export async function requestRestoreAction(id: string) {
+export async function requestMaskRestoreAction(slug: string, id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const doc = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
 		depth: 0
 	});
 	if(doc.deletedAt == null)
-		throw new Error("Mask is not deleted.");
+		throw new Error("Entry is not deleted.");
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
@@ -582,19 +450,20 @@ export async function requestRestoreAction(id: string) {
 	return { id: id };
 }
 
-export async function reviewAction(
-	{ id, decision, reviewComment }:
-	{ id: string, decision: "approve" | "reject", reviewComment: any }
+export async function reviewMaskAction(
+	{ slug, id, decision, reviewComment }:
+	{ slug: string, id: string, decision: "approve" | "reject", reviewComment: any }
 ) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
 
 	const doc = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		id: id,
 		draft: true,
 		trash: true,
@@ -606,7 +475,7 @@ export async function reviewAction(
 		await payload.update({
 			user: user,
 			overrideAccess: true,
-			collection: "credit-applications-access-masks",
+			collection: collection,
 			id: id,
 			draft: true,
 			trash: true,
@@ -623,7 +492,7 @@ export async function reviewAction(
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "credit-applications-access-masks",
+		collection: collection,
 		id: id,
 		trash: true,
 		data: {
@@ -635,4 +504,28 @@ export async function reviewAction(
 		}
 	});
 	return { id: id };
+}
+
+export async function searchRelationAccessMasksAction(slug: string, keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+	const collection = resolveCollection(slug);
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: true,
+		collection: collection,
+		draft: true,
+		trash: true,
+		pagination: false,
+		limit: 20,
+		depth: 0,
+		where: { or: [
+			...(keyword.length > 0 ? [{ name: { like: keyword } }] : []),
+			...(selectedIds.length > 0 ? [{ id: { in: selectedIds } }] : [])
+		] }
+	});
+	return result.docs.map(doc => ({ id: doc.id, label: doc.name }));
 }

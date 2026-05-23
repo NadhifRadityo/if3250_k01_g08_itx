@@ -13,17 +13,25 @@ import { Button } from "@/components/radix/Button";
 import { Checkbox } from "@/components/radix/Checkbox";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
+import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { CreditApplicationsAccess } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../../layout.components";
-import { searchRelationUsersAction } from "../../relation-navigation.actions";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { searchRelationUsersAction, searchRelationRolesAction, searchRelationTeamsAction } from "../../relation-navigation.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, searchRelationAccessesAction } from "./layout.actions";
+
+const levelSelectOptions = Object.freeze([
+	{ value: "admin", label: "Admin" },
+	{ value: "manager", label: "Manager" },
+	{ value: "supervisor", label: "Supervisor" },
+	{ value: "officer", label: "Officer" }
+] as const);
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation" },
+	{ key: "id", label: "Id", type: "relation", relationSearch: (keyword: string, selectedIds: string[]) => searchRelationAccessesAction("credit-application-management", keyword, selectedIds) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationSearch: searchRelationUsersAction },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -46,7 +54,14 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "name", label: "Name" },
 	{ key: "description", label: "Description" },
+	{ key: "subjectUsers", label: "Subject Users" },
+	{ key: "subjectTeams", label: "Subject Teams" },
+	{ key: "subjectRoles", label: "Subject Roles" },
+	{ key: "subjectLevels", label: "Subject Levels" },
 	{ key: "defaultShowAll", label: "Default Show All" },
+	{ key: "forceShow", label: "Force Show" },
+	{ key: "forceHide", label: "Force Hide" },
+	{ key: "mask", label: "Mask" },
 	{ key: "#changeRequest", label: "Request" },
 	{ key: "#status", label: "Status" },
 	{ key: "reviewedAt", label: "Reviewed At" },
@@ -64,7 +79,14 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", sortable: true },
 	{ key: "name", label: "Name", sortable: true, className: "font-medium" },
 	{ key: "description", label: "Description", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ key: "subjectUsers", label: "Subject Users", sortable: false },
+	{ key: "subjectTeams", label: "Subject Teams", sortable: false },
+	{ key: "subjectRoles", label: "Subject Roles", sortable: false },
+	{ key: "subjectLevels", label: "Subject Levels", sortable: false },
 	{ key: "defaultShowAll", label: "Default Show All", sortable: true },
+	{ key: "forceShow", label: "Force Show", sortable: false },
+	{ key: "forceHide", label: "Force Hide", sortable: false },
+	{ key: "mask", label: "Mask", sortable: true },
 	{ key: "#changeRequest", label: "Request", sortable: false },
 	{ key: "#status", label: "Status", sortable: false },
 	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
@@ -82,7 +104,14 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "credit-applications-accesses.deletedBy" }) },
 	{ key: "name", type: "text" },
 	{ key: "description", type: "richText" },
+	{ key: "subjectUsers", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} user(s)</span>) },
+	{ key: "subjectTeams", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} team(s)</span>) },
+	{ key: "subjectRoles", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} role(s)</span>) },
+	{ key: "subjectLevels", type: "select_hasMany", selectOptions: levelSelectOptions },
 	{ key: "defaultShowAll", type: "boolean" },
+	{ key: "forceShow", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} item(s)</span>) },
+	{ key: "forceHide", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} item(s)</span>) },
+	{ key: "mask", type: "text", render: v => (<span className="font-mono text-xs">{typeof v == "string" ? v : v?.id ?? "-"}</span>) },
 	{ key: "#changeRequest", type: "select", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "select", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
@@ -119,7 +148,14 @@ export const defaultColumnOrder = Object.freeze([
 	"id",
 	"name",
 	"description",
+	"subjectUsers",
+	"subjectTeams",
+	"subjectRoles",
+	"subjectLevels",
 	"defaultShowAll",
+	"forceShow",
+	"forceHide",
+	"mask",
 	"createdBy",
 	"updatedBy",
 	"deletedBy",
@@ -146,15 +182,15 @@ export const defaultColumnsSort = Object.freeze([
 ]) as [string, boolean][];
 
 export function DetailsDrawer(
-	{ open, onOpenChange, row, rowValueRendererContext, renderActions, onOpenHistory }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode, onOpenHistory?: () => void }
+	{ slug, open, onOpenChange, row, rowValueRendererContext, renderActions, onOpenHistory }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode, onOpenHistory?: () => void }
 ) {
 	const { user } = useDashboardContext();
-	const canAccessHistory = user.roleMenus.includes("credit-application-management#auditor");
+	const canAccessHistory = user.roleMenus.includes("access-management#auditor");
 	const query = useQuery({
-		queryKey: ["access-management", "details", row?.id ?? null],
+		queryKey: ["access-management", slug, "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await getDetailsAction(slug, row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -224,15 +260,15 @@ export function DetailsDrawer(
 	);
 }
 export function HistoryDrawer(
-	{ open, onOpenChange, row, rowValueRendererContext }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
+	{ slug, open, onOpenChange, row, rowValueRendererContext }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
 	const { user } = useDashboardContext();
-	const canAccessHistory = user.roleMenus.includes("credit-application-management#auditor");
+	const canAccessHistory = user.roleMenus.includes("access-management#auditor");
 	const query = useQuery({
-		queryKey: ["access-management", "history", row?.id ?? null],
+		queryKey: ["access-management", slug, "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
-		queryFn: async () => await getHistoryAction(row!.id),
+		queryFn: async () => await getHistoryAction(slug, row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -259,7 +295,7 @@ export function HistoryDrawer(
 						<Alert variant="destructive">
 							<CircleAlertIcon />
 							<AlertTitle>Unauthorized</AlertTitle>
-							<AlertDescription>You need auditor access to view history.</AlertDescription>
+							<AlertDescription>You need Access Management auditor access to view history.</AlertDescription>
 						</Alert>
 					) : query.isPending ? (
 						<div className="space-y-2">
@@ -314,13 +350,13 @@ export function HistoryDrawer(
 	);
 }
 export function ChangeRequestDrawer(
-	{ open, onOpenChange, row, rowValueRendererContext }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
+	{ slug, open, onOpenChange, row, rowValueRendererContext }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
 	const query = useQuery({
-		queryKey: ["access-management", "change-request-diff", row?.id ?? null],
+		queryKey: ["access-management", slug, "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await getDifferenceAction(slug, row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -406,13 +442,13 @@ export function ChangeRequestDrawer(
 }
 
 export function ReviewDrawer(
-	{ open, onOpenChange, row, rowValueRendererContext, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
+	{ slug, open, onOpenChange, row, rowValueRendererContext, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
 ) {
 	const query = useQuery({
-		queryKey: ["access-management", "change-request-diff", row?.id ?? null],
+		queryKey: ["access-management", slug, "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await getDifferenceAction(slug, row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -516,11 +552,11 @@ export function ReviewDrawer(
 export type FormState = {
 	id?: string;
 	name?: string;
-	description?: CreditApplicationsAccess["description"];
+	description?: any;
 	subjectUsers?: string[];
 	subjectTeams?: string[];
 	subjectRoles?: string[];
-	subjectLevels?: CreditApplicationsAccess["subjectLevels"];
+	subjectLevels?: string[];
 	defaultShowAll?: boolean;
 	forceShow?: string[];
 	forceHide?: string[];
@@ -547,30 +583,7 @@ export function toFormState(data: CreditApplicationsAccess) {
 		id: data.id,
 		name: data.name,
 		description: data.description,
-		subjectUsers: (data.subjectUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		subjectTeams: (data.subjectTeams ?? []).map(v => typeof v == "string" ? v : v.id),
-		subjectRoles: (data.subjectRoles ?? []).map(v => typeof v == "string" ? v : v.id),
-		subjectLevels: data.subjectLevels,
-		defaultShowAll: data.defaultShowAll,
-		forceShow: (data.forceShow ?? []).map(v => typeof v == "string" ? v : v.id),
-		forceHide: (data.forceHide ?? []).map(v => typeof v == "string" ? v : v.id),
-		mask: typeof data.mask == "string" ? data.mask : data.mask?.id,
-		showIfCreatedByUsers: (data.showIfCreatedByUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		hideIfCreatedByUsers: (data.hideIfCreatedByUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		showIfUpdatedByUsers: (data.showIfUpdatedByUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		hideIfUpdatedByUsers: (data.hideIfUpdatedByUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		showIfDeletedByUsers: (data.showIfDeletedByUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		hideIfDeletedByUsers: (data.hideIfDeletedByUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		showIfReviewedByUsers: (data.showIfReviewedByUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		hideIfReviewedByUsers: (data.hideIfReviewedByUsers ?? []).map(v => typeof v == "string" ? v : v.id),
-		showIfCreatedByRoles: (data.showIfCreatedByRoles ?? []).map(v => typeof v == "string" ? v : v.id),
-		hideIfCreatedByRoles: (data.hideIfCreatedByRoles ?? []).map(v => typeof v == "string" ? v : v.id),
-		showIfUpdatedByRoles: (data.showIfUpdatedByRoles ?? []).map(v => typeof v == "string" ? v : v.id),
-		hideIfUpdatedByRoles: (data.hideIfUpdatedByRoles ?? []).map(v => typeof v == "string" ? v : v.id),
-		showIfDeletedByRoles: (data.showIfDeletedByRoles ?? []).map(v => typeof v == "string" ? v : v.id),
-		hideIfDeletedByRoles: (data.hideIfDeletedByRoles ?? []).map(v => typeof v == "string" ? v : v.id),
-		showIfReviewedByRoles: (data.showIfReviewedByRoles ?? []).map(v => typeof v == "string" ? v : v.id),
-		hideIfReviewedByRoles: (data.hideIfReviewedByRoles ?? []).map(v => typeof v == "string" ? v : v.id)
+		defaultShowAll: data.defaultShowAll
 	} as FormState;
 }
 export function FormDrawer(
@@ -599,7 +612,7 @@ export function FormDrawer(
 							<div className="flex items-center gap-2">
 								<Checkbox
 									checked={formState.defaultShowAll ?? false}
-									onCheckedChange={checked => onFormStateChange({ ...formState, defaultShowAll: !!checked })}
+									onCheckedChange={v => onFormStateChange({ ...formState, defaultShowAll: v === true })}
 								/>
 								<span className="text-sm">Show all records by default</span>
 							</div>

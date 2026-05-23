@@ -7,14 +7,14 @@ import { tabMenuKeys } from "../../layout.shared";
 
 export default async function Layout({ children, params }: { children: ReactNode, params: Promise<{ slug: string }> }) {
 	const { slug } = await params;
-	const tabContext = await getTabContextAction();
-	if(tabContext == null) return redirect("/login");
-	if(!tabContext.menus.includes(slug as typeof tabMenuKeys[number])) return redirect("/");
 	const dashboardContext = await getDashboardContextAction();
 	if(dashboardContext == null) return redirect("/login");
-	const thisMenu = dashboardContext.menus.find(menu => menu.key == slug);
+	const tabContext = await getTabContextAction();
+	if(tabContext == null) return redirect("/login");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "access-management");
 	if(thisMenu == null) return redirect("/");
-	const thisMode = thisMenu.modes["editor"];
-	if(thisMode == null) return redirect("/");
+	if(!tabContext.menus.includes(slug as typeof tabMenuKeys[number])) return redirect("/access-management");
+	const thisMode = thisMenu.modes["mask-editor"];
+	if(thisMode == null) return redirect(thisMenu.modes[thisMenu.defaultMode].href.replace("/[slug]/", `/${slug}/`));
 	return children;
 }
