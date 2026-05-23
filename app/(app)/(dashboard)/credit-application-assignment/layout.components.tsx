@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { CreditApplicationAssignment } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, useDashboardShellContext, defaultRelationUserRenderer, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationRenderer, MenuRowValueRendererContext } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationRenderer } from "../layout.components";
 import { searchRelationUsersAction, searchRelationUsersByRoleLevelAction, searchRelationCreditApplicationsAction, searchAvailableRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
@@ -143,8 +143,8 @@ export function DetailsDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext, renderActions, onOpenHistory }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode, onOpenHistory?: () => void }
 ) {
-	const { roles } = useDashboardShellContext();
-	const canAccessHistory = roles.includes("credit-application-assignment#auditor");
+	const { user } = useDashboardContext();
+	const canAccessHistory = user.roleMenus.includes("credit-application-assignment#auditor");
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "details", row?.id ?? null],
 		enabled: open && row != null,
@@ -221,8 +221,8 @@ export function HistoryDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
-	const { roles } = useDashboardShellContext();
-	const canAccessHistory = roles.includes("credit-application-assignment#auditor");
+	const { user } = useDashboardContext();
+	const canAccessHistory = user.roleMenus.includes("credit-application-assignment#auditor");
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,

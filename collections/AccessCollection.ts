@@ -128,6 +128,15 @@ export const dateMaskOptions = [
 	{ value: "showYearsOnly", label: "Show Years Only" },
 	{ value: "show", label: "Show" }
 ];
+const enumNames = new Map([
+	[genericMaskOptions, "access_generic_mask"],
+	[nameMaskOptions, "access_name_mask"],
+	[emailMaskOptions, "access_email_mask"],
+	[textMaskOptions, "access_text_mask"],
+	[numberMaskOptions, "access_number_mask"],
+	[phoneNumberMaskOptions, "access_phone_number_mask"],
+	[dateMaskOptions, "access_date_mask"]
+]);
 
 const AccessRichTextEditor = () => lexicalEditor({
 	features: [
@@ -644,7 +653,10 @@ export const AccessMasks = (
 			type: "richText",
 			editor: AccessRichTextEditor()
 		},
-		...fields,
+		...fields.map(f => ({
+			enumName: f.type == "select" ? enumNames.get(f.options as any) : undefined,
+			...f
+		})),
 		{
 			name: "reviewedAt",
 			label: "Reviewed At",

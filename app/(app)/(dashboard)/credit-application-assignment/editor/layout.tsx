@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
-import { getDashboardShellContextAction } from "../../layout.actions";
+import { getDashboardContextAction } from "../../layout.actions";
 
 export default async function Layout({ children }: { children: ReactNode }) {
-	const dashboardContext = await getDashboardShellContextAction();
+	const dashboardContext = await getDashboardContextAction();
 	if(dashboardContext == null) return redirect("/login");
 	const thisMenu = dashboardContext.menus.find(menu => menu.key == "credit-application-assignment");
 	if(thisMenu == null) return redirect("/");

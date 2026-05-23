@@ -1,7 +1,8 @@
 "use server";
 
-import configPromise from "@payload-config";
 import { getPayload } from "payload";
+
+import configPromise from "@payload-config";
 
 export type GPSPoint = {
 	latitude: number;
@@ -33,7 +34,7 @@ export type OfficerTrackingQueryResult = {
 function formatLastSeen(value: string) {
 	return new Intl.DateTimeFormat("id-ID", {
 		dateStyle: "medium",
-		timeStyle: "short",
+		timeStyle: "short"
 	}).format(new Date(value));
 }
 
@@ -51,29 +52,29 @@ export async function queryOfficerTrackingViewerAction(): Promise<OfficerTrackin
 		collection: "gps-request-logs",
 		limit: 1000,
 		sort: "-time",
-		depth: 1,
+		depth: 1
 	});
 
 	const grouped = new Map<string, OfficerTrackingRow>();
 
-	for (const log of result.docs as any[]) {
+	for(const log of result.docs as any[]) {
 		const officerName = log.officerName ?? "-";
 		const teamName = log.teamName ?? "-";
 		const latitude = log.gpsCoordinate?.latitude;
 		const longitude = log.gpsCoordinate?.longitude;
 
-		if (typeof latitude !== "number" || typeof longitude !== "number") continue;
+		if(typeof latitude !== "number" || typeof longitude !== "number") continue;
 
 		const point: GPSPoint = {
 			latitude,
 			longitude,
 			time: log.time,
-			ip: log.ip,
+			ip: log.ip
 		};
 
 		const existing = grouped.get(officerName);
 
-		if (!existing) {
+		if(!existing) {
 			grouped.set(officerName, {
 				id: officerName,
 				officerName,
@@ -84,24 +85,23 @@ export async function queryOfficerTrackingViewerAction(): Promise<OfficerTrackin
 				location: `${latitude}, ${longitude}`,
 				latestCoordinate: {
 					latitude,
-					longitude,
+					longitude
 				},
-				points: [point],
+				points: [point]
 			});
-		} else {
+		} else
 			existing.points.push(point);
-		}
 	}
 
 	const docs = Array.from(grouped.values()).map(row => ({
 		...row,
 		points: row.points.sort(
 			(a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
-		),
+		)
 	}));
 
 	return {
 		docs,
-		totalDocs: docs.length,
+		totalDocs: docs.length
 	};
 }

@@ -1,7 +1,7 @@
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
 import { APIError, CollectionConfig } from "payload";
 
-import { AccessMasks, dateMaskOptions, nameMaskOptions, textMaskOptions, emailMaskOptions, numberMaskOptions, genericMaskOptions, phoneNumberMaskOptions, Accesses } from "./AccessCollection";
+import { Accesses, AccessMasks, dateMaskOptions, nameMaskOptions, textMaskOptions, emailMaskOptions, numberMaskOptions, genericMaskOptions, phoneNumberMaskOptions } from "./AccessCollection";
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
 const CreditApplicationRichTextEditor = () => lexicalEditor({

@@ -18,7 +18,7 @@ import importTemplateLogo from "@/app/_static/favicons/logo.png";
 import { CreditApplicationImport } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererConfigColumn, MenuRowValueRendererContext } from "../layout.components";
+import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationUsersAction, searchRelationCreditApplicationImportsAction } from "../relation-navigation.actions";
 import { getDetailsAction, queryViewerAction, parsePreviewAction } from "./import.actions";
 

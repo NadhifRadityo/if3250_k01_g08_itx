@@ -2,7 +2,7 @@
 
 import { useRef, useMemo, useState, useEffect } from "react";
 
-import { MenuToolbar, MenuPage } from "../../layout.components";
+import { MenuPage, MenuToolbar } from "../../layout.components";
 import {
 	OfficerTrackingRow,
 	queryOfficerTrackingViewerAction

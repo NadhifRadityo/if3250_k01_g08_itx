@@ -7,13 +7,13 @@ import { CircleAlertIcon } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Switch } from "@/components/radix/Switch";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryViewerAction } from "../import.actions";
 import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../import.components";
 
 export default function Page() {
-	const { roles } = useDashboardShellContext();
+	const { user } = useDashboardContext();
 	const [keyword, setKeyword] = useState("");
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
@@ -73,7 +73,7 @@ export default function Page() {
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
-					rightSlot={roles.includes("credit-application-management-auditor") ? (
+					rightSlot={user.roleMenus.includes("credit-application-management#auditor") ? (
 						<div className="flex items-center gap-2">
 							<label htmlFor="credit-application-management-import-viewer-show-deleted" className="text-sm">
 								Show Deleted

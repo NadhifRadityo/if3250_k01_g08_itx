@@ -3,7 +3,7 @@
 import React, { useRef, useMemo, useState, useEffect, useContext, createContext, type ReactNode } from "react";
 import { redirect, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon, BarChart3Icon } from "lucide-react";
+import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import useIsMobile from "@/utils/useIsMobile";
@@ -29,7 +29,7 @@ import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@
 
 import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
-import { DashboardMenu, getDashboardShellContextAction } from "./layout.actions";
+import { DashboardMenu, getDashboardContextAction } from "./layout.actions";
 import { dashboardRoleKeys, dashboardMenuGroups } from "./layout.shared";
 import { RelationNavigationLink } from "./relation-navigation.components";
 import { RelationRole, RelationUser, RelationSurvey, RelationCreditApplication, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription } from "./relation-navigation.shared";
@@ -145,17 +145,17 @@ function DashboardMenuKey(
 	);
 }
 
-const DashboardShellContext = createContext<Awaited<ReturnType<typeof getDashboardShellContextAction>> | null>(null);
-export function useDashboardShellContext() {
-	return useContext(DashboardShellContext)!;
+const DashboardContext = createContext<Awaited<ReturnType<typeof getDashboardContextAction>> | null>(null);
+export function useDashboardContext() {
+	return useContext(DashboardContext)!;
 }
 export function DashboardShell(
 	{ initialContext, children }:
-	{ initialContext: Awaited<ReturnType<typeof getDashboardShellContextAction>>, children: ReactNode }
+	{ initialContext: Awaited<ReturnType<typeof getDashboardContextAction>>, children: ReactNode }
 ) {
 	const context = useQuery({
-		queryKey: ["dashboard", "shell-context"],
-		queryFn: async () => await getDashboardShellContextAction(),
+		queryKey: ["dashboard", "context"],
+		queryFn: async () => await getDashboardContextAction(),
 		initialData: initialContext,
 		staleTime: 60000,
 		gcTime: 120000
@@ -190,7 +190,7 @@ export function DashboardShell(
 	}, [activeMenu]);
 
 	return (
-		<DashboardShellContext.Provider value={context}>
+		<DashboardContext.Provider value={context}>
 			<SidebarProvider className="[--sidebar-width:20rem]!">
 				<Sidebar collapsible="icon" variant="inset" className="bg-sidebar h-lvh pb-[calc(100lvh-100dvh)] [anchor-name:--sidebar-anchor]">
 					<SidebarHeader>
@@ -315,7 +315,7 @@ export function DashboardShell(
 					{children}
 				</SidebarInset>
 			</SidebarProvider>
-		</DashboardShellContext.Provider>
+		</DashboardContext.Provider>
 	);
 }
 

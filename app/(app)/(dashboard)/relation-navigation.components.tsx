@@ -10,7 +10,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 
-import { useDashboardShellContext } from "./layout.components";
+import { useDashboardContext } from "./layout.components";
 import { RelationSummary, getRelationSummaryAction } from "./relation-navigation.actions";
 
 type PendingRelationRedirectData = {
@@ -226,7 +226,7 @@ const relationToMenuMap = {
 };
 function useRelationNavigationRedirect() {
 	const router = useRouter();
-	const { menus } = useDashboardShellContext();
+	const { menus } = useDashboardContext();
 	const menusRef = useRef(menus);
 	menusRef.current = menus;
 	const getRedirectMenuLink = useCallback((redirectData: PendingRelationRedirectData) => {

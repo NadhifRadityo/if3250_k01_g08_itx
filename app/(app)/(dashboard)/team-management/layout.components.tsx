@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Team } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, useDashboardShellContext, defaultRelationUserRenderer, defaultChangeRequestRenderer, defaultRelationUsersRenderer, MenuRowValueRendererConfigColumn, MenuRowValueRendererContext } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, defaultRelationUsersRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationTeamsAction, searchRelationUsersAction, searchRelationUsersByRoleLevelAction } from "../relation-navigation.actions";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
@@ -151,8 +151,8 @@ export function DetailsDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext, renderActions, onOpenHistory }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode, onOpenHistory?: () => void }
 ) {
-	const { roles } = useDashboardShellContext();
-	const canAccessHistory = roles.includes("team-management#auditor");
+	const { user } = useDashboardContext();
+	const canAccessHistory = user.roleMenus.includes("team-management#auditor");
 	const query = useQuery({
 		queryKey: ["team-management", "details", row?.id ?? null],
 		enabled: open && row != null,
@@ -229,8 +229,8 @@ export function HistoryDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
-	const { roles } = useDashboardShellContext();
-	const canAccessHistory = roles.includes("team-management#auditor");
+	const { user } = useDashboardContext();
+	const canAccessHistory = user.roleMenus.includes("team-management#auditor");
 	const query = useQuery({
 		queryKey: ["team-management", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,

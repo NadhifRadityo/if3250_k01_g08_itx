@@ -9,7 +9,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { reviewAction, queryApproverAction } from "../import.actions";
 import { ColumnData, ReviewDrawer, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../import.components";
@@ -48,7 +48,7 @@ const defaultColumnsShownWithActions = Object.freeze([
 
 export default function Page() {
 	const queryClient = useQueryClient();
-	const { roles } = useDashboardShellContext();
+	const { user } = useDashboardContext();
 	const [keyword, setKeyword] = useState("");
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
@@ -116,7 +116,7 @@ export default function Page() {
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
-					rightSlot={roles.includes("credit-application-management-auditor") ? (
+					rightSlot={user.roleMenus.includes("credit-application-management#auditor") ? (
 						<div className="flex items-center gap-2">
 							<label htmlFor="credit-application-management-import-approver-show-deleted" className="text-sm">
 								Show Deleted

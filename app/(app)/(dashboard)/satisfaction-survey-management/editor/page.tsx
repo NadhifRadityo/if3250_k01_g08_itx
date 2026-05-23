@@ -8,7 +8,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryEditorAction, cancelRequestAction, requestDeleteAction, requestUpsertAction, requestRestoreAction } from "../layout.actions";
 import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, RevertApprovedDialog, RestoreDeletionDialog, CancelPendingRequestDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../layout.components";
@@ -75,7 +75,7 @@ const defaultColumnsShownWithActions = Object.freeze([
 
 export default function Page() {
 	const queryClient = useQueryClient();
-	const { roles } = useDashboardShellContext();
+	const { user } = useDashboardContext();
 	const [keyword, setKeyword] = useState("");
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "satisfaction-survey-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "satisfaction-survey-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
@@ -161,7 +161,7 @@ export default function Page() {
 					isLoading={query.isLoading}
 					rightSlot={(
 						<>
-							{roles.includes("satisfaction-survey-management-auditor") ? (
+							{user.roleMenus.includes("satisfaction-survey-management#auditor") ? (
 								<div className="flex items-center gap-2">
 									<label htmlFor="satisfaction-survey-management-editor-show-deleted" className="text-sm">
 										Show Deleted

@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 
-import { getDashboardShellContextAction } from "../layout.actions";
+import { getDashboardContextAction } from "../layout.actions";
 
 export default async function Page() {
-	const dashboardContext = await getDashboardShellContextAction();
+	const dashboardContext = await getDashboardContextAction();
 	if(dashboardContext == null) return redirect("/login");
 	const thisMenu = dashboardContext.menus.find(menu => menu.key == "role-management");
 	if(thisMenu == null) return redirect("/");

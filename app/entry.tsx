@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import cn from "@/utils/cn";
@@ -153,7 +153,7 @@ export default function Entry({ children }: { children: React.ReactNode }) {
 			scheduleHandle = setTimeout(() => {
 				update();
 				scheduleHandle = null;
-			}, 5) as any;
+			}, 5);
 		};
 		scheduleUpdate();
 		document.addEventListener("selectionchange", scheduleUpdate);

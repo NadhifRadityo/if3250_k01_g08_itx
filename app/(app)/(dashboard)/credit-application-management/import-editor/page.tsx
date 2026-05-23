@@ -9,7 +9,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryEditorAction, requestCreateAction, requestDeleteAction, requestRestoreAction, requestUpdateDescriptionAction } from "../import.actions";
 import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, RestoreDeletionDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../import.components";
@@ -64,7 +64,7 @@ const defaultColumnsShownWithActions = Object.freeze([
 
 export default function Page() {
 	const queryClient = useQueryClient();
-	const { roles } = useDashboardShellContext();
+	const { user } = useDashboardContext();
 	const [keyword, setKeyword] = useState("");
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-manaagement-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
@@ -141,7 +141,7 @@ export default function Page() {
 					isLoading={query.isLoading}
 					rightSlot={(
 						<>
-							{roles.includes("credit-application-management-auditor") ? (
+							{user.roleMenus.includes("credit-application-management#auditor") ? (
 								<div className="flex items-center gap-2">
 									<label htmlFor="credit-application-manaagement-import-editor-show-deleted" className="text-sm">
 										Show Deleted

@@ -30,7 +30,7 @@ function getDashboardMenus(roles: string[]) {
 		}));
 }
 
-async function resolveRoles(payload: Payload, user: User) {
+async function resolveRoleMenus(payload: Payload, user: User) {
 	const rawRole = user.role;
 	if(rawRole != null && typeof rawRole == "object" && "menus" in rawRole)
 		return rawRole.menus;
@@ -55,20 +55,20 @@ async function resolveRoles(payload: Payload, user: User) {
 	return role.menus;
 }
 
-export async function getDashboardShellContextAction() {
+export async function getDashboardContextAction() {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return null;
-	const roles = await resolveRoles(payload, user);
-	const menus = getDashboardMenus(roles);
+	const roleMenus = await resolveRoleMenus(payload, user);
+	const menus = getDashboardMenus(roleMenus);
 	return {
 		user: {
 			id: user.id,
 			name: user.name,
-			email: user.email
+			email: user.email,
+			roleMenus: roleMenus
 		},
-		roles: roles,
 		menus: menus
 	};
 }

@@ -5,7 +5,7 @@ import { connection as nextConnection } from "next/server";
 import Comment from "@/components/Comment";
 import Root, { generateRootMetadata, generateRootViewport } from "@/app/root";
 
-import { getDashboardShellContextAction } from "./layout.actions";
+import { getDashboardContextAction } from "./layout.actions";
 import { DashboardShell } from "./layout.components";
 import "./layout.css";
 
@@ -18,7 +18,7 @@ export async function generateViewport() {
 
 async function SuspensedLayout({ children }: { children: React.ReactNode }) {
 	await nextConnection();
-	const context = await getDashboardShellContextAction();
+	const context = await getDashboardContextAction();
 	if(context == null)
 		return redirect("/login", RedirectType.push);
 

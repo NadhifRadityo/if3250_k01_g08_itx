@@ -7,13 +7,13 @@ import { CircleAlertIcon } from "lucide-react";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Switch } from "@/components/radix/Switch";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer, useDashboardShellContext } from "../../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryViewerAction } from "../layout.actions";
 import { ColumnData, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 export default function Page() {
-	const { roles } = useDashboardShellContext();
+	const { user } = useDashboardContext();
 	const [keyword, setKeyword] = useState("");
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "satisfaction-survey-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "satisfaction-survey-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
@@ -78,7 +78,7 @@ export default function Page() {
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
-					rightSlot={roles.includes("satisfaction-survey-management-auditor") ? (
+					rightSlot={user.roleMenus.includes("satisfaction-survey-management#auditor") ? (
 						<div className="flex items-center gap-2">
 							<label htmlFor="satisfaction-survey-management-viewer-show-deleted" className="text-sm">
 								Show Deleted
