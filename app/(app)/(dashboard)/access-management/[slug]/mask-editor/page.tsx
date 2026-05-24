@@ -11,7 +11,6 @@ import { Switch } from "@/components/radix/Switch";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../../layout.components";
 import { RelationNavigationProvider } from "../../../relation-navigation.components";
-import { tabMenuKeys, menuMaskFields } from "../../layout.shared";
 import { queryMaskEditorAction, cancelMaskRequestAction, requestMaskDeleteAction, requestMaskUpsertAction, requestMaskRestoreAction } from "../mask.actions";
 import { MaskColumnData, MaskFormDrawer, toMaskFormState, MaskDeleteDialog, MaskDetailsDrawer, MaskHistoryDrawer, buildDefaultColumnOrder, buildDefaultColumnsSort, buildTableConfigColumns, MaskChangeRequestDrawer, buildColumnConfigColumns, buildDefaultColumnsShown, buildFilterConfigColumns, MaskRevertApprovedDialog, MaskRestoreDeletionDialog, MaskCancelPendingRequestDialog, buildEligibleDetailsTriggerColumns, buildRowValueRendererConfigColumns, type MaskFormState } from "../mask.components";
 
@@ -19,15 +18,14 @@ export default function Page() {
 	const { slug } = useParams<{ slug: string }>();
 	const queryClient = useQueryClient();
 	const { user } = useDashboardContext();
-	const maskFields = menuMaskFields[slug as typeof tabMenuKeys[number]];
-	const filterConfigColumns = useMemo(() => buildFilterConfigColumns(maskFields), [maskFields]);
-	const columnConfigColumnsBase = useMemo(() => buildColumnConfigColumns(maskFields), [maskFields]);
-	const tableConfigColumnsBase = useMemo(() => buildTableConfigColumns(maskFields), [maskFields]);
-	const rowValueRendererConfigColumnsBase = useMemo(() => buildRowValueRendererConfigColumns(maskFields), [maskFields]);
-	const eligibleDetailsTriggerColumns = useMemo(() => buildEligibleDetailsTriggerColumns(maskFields), [maskFields]);
-	const defaultColumnOrderBase = useMemo(() => buildDefaultColumnOrder(maskFields), [maskFields]);
-	const defaultColumnsShownBase = useMemo(() => buildDefaultColumnsShown(maskFields), [maskFields]);
-	const defaultColumnsSort = useMemo(() => buildDefaultColumnsSort(maskFields), [maskFields]);
+	const filterConfigColumns = useMemo(() => buildFilterConfigColumns(slug), [slug]);
+	const columnConfigColumnsBase = useMemo(() => buildColumnConfigColumns(slug), [slug]);
+	const tableConfigColumnsBase = useMemo(() => buildTableConfigColumns(slug), [slug]);
+	const rowValueRendererConfigColumnsBase = useMemo(() => buildRowValueRendererConfigColumns(slug), [slug]);
+	const eligibleDetailsTriggerColumns = useMemo(() => buildEligibleDetailsTriggerColumns(slug), [slug]);
+	const defaultColumnOrderBase = useMemo(() => buildDefaultColumnOrder(slug), [slug]);
+	const defaultColumnsShownBase = useMemo(() => buildDefaultColumnsShown(slug), [slug]);
+	const defaultColumnsSort = useMemo(() => buildDefaultColumnsSort(slug), [slug]);
 	const columnConfigColumnsWithActions = useMemo(() => Object.freeze([
 		...columnConfigColumnsBase,
 		{ key: "#actions", label: "Actions" }
@@ -46,7 +44,7 @@ export default function Page() {
 							type="button"
 							size="sm"
 							variant="outline"
-							onClick={() => { setEditFormDrawerState!(toMaskFormState(row, maskFields)); setEditFormDrawerOpen!(true); }}
+							onClick={() => { setEditFormDrawerState!(toMaskFormState(row, slug)); setEditFormDrawerOpen!(true); }}
 							disabled={isMutating}
 						>
 							<PencilIcon />
@@ -78,7 +76,7 @@ export default function Page() {
 				) : null}
 			</>
 		) } satisfies (typeof rowValueRendererConfigColumnsBase)[number]
-	]), [rowValueRendererConfigColumnsBase, maskFields]);
+	]), [rowValueRendererConfigColumnsBase, slug]);
 	const defaultColumnOrderWithActions = useMemo(() => Object.freeze([
 		...defaultColumnOrderBase,
 		"#actions"
@@ -253,7 +251,6 @@ export default function Page() {
 				/>
 				<MaskDetailsDrawer
 					slug={slug}
-					maskFields={maskFields}
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
@@ -263,7 +260,6 @@ export default function Page() {
 				/>
 				<MaskHistoryDrawer
 					slug={slug}
-					maskFields={maskFields}
 					open={historyDrawerOpen}
 					onOpenChange={setHistoryDrawerOpen}
 					row={detailsDrawerRow}
@@ -271,14 +267,13 @@ export default function Page() {
 				/>
 				<MaskChangeRequestDrawer
 					slug={slug}
-					maskFields={maskFields}
 					open={changeRequestDrawerOpen}
 					onOpenChange={setChangeRequestDrawerOpen}
 					row={changeRequestDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
 				/>
 				<MaskFormDrawer
-					maskFields={maskFields}
+					slug={slug}
 					open={editFormDrawerOpen}
 					onOpenChange={setEditFormDrawerOpen}
 					title="Edit Mask"
@@ -302,7 +297,7 @@ export default function Page() {
 					})}
 				/>
 				<MaskFormDrawer
-					maskFields={maskFields}
+					slug={slug}
 					open={addFormDrawerOpen}
 					onOpenChange={setAddFormDrawerOpen}
 					title="Add Mask"

@@ -17,8 +17,9 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { CreditApplicationAssignment } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationRenderer } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationUsersAction, searchRelationUsersByRoleLevelAction, searchRelationCreditApplicationsAction, searchAvailableRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
+import { defaultRelationUserRenderer, defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];

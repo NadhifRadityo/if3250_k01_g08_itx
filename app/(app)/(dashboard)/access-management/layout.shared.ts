@@ -7,7 +7,7 @@ export const tabMenuKeys = Object.freeze([
 	"survey-management",
 	"survey-result",
 	"satisfaction-survey-management",
-	"login-activity-log",
+	"login-log",
 	"gps-log",
 	"otp-log",
 	"recording-log"
@@ -22,7 +22,7 @@ export const tabMenuLabels = Object.freeze({
 	"survey-management": "Survey",
 	"survey-result": "Survey Result",
 	"satisfaction-survey-management": "Satisfaction Survey",
-	"login-activity-log": "Login Log",
+	"login-log": "Login Log",
 	"gps-log": "GPS Log",
 	"otp-log": "OTP Log",
 	"recording-log": "Recording Log"
@@ -231,7 +231,7 @@ export const menuMaskFields = Object.freeze({
 		["maskDescription", "Mask Description", "generic"],
 		["maskContent", "Mask Content", "generic"]
 	] as MaskFields,
-	"login-activity-log": [
+	"login-log": [
 		["maskIpAddress", "Mask IP Address", "text"],
 		["maskUser", "Mask User", "generic"],
 		["maskEvent", "Mask Event", "generic"],
@@ -272,7 +272,7 @@ export const slugCollectionMap = Object.freeze({
 	"survey-management": "surveys",
 	"survey-result": "survey-results",
 	"satisfaction-survey-management": "satsifaction-surveys",
-	"login-activity-log": "login-logs",
+	"login-log": "login-logs",
 	"gps-log": "gps-logs",
 	"otp-log": "otp-logs",
 	"recording-log": "recording-logs"
@@ -287,7 +287,7 @@ export const slugAccessCollectionMap = Object.freeze({
 	"survey-management": "surveys-accesses",
 	"survey-result": "survey-results-accesses",
 	"satisfaction-survey-management": "satsifaction-surveys-accesses",
-	"login-activity-log": "login-logs-accesses",
+	"login-log": "login-logs-accesses",
 	"gps-log": "gps-logs-accesses",
 	"otp-log": "otp-logs-accesses",
 	"recording-log": "recording-logs-accesses"
@@ -302,7 +302,7 @@ export const slugAccessMaskCollectionMap = Object.freeze({
 	"survey-management": "surveys-access-masks",
 	"survey-result": "survey-results-access-masks",
 	"satisfaction-survey-management": "satsifaction-surveys-access-masks",
-	"login-activity-log": "login-logs-access-masks",
+	"login-log": "login-logs-access-masks",
 	"gps-log": "gps-logs-access-masks",
 	"otp-log": "otp-logs-access-masks",
 	"recording-log": "recording-logs-access-masks"

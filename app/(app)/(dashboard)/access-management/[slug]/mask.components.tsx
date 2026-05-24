@@ -17,14 +17,15 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { StagedUsersAccessMask } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../../layout.components";
 import { searchRelationUsersAction } from "../../relation-navigation.actions";
-import { maskOptions, type MaskFields } from "../layout.shared";
+import { defaultRelationUserRenderer } from "../../relation-navigation.components";
+import { maskOptions, tabMenuKeys, menuMaskFields, slugAccessMaskCollectionMap } from "../layout.shared";
 import { MaskRelationValues, getMaskDetailsAction, getMaskHistoryAction, queryMaskViewerAction, getMaskDifferenceAction } from "./mask.actions";
 
 export type MaskColumnData = Awaited<ReturnType<typeof queryMaskViewerAction>>["docs"][number];
 
-export const buildFilterConfigColumns = (maskFields: MaskFields) => Object.freeze([
+export const buildFilterConfigColumns = (slug: string) => Object.freeze([
 	{ key: "id", label: "Id", type: "relation" },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationSearch: searchRelationUsersAction },
@@ -33,12 +34,12 @@ export const buildFilterConfigColumns = (maskFields: MaskFields) => Object.freez
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationSearch: searchRelationUsersAction },
 	{ key: "name", label: "Name", type: "text" },
-	...maskFields.map(([k, l, t]) => ({ key: k, label: l, type: "select", selectOptions: maskOptions[t] })),
+	...menuMaskFields[slug].map(([k, l, t]) => ({ key: k, label: l, type: "select", selectOptions: maskOptions[t] })),
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
-export const buildColumnConfigColumns = (maskFields: MaskFields) => Object.freeze([
+export const buildColumnConfigColumns = (slug: string) => Object.freeze([
 	{ key: "id", label: "Id" },
 	{ key: "createdAt", label: "Created At" },
 	{ key: "createdBy", label: "Created By" },
@@ -49,7 +50,7 @@ export const buildColumnConfigColumns = (maskFields: MaskFields) => Object.freez
 	{ key: "name", label: "Name" },
 	{ key: "description", label: "Description" },
 	{ key: "defaultShowAll", label: "Default Show All" },
-	...maskFields.map(([k, l]) => ({ key: k, label: l })),
+	...menuMaskFields[slug].map(([k, l]) => ({ key: k, label: l })),
 	{ key: "#changeRequest", label: "Request" },
 	{ key: "#status", label: "Status" },
 	{ key: "reviewedAt", label: "Reviewed At" },
@@ -57,7 +58,7 @@ export const buildColumnConfigColumns = (maskFields: MaskFields) => Object.freez
 	{ key: "reviewApproved", label: "Review Approved" },
 	{ key: "reviewComment", label: "Review Comment" }
 ] as MenuColumnConfigColumn[]);
-export const buildTableConfigColumns = (maskFields: MaskFields) => Object.freeze([
+export const buildTableConfigColumns = (slug: string) => Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "createdBy", label: "Created By", sortable: true },
@@ -68,7 +69,7 @@ export const buildTableConfigColumns = (maskFields: MaskFields) => Object.freeze
 	{ key: "name", label: "Name", sortable: true, className: "font-medium" },
 	{ key: "description", label: "Description", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ key: "defaultShowAll", label: "Default Show All", sortable: true },
-	...maskFields.map(([k, l]) => ({ key: k, label: l, sortable: true })),
+	...menuMaskFields[slug].map(([k, l]) => ({ key: k, label: l, sortable: true })),
 	{ key: "#changeRequest", label: "Request", sortable: false },
 	{ key: "#status", label: "Status", sortable: false },
 	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
@@ -76,43 +77,43 @@ export const buildTableConfigColumns = (maskFields: MaskFields) => Object.freeze
 	{ key: "reviewApproved", label: "Review Approved", sortable: true },
 	{ key: "reviewComment", label: "Review Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ] as MenuTableConfigColumn[]);
-export const buildRowValueRendererConfigColumns = (maskFields: MaskFields) => Object.freeze([
+export const buildRowValueRendererConfigColumns = (slug: string) => Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
-	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "credit-applications-access-masks.createdBy" }) },
+	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: `${slugAccessMaskCollectionMap[slug]}.createdBy` }) },
 	{ key: "updatedAt", type: "date" },
-	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "credit-applications-access-masks.updatedBy" }) },
+	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: `${slugAccessMaskCollectionMap[slug]}.updatedBy` }) },
 	{ key: "deletedAt", type: "date" },
-	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "credit-applications-access-masks.deletedBy" }) },
+	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: `${slugAccessMaskCollectionMap[slug]}.deletedBy` }) },
 	{ key: "name", type: "text" },
 	{ key: "description", type: "richText" },
 	{ key: "defaultShowAll", type: "boolean" },
-	...maskFields.map(([k, l, t]) => ({ key: k, type: "select", selectOptions: maskOptions[t] })),
+	...menuMaskFields[slug].map(([k, l, t]) => ({ key: k, type: "select", selectOptions: maskOptions[t] })),
 	{ key: "#changeRequest", type: "select", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "select", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
-	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "credit-applications-access-masks.reviewedBy" }) },
+	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: `${slugAccessMaskCollectionMap[slug]}.reviewedBy` }) },
 	{ key: "reviewApproved", type: "boolean" },
 	{ key: "reviewComment", type: "richText" }
 ] as MenuRowValueRendererConfigColumn<MaskColumnData, MaskRowValueRendererContext>[]);
-export const buildEligibleDetailsTriggerColumns = (maskFields: MaskFields) => Object.freeze([
+export const buildEligibleDetailsTriggerColumns = (slug: string) => Object.freeze([
 	"id",
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
 	"name",
 	"defaultShowAll",
-	...maskFields.map(([k]) => k),
+	...menuMaskFields[slug].map(([k]) => k),
 	"reviewedAt",
 	"reviewApproved"
 ]);
-export const buildDrawerValueRendererConfigColumns = (maskFields: MaskFields) => buildRowValueRendererConfigColumns(maskFields);
-export const buildDefaultColumnOrder = (maskFields: MaskFields) => Object.freeze([
+export const buildDrawerValueRendererConfigColumns = (slug: string) => buildRowValueRendererConfigColumns(slug);
+export const buildDefaultColumnOrder = (slug: string) => Object.freeze([
 	"id",
 	"name",
 	"description",
 	"defaultShowAll",
-	...maskFields.map(([k]) => k),
+	...menuMaskFields[slug].map(([k]) => k),
 	"createdBy",
 	"updatedBy",
 	"deletedBy",
@@ -126,14 +127,14 @@ export const buildDefaultColumnOrder = (maskFields: MaskFields) => Object.freeze
 	"reviewApproved",
 	"reviewComment"
 ]) as string[];
-export const buildDefaultColumnsShown = (maskFields: MaskFields) => Object.freeze([
+export const buildDefaultColumnsShown = (slug: string) => Object.freeze([
 	"name",
 	"#changeRequest",
 	"#status",
 	"updatedAt",
 	"reviewComment"
 ]) as string[];
-export const buildDefaultColumnsSort = (maskFields: MaskFields) => Object.freeze([
+export const buildDefaultColumnsSort = (slug: string) => Object.freeze([
 	["updatedAt", false]
 ]) as [string, boolean][];
 
@@ -153,13 +154,13 @@ export type MaskRowValueRendererContext = {
 } & MenuRowValueRendererContext;
 
 export function MaskDetailsDrawer(
-	{ slug, maskFields, open, onOpenChange, row, rowValueRendererContext, renderActions, onOpenHistory }:
-	{ slug: string, maskFields: MaskFields, open: boolean, onOpenChange: (v: boolean) => void, row: MaskColumnData | null, rowValueRendererContext: MaskRowValueRendererContext, renderActions?: (r: MaskColumnData) => React.ReactNode, onOpenHistory?: () => void }
+	{ slug, open, onOpenChange, row, rowValueRendererContext, renderActions, onOpenHistory }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: MaskColumnData | null, rowValueRendererContext: MaskRowValueRendererContext, renderActions?: (r: MaskColumnData) => React.ReactNode, onOpenHistory?: () => void }
 ) {
 	const { user } = useDashboardContext();
 	const canAccessHistory = user.roleMenus.includes("access-management#mask-auditor");
-	const drawerColumns = useMemo(() => buildDrawerValueRendererConfigColumns(maskFields), [maskFields]);
-	const tableColumns = useMemo(() => buildTableConfigColumns(maskFields), [maskFields]);
+	const drawerValueRendererConfigColumns = useMemo(() => buildDrawerValueRendererConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "mask-details", row?.id ?? null],
 		enabled: open && row != null,
@@ -168,14 +169,14 @@ export function MaskDetailsDrawer(
 		refetchOnWindowFocus: true
 	});
 	const renderValue = useMenuRowValueRenderer({
-		columns: drawerColumns,
+		columns: drawerValueRendererConfigColumns,
 		context: {
 			...rowValueRendererContext,
 			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
-	const columnLabels = useMemo(() => Object.fromEntries(drawerColumns.map(column =>
-		[column.key, tableColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerColumns, tableColumns]);
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerValueRendererConfigColumns, tableConfigColumns]);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -205,7 +206,7 @@ export function MaskDetailsDrawer(
 							</AlertDescription>
 						</Alert>
 					) : (
-						drawerColumns.map(column => (
+						drawerValueRendererConfigColumns.map(column => (
 							<div key={column.key} className="space-y-1 rounded-lg border p-3">
 								<p className="text-muted-foreground text-xs font-medium">
 									{columnLabels[column.key]}
@@ -233,13 +234,13 @@ export function MaskDetailsDrawer(
 	);
 }
 export function MaskHistoryDrawer(
-	{ slug, maskFields, open, onOpenChange, row, rowValueRendererContext }:
-	{ slug: string, maskFields: MaskFields, open: boolean, onOpenChange: (v: boolean) => void, row: MaskColumnData | null, rowValueRendererContext: MaskRowValueRendererContext }
+	{ slug, open, onOpenChange, row, rowValueRendererContext }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: MaskColumnData | null, rowValueRendererContext: MaskRowValueRendererContext }
 ) {
 	const { user } = useDashboardContext();
 	const canAccessHistory = user.roleMenus.includes("access-management#mask-auditor");
-	const drawerColumns = useMemo(() => buildDrawerValueRendererConfigColumns(maskFields), [maskFields]);
-	const tableColumns = useMemo(() => buildTableConfigColumns(maskFields), [maskFields]);
+	const drawerValueRendererConfigColumns = useMemo(() => buildDrawerValueRendererConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "mask-history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
@@ -248,14 +249,14 @@ export function MaskHistoryDrawer(
 		refetchOnWindowFocus: true
 	});
 	const renderValue = useMenuRowValueRenderer({
-		columns: drawerColumns,
+		columns: drawerValueRendererConfigColumns,
 		context: {
 			...rowValueRendererContext,
 			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
-	const columnLabels = useMemo(() => Object.fromEntries(drawerColumns.map(column =>
-		[column.key, tableColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerColumns, tableColumns]);
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerValueRendererConfigColumns, tableConfigColumns]);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
@@ -293,7 +294,7 @@ export function MaskHistoryDrawer(
 						</p>
 					) : (
 						query.data.entries.map((entry, index, entries) => {
-							const changedColumns = drawerColumns.filter(column => JSON.stringify(entry[column.key] ?? null) !=
+							const changedColumns = drawerValueRendererConfigColumns.filter(column => JSON.stringify(entry[column.key] ?? null) !=
 								JSON.stringify(entries[index + 1]?.[column.key] ?? null));
 							return (
 								<div key={entry.versionId} className="space-y-2 rounded-lg border p-3">
@@ -325,11 +326,11 @@ export function MaskHistoryDrawer(
 	);
 }
 export function MaskChangeRequestDrawer(
-	{ slug, maskFields, open, onOpenChange, row, rowValueRendererContext }:
-	{ slug: string, maskFields: MaskFields, open: boolean, onOpenChange: (v: boolean) => void, row: MaskColumnData | null, rowValueRendererContext: MaskRowValueRendererContext }
+	{ slug, open, onOpenChange, row, rowValueRendererContext }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: MaskColumnData | null, rowValueRendererContext: MaskRowValueRendererContext }
 ) {
-	const drawerColumns = useMemo(() => buildDrawerValueRendererConfigColumns(maskFields), [maskFields]);
-	const tableColumns = useMemo(() => buildTableConfigColumns(maskFields), [maskFields]);
+	const drawerValueRendererConfigColumns = useMemo(() => buildDrawerValueRendererConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "mask-change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
@@ -340,14 +341,14 @@ export function MaskChangeRequestDrawer(
 	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion ?? {}), ...Object.keys(query.data.requestedVersion)])]
 		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion?.[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion[columnKey] ?? null)] as const) : null;
 	const renderValue = useMenuRowValueRenderer({
-		columns: drawerColumns,
+		columns: drawerValueRendererConfigColumns,
 		context: {
 			...rowValueRendererContext,
 			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
-	const columnLabels = useMemo(() => Object.fromEntries(drawerColumns.map(column =>
-		[column.key, tableColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerColumns, tableColumns]);
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerValueRendererConfigColumns, tableConfigColumns]);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -419,11 +420,11 @@ export function MaskChangeRequestDrawer(
 }
 
 export function MaskReviewDrawer(
-	{ slug, maskFields, open, onOpenChange, row, rowValueRendererContext, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
-	{ slug: string, maskFields: MaskFields, open: boolean, onOpenChange: (v: boolean) => void, row: MaskColumnData | null, rowValueRendererContext: MaskRowValueRendererContext, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
+	{ slug, open, onOpenChange, row, rowValueRendererContext, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: MaskColumnData | null, rowValueRendererContext: MaskRowValueRendererContext, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
 ) {
-	const drawerColumns = useMemo(() => buildDrawerValueRendererConfigColumns(maskFields), [maskFields]);
-	const tableColumns = useMemo(() => buildTableConfigColumns(maskFields), [maskFields]);
+	const drawerValueRendererConfigColumns = useMemo(() => buildDrawerValueRendererConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "mask-change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
@@ -434,14 +435,14 @@ export function MaskReviewDrawer(
 	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion ?? {}), ...Object.keys(query.data.requestedVersion)])]
 		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion?.[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion[columnKey] ?? null)] as const) : null;
 	const renderValue = useMenuRowValueRenderer({
-		columns: drawerColumns,
+		columns: drawerValueRendererConfigColumns,
 		context: {
 			...rowValueRendererContext,
 			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
-	const columnLabels = useMemo(() => Object.fromEntries(drawerColumns.map(column =>
-		[column.key, tableColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerColumns, tableColumns]);
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerValueRendererConfigColumns, tableConfigColumns]);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -532,22 +533,22 @@ export type AccessMaskData = Omit<StagedUsersAccessMask, NonNullable<{ [K in key
 export type MaskFormState = {
 	id?: string;
 	name?: string;
-	description?: any;
+	description?: SerializedEditorState;
 	[key: string]: any;
 };
-export function toMaskFormState(data: AccessMaskData, maskFields: MaskFields) {
+export function toMaskFormState(data: AccessMaskData, slug: string) {
 	const state: MaskFormState = {
 		id: data.id,
 		name: data.name,
 		description: data.description
 	};
-	for(const [fieldKey] of maskFields)
+	for(const [fieldKey] of menuMaskFields[slug])
 		state[fieldKey] = data[fieldKey];
 	return state;
 }
 export function MaskFormDrawer(
-	{ maskFields, open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating = false }:
-	{ maskFields: MaskFields, open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: MaskFormState, onFormStateChange: (v: MaskFormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
+	{ slug, open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating = false }:
+	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: MaskFormState, onFormStateChange: (v: MaskFormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
 ) {
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -566,7 +567,15 @@ export function MaskFormDrawer(
 								placeholder="Configuration name"
 							/>
 						</div>
-						{maskFields.map(([fieldKey, fieldLabel, fieldType]) => (
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Description</label>
+							<RichTextInput
+								serializedState={formState.description}
+								onChange={value => onFormStateChange({ ...formState, description: value })}
+								uploadImage={uploadGenericRichtextImage}
+							/>
+						</div>
+						{menuMaskFields[slug].map(([fieldKey, fieldLabel, fieldType]) => (
 							<div key={fieldKey} className="space-y-2">
 								<label className="text-sm font-medium">{fieldLabel}</label>
 								<Select value={formState[fieldKey] ?? "hide"} onValueChange={value => onFormStateChange({ ...formState, [fieldKey]: value })}>

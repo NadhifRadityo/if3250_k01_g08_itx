@@ -3,7 +3,7 @@
 import React, { useRef, useMemo, useState, useEffect, useContext, createContext, type ReactNode } from "react";
 import { redirect, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon, LockKeyholeIcon } from "lucide-react";
+import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, LockKeyholeIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import useIsMobile from "@/utils/useIsMobile";
@@ -31,8 +31,6 @@ import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import { DashboardMenu, getDashboardContextAction } from "./layout.actions";
 import { dashboardRoleKeys, dashboardMenuGroups } from "./layout.shared";
-import { RelationNavigationLink } from "./relation-navigation.components";
-import { RelationRole, RelationUser, RelationSurvey, RelationCreditApplication, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription } from "./relation-navigation.shared";
 
 const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
 	"user-management": UserCogIcon,
@@ -46,7 +44,7 @@ const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSV
 	"officer-task": ClipboardCheckIcon,
 	"officer-tracking": MapPinnedIcon,
 	"survey-result": BarChart3Icon,
-	"login-activity-log": HistoryIcon,
+	"login-log": HistoryIcon,
 	"otp-log": KeyRoundIcon,
 	"gps-log": LocateFixedIcon,
 	"recording-log": AudioLinesIcon
@@ -1113,171 +1111,6 @@ export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext
 		);
 	};
 }
-
-export const defaultRelationUserRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(userId: string | null, row: { id: string }, context: { relationValues?: Record<`users:${string}`, RelationUser> }) => userId == null ? "-" : (userRelation => (
-		<RelationNavigationLink
-			relationType={userRelation != null && userRelation.stagedUserId != null ? "staged-users" : "users"}
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}
-			fallback={{
-				title: userRelation?.name ?? (<>User <span className="font-mono">{userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}</span>) },
-					...(userRelation != null ? [{ label: "Email", value: userRelation.email }] : []),
-					...(userRelation != null ? [{ label: "Name", value: userRelation.name }] : [])
-				]
-			}}
-		>
-			{userRelation?.name ?? (<>User <span className="font-mono">{userRelation != null && userRelation.stagedUserId != null ? userRelation.stagedUserId : userId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`users:${userId}`]);
-export const defaultRelationUsersRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(userIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`users:${string}`, RelationUser> }) => userIds == null || userIds.length == 0 ? "-" : (
-		<RelationNavigationLink
-			relationType="staged-users"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			pickerTitle="Select users"
-			pickerDescription={description}
-			relationChoices={userIds.map(userId => (userRelation => userRelation == null || userRelation.stagedUserId == null ? null : ({
-				id: userRelation.stagedUserId,
-				name: userRelation.name,
-				description: userRelation.email,
-				fallback: {
-					title: userRelation.name,
-					description: userRelation.email,
-					fields: [
-						{ label: "Id", value: (<span className="font-mono">{userRelation.stagedUserId}</span>) },
-						{ label: "Email", value: userRelation.email },
-						{ label: "Name", value: userRelation.name }
-					]
-				}
-			}))(context?.relationValues?.[`users:${userId}`])).filter(choice => choice != null)}
-		>
-			{userIds.map((userId, i) => (userRelation => (
-				<React.Fragment key={userId}>
-					{userRelation?.name ?? (<>User <span className="font-mono">{userId}</span></>)}
-					{i != userIds.length - 1 ? ", " : ""}
-				</React.Fragment>
-			))(context?.relationValues?.[`users:${userId}`]))}
-		</RelationNavigationLink>
-	);
-export const defaultRelationRoleRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(roleId: string | null, row: { id: string }, context: { relationValues?: Record<`roles:${string}`, RelationRole> }) => roleId == null ? "-" : (roleRelation => (
-		<RelationNavigationLink
-			relationType="roles"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={roleId}
-			fallback={{
-				title: roleRelation?.name ?? (<>Role <span className="font-mono">{roleId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{roleId}</span>) },
-					...(roleRelation != null ? [{ label: "Name", value: roleRelation.name }] : [])
-				]
-			}}
-		>
-			{roleRelation?.name ?? (<>Role <span className="font-mono">{roleId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`roles:${roleId}`]);
-export const defaultRelationCreditApplicationRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(creditApplicationId: string | null, row: { id: string }, context: { relationValues?: Record<`credit-applications:${string}`, RelationCreditApplication> }) => creditApplicationId == null ? "-" : (creditApplicationRelation => (
-		<RelationNavigationLink
-			relationType="credit-applications"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={creditApplicationId}
-			fallback={{
-				title: creditApplicationRelation?.name ?? (<>Credit Application <span className="font-mono">{creditApplicationId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{creditApplicationId}</span>) },
-					...(creditApplicationRelation != null ? [{ label: "Name", value: creditApplicationRelation.name }] : []),
-					...(creditApplicationRelation != null ? [{ label: "Email", value: creditApplicationRelation.email }] : [])
-				]
-			}}
-		>
-			{creditApplicationRelation?.name ?? (<>Credit Application <span className="font-mono">{creditApplicationId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`credit-applications:${creditApplicationId}`]);
-export const defaultRelationCreditApplicationImportRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(creditApplicationImportId: string | null, row: { id: string }, context: { relationValues?: Record<`credit-application-imports:${string}`, RelationCreditApplicationImport> }) => creditApplicationImportId == null ? "-" : (creditApplicationImportRelation => (
-		<RelationNavigationLink
-			relationType="credit-application-imports"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={creditApplicationImportId}
-			fallback={{
-				title: creditApplicationImportRelation?.filename ?? (<>Credit Application Import <span className="font-mono">{creditApplicationImportId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{creditApplicationImportId}</span>) },
-					...(creditApplicationImportRelation != null ? [{ label: "File Name", value: creditApplicationImportRelation.filename }] : []),
-					...(creditApplicationImportRelation != null ? [{ label: "File Size", value: creditApplicationImportRelation.filesize }] : []),
-					...(creditApplicationImportRelation != null ? [{ label: "Mime Type", value: creditApplicationImportRelation.mimeType }] : [])
-				]
-			}}
-		>
-			{creditApplicationImportRelation?.filename ?? (<>Credit Application Import <span className="font-mono">{creditApplicationImportId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`credit-application-imports:${creditApplicationImportId}`]);
-export const defaultRelationSurveyRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(surveyId: string | null, row: { id: string }, context: { relationValues?: Record<`surveys:${string}`, RelationSurvey> }) => surveyId == null ? "-" : (surveyRelation => (
-		<RelationNavigationLink
-			relationType="surveys"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={surveyId}
-			fallback={{
-				title: surveyRelation?.title ?? (<>Survey <span className="font-mono">{surveyId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{surveyId}</span>) },
-					...(surveyRelation != null ? [{ label: "Title", value: surveyRelation.title }] : [])
-				]
-			}}
-		>
-			{surveyRelation?.title ?? (<>Survey <span className="font-mono">{surveyId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`surveys:${surveyId}`]);
-export const defaultRelationRecordingLogAudioFileRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(audioFileId: string | null, row: { id: string }, context: { relationValues?: Record<`recording-log-audio-files:${string}`, RelationRecordingLogAudioFile> }) => audioFileId == null ? "-" : (audioFileRelation => (
-		<RelationNavigationLink
-			relationType="recording-log-audio-files"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={audioFileId}
-			fallback={{
-				title: audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{audioFileId}</span>) },
-					...(audioFileRelation != null ? [{ label: "File Name", value: audioFileRelation.filename }] : []),
-					...(audioFileRelation != null ? [{ label: "File Size", value: audioFileRelation.filesize }] : []),
-					...(audioFileRelation != null ? [{ label: "Mime Type", value: audioFileRelation.mimeType }] : [])
-				]
-			}}
-		>
-			{audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`recording-log-audio-files:${audioFileId}`]);
-export const defaultRelationRecordingLogTranscriptionRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(transcriptionId: string | null, row: { id: string }, context: { relationValues?: Record<`recording-log-transcriptions:${string}`, RelationRecordingLogTranscription> }) => transcriptionId == null ? "-" : (transcriptionRelation => (
-		<RelationNavigationLink
-			relationType="recording-log-transcriptions"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={transcriptionId}
-			fallback={{
-				title: transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{transcriptionId}</span>) },
-					...(transcriptionRelation != null ? [{ label: "File Name", value: transcriptionRelation.filename }] : []),
-					...(transcriptionRelation != null ? [{ label: "File Size", value: transcriptionRelation.filesize }] : []),
-					...(transcriptionRelation != null ? [{ label: "Mime Type", value: transcriptionRelation.mimeType }] : [])
-				]
-			}}
-		>
-			{transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`recording-log-transcriptions:${transcriptionId}`]);
 export const defaultChangeRequestRenderer = () =>
 	(_, row: { createdAt?: string, updatedAt?: string, deletedAt?: string }, { setChangeRequestDrawerRow, setChangeRequestDrawerOpen }) => (
 		<Button

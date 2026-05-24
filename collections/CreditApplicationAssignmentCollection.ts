@@ -1,6 +1,6 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, dateMaskOptions, buildAccessMasks, genericMaskOptions } from "./AccessCollection";
+import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const CreditApplicationAssignments = (): CollectionConfig => ({
@@ -158,109 +158,73 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 	]
 });
 
-export const defaultCreditApplicationAssignmentAccessMaskId = "a1b2c3d4-1111-4aaa-bbbb-000000000001";
+export const defaultCreditApplicationAssignmentAccessMaskId = "c42bc6bf-7279-409c-8c79-61bfe19703df";
 export const CreditApplicationAssignmentAccesses = () => buildAccesses({
 	collection: "credit-application-assignments",
 	defaultMaskId: defaultCreditApplicationAssignmentAccessMaskId
 });
 export const CreditApplicationAssignmentAccessMasks = () => buildAccessMasks({
 	collection: "credit-application-assignments",
-	fields: [
+	maskFields: [
 		{
 			name: "maskCreatedAt",
 			label: "Mask Created At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskCreatedBy",
 			label: "Mask Created By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskUpdatedAt",
 			label: "Mask Updated At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskUpdatedBy",
 			label: "Mask Updated By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskDeletedAt",
 			label: "Mask Deleted At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskDeletedBy",
 			label: "Mask Deleted By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskCreditApplication",
 			label: "Mask Credit Application",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskOfficer",
 			label: "Mask Officer",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewedAt",
 			label: "Mask Reviewed At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskReviewedBy",
 			label: "Mask Reviewed By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewApproved",
 			label: "Mask Review Approved",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewComment",
 			label: "Mask Review Comment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		}
 	]
 });

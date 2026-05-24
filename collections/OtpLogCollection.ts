@@ -1,6 +1,6 @@
 import { APIError, type CollectionConfig } from "payload";
 
-import { buildAccesses, dateMaskOptions, textMaskOptions, buildAccessMasks, emailMaskOptions, genericMaskOptions, phoneNumberMaskOptions } from "./AccessCollection";
+import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 
 export const OtpLogs = (): CollectionConfig => ({
 	slug: "otp-logs",
@@ -96,157 +96,58 @@ export const OtpLogs = (): CollectionConfig => ({
 	]
 });
 
-export const defaultOtpLogAccessMaskId = "a1b2c3d4-5555-4aaa-bbbb-000000000005";
+export const defaultOtpLogAccessMaskId = "e86187eb-42e3-47df-9d60-1a1721da639b";
 export const OtpLogAccesses = () => buildAccesses({
 	collection: "otp-logs",
 	defaultMaskId: defaultOtpLogAccessMaskId
 });
 export const OtpLogAccessMasks = () => buildAccessMasks({
 	collection: "otp-logs",
-	fields: [
+	maskFields: [
 		{
 			name: "maskCreatedAt",
 			label: "Mask Created At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
-		},
-		{
-			name: "maskCreatedBy",
-			label: "Mask Created By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
-		},
-		{
-			name: "maskUpdatedAt",
-			label: "Mask Updated At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
-		},
-		{
-			name: "maskUpdatedBy",
-			label: "Mask Updated By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
-		},
-		{
-			name: "maskDeletedAt",
-			label: "Mask Deleted At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
-		},
-		{
-			name: "maskDeletedBy",
-			label: "Mask Deleted By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskCreditApplication",
 			label: "Mask Credit Application",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskContent",
 			label: "Mask Content",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskEmail",
 			label: "Mask Email",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: emailMaskOptions
+			type: "email"
 		},
 		{
 			name: "maskWhatsappNumber",
 			label: "Mask WhatsApp Number",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: phoneNumberMaskOptions
+			type: "phoneNumber"
 		},
 		{
 			name: "maskSmsNumber",
 			label: "Mask SMS Number",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: phoneNumberMaskOptions
+			type: "phoneNumber"
 		},
 		{
 			name: "maskEmailDeliveryStatus",
 			label: "Mask Email Delivery Status",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskWhatsappDeliveryStatus",
 			label: "Mask WhatsApp Delivery Status",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskSmsDeliveryStatus",
 			label: "Mask SMS Delivery Status",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
-		},
-		{
-			name: "maskReviewedAt",
-			label: "Mask Reviewed At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
-		},
-		{
-			name: "maskReviewedBy",
-			label: "Mask Reviewed By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
-		},
-		{
-			name: "maskReviewApproved",
-			label: "Mask Review Approved",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
-		},
-		{
-			name: "maskReviewComment",
-			label: "Mask Review Comment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		}
 	]
 });

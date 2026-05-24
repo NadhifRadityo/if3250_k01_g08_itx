@@ -17,8 +17,9 @@ import { Textarea } from "@/components/radix/Textarea";
 import { CreditApplication } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationImportRenderer } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationUsersAction, searchRelationCreditApplicationsAction, searchRelationCreditApplicationImportsAction } from "../relation-navigation.actions";
+import { defaultRelationUserRenderer, defaultRelationCreditApplicationImportRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];

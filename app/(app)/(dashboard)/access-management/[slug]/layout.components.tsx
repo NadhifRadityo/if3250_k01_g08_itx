@@ -18,8 +18,10 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { StagedUsersAccess } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../../layout.components";
 import { searchRelationUsersAction } from "../../relation-navigation.actions";
+import { defaultRelationUserRenderer, defaultRelationRolesRenderer, defaultRelationTeamsRenderer, defaultRelationUsersRenderer, defaultRelationGpsLogsRenderer, defaultRelationOtpLogsRenderer, defaultRelationSurveysRenderer, defaultRelationLoginLogsRenderer, defaultRelationRecordingLogsRenderer, defaultRelationSurveyResultsRenderer, defaultRelationCreditApplicationsRenderer, defaultRelationSatisfactionSurveysRenderer, defaultRelationCreditApplicationAssignmentsRenderer } from "../../relation-navigation.components";
+import { slugAccessCollectionMap } from "../layout.shared";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, searchRelationAccessesAction } from "./layout.actions";
 
 const levelSelectOptions = Object.freeze([
@@ -30,7 +32,7 @@ const levelSelectOptions = Object.freeze([
 ] as const);
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
-export const filterConfigColumns = Object.freeze([
+export const buildFilterConfigColumns = (slug: string) => Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: (keyword: string, selectedIds: string[]) => searchRelationAccessesAction("credit-application-management", keyword, selectedIds) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationSearch: searchRelationUsersAction },
@@ -44,7 +46,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
-export const columnConfigColumns = Object.freeze([
+export const buildColumnConfigColumns = (slug: string) => Object.freeze([
 	{ key: "id", label: "Id" },
 	{ key: "createdAt", label: "Created At" },
 	{ key: "createdBy", label: "Created By" },
@@ -69,7 +71,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "reviewApproved", label: "Review Approved" },
 	{ key: "reviewComment", label: "Review Comment" }
 ] as MenuColumnConfigColumn[]);
-export const tableConfigColumns = Object.freeze([
+export const buildTableConfigColumns = (slug: string) => Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "createdBy", label: "Created By", sortable: true },
@@ -94,28 +96,44 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "reviewApproved", label: "Review Approved", sortable: true },
 	{ key: "reviewComment", label: "Review Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ] as MenuTableConfigColumn[]);
-export const rowValueRendererConfigColumns = Object.freeze([
+const relationHasManyRenderers = {
+	"user-management": defaultRelationUsersRenderer,
+	"role-management": defaultRelationRolesRenderer,
+	"team-management": defaultRelationTeamsRenderer,
+	"credit-application-management": defaultRelationCreditApplicationsRenderer,
+	"credit-application-assignment": defaultRelationCreditApplicationAssignmentsRenderer,
+	"survey-management": defaultRelationSurveysRenderer,
+	"survey-result": defaultRelationSurveyResultsRenderer,
+	"satisfaction-survey-management": defaultRelationSatisfactionSurveysRenderer,
+	"login-log": defaultRelationLoginLogsRenderer,
+	"gps-log": defaultRelationGpsLogsRenderer,
+	"otp-log": defaultRelationOtpLogsRenderer,
+	"recording-log": defaultRelationRecordingLogsRenderer
+};
+const relationMaskRenderers = {
+};
+export const buildRowValueRendererConfigColumns = (slug: string) => Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
-	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "credit-applications-accesses.createdBy" }) },
+	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: `${slugAccessCollectionMap[slug]}.createdBy` }) },
 	{ key: "updatedAt", type: "date" },
-	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "credit-applications-accesses.updatedBy" }) },
+	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: `${slugAccessCollectionMap[slug]}.updatedBy` }) },
 	{ key: "deletedAt", type: "date" },
-	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "credit-applications-accesses.deletedBy" }) },
+	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: `${slugAccessCollectionMap[slug]}.deletedBy` }) },
 	{ key: "name", type: "text" },
 	{ key: "description", type: "richText" },
-	{ key: "subjectUsers", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} user(s)</span>) },
-	{ key: "subjectTeams", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} team(s)</span>) },
-	{ key: "subjectRoles", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} role(s)</span>) },
+	{ key: "subjectUsers", type: "text", render: defaultRelationUsersRenderer({ description: "Subject Users", relationSource: `${slugAccessCollectionMap[slug]}.subjectUsers` }) },
+	{ key: "subjectTeams", type: "text", render: defaultRelationTeamsRenderer({ description: "Subject Teams", relationSource: `${slugAccessCollectionMap[slug]}.subjectTeams` }) },
+	{ key: "subjectRoles", type: "text", render: defaultRelationRolesRenderer({ description: "Subject Roles", relationSource: `${slugAccessCollectionMap[slug]}.subjectRoles` }) },
 	{ key: "subjectLevels", type: "select_hasMany", selectOptions: levelSelectOptions },
 	{ key: "defaultShowAll", type: "boolean" },
-	{ key: "forceShow", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} item(s)</span>) },
-	{ key: "forceHide", type: "text", render: v => (<span>{Array.isArray(v) ? v.length : 0} item(s)</span>) },
-	{ key: "mask", type: "text", render: v => (<span className="font-mono text-xs">{typeof v == "string" ? v : v?.id ?? "-"}</span>) },
+	{ key: "forceShow", type: "text", render: relationHasManyRenderers[slug]({ description: "Force Show", relationSource: `${slugAccessCollectionMap[slug]}.forceShow` }) },
+	{ key: "forceHide", type: "text", render: relationHasManyRenderers[slug]({ description: "Force Hide", relationSource: `${slugAccessCollectionMap[slug]}.forceHide` }) },
+	{ key: "mask", type: "text", render: v => relationMaskRenderers[slug]({ description: "Mask", relationSource: `${slugAccessCollectionMap[slug]}.mask` }) },
 	{ key: "#changeRequest", type: "select", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "select", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
-	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "credit-applications-accesses.reviewedBy" }) },
+	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: `${slugAccessCollectionMap[slug]}.reviewedBy` }) },
 	{ key: "reviewApproved", type: "boolean" },
 	{ key: "reviewComment", type: "richText" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
@@ -133,7 +151,7 @@ export type RowValueRendererContext = {
 	setRevertApprovedTargetRow?: (v: ColumnData | null) => void;
 	setRestoreDeletionTargetRow?: (v: ColumnData | null) => void;
 } & MenuRowValueRendererContext;
-export const eligibleDetailsTriggerColumns = Object.freeze([
+export const buildEligibleDetailsTriggerColumns = (slug: string) => Object.freeze([
 	"id",
 	"createdAt",
 	"updatedAt",
@@ -143,8 +161,8 @@ export const eligibleDetailsTriggerColumns = Object.freeze([
 	"reviewedAt",
 	"reviewApproved"
 ]);
-export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
-export const defaultColumnOrder = Object.freeze([
+export const buildDrawerValueRendererConfigColumns = (slug: string) => buildRowValueRendererConfigColumns(slug);
+export const buildDefaultColumnOrder = (slug: string) => Object.freeze([
 	"id",
 	"name",
 	"description",
@@ -169,7 +187,7 @@ export const defaultColumnOrder = Object.freeze([
 	"reviewApproved",
 	"reviewComment"
 ]) as string[];
-export const defaultColumnsShown = Object.freeze([
+export const buildDefaultColumnsShown = (slug: string) => Object.freeze([
 	"name",
 	"defaultShowAll",
 	"#changeRequest",
@@ -177,7 +195,7 @@ export const defaultColumnsShown = Object.freeze([
 	"updatedAt",
 	"reviewComment"
 ]) as string[];
-export const defaultColumnsSort = Object.freeze([
+export const buildDefaultColumnsSort = (slug: string) => Object.freeze([
 	["updatedAt", false]
 ]) as [string, boolean][];
 
@@ -187,6 +205,8 @@ export function DetailsDrawer(
 ) {
 	const { user } = useDashboardContext();
 	const canAccessHistory = user.roleMenus.includes("access-management#auditor");
+	const drawerValueRendererConfigColumns = useMemo(() => buildDrawerValueRendererConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "details", row?.id ?? null],
 		enabled: open && row != null,
@@ -202,7 +222,7 @@ export function DetailsDrawer(
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
-		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerValueRendererConfigColumns, tableConfigColumns]);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -265,6 +285,8 @@ export function HistoryDrawer(
 ) {
 	const { user } = useDashboardContext();
 	const canAccessHistory = user.roleMenus.includes("access-management#auditor");
+	const drawerValueRendererConfigColumns = useMemo(() => buildDrawerValueRendererConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
@@ -280,7 +302,7 @@ export function HistoryDrawer(
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
-		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerValueRendererConfigColumns, tableConfigColumns]);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
@@ -353,6 +375,8 @@ export function ChangeRequestDrawer(
 	{ slug, open, onOpenChange, row, rowValueRendererContext }:
 	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
+	const drawerValueRendererConfigColumns = useMemo(() => buildDrawerValueRendererConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
@@ -370,7 +394,7 @@ export function ChangeRequestDrawer(
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
-		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerValueRendererConfigColumns, tableConfigColumns]);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -445,6 +469,8 @@ export function ReviewDrawer(
 	{ slug, open, onOpenChange, row, rowValueRendererContext, reviewComment, onReviewCommentChange, onApprove, onReject, mutationError, isMutating = false }:
 	{ slug: string, open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, reviewComment: SerializedEditorState, onReviewCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
 ) {
+	const drawerValueRendererConfigColumns = useMemo(() => buildDrawerValueRendererConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
 	const query = useQuery({
 		queryKey: ["access-management", slug, "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
@@ -462,7 +488,7 @@ export function ReviewDrawer(
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
-		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), [drawerValueRendererConfigColumns, tableConfigColumns]);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -553,7 +579,7 @@ export type AccessData = StagedUsersAccess;
 export type FormState = {
 	id?: string;
 	name?: string;
-	description?: any;
+	description?: SerializedEditorState;
 	subjectUsers?: string[];
 	subjectTeams?: string[];
 	subjectRoles?: string[];

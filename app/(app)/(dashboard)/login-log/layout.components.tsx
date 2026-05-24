@@ -9,8 +9,9 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationUsersAction, searchRelationLoginLogsAction } from "../relation-navigation.actions";
+import { defaultRelationUserRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
@@ -89,7 +90,7 @@ export function DetailsDrawer(
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
 	const query = useQuery({
-		queryKey: ["login-activity-log", "details", row?.id ?? null],
+		queryKey: ["login-log", "details", row?.id ?? null],
 		enabled: open && row != null,
 		queryFn: async () => await getDetailsAction(row!.id),
 		refetchInterval: 10000,
@@ -108,13 +109,13 @@ export function DetailsDrawer(
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>Login Activity Log Details</DrawerTitle>
-					<DrawerDescription>Review all available columns for this login activity log entry.</DrawerDescription>
+					<DrawerTitle>Login Log Details</DrawerTitle>
+					<DrawerDescription>Review all available columns for this login log entry.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
 					{row == null ? (
 						<p className="text-muted-foreground text-sm">
-							No login activity log selected.
+							No login log selected.
 						</p>
 					) : query.isPending ? (
 						<div className="space-y-2">
@@ -129,7 +130,7 @@ export function DetailsDrawer(
 								{`${query.error?.name ?? "Error"}`}
 							</AlertTitle>
 							<AlertDescription>
-								{`${query.error?.message ?? "Unable to load login activity log details."}`}
+								{`${query.error?.message ?? "Unable to load login log details."}`}
 							</AlertDescription>
 						</Alert>
 					) : (

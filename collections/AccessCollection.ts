@@ -1,13 +1,13 @@
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
-import { Field, CollectionSlug, CollectionConfig } from "payload";
+import { Field, CollectionSlug, CollectionConfig, SelectField } from "payload";
 
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
-export const genericMaskOptions = [
+const genericMaskOptions = [
 	{ value: "hide", label: "Hide" },
 	{ value: "show", label: "Show" }
 ];
-export const nameMaskOptions = [
+const nameMaskOptions = [
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirstNameOnly", label: "Show First Name Only" },
 	{ value: "showMiddleNameOnly", label: "Show Middle Name Only" },
@@ -32,7 +32,7 @@ export const nameMaskOptions = [
 	{ value: "show3CharactersFirstNameAndLastName", label: "Show 3 Characters of First Name and Last Name" },
 	{ value: "show", label: "Show" }
 ];
-export const emailMaskOptions = [
+const emailMaskOptions = [
 	{ value: "hide", label: "Hide" },
 	{ value: "showUsernameOnly", label: "Show Username Only" },
 	{ value: "showDomainOnly", label: "Show Domain Only" },
@@ -53,7 +53,7 @@ export const emailMaskOptions = [
 	{ value: "show3CharactersUsernameAndDomain", label: "Show 3 Characters of Username and Domain" },
 	{ value: "show", label: "Show" }
 ];
-export const textMaskOptions = [
+const textMaskOptions = [
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirst1Character", label: "Show First 1 Character" },
 	{ value: "showFirst2Characters", label: "Show First 2 Characters" },
@@ -86,7 +86,7 @@ export const textMaskOptions = [
 	{ value: "showLastSentenceOnly", label: "Show Last Sentence Only" },
 	{ value: "show", label: "Show" }
 ];
-export const numberMaskOptions = [
+const numberMaskOptions = [
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirst1Digit", label: "Show First 1 Digit" },
 	{ value: "showFirst2Digits", label: "Show First 2 Digits" },
@@ -100,7 +100,7 @@ export const numberMaskOptions = [
 	{ value: "showDigitCountOnly", label: "Show Digit Count Only" },
 	{ value: "show", label: "Show" }
 ];
-export const phoneNumberMaskOptions = [
+const phoneNumberMaskOptions = [
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirst3Digits", label: "Show First 3 Digits" },
 	{ value: "showFirst4Digits", label: "Show First 4 Digits" },
@@ -115,7 +115,7 @@ export const phoneNumberMaskOptions = [
 	{ value: "showCountryCodeAndFirst4Digits", label: "Show Country Code and First 4 Digits" },
 	{ value: "show", label: "Show" }
 ];
-export const dateMaskOptions = [
+const dateMaskOptions = [
 	{ value: "hide", label: "Hide" },
 	{ value: "showYearOnly", label: "Show Year Only" },
 	{ value: "showMonthOnly", label: "Show Month Only" },
@@ -128,15 +128,24 @@ export const dateMaskOptions = [
 	{ value: "showYearsOnly", label: "Show Years Only" },
 	{ value: "show", label: "Show" }
 ];
-const enumNames = new Map([
-	[genericMaskOptions, "access_generic_mask"],
-	[nameMaskOptions, "access_name_mask"],
-	[emailMaskOptions, "access_email_mask"],
-	[textMaskOptions, "access_text_mask"],
-	[numberMaskOptions, "access_number_mask"],
-	[phoneNumberMaskOptions, "access_phone_number_mask"],
-	[dateMaskOptions, "access_date_mask"]
-]);
+const maskOptions = {
+	generic: genericMaskOptions,
+	name: nameMaskOptions,
+	email: emailMaskOptions,
+	text: textMaskOptions,
+	number: numberMaskOptions,
+	phoneNumber: phoneNumberMaskOptions,
+	date: dateMaskOptions
+};
+const maskEnumNames = {
+	generic: "access_generic_mask",
+	name: "access_name_mask",
+	email: "access_email_mask",
+	text: "access_text_mask",
+	number: "access_number_mask",
+	phoneNumber: "access_phone_number_mask",
+	date: "access_date_mask"
+};
 
 const AccessRichTextEditor = () => lexicalEditor({
 	features: [
@@ -533,9 +542,10 @@ export const buildAccesses = (
 	]
 });
 
+type MaskField = (Omit<SelectField, "type" | "options"> & { type: "generic" | "name" | "email" | "text" | "number" | "phoneNumber" | "date" });
 export const buildAccessMasks = (
-	{ collection, fields }:
-	{ collection: CollectionSlug, fields: Field[] }
+	{ collection, maskFields }:
+	{ collection: CollectionSlug, maskFields: MaskField[] }
 ): CollectionConfig => ({
 	slug: `${collection}-access-masks`,
 	labels: {
@@ -653,10 +663,14 @@ export const buildAccessMasks = (
 			type: "richText",
 			editor: AccessRichTextEditor()
 		},
-		...fields.map(f => ({
-			enumName: f.type == "select" ? enumNames.get(f.options as any) : undefined,
-			...f
-		})),
+		...maskFields.map(f => ({
+			required: true,
+			defaultValue: "hide",
+			enumName: maskEnumNames[f.type],
+			...f,
+			type: "select",
+			options: maskOptions[f.type]
+		}) as SelectField),
 		{
 			name: "reviewedAt",
 			label: "Reviewed At",

@@ -1,6 +1,6 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, dateMaskOptions, textMaskOptions, buildAccessMasks, genericMaskOptions } from "./AccessCollection";
+import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const Teams = (): CollectionConfig => ({
@@ -162,117 +162,78 @@ export const Teams = (): CollectionConfig => ({
 	]
 });
 
-export const defaultTeamAccessMaskId = "a1b2c3d4-bbbb-4aaa-bbbb-00000000000b";
+export const defaultTeamAccessMaskId = "d32481da-cd43-4471-9cc9-3097222970f4";
 export const TeamAccesses = () => buildAccesses({
 	collection: "teams",
 	defaultMaskId: defaultTeamAccessMaskId
 });
 export const TeamAccessMasks = () => buildAccessMasks({
 	collection: "teams",
-	fields: [
+	maskFields: [
 		{
 			name: "maskCreatedAt",
 			label: "Mask Created At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskCreatedBy",
 			label: "Mask Created By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskUpdatedAt",
 			label: "Mask Updated At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskUpdatedBy",
 			label: "Mask Updated By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskDeletedAt",
 			label: "Mask Deleted At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskDeletedBy",
 			label: "Mask Deleted By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskName",
 			label: "Mask Name",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskSupervisor",
 			label: "Mask Supervisor",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskOfficers",
 			label: "Mask Officers",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewedAt",
 			label: "Mask Reviewed At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskReviewedBy",
 			label: "Mask Reviewed By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewApproved",
 			label: "Mask Review Approved",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewComment",
 			label: "Mask Review Comment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		}
 	]
 });

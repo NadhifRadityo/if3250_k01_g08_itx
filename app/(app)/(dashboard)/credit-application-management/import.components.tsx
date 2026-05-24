@@ -18,8 +18,9 @@ import importTemplateLogo from "@/app/_static/favicons/logo.png";
 import { CreditApplicationImport } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationUsersAction, searchRelationCreditApplicationImportsAction } from "../relation-navigation.actions";
+import { defaultRelationUserRenderer } from "../relation-navigation.components";
 import { getDetailsAction, queryViewerAction, parsePreviewAction } from "./import.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];

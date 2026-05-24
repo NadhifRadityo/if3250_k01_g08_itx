@@ -1,7 +1,7 @@
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
 import { CollectionConfig } from "payload";
 
-import { buildAccesses, dateMaskOptions, textMaskOptions, buildAccessMasks, genericMaskOptions } from "./AccessCollection";
+import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
 const SatisfactionSurveyRichTextEditor = () => lexicalEditor({
@@ -149,117 +149,78 @@ export const SatisfactionSurveys = (): CollectionConfig => ({
 	]
 });
 
-export const defaultSatisfactionSurveyAccessMaskId = "a1b2c3d4-8888-4aaa-bbbb-000000000008";
+export const defaultSatisfactionSurveyAccessMaskId = "c258235c-f35c-4812-aa30-98c195c9fd0d";
 export const SatisfactionSurveyAccesses = () => buildAccesses({
 	collection: "satsifaction-surveys",
 	defaultMaskId: defaultSatisfactionSurveyAccessMaskId
 });
 export const SatisfactionSurveyAccessMasks = () => buildAccessMasks({
 	collection: "satsifaction-surveys",
-	fields: [
+	maskFields: [
 		{
 			name: "maskCreatedAt",
 			label: "Mask Created At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskCreatedBy",
 			label: "Mask Created By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskUpdatedAt",
 			label: "Mask Updated At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskUpdatedBy",
 			label: "Mask Updated By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskDeletedAt",
 			label: "Mask Deleted At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskDeletedBy",
 			label: "Mask Deleted By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskTitle",
 			label: "Mask Title",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskDescription",
 			label: "Mask Description",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskContent",
 			label: "Mask Content",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewedAt",
 			label: "Mask Reviewed At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskReviewedBy",
 			label: "Mask Reviewed By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewApproved",
 			label: "Mask Review Approved",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewComment",
 			label: "Mask Review Comment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		}
 	]
 });

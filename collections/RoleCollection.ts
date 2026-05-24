@@ -1,6 +1,6 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, dateMaskOptions, textMaskOptions, buildAccessMasks, genericMaskOptions } from "./AccessCollection";
+import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const Roles = (): CollectionConfig => ({
@@ -183,8 +183,8 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "officer-tracking#reporting", label: "Officer Tracking - Reporting" },
 				{ value: "survey-result#monitoring", label: "Survey Result - Monitoring" },
 				{ value: "survey-result#reporting", label: "Survey Result - Reporting" },
-				{ value: "login-activity-log#monitoring", label: "Login Activity Log - Monitoring" },
-				{ value: "login-activity-log#reporting", label: "Login Activity Log - Reporting" },
+				{ value: "login-log#monitoring", label: "Login Log - Monitoring" },
+				{ value: "login-log#reporting", label: "Login Log - Reporting" },
 				{ value: "otp-log#monitoring", label: "OTP Log - Monitoring" },
 				{ value: "otp-log#reporting", label: "OTP Log - Reporting" },
 				{ value: "gps-log#monitoring", label: "GPS Log - Monitoring" },
@@ -221,117 +221,78 @@ export const Roles = (): CollectionConfig => ({
 	]
 });
 
-export const defaultRoleAccessMaskId = "a1b2c3d4-7777-4aaa-bbbb-000000000007";
+export const defaultRoleAccessMaskId = "3ecec5b6-ef96-4ba5-8ac5-51533336085a";
 export const RoleAccesses = () => buildAccesses({
 	collection: "roles",
 	defaultMaskId: defaultRoleAccessMaskId
 });
 export const RoleAccessMasks = () => buildAccessMasks({
 	collection: "roles",
-	fields: [
+	maskFields: [
 		{
 			name: "maskCreatedAt",
 			label: "Mask Created At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskCreatedBy",
 			label: "Mask Created By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskUpdatedAt",
 			label: "Mask Updated At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskUpdatedBy",
 			label: "Mask Updated By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskDeletedAt",
 			label: "Mask Deleted At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskDeletedBy",
 			label: "Mask Deleted By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskName",
 			label: "Mask Name",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskLevel",
 			label: "Mask Level",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskMenus",
 			label: "Mask Menus",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewedAt",
 			label: "Mask Reviewed At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskReviewedBy",
 			label: "Mask Reviewed By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewApproved",
 			label: "Mask Review Approved",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewComment",
 			label: "Mask Review Comment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		}
 	]
 });

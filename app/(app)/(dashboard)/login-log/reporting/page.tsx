@@ -8,26 +8,26 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
-import { queryMonitoringAction } from "../layout.actions";
+import { queryReportingAction } from "../layout.actions";
 import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 export default function Page() {
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "login-activity-log.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "login-activity-log.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "login-log.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "login-log.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: "login-activity-log.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "login-log.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "login-activity-log.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "login-log.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["login-activity-log", "monitoring", {
+		queryKey: ["login-log", "reporting", {
 			keyword,
 			filters,
 			columnsSort,
 			pageIndex
 		}],
-		queryFn: async () => await queryMonitoringAction({
+		queryFn: async () => await queryReportingAction({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -56,8 +56,8 @@ export default function Page() {
 
 	return (
 		<MenuPage
-			title="Login Activity Log Monitoring"
-			description="View login activity log entries through the monitoring mode."
+			title="Login Log Reporting"
+			description="View login log entries through the reporting mode."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar

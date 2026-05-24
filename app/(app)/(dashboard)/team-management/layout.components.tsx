@@ -18,8 +18,9 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Team } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, defaultRelationUsersRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationTeamsAction, searchRelationUsersAction, searchRelationUsersByRoleLevelAction } from "../relation-navigation.actions";
+import { defaultRelationUserRenderer, defaultRelationUsersRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];

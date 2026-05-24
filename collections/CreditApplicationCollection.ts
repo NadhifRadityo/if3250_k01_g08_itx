@@ -1,7 +1,7 @@
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, dateMaskOptions, nameMaskOptions, textMaskOptions, buildAccessMasks, emailMaskOptions, numberMaskOptions, genericMaskOptions, phoneNumberMaskOptions } from "./AccessCollection";
+import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
 const CreditApplicationRichTextEditor = () => lexicalEditor({
@@ -180,101 +180,68 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 	]
 });
 
-export const defaultCreditApplicationImportAccessMaskId = "a1b2c3d4-2222-4aaa-bbbb-000000000002";
+export const defaultCreditApplicationImportAccessMaskId = "28ae1c73-c4b6-4c45-88a5-6dcbcceb6174";
 export const CreditApplicationImportAccesses = () => buildAccesses({
 	collection: "credit-application-imports",
 	defaultMaskId: defaultCreditApplicationImportAccessMaskId
 });
 export const CreditApplicationImportAccessMasks = () => buildAccessMasks({
 	collection: "credit-application-imports",
-	fields: [
+	maskFields: [
 		{
 			name: "maskCreatedAt",
 			label: "Mask Created At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskCreatedBy",
 			label: "Mask Created By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskUpdatedAt",
 			label: "Mask Updated At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskUpdatedBy",
 			label: "Mask Updated By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskDeletedAt",
 			label: "Mask Deleted At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskDeletedBy",
 			label: "Mask Deleted By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskDescription",
 			label: "Mask Description",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewedAt",
 			label: "Mask Reviewed At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskReviewedBy",
 			label: "Mask Reviewed By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewApproved",
 			label: "Mask Review Approved",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewComment",
 			label: "Mask Review Comment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		}
 	]
 });
@@ -562,294 +529,186 @@ export const CreditApplicationAccesses = () => buildAccesses({
 });
 export const CreditApplicationAccessMasks = () => buildAccessMasks({
 	collection: "credit-applications",
-	fields: [
+	maskFields: [
 		{
 			name: "maskCreatedAt",
 			label: "Mask Created At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskCreatedBy",
 			label: "Mask Created By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskUpdatedAt",
 			label: "Mask Updated At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskUpdatedBy",
 			label: "Mask Updated By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskDeletedAt",
 			label: "Mask Deleted At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskDeletedBy",
 			label: "Mask Deleted By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskImport",
 			label: "Mask Import",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskName",
 			label: "Mask Name",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: nameMaskOptions
+			type: "name"
 		},
 		{
 			name: "maskEmail",
 			label: "Mask Email",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: emailMaskOptions
+			type: "email"
 		},
 		{
 			name: "maskAddresses",
 			label: "Mask Addresses",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskPhoneNumbers",
 			label: "Mask Phone Numbers",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: phoneNumberMaskOptions
+			type: "phoneNumber"
 		},
 		{
 			name: "maskWhatsappNumber",
 			label: "Mask Whatsapp Number",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: phoneNumberMaskOptions
+			type: "phoneNumber"
 		},
 		{
 			name: "maskSmsNumber",
 			label: "Mask SMS Number",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: phoneNumberMaskOptions
+			type: "phoneNumber"
 		},
 		{
 			name: "maskCollateralRegistryName",
 			label: "Mask Collateral Registry Name",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskCollateralName",
 			label: "Mask Collateral Name",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskCollateralDescription",
 			label: "Mask Collateral Description",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskAssetId",
 			label: "Mask Asset Id",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskAssetName",
 			label: "Mask Asset Name",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskAssetDescription",
 			label: "Mask Asset Description",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskPeriod",
 			label: "Mask Period",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: numberMaskOptions
+			type: "number"
 		},
 		{
 			name: "maskInstallment",
 			label: "Mask Installment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: numberMaskOptions
+			type: "number"
 		},
 		{
 			name: "maskDownPayment",
 			label: "Mask Down Payment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: numberMaskOptions
+			type: "number"
 		},
 		{
 			name: "maskPlafond",
 			label: "Mask Plafond",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: numberMaskOptions
+			type: "number"
 		},
 		{
 			name: "maskVendor",
 			label: "Mask Vendor",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskRemarks",
 			label: "Mask Remarks",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskOtherText1",
 			label: "Mask Other Text 1",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskOtherText2",
 			label: "Mask Other Text 2",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: textMaskOptions
+			type: "text"
 		},
 		{
 			name: "maskOtherNumber1",
 			label: "Mask Other Number 1",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: numberMaskOptions
+			type: "number"
 		},
 		{
 			name: "maskOtherNumber2",
 			label: "Mask Other Number 2",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: numberMaskOptions
+			type: "number"
 		},
 		{
 			name: "maskOtherDate1",
 			label: "Mask Other Date 1",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskOtherDate2",
 			label: "Mask Other Date 2",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskOthers",
 			label: "Mask Others",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewedAt",
 			label: "Mask Reviewed At",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: dateMaskOptions
+			type: "date"
 		},
 		{
 			name: "maskReviewedBy",
 			label: "Mask Reviewed By",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewApproved",
 			label: "Mask Review Approved",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		},
 		{
 			name: "maskReviewComment",
 			label: "Mask Review Comment",
-			type: "select",
-			required: true,
-			defaultValue: "hide",
-			options: genericMaskOptions
+			type: "generic"
 		}
 	]
 });

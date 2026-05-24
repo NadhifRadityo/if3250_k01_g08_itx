@@ -9,8 +9,9 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, defaultRelationUserRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationRenderer } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationUsersAction, searchRelationGpsLogsAction, searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
+import { defaultRelationUserRenderer, defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];

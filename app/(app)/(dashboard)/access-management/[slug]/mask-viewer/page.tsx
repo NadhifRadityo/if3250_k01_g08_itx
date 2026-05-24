@@ -10,22 +10,20 @@ import { Switch } from "@/components/radix/Switch";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../../layout.components";
 import { RelationNavigationProvider } from "../../../relation-navigation.components";
-import { tabMenuKeys, menuMaskFields } from "../../layout.shared";
 import { queryMaskViewerAction } from "../mask.actions";
 import { MaskColumnData, MaskDetailsDrawer, MaskHistoryDrawer, buildDefaultColumnOrder, buildDefaultColumnsSort, buildTableConfigColumns, MaskChangeRequestDrawer, buildColumnConfigColumns, buildDefaultColumnsShown, buildFilterConfigColumns, buildEligibleDetailsTriggerColumns, buildRowValueRendererConfigColumns } from "../mask.components";
 
 export default function Page() {
 	const { slug } = useParams<{ slug: string }>();
 	const { user } = useDashboardContext();
-	const maskFields = menuMaskFields[slug as typeof tabMenuKeys[number]];
-	const filterConfigColumns = useMemo(() => buildFilterConfigColumns(maskFields), [maskFields]);
-	const columnConfigColumns = useMemo(() => buildColumnConfigColumns(maskFields), [maskFields]);
-	const tableConfigColumns = useMemo(() => buildTableConfigColumns(maskFields), [maskFields]);
-	const rowValueRendererConfigColumns = useMemo(() => buildRowValueRendererConfigColumns(maskFields), [maskFields]);
-	const eligibleDetailsTriggerColumns = useMemo(() => buildEligibleDetailsTriggerColumns(maskFields), [maskFields]);
-	const defaultColumnOrder = useMemo(() => buildDefaultColumnOrder(maskFields), [maskFields]);
-	const defaultColumnsShown = useMemo(() => buildDefaultColumnsShown(maskFields), [maskFields]);
-	const defaultColumnsSort = useMemo(() => buildDefaultColumnsSort(maskFields), [maskFields]);
+	const filterConfigColumns = useMemo(() => buildFilterConfigColumns(slug), [slug]);
+	const columnConfigColumns = useMemo(() => buildColumnConfigColumns(slug), [slug]);
+	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
+	const rowValueRendererConfigColumns = useMemo(() => buildRowValueRendererConfigColumns(slug), [slug]);
+	const eligibleDetailsTriggerColumns = useMemo(() => buildEligibleDetailsTriggerColumns(slug), [slug]);
+	const defaultColumnOrder = useMemo(() => buildDefaultColumnOrder(slug), [slug]);
+	const defaultColumnsShown = useMemo(() => buildDefaultColumnsShown(slug), [slug]);
+	const defaultColumnsSort = useMemo(() => buildDefaultColumnsSort(slug), [slug]);
 	const [keyword, setKeyword] = useState("");
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.column-order`, updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.columns-shown`, updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
@@ -154,7 +152,6 @@ export default function Page() {
 				/>
 				<MaskDetailsDrawer
 					slug={slug}
-					maskFields={maskFields}
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
@@ -163,7 +160,6 @@ export default function Page() {
 				/>
 				<MaskHistoryDrawer
 					slug={slug}
-					maskFields={maskFields}
 					open={historyDrawerOpen}
 					onOpenChange={setHistoryDrawerOpen}
 					row={detailsDrawerRow}
@@ -171,7 +167,6 @@ export default function Page() {
 				/>
 				<MaskChangeRequestDrawer
 					slug={slug}
-					maskFields={maskFields}
 					open={changeRequestDrawerOpen}
 					onOpenChange={setChangeRequestDrawerOpen}
 					row={changeRequestDrawerRow}
