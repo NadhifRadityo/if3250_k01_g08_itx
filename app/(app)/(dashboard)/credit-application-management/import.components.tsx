@@ -88,7 +88,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "filesize", type: "number" },
 	{ key: "mimeType", type: "text" },
 	{ key: "description", type: "richText" },
-	{ key: "#status", type: "select", render: defaultStatusRenderer() },
+	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
 	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "credit-application-imports.reviewedBy" }) },
 	{ key: "reviewApproved", type: "boolean" },

@@ -1,6 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const Teams = (): CollectionConfig => ({
@@ -158,82 +157,6 @@ export const Teams = (): CollectionConfig => ({
 			label: "Review Comment",
 			type: "richText",
 			editor: ReviewRichTextEditor()
-		}
-	]
-});
-
-export const defaultTeamAccessMaskId = "d32481da-cd43-4471-9cc9-3097222970f4";
-export const TeamAccesses = () => buildAccesses({
-	collection: "teams",
-	defaultMaskId: defaultTeamAccessMaskId
-});
-export const TeamAccessMasks = () => buildAccessMasks({
-	collection: "teams",
-	maskFields: [
-		{
-			name: "maskCreatedAt",
-			label: "Mask Created At",
-			type: "date"
-		},
-		{
-			name: "maskCreatedBy",
-			label: "Mask Created By",
-			type: "generic"
-		},
-		{
-			name: "maskUpdatedAt",
-			label: "Mask Updated At",
-			type: "date"
-		},
-		{
-			name: "maskUpdatedBy",
-			label: "Mask Updated By",
-			type: "generic"
-		},
-		{
-			name: "maskDeletedAt",
-			label: "Mask Deleted At",
-			type: "date"
-		},
-		{
-			name: "maskDeletedBy",
-			label: "Mask Deleted By",
-			type: "generic"
-		},
-		{
-			name: "maskName",
-			label: "Mask Name",
-			type: "text"
-		},
-		{
-			name: "maskSupervisor",
-			label: "Mask Supervisor",
-			type: "generic"
-		},
-		{
-			name: "maskOfficers",
-			label: "Mask Officers",
-			type: "generic"
-		},
-		{
-			name: "maskReviewedAt",
-			label: "Mask Reviewed At",
-			type: "date"
-		},
-		{
-			name: "maskReviewedBy",
-			label: "Mask Reviewed By",
-			type: "generic"
-		},
-		{
-			name: "maskReviewApproved",
-			label: "Mask Review Approved",
-			type: "generic"
-		},
-		{
-			name: "maskReviewComment",
-			label: "Mask Review Comment",
-			type: "generic"
 		}
 	]
 });

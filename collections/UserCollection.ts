@@ -1,6 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const Users = (): CollectionConfig => ({
@@ -418,92 +417,6 @@ export const StagedUsers = (): CollectionConfig => ({
 			label: "Review Comment",
 			type: "richText",
 			editor: ReviewRichTextEditor()
-		}
-	]
-});
-
-export const defaultUserAccessMaskId = "9d3fb78c-c4c4-480a-98e8-237808eab0f3";
-export const StagedUserAccesses = () => buildAccesses({
-	collection: "staged-users",
-	defaultMaskId: defaultUserAccessMaskId
-});
-export const StagedUserAccessMasks = () => buildAccessMasks({
-	collection: "staged-users",
-	maskFields: [
-		{
-			name: "maskCreatedAt",
-			label: "Mask Created At",
-			type: "date"
-		},
-		{
-			name: "maskCreatedBy",
-			label: "Mask Created By",
-			type: "generic"
-		},
-		{
-			name: "maskUpdatedAt",
-			label: "Mask Updated At",
-			type: "date"
-		},
-		{
-			name: "maskUpdatedBy",
-			label: "Mask Updated By",
-			type: "generic"
-		},
-		{
-			name: "maskDeletedAt",
-			label: "Mask Deleted At",
-			type: "date"
-		},
-		{
-			name: "maskDeletedBy",
-			label: "Mask Deleted By",
-			type: "generic"
-		},
-		{
-			name: "maskEmail",
-			label: "Mask Email",
-			type: "email"
-		},
-		{
-			name: "maskRole",
-			label: "Mask Role",
-			type: "generic"
-		},
-		{
-			name: "maskName",
-			label: "Mask Name",
-			type: "text"
-		},
-		{
-			name: "maskEmployeeId",
-			label: "Mask Employee ID",
-			type: "text"
-		},
-		{
-			name: "maskSupervisor",
-			label: "Mask Supervisor",
-			type: "generic"
-		},
-		{
-			name: "maskReviewedAt",
-			label: "Mask Reviewed At",
-			type: "date"
-		},
-		{
-			name: "maskReviewedBy",
-			label: "Mask Reviewed By",
-			type: "generic"
-		},
-		{
-			name: "maskReviewApproved",
-			label: "Mask Review Approved",
-			type: "generic"
-		},
-		{
-			name: "maskReviewComment",
-			label: "Mask Review Comment",
-			type: "generic"
 		}
 	]
 });

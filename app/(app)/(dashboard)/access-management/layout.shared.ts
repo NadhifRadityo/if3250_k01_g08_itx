@@ -1,38 +1,8 @@
-export const tabMenuKeys = Object.freeze([
-	"user-management",
-	"role-management",
-	"team-management",
-	"credit-application-assignment",
-	"credit-application-management",
-	"survey-management",
-	"survey-result",
-	"satisfaction-survey-management",
-	"login-log",
-	"gps-log",
-	"otp-log",
-	"recording-log"
-] as const);
-
-export const tabMenuLabels = Object.freeze({
-	"user-management": "User",
-	"role-management": "Role",
-	"team-management": "Team",
-	"credit-application-assignment": "Credit Application Assignment",
-	"credit-application-management": "Credit Application",
-	"survey-management": "Survey",
-	"survey-result": "Survey Result",
-	"satisfaction-survey-management": "Satisfaction Survey",
-	"login-log": "Login Log",
-	"gps-log": "GPS Log",
-	"otp-log": "OTP Log",
-	"recording-log": "Recording Log"
-} as const);
-
-const genericMaskOptions = [
+export const genericMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "show", label: "Show" }
-];
-const nameMaskOptions = [
+]);
+export const nameMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirstNameOnly", label: "Show First Name Only" },
 	{ value: "showMiddleNameOnly", label: "Show Middle Name Only" },
@@ -56,8 +26,8 @@ const nameMaskOptions = [
 	{ value: "show2CharactersFirstNameAndLastName", label: "Show 2 Characters of First Name and Last Name" },
 	{ value: "show3CharactersFirstNameAndLastName", label: "Show 3 Characters of First Name and Last Name" },
 	{ value: "show", label: "Show" }
-];
-const emailMaskOptions = [
+]);
+export const emailMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "showUsernameOnly", label: "Show Username Only" },
 	{ value: "showDomainOnly", label: "Show Domain Only" },
@@ -77,8 +47,8 @@ const emailMaskOptions = [
 	{ value: "show2CharactersUsernameAndDomain", label: "Show 2 Characters of Username and Domain" },
 	{ value: "show3CharactersUsernameAndDomain", label: "Show 3 Characters of Username and Domain" },
 	{ value: "show", label: "Show" }
-];
-const textMaskOptions = [
+]);
+export const textMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirst1Character", label: "Show First 1 Character" },
 	{ value: "showFirst2Characters", label: "Show First 2 Characters" },
@@ -105,13 +75,11 @@ const textMaskOptions = [
 	{ value: "showLast5Words", label: "Show Last 5 Words" },
 	{ value: "showFirst10Words", label: "Show First 10 Words" },
 	{ value: "showLast10Words", label: "Show Last 10 Words" },
-	{ value: "showCharacterCountOnly", label: "Show Character Count Only" },
-	{ value: "showWordCountOnly", label: "Show Word Count Only" },
 	{ value: "showFirstSentenceOnly", label: "Show First Sentence Only" },
 	{ value: "showLastSentenceOnly", label: "Show Last Sentence Only" },
 	{ value: "show", label: "Show" }
-];
-const numberMaskOptions = [
+]);
+export const numberMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirst1Digit", label: "Show First 1 Digit" },
 	{ value: "showFirst2Digits", label: "Show First 2 Digits" },
@@ -119,13 +87,9 @@ const numberMaskOptions = [
 	{ value: "showLast1Digit", label: "Show Last 1 Digit" },
 	{ value: "showLast2Digits", label: "Show Last 2 Digits" },
 	{ value: "showLast3Digits", label: "Show Last 3 Digits" },
-	{ value: "showRoundedTens", label: "Show Rounded Tens" },
-	{ value: "showRoundedHundreds", label: "Show Rounded Hundreds" },
-	{ value: "showRoundedThousands", label: "Show Rounded Thousands" },
-	{ value: "showDigitCountOnly", label: "Show Digit Count Only" },
 	{ value: "show", label: "Show" }
-];
-const phoneNumberMaskOptions = [
+]);
+export const phoneNumberMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirst3Digits", label: "Show First 3 Digits" },
 	{ value: "showFirst4Digits", label: "Show First 4 Digits" },
@@ -139,8 +103,8 @@ const phoneNumberMaskOptions = [
 	{ value: "showCountryCodeAndFirst3Digits", label: "Show Country Code and First 3 Digits" },
 	{ value: "showCountryCodeAndFirst4Digits", label: "Show Country Code and First 4 Digits" },
 	{ value: "show", label: "Show" }
-];
-const dateMaskOptions = [
+]);
+export const dateMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "showYearOnly", label: "Show Year Only" },
 	{ value: "showMonthOnly", label: "Show Month Only" },
@@ -149,161 +113,22 @@ const dateMaskOptions = [
 	{ value: "showDayAndMonth", label: "Show Day and Month" },
 	{ value: "showQuarterOnly", label: "Show Quarter Only" },
 	{ value: "showWeekOnly", label: "Show Week Only" },
-	{ value: "showAgeOnly", label: "Show Age Only" },
-	{ value: "showYearsOnly", label: "Show Years Only" },
 	{ value: "show", label: "Show" }
-];
-export const maskOptions = Object.freeze({
-	generic: genericMaskOptions,
-	name: nameMaskOptions,
-	email: emailMaskOptions,
-	text: textMaskOptions,
-	number: numberMaskOptions,
-	phoneNumber: phoneNumberMaskOptions,
-	date: dateMaskOptions
-});
+]);
 
-export type MaskFields = [string, string, "generic" | "name" | "email" | "text" | "number" | "phoneNumber" | "date"][];
-export const menuMaskFields = Object.freeze({
-	"user-management": [
-		["maskEmail", "Mask Email", "email"],
-		["maskRole", "Mask Role", "generic"],
-		["maskName", "Mask Name", "text"],
-		["maskEmployeeId", "Mask Employee ID", "text"],
-		["maskSupervisor", "Mask Supervisor", "generic"]
-	] as MaskFields,
-	"role-management": [
-		["maskName", "Mask Name", "text"],
-		["maskLevel", "Mask Level", "generic"],
-		["maskMenus", "Mask Menus", "generic"]
-	] as MaskFields,
-	"team-management": [
-		["maskName", "Mask Name", "text"],
-		["maskSupervisor", "Mask Supervisor", "generic"],
-		["maskOfficers", "Mask Officers", "generic"]
-	] as MaskFields,
-	"credit-application-assignment": [
-		["maskCreditApplication", "Mask Credit Application", "generic"],
-		["maskOfficer", "Mask Officer", "generic"]
-	] as MaskFields,
-	"credit-application-management": [
-		["maskImport", "Mask Import", "generic"],
-		["maskName", "Mask Name", "name"],
-		["maskEmail", "Mask Email", "email"],
-		["maskAddresses", "Mask Addresses", "text"],
-		["maskPhoneNumbers", "Mask Phone Numbers", "phoneNumber"],
-		["maskWhatsappNumber", "Mask Whatsapp Number", "phoneNumber"],
-		["maskSmsNumber", "Mask SMS Number", "phoneNumber"],
-		["maskCollateralRegistryName", "Mask Collateral Registry Name", "text"],
-		["maskCollateralName", "Mask Collateral Name", "text"],
-		["maskCollateralDescription", "Mask Collateral Description", "generic"],
-		["maskAssetId", "Mask Asset Id", "text"],
-		["maskAssetName", "Mask Asset Name", "text"],
-		["maskAssetDescription", "Mask Asset Description", "generic"],
-		["maskPeriod", "Mask Period", "number"],
-		["maskInstallment", "Mask Installment", "number"],
-		["maskDownPayment", "Mask Down Payment", "number"],
-		["maskPlafond", "Mask Plafond", "number"],
-		["maskVendor", "Mask Vendor", "text"],
-		["maskRemarks", "Mask Remarks", "generic"],
-		["maskOtherText1", "Mask Other Text 1", "text"],
-		["maskOtherText2", "Mask Other Text 2", "text"],
-		["maskOtherNumber1", "Mask Other Number 1", "number"],
-		["maskOtherNumber2", "Mask Other Number 2", "number"],
-		["maskOtherDate1", "Mask Other Date 1", "date"],
-		["maskOtherDate2", "Mask Other Date 2", "date"],
-		["maskOthers", "Mask Others", "generic"]
-	] as MaskFields,
-	"survey-management": [
-		["maskTitle", "Mask Title", "text"],
-		["maskDescription", "Mask Description", "generic"],
-		["maskContent", "Mask Content", "generic"]
-	] as MaskFields,
-	"survey-result": [
-		["maskSurvey", "Mask Survey", "generic"],
-		["maskSurveyVersion", "Mask Survey Version", "generic"],
-		["maskCreditApplication", "Mask Credit Application", "generic"],
-		["maskOfficer", "Mask Officer", "generic"],
-		["maskAnswers", "Mask Answers", "generic"]
-	] as MaskFields,
-	"satisfaction-survey-management": [
-		["maskTitle", "Mask Title", "text"],
-		["maskDescription", "Mask Description", "generic"],
-		["maskContent", "Mask Content", "generic"]
-	] as MaskFields,
-	"login-log": [
-		["maskIpAddress", "Mask IP Address", "text"],
-		["maskUser", "Mask User", "generic"],
-		["maskEvent", "Mask Event", "generic"],
-		["maskOutcome", "Mask Outcome", "generic"]
-	] as MaskFields,
-	"gps-log": [
-		["maskOfficer", "Mask Officer", "generic"],
-		["maskSessionId", "Mask Session Id", "text"],
-		["maskCreditApplication", "Mask Credit Application", "generic"],
-		["maskLatitude", "Mask Latitude", "number"],
-		["maskLongitude", "Mask Longitude", "number"]
-	] as MaskFields,
-	"otp-log": [
-		["maskCreditApplication", "Mask Credit Application", "generic"],
-		["maskContent", "Mask Content", "text"],
-		["maskEmail", "Mask Email", "email"],
-		["maskWhatsappNumber", "Mask WhatsApp Number", "phoneNumber"],
-		["maskSmsNumber", "Mask SMS Number", "phoneNumber"],
-		["maskEmailDeliveryStatus", "Mask Email Delivery Status", "generic"],
-		["maskWhatsappDeliveryStatus", "Mask WhatsApp Delivery Status", "generic"],
-		["maskSmsDeliveryStatus", "Mask SMS Delivery Status", "generic"]
-	] as MaskFields,
-	"recording-log": [
-		["maskCreditApplication", "Mask Credit Application", "generic"],
-		["maskOfficer", "Mask Officer", "generic"],
-		["maskPhoneNumber", "Mask Phone Number", "phoneNumber"],
-		["maskAudioFile", "Mask Audio File", "generic"],
-		["maskTranscription", "Mask Transcription", "generic"]
-	] as MaskFields
-});
-
-export const slugCollectionMap = Object.freeze({
-	"user-management": "staged-users",
-	"role-management": "roles",
-	"team-management": "teams",
-	"credit-application-assignment": "credit-application-assignments",
-	"credit-application-management": "credit-applications",
-	"survey-management": "surveys",
-	"survey-result": "survey-results",
-	"satisfaction-survey-management": "satsifaction-surveys",
-	"login-log": "login-logs",
-	"gps-log": "gps-logs",
-	"otp-log": "otp-logs",
-	"recording-log": "recording-logs"
-});
-
-export const slugAccessCollectionMap = Object.freeze({
-	"user-management": "staged-users-accesses",
-	"role-management": "roles-accesses",
-	"team-management": "teams-accesses",
-	"credit-application-assignment": "credit-application-assignments-accesses",
-	"credit-application-management": "credit-applications-accesses",
-	"survey-management": "surveys-accesses",
-	"survey-result": "survey-results-accesses",
-	"satisfaction-survey-management": "satsifaction-surveys-accesses",
-	"login-log": "login-logs-accesses",
-	"gps-log": "gps-logs-accesses",
-	"otp-log": "otp-logs-accesses",
-	"recording-log": "recording-logs-accesses"
-});
-
-export const slugAccessMaskCollectionMap = Object.freeze({
-	"user-management": "staged-users-access-masks",
-	"role-management": "roles-access-masks",
-	"team-management": "teams-access-masks",
-	"credit-application-assignment": "credit-application-assignments-access-masks",
-	"credit-application-management": "credit-applications-access-masks",
-	"survey-management": "surveys-access-masks",
-	"survey-result": "survey-results-access-masks",
-	"satisfaction-survey-management": "satsifaction-surveys-access-masks",
-	"login-log": "login-logs-access-masks",
-	"gps-log": "gps-logs-access-masks",
-	"otp-log": "otp-logs-access-masks",
-	"recording-log": "recording-logs-access-masks"
-});
+export const collectionSelectOptions = Object.freeze([
+	{ value: "staged-users", label: "Users" },
+	{ value: "roles", label: "Roles" },
+	{ value: "teams", label: "Teams" },
+	{ value: "accesses", label: "Accesses" },
+	{ value: "credit-applications", label: "Credit Applications" },
+	{ value: "credit-application-imports", label: "Credit Application Imports" },
+	{ value: "credit-application-assignments", label: "Credit Application Assignments" },
+	{ value: "surveys", label: "Surveys" },
+	{ value: "survey-results", label: "Survey Results" },
+	{ value: "satisfaction-surveys", label: "Satisfaction Surveys" },
+	{ value: "login-logs", label: "Login Logs" },
+	{ value: "gps-logs", label: "GPS Logs" },
+	{ value: "otp-logs", label: "OTP Logs" },
+	{ value: "recording-logs", label: "Recording Logs" }
+]);

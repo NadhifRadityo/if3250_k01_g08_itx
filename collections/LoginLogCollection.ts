@@ -1,7 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, buildAccessMasks } from "./AccessCollection";
-
 export const LoginLogs = (): CollectionConfig => ({
 	slug: "login-logs",
 	labels: {
@@ -68,42 +66,6 @@ export const LoginLogs = (): CollectionConfig => ({
 				{ value: "success", label: "Success" },
 				{ value: "failure", label: "Failure" }
 			]
-		}
-	]
-});
-
-export const defaultLoginLogAccessMaskId = "e95dde24-a1cc-4c50-86f2-46069b2b5c26";
-export const LoginLogAccesses = () => buildAccesses({
-	collection: "login-logs",
-	defaultMaskId: defaultLoginLogAccessMaskId
-});
-export const LoginLogAccessMasks = () => buildAccessMasks({
-	collection: "login-logs",
-	maskFields: [
-		{
-			name: "maskCreatedAt",
-			label: "Mask Created At",
-			type: "date"
-		},
-		{
-			name: "maskIpAddress",
-			label: "Mask IP Address",
-			type: "text"
-		},
-		{
-			name: "maskUser",
-			label: "Mask User",
-			type: "generic"
-		},
-		{
-			name: "maskEvent",
-			label: "Mask Event",
-			type: "generic"
-		},
-		{
-			name: "maskOutcome",
-			label: "Mask Outcome",
-			type: "generic"
 		}
 	]
 });

@@ -12,7 +12,7 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 
 import { useDashboardContext } from "./layout.components";
 import { RelationSummary, getRelationSummaryAction } from "./relation-navigation.actions";
-import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationOtpLog, RelationSurvey, RelationLoginLog, RelationAccessMask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
+import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationOtpLog, RelationSurvey, RelationLoginLog, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
 type PendingRelationRedirectData = {
 	relationType: string;
@@ -221,8 +221,8 @@ const relationToMenuMap = {
 	// "": "officer-task",
 	// "": "officer-tracking",
 	"login-logs": "login-log",
-	"otp-logs": "otp-log",
 	"gps-logs": "gps-log",
+	"otp-logs": "otp-log",
 	"recording-logs": "recording-log"
 };
 function useRelationNavigationRedirect() {
@@ -482,6 +482,52 @@ export const defaultRelationTeamsRenderer = ({ description, relationSource }: { 
 					{i != teamIds.length - 1 ? ", " : ""}
 				</React.Fragment>
 			))(context?.relationValues?.[`teams:${teamId}`]))}
+		</RelationNavigationLink>
+	);
+export const defaultRelationAccessRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(accessId: string | null, row: { id: string }, context: { relationValues?: Record<`accesses:${string}`, RelationAccess> }) => accessId == null ? "-" : (accessRelation => (
+		<RelationNavigationLink
+			relationType="accesses"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			relationId={accessId}
+			fallback={{
+				title: accessRelation?.name ?? (<>Access <span className="font-mono">{accessId}</span></>),
+				description: description,
+				fields: [
+					{ label: "Id", value: (<span className="font-mono">{accessId}</span>) },
+					...(accessRelation != null ? [{ label: "Name", value: accessRelation.name }] : [])
+				]
+			}}
+		>
+			{accessRelation?.name ?? (<>Access <span className="font-mono">{accessId}</span></>)}
+		</RelationNavigationLink>
+	))(context?.relationValues?.[`accesses:${accessId}`]);
+export const defaultRelationAccessesRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(accessIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`accesses:${string}`, RelationAccess> }) => accessIds == null || accessIds.length == 0 ? "-" : (
+		<RelationNavigationLink
+			relationType="accesses"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			pickerTitle="Select accesses"
+			pickerDescription={description}
+			relationChoices={accessIds.map(accessId => (accessRelation => ({
+				id: accessId,
+				name: accessRelation?.name ?? (<>Access <span className="font-mono">{accessId}</span></>),
+				fallback: {
+					title: accessRelation?.name ?? (<>Access <span className="font-mono">{accessId}</span></>),
+					description: description,
+					fields: [
+						{ label: "Id", value: (<span className="font-mono">{accessId}</span>) },
+						...(accessRelation != null ? [{ label: "Name", value: accessRelation.name }] : [])
+					]
+				}
+			}))(context?.relationValues?.[`accesses:${accessId}`]))}
+		>
+			{accessIds.map((accessId, i) => (accessRelation => (
+				<React.Fragment key={accessId}>
+					{accessRelation?.name ?? (<>Access <span className="font-mono">{accessId}</span></>)}
+					{i != accessIds.length - 1 ? ", " : ""}
+				</React.Fragment>
+			))(context?.relationValues?.[`accesses:${accessId}`]))}
 		</RelationNavigationLink>
 	);
 export const defaultRelationCreditApplicationRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
@@ -1050,38 +1096,4 @@ export const defaultRelationRecordingLogTranscriptionsRenderer = ({ description,
 				</React.Fragment>
 			))(context?.relationValues?.[`recording-log-transcriptions:${transcriptionId}`]))}
 		</RelationNavigationLink>
-	);
-export const defaultRelationAccessRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(accessId: string | null, row: { id: string }, context: { relationValues?: Record<`accesses:${string}`, RelationAccess> }) => accessId == null ? "-" : (accessRelation => (
-		<span className="font-mono text-xs">
-			{accessRelation?.name ?? accessId}
-		</span>
-	))(context?.relationValues?.[`accesses:${accessId}`]);
-export const defaultRelationAccessesRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(accessIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`accesses:${string}`, RelationAccess> }) => accessIds == null || accessIds.length == 0 ? "-" : (
-		<span>
-			{accessIds.map((accessId, i) => (accessRelation => (
-				<React.Fragment key={accessId}>
-					<span className="font-mono text-xs">{accessRelation?.name ?? accessId}</span>
-					{i != accessIds.length - 1 ? ", " : ""}
-				</React.Fragment>
-			))(context?.relationValues?.[`accesses:${accessId}`]))}
-		</span>
-	);
-export const defaultRelationAccessMaskRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(accessMaskId: string | null, row: { id: string }, context: { relationValues?: Record<`access-masks:${string}`, RelationAccessMask> }) => accessMaskId == null ? "-" : (accessMaskRelation => (
-		<span className="font-mono text-xs">
-			{accessMaskRelation?.name ?? accessMaskId}
-		</span>
-	))(context?.relationValues?.[`access-masks:${accessMaskId}`]);
-export const defaultRelationAccessMasksRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(accessMaskIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`access-masks:${string}`, RelationAccessMask> }) => accessMaskIds == null || accessMaskIds.length == 0 ? "-" : (
-		<span>
-			{accessMaskIds.map((accessMaskId, i) => (accessMaskRelation => (
-				<React.Fragment key={accessMaskId}>
-					<span className="font-mono text-xs">{accessMaskRelation?.name ?? accessMaskId}</span>
-					{i != accessMaskIds.length - 1 ? ", " : ""}
-				</React.Fragment>
-			))(context?.relationValues?.[`access-masks:${accessMaskId}`]))}
-		</span>
 	);

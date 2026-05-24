@@ -1,48 +1,37 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Switch } from "@/components/radix/Switch";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../../layout.components";
-import { RelationNavigationProvider } from "../../../relation-navigation.components";
-import { queryMaskViewerAction } from "../mask.actions";
-import { MaskColumnData, MaskDetailsDrawer, MaskHistoryDrawer, buildDefaultColumnOrder, buildDefaultColumnsSort, buildTableConfigColumns, MaskChangeRequestDrawer, buildColumnConfigColumns, buildDefaultColumnsShown, buildFilterConfigColumns, buildEligibleDetailsTriggerColumns, buildRowValueRendererConfigColumns } from "../mask.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
+import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { queryViewerAction } from "../layout.actions";
+import { ColumnData, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 export default function Page() {
-	const { slug } = useParams<{ slug: string }>();
 	const { user } = useDashboardContext();
-	const filterConfigColumns = useMemo(() => buildFilterConfigColumns(slug), [slug]);
-	const columnConfigColumns = useMemo(() => buildColumnConfigColumns(slug), [slug]);
-	const tableConfigColumns = useMemo(() => buildTableConfigColumns(slug), [slug]);
-	const rowValueRendererConfigColumns = useMemo(() => buildRowValueRendererConfigColumns(slug), [slug]);
-	const eligibleDetailsTriggerColumns = useMemo(() => buildEligibleDetailsTriggerColumns(slug), [slug]);
-	const defaultColumnOrder = useMemo(() => buildDefaultColumnOrder(slug), [slug]);
-	const defaultColumnsShown = useMemo(() => buildDefaultColumnsShown(slug), [slug]);
-	const defaultColumnsSort = useMemo(() => buildDefaultColumnsSort(slug), [slug]);
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.column-order`, updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.columns-shown`, updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "access-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "access-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.filters`, updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "access-management.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.include-deleted`, updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: `access-management.${slug}.mask.columns-sort`, updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "access-management.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "access-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["access-management", slug, "mask-viewer", {
+		queryKey: ["access-management", "viewer", {
 			keyword,
 			filters,
 			columnsSort,
 			includeDeleted,
 			pageIndex
 		}],
-		queryFn: async () => await queryMaskViewerAction({
-			slug: slug,
+		queryFn: async () => await queryViewerAction({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -50,10 +39,10 @@ export default function Page() {
 			pageIndex: pageIndex
 		})
 	});
-	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as MaskColumnData | null);
+	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
 	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
 	const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
-	const [changeRequestDrawerRow, setChangeRequestDrawerRow] = useState(null as MaskColumnData | null);
+	const [changeRequestDrawerRow, setChangeRequestDrawerRow] = useState(null as ColumnData | null);
 	const [changeRequestDrawerOpen, setChangeRequestDrawerOpen] = useState(false);
 	const rowValueRendererContext = {
 		relationValues: query.data?.relations,
@@ -77,25 +66,25 @@ export default function Page() {
 
 	return (
 		<MenuPage
-			title="Access Management — Masks"
-			description="View approved and draft mask requests without edit or review actions."
+			title="Access Management"
+			description="View access requests across draft, approved, rejected, and deleted states."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar
 					keyword={keyword}
 					onKeywordChange={setKeyword}
-					searchPlaceholder="Search masks by name"
+					searchPlaceholder="Search accesses by title or ID"
 					filterCount={filters.length}
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
-					rightSlot={user.roleMenus.includes("access-management#mask-auditor") ? (
+					rightSlot={user.roleMenus.includes("access-management#auditor") ? (
 						<div className="flex items-center gap-2">
-							<label htmlFor="access-management-mask-viewer-show-deleted" className="text-sm">
+							<label htmlFor="access-management-viewer-show-deleted" className="text-sm">
 								Show Deleted
 							</label>
 							<Switch
-								id="access-management-mask-viewer-show-deleted"
+								id="access-management-viewer-show-deleted"
 								checked={includeDeleted}
 								onCheckedChange={setIncludeDeleted}
 								disabled={query.isLoading}
@@ -150,23 +139,20 @@ export default function Page() {
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
-				<MaskDetailsDrawer
-					slug={slug}
+				<DetailsDrawer
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
 					onOpenHistory={() => setHistoryDrawerOpen(true)}
 				/>
-				<MaskHistoryDrawer
-					slug={slug}
+				<HistoryDrawer
 					open={historyDrawerOpen}
 					onOpenChange={setHistoryDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
 				/>
-				<MaskChangeRequestDrawer
-					slug={slug}
+				<ChangeRequestDrawer
 					open={changeRequestDrawerOpen}
 					onOpenChange={setChangeRequestDrawerOpen}
 					row={changeRequestDrawerRow}

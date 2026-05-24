@@ -24,7 +24,7 @@ import { defaultRelationUserRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
 const defaultSurveyContentRenderer = ({ buttonLabel, dialogTitle }: { buttonLabel: string, dialogTitle: string }) =>
-	(value: unknown) => value == null ? "-" : (
+	(value: unknown) => (
 		<SurveyContentEditorDialog buttonLabel={buttonLabel} dialogTitle={dialogTitle} disabled value={value} />
 	);
 
@@ -38,8 +38,6 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationSearch: searchRelationUsersAction },
 	{ key: "title", label: "Title", type: "text" },
-	{ key: "description", label: "Description", type: "text" },
-	{ key: "content", label: "Content", type: "text" },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
@@ -90,9 +88,9 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "surveys.deletedBy" }) },
 	{ key: "title", type: "text" },
 	{ key: "description", type: "richText" },
-	{ key: "content", type: "text", render: defaultSurveyContentRenderer({ buttonLabel: "View content", dialogTitle: "Survey Content" }) },
-	{ key: "#changeRequest", type: "select", render: defaultChangeRequestRenderer() },
-	{ key: "#status", type: "select", render: defaultStatusRenderer() },
+	{ key: "content", type: "null", render: defaultSurveyContentRenderer({ buttonLabel: "View content", dialogTitle: "Survey Content" }) },
+	{ key: "#changeRequest", type: "null", render: defaultChangeRequestRenderer() },
+	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
 	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "surveys.reviewedBy" }) },
 	{ key: "reviewApproved", type: "boolean" },
@@ -526,7 +524,6 @@ export type FormState = {
 	description?: SerializedEditorState | null;
 	content?: any;
 };
-
 export function toFormState(data: Survey) {
 	return {
 		id: data.id,
@@ -535,7 +532,6 @@ export function toFormState(data: Survey) {
 		content: data.content
 	} as FormState;
 }
-
 export function FormDrawer(
 	{ open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating = false }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: FormState, onFormStateChange: (v: FormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
@@ -550,7 +546,7 @@ export function FormDrawer(
 				<div className="flex-1 overflow-y-auto px-4">
 					<div className="grid gap-3 pb-4 sm:grid-cols-2">
 						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Survey Title</label>
+							<label className="text-sm font-medium">Title</label>
 							<Input value={formState.title ?? ""} onChange={event => onFormStateChange({ ...formState, title: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
@@ -563,7 +559,7 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">
-								<label className="text-sm font-medium">Content JSON</label>
+								<label className="text-sm font-medium">Content</label>
 								<Badge variant="outline">Required</Badge>
 							</div>
 							<SurveyContentEditorDialog

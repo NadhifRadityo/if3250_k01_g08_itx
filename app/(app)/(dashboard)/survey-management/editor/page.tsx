@@ -269,9 +269,9 @@ export default function Page() {
 					mutationError={editFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
 						if(editFormDrawerState.title == null || editFormDrawerState.title.trim().length == 0)
-							return setEditFormMutationError({ name: "ValidationError", message: "Survey title is required." });
+							return setEditFormMutationError({ name: "ValidationError", message: "Title is required." });
 						if(editFormDrawerState.content == null)
-							return setEditFormMutationError({ name: "ValidationError", message: "Content JSON is required." });
+							return setEditFormMutationError({ name: "ValidationError", message: "Content is required." });
 						setEditFormMutationError(null);
 						try {
 							await requestUpsertAction(editFormDrawerState);
@@ -293,9 +293,9 @@ export default function Page() {
 					mutationError={addFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
 						if(addFormDrawerState.title == null || addFormDrawerState.title.trim().length == 0)
-							return setAddFormMutationError({ name: "ValidationError", message: "Survey title is required." });
+							return setAddFormMutationError({ name: "ValidationError", message: "Title is required." });
 						if(addFormDrawerState.content == null)
-							return setAddFormMutationError({ name: "ValidationError", message: "Content JSON is required." });
+							return setAddFormMutationError({ name: "ValidationError", message: "Content is required." });
 						setAddFormMutationError(null);
 						try {
 							await requestUpsertAction(addFormDrawerState);

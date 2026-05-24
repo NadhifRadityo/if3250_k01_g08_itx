@@ -1,6 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const Roles = (): CollectionConfig => ({
@@ -173,6 +172,8 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "survey-management#auditor", label: "Survey Management - Auditor" },
 				{ value: "survey-management#editor", label: "Survey Management - Editor" },
 				{ value: "survey-management#approver", label: "Survey Management - Approver" },
+				{ value: "survey-result#monitoring", label: "Survey Result - Monitoring" },
+				{ value: "survey-result#reporting", label: "Survey Result - Reporting" },
 				{ value: "satisfaction-survey-management#viewer", label: "Satisfaction Survey Management - Viewer" },
 				{ value: "satisfaction-survey-management#auditor", label: "Satisfaction Survey Management - Auditor" },
 				{ value: "satisfaction-survey-management#editor", label: "Satisfaction Survey Management - Editor" },
@@ -181,8 +182,6 @@ export const Roles = (): CollectionConfig => ({
 				{ value: "officer-task#reporting", label: "Officer Task - Reporting" },
 				{ value: "officer-tracking#monitoring", label: "Officer Tracking - Monitoring" },
 				{ value: "officer-tracking#reporting", label: "Officer Tracking - Reporting" },
-				{ value: "survey-result#monitoring", label: "Survey Result - Monitoring" },
-				{ value: "survey-result#reporting", label: "Survey Result - Reporting" },
 				{ value: "login-log#monitoring", label: "Login Log - Monitoring" },
 				{ value: "login-log#reporting", label: "Login Log - Reporting" },
 				{ value: "otp-log#monitoring", label: "OTP Log - Monitoring" },
@@ -217,82 +216,6 @@ export const Roles = (): CollectionConfig => ({
 			label: "Review Comment",
 			type: "richText",
 			editor: ReviewRichTextEditor()
-		}
-	]
-});
-
-export const defaultRoleAccessMaskId = "3ecec5b6-ef96-4ba5-8ac5-51533336085a";
-export const RoleAccesses = () => buildAccesses({
-	collection: "roles",
-	defaultMaskId: defaultRoleAccessMaskId
-});
-export const RoleAccessMasks = () => buildAccessMasks({
-	collection: "roles",
-	maskFields: [
-		{
-			name: "maskCreatedAt",
-			label: "Mask Created At",
-			type: "date"
-		},
-		{
-			name: "maskCreatedBy",
-			label: "Mask Created By",
-			type: "generic"
-		},
-		{
-			name: "maskUpdatedAt",
-			label: "Mask Updated At",
-			type: "date"
-		},
-		{
-			name: "maskUpdatedBy",
-			label: "Mask Updated By",
-			type: "generic"
-		},
-		{
-			name: "maskDeletedAt",
-			label: "Mask Deleted At",
-			type: "date"
-		},
-		{
-			name: "maskDeletedBy",
-			label: "Mask Deleted By",
-			type: "generic"
-		},
-		{
-			name: "maskName",
-			label: "Mask Name",
-			type: "text"
-		},
-		{
-			name: "maskLevel",
-			label: "Mask Level",
-			type: "generic"
-		},
-		{
-			name: "maskMenus",
-			label: "Mask Menus",
-			type: "generic"
-		},
-		{
-			name: "maskReviewedAt",
-			label: "Mask Reviewed At",
-			type: "date"
-		},
-		{
-			name: "maskReviewedBy",
-			label: "Mask Reviewed By",
-			type: "generic"
-		},
-		{
-			name: "maskReviewApproved",
-			label: "Mask Review Approved",
-			type: "generic"
-		},
-		{
-			name: "maskReviewComment",
-			label: "Mask Review Comment",
-			type: "generic"
 		}
 	]
 });

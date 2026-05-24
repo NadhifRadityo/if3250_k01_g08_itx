@@ -3,22 +3,23 @@ import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig, databaseKVAdapter } from "payload";
 import sharp from "sharp";
 
-import { CreditApplicationAssignments, CreditApplicationAssignmentAccesses, CreditApplicationAssignmentAccessMasks } from "./collections/CreditApplicationAssignmentCollection";
-import { CreditApplications, CreditApplicationImports, CreditApplicationAccesses, CreditApplicationAccessMasks, CreditApplicationImportAccesses, CreditApplicationImportAccessMasks } from "./collections/CreditApplicationCollection";
+import { Accesses } from "./collections/AccessCollection";
+import { CreditApplicationAssignments } from "./collections/CreditApplicationAssignmentCollection";
+import { CreditApplications, CreditApplicationImports } from "./collections/CreditApplicationCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { GenericRichtextUploads } from "./collections/GenericCollection";
-import { GpsLogs, GpsLogAccesses, GpsLogAccessMasks } from "./collections/GpsLogCollection";
-import { LoginLogs, LoginLogAccesses, LoginLogAccessMasks } from "./collections/LoginLogCollection";
-import { OtpLogs, OtpLogAccesses, OtpLogAccessMasks } from "./collections/OtpLogCollection";
-import { RecordingLogs, RecordingLogAudioFiles, RecordingLogTranscriptions, RecordingLogAccesses, RecordingLogAccessMasks } from "./collections/RecordingLogCollection";
-import { Roles, RoleAccesses, RoleAccessMasks } from "./collections/RoleCollection";
-import { SatisfactionSurveys, SatisfactionSurveyAccesses, SatisfactionSurveyAccessMasks } from "./collections/SatisfactionSurveyCollection";
+import { GpsLogs } from "./collections/GpsLogCollection";
+import { LoginLogs } from "./collections/LoginLogCollection";
+import { OtpLogs } from "./collections/OtpLogCollection";
+import { RecordingLogs, RecordingLogAudioFiles, RecordingLogTranscriptions } from "./collections/RecordingLogCollection";
+import { Roles } from "./collections/RoleCollection";
+import { SatisfactionSurveys } from "./collections/SatisfactionSurveyCollection";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
-import { Surveys, SurveyAccesses, SurveyAccessMasks } from "./collections/SurveyCollection";
-import { SurveyResults, SurveyResultAccesses, SurveyResultAccessMasks } from "./collections/SurveyResultCollection";
-import { Teams, TeamAccesses, TeamAccessMasks } from "./collections/TeamCollection";
-import { Users, StagedUsers, StagedUserAccesses, StagedUserAccessMasks } from "./collections/UserCollection";
+import { Surveys } from "./collections/SurveyCollection";
+import { SurveyResults } from "./collections/SurveyResultCollection";
+import { Teams } from "./collections/TeamCollection";
+import { Users, StagedUsers } from "./collections/UserCollection";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
 
 export default buildConfig({
@@ -37,44 +38,19 @@ export default buildConfig({
 		GenericRichtextUploads(),
 		Users(),
 		StagedUsers(),
-		StagedUserAccesses(),
-		StagedUserAccessMasks(),
 		Roles(),
-		RoleAccesses(),
-		RoleAccessMasks(),
 		Teams(),
-		TeamAccesses(),
-		TeamAccessMasks(),
-		CreditApplicationAssignments(),
-		CreditApplicationAssignmentAccesses(),
-		CreditApplicationAssignmentAccessMasks(),
-		CreditApplicationImports(),
-		CreditApplicationImportAccesses(),
-		CreditApplicationImportAccessMasks(),
+		Accesses(),
 		CreditApplications(),
-		CreditApplicationAccesses(),
-		CreditApplicationAccessMasks(),
+		CreditApplicationImports(),
+		CreditApplicationAssignments(),
 		Surveys(),
-		SurveyAccesses(),
-		SurveyAccessMasks(),
 		SurveyResults(),
-		SurveyResultAccesses(),
-		SurveyResultAccessMasks(),
 		SatisfactionSurveys(),
-		SatisfactionSurveyAccesses(),
-		SatisfactionSurveyAccessMasks(),
 		LoginLogs(),
-		LoginLogAccesses(),
-		LoginLogAccessMasks(),
 		GpsLogs(),
-		GpsLogAccesses(),
-		GpsLogAccessMasks(),
 		OtpLogs(),
-		OtpLogAccesses(),
-		OtpLogAccessMasks(),
 		RecordingLogs(),
-		RecordingLogAccesses(),
-		RecordingLogAccessMasks(),
 		RecordingLogAudioFiles(),
 		RecordingLogTranscriptions()
 	],

@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useParams } from "next/navigation";
+import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { XIcon, PlusIcon, PencilIcon, Trash2Icon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
@@ -9,101 +8,92 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../../layout.components";
-import { RelationNavigationProvider } from "../../../relation-navigation.components";
-import { queryMaskEditorAction, cancelMaskRequestAction, requestMaskDeleteAction, requestMaskUpsertAction, requestMaskRestoreAction } from "../mask.actions";
-import { MaskColumnData, MaskFormDrawer, toMaskFormState, MaskDeleteDialog, MaskDetailsDrawer, MaskHistoryDrawer, buildDefaultColumnOrder, buildDefaultColumnsSort, buildTableConfigColumns, MaskChangeRequestDrawer, buildColumnConfigColumns, buildDefaultColumnsShown, buildFilterConfigColumns, MaskRevertApprovedDialog, MaskRestoreDeletionDialog, MaskCancelPendingRequestDialog, buildEligibleDetailsTriggerColumns, buildRowValueRendererConfigColumns, type MaskFormState } from "../mask.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
+import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { queryEditorAction, cancelRequestAction, requestDeleteAction, requestUpsertAction, requestRestoreAction } from "../layout.actions";
+import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, RevertApprovedDialog, RestoreDeletionDialog, CancelPendingRequestDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../layout.components";
+
+const columnConfigColumnsWithActions = Object.freeze([
+	...columnConfigColumns,
+	{ key: "#actions", label: "Actions" }
+]);
+const tableConfigColumnsWithActions = Object.freeze([
+	...tableConfigColumns,
+	{ key: "#actions", label: "Actions", sortable: false, className: "flex flex-wrap gap-2" }
+]);
+const rowValueRendererConfigColumnsWithActions = Object.freeze([
+	...rowValueRendererConfigColumns,
+	{ key: "#actions", type: "null", render: (_, row, { isMutating, setEditFormDrawerState, setEditFormDrawerOpen, setDeleteTargetRow, setCancelPendingRequestTargetRow, setRevertApprovedTargetRow, setRestoreDeletionTargetRow }) => (
+		<>
+			{row.deletedAt == null ? (
+				<>
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onClick={() => { setEditFormDrawerState!(toFormState(row)); setEditFormDrawerOpen!(true); }}
+						disabled={isMutating}
+					>
+						<PencilIcon />
+						Edit
+					</Button>
+					<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTargetRow!(row)} disabled={isMutating}>
+						<Trash2Icon />
+						Delete
+					</Button>
+				</>
+			) : null}
+			{row.deletedAt == null && row.reviewedAt == null ? (
+				<Button type="button" size="sm" variant="secondary" onClick={() => setCancelPendingRequestTargetRow!(row)} disabled={isMutating}>
+					<XIcon />
+					Cancel
+				</Button>
+			) : null}
+			{row.deletedAt == null && row.reviewedAt != null && row.reviewApproved == false ? (
+				<Button type="button" size="sm" variant="secondary" onClick={() => setRevertApprovedTargetRow!(row)} disabled={isMutating}>
+					<HistoryIcon />
+					Revert Approved
+				</Button>
+			) : null}
+			{row.deletedAt != null ? (
+				<Button type="button" size="sm" variant="outline" onClick={() => setRestoreDeletionTargetRow!(row)} disabled={isMutating}>
+					<PlusIcon />
+					Restore
+				</Button>
+			) : null}
+		</>
+	) } satisfies (typeof rowValueRendererConfigColumns)[number]
+]);
+const defaultColumnOrderWithActions = Object.freeze([
+	...defaultColumnOrder,
+	"#actions"
+]) as string[];
+const defaultColumnsShownWithActions = Object.freeze([
+	...defaultColumnsShown,
+	"#actions"
+]) as string[];
 
 export default function Page() {
-	const { slug } = useParams<{ slug: string }>();
 	const queryClient = useQueryClient();
 	const { user } = useDashboardContext();
-	const filterConfigColumns = useMemo(() => buildFilterConfigColumns(slug), [slug]);
-	const columnConfigColumnsBase = useMemo(() => buildColumnConfigColumns(slug), [slug]);
-	const tableConfigColumnsBase = useMemo(() => buildTableConfigColumns(slug), [slug]);
-	const rowValueRendererConfigColumnsBase = useMemo(() => buildRowValueRendererConfigColumns(slug), [slug]);
-	const eligibleDetailsTriggerColumns = useMemo(() => buildEligibleDetailsTriggerColumns(slug), [slug]);
-	const defaultColumnOrderBase = useMemo(() => buildDefaultColumnOrder(slug), [slug]);
-	const defaultColumnsShownBase = useMemo(() => buildDefaultColumnsShown(slug), [slug]);
-	const defaultColumnsSort = useMemo(() => buildDefaultColumnsSort(slug), [slug]);
-	const columnConfigColumnsWithActions = useMemo(() => Object.freeze([
-		...columnConfigColumnsBase,
-		{ key: "#actions", label: "Actions" }
-	]), [columnConfigColumnsBase]);
-	const tableConfigColumnsWithActions = useMemo(() => Object.freeze([
-		...tableConfigColumnsBase,
-		{ key: "#actions", label: "Actions", sortable: false, className: "flex flex-wrap gap-2" }
-	]), [tableConfigColumnsBase]);
-	const rowValueRendererConfigColumnsWithActions = useMemo(() => Object.freeze([
-		...rowValueRendererConfigColumnsBase,
-		{ key: "#actions", type: "null", render: (_, row, { isMutating, setEditFormDrawerState, setEditFormDrawerOpen, setDeleteTargetRow, setCancelPendingRequestTargetRow, setRevertApprovedTargetRow, setRestoreDeletionTargetRow }) => (
-			<>
-				{row.deletedAt == null ? (
-					<>
-						<Button
-							type="button"
-							size="sm"
-							variant="outline"
-							onClick={() => { setEditFormDrawerState!(toMaskFormState(row, slug)); setEditFormDrawerOpen!(true); }}
-							disabled={isMutating}
-						>
-							<PencilIcon />
-							Edit
-						</Button>
-						<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTargetRow!(row)} disabled={isMutating}>
-							<Trash2Icon />
-							Delete
-						</Button>
-					</>
-				) : null}
-				{row.deletedAt == null && row.reviewedAt == null ? (
-					<Button type="button" size="sm" variant="secondary" onClick={() => setCancelPendingRequestTargetRow!(row)} disabled={isMutating}>
-						<XIcon />
-						Cancel
-					</Button>
-				) : null}
-				{row.deletedAt == null && row.reviewedAt != null && row.reviewApproved == false ? (
-					<Button type="button" size="sm" variant="secondary" onClick={() => setRevertApprovedTargetRow!(row)} disabled={isMutating}>
-						<HistoryIcon />
-						Revert Approved
-					</Button>
-				) : null}
-				{row.deletedAt != null ? (
-					<Button type="button" size="sm" variant="outline" onClick={() => setRestoreDeletionTargetRow!(row)} disabled={isMutating}>
-						<PlusIcon />
-						Restore
-					</Button>
-				) : null}
-			</>
-		) } satisfies (typeof rowValueRendererConfigColumnsBase)[number]
-	]), [rowValueRendererConfigColumnsBase, slug]);
-	const defaultColumnOrderWithActions = useMemo(() => Object.freeze([
-		...defaultColumnOrderBase,
-		"#actions"
-	]) as string[], [defaultColumnOrderBase]);
-	const defaultColumnsShownWithActions = useMemo(() => Object.freeze([
-		...defaultColumnsShownBase,
-		"#actions"
-	]) as string[], [defaultColumnsShownBase]);
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.column-order`, updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.columns-shown`, updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "access-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "access-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.filters`, updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "access-management.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: `access-management.${slug}.mask.include-deleted`, updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: `access-management.${slug}.mask.columns-sort`, updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "access-management.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "access-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["access-management", slug, "mask-editor", {
+		queryKey: ["access-management", "editor", {
 			keyword,
 			filters,
 			columnsSort,
 			includeDeleted,
 			pageIndex
 		}],
-		queryFn: async () => await queryMaskEditorAction({
-			slug: slug,
+		queryFn: async () => await queryEditorAction({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -111,23 +101,23 @@ export default function Page() {
 			pageIndex: pageIndex
 		})
 	});
-	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as MaskColumnData | null);
+	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
 	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
 	const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
-	const [changeRequestDrawerRow, setChangeRequestDrawerRow] = useState(null as MaskColumnData | null);
+	const [changeRequestDrawerRow, setChangeRequestDrawerRow] = useState(null as ColumnData | null);
 	const [changeRequestDrawerOpen, setChangeRequestDrawerOpen] = useState(false);
-	const [editFormDrawerState, setEditFormDrawerState] = useState({} as MaskFormState);
+	const [editFormDrawerState, setEditFormDrawerState] = useState({} as FormState);
 	const [editFormDrawerOpen, setEditFormDrawerOpen] = useState(false);
-	const [addFormDrawerState, setAddFormDrawerState] = useState({} as MaskFormState);
+	const [addFormDrawerState, setAddFormDrawerState] = useState({} as FormState);
 	const [addFormDrawerOpen, setAddFormDrawerOpen] = useState(false);
 	const [isMutating, startMutationTransition] = useTransition();
 	const [genericMutationError, setGenericMutationError] = useState(null as any);
 	const [editFormMutationError, setEditFormMutationError] = useState(null as any);
 	const [addFormMutationError, setAddFormMutationError] = useState(null as any);
-	const [deleteTargetRow, setDeleteTargetRow] = useState(null as MaskColumnData | null);
-	const [cancelPendingRequestTargetRow, setCancelPendingRequestTargetRow] = useState(null as MaskColumnData | null);
-	const [revertApprovedTargetRow, setRevertApprovedTargetRow] = useState(null as MaskColumnData | null);
-	const [restoreDeletionTargetRow, setRestoreDeletionTargetRow] = useState(null as MaskColumnData | null);
+	const [deleteTargetRow, setDeleteTargetRow] = useState(null as ColumnData | null);
+	const [cancelPendingRequestTargetRow, setCancelPendingRequestTargetRow] = useState(null as ColumnData | null);
+	const [revertApprovedTargetRow, setRevertApprovedTargetRow] = useState(null as ColumnData | null);
+	const [restoreDeletionTargetRow, setRestoreDeletionTargetRow] = useState(null as ColumnData | null);
 	const rowValueRendererContext = {
 		relationValues: query.data?.relations,
 		isMutating: isMutating,
@@ -157,27 +147,27 @@ export default function Page() {
 
 	return (
 		<MenuPage
-			title="Access Management — Masks"
-			description="Manage mask requests with editor workflows, including mask field changes."
+			title="Access Management"
+			description="Manage access requests with editor workflows for name, description, collection, filter, and mask changes."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar
 					keyword={keyword}
 					onKeywordChange={setKeyword}
-					searchPlaceholder="Search masks by name"
+					searchPlaceholder="Search accesses by title or ID"
 					filterCount={filters.length}
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
 					rightSlot={(
 						<>
-							{user.roleMenus.includes("access-management#mask-auditor") ? (
+							{user.roleMenus.includes("access-management#auditor") ? (
 								<div className="flex items-center gap-2">
-									<label htmlFor="access-management-mask-editor-show-deleted" className="text-sm">
+									<label htmlFor="access-management-editor-show-deleted" className="text-sm">
 										Show Deleted
 									</label>
 									<Switch
-										id="access-management-mask-editor-show-deleted"
+										id="access-management-editor-show-deleted"
 										checked={includeDeleted}
 										onCheckedChange={setIncludeDeleted}
 										disabled={query.isLoading || isMutating}
@@ -249,8 +239,7 @@ export default function Page() {
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
-				<MaskDetailsDrawer
-					slug={slug}
+				<DetailsDrawer
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
@@ -258,37 +247,39 @@ export default function Page() {
 					renderActions={r => renderCell(r, "#actions")}
 					onOpenHistory={() => setHistoryDrawerOpen(true)}
 				/>
-				<MaskHistoryDrawer
-					slug={slug}
+				<HistoryDrawer
 					open={historyDrawerOpen}
 					onOpenChange={setHistoryDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
 				/>
-				<MaskChangeRequestDrawer
-					slug={slug}
+				<ChangeRequestDrawer
 					open={changeRequestDrawerOpen}
 					onOpenChange={setChangeRequestDrawerOpen}
 					row={changeRequestDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
 				/>
-				<MaskFormDrawer
-					slug={slug}
+				<FormDrawer
 					open={editFormDrawerOpen}
 					onOpenChange={setEditFormDrawerOpen}
-					title="Edit Mask"
+					title="Edit Access"
 					formState={editFormDrawerState}
 					onFormStateChange={setEditFormDrawerState}
 					isMutating={isMutating}
 					mutationError={editFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
 						if(editFormDrawerState.name == null || editFormDrawerState.name.trim().length == 0)
-							return setEditFormMutationError({ name: "ValidationError", message: "Mask name is required." });
+							return setEditFormMutationError({ name: "ValidationError", message: "Name is required." });
+						if(editFormDrawerState.collection == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Collection is required." });
+						if(editFormDrawerState.filter == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Filter is required." });
+						if(editFormDrawerState.mask == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Mask is required." });
 						setEditFormMutationError(null);
 						try {
-							await requestMaskUpsertAction(slug, editFormDrawerState);
+							await requestUpsertAction(editFormDrawerState);
 							setEditFormDrawerOpen(false);
-							setEditFormDrawerState({});
 						} catch(error) {
 							setEditFormMutationError(error);
 						} finally {
@@ -296,21 +287,26 @@ export default function Page() {
 						}
 					})}
 				/>
-				<MaskFormDrawer
-					slug={slug}
+				<FormDrawer
 					open={addFormDrawerOpen}
 					onOpenChange={setAddFormDrawerOpen}
-					title="Add Mask"
+					title="Add Access"
 					formState={addFormDrawerState}
 					onFormStateChange={setAddFormDrawerState}
 					isMutating={isMutating}
 					mutationError={addFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
 						if(addFormDrawerState.name == null || addFormDrawerState.name.trim().length == 0)
-							return setAddFormMutationError({ name: "ValidationError", message: "Mask name is required." });
+							return setEditFormMutationError({ name: "ValidationError", message: "Name is required." });
+						if(addFormDrawerState.collection == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Collection is required." });
+						if(addFormDrawerState.filter == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Filter is required." });
+						if(addFormDrawerState.mask == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Mask is required." });
 						setAddFormMutationError(null);
 						try {
-							await requestMaskUpsertAction(slug, addFormDrawerState);
+							await requestUpsertAction(addFormDrawerState);
 							setAddFormDrawerOpen(false);
 							setAddFormDrawerState({});
 						} catch(error) {
@@ -320,14 +316,14 @@ export default function Page() {
 						}
 					})}
 				/>
-				<MaskDeleteDialog
+				<DeleteDialog
 					open={deleteTargetRow != null}
-					onOpenChange={open => { if(!open) setDeleteTargetRow(null); }}
+					onOpenChange={open => !open ? setDeleteTargetRow(null) : undefined}
 					isMutating={isMutating}
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await requestMaskDeleteAction(slug, deleteTargetRow!.id);
+							await requestDeleteAction(deleteTargetRow!.id);
 							setDeleteTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
@@ -336,14 +332,14 @@ export default function Page() {
 						}
 					})}
 				/>
-				<MaskCancelPendingRequestDialog
+				<CancelPendingRequestDialog
 					open={cancelPendingRequestTargetRow != null}
-					onOpenChange={open => { if(!open) setCancelPendingRequestTargetRow(null); }}
+					onOpenChange={open => !open ? setCancelPendingRequestTargetRow(null) : undefined}
 					isMutating={isMutating}
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await cancelMaskRequestAction(slug, cancelPendingRequestTargetRow!.id);
+							await cancelRequestAction(cancelPendingRequestTargetRow!.id);
 							setCancelPendingRequestTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
@@ -352,14 +348,14 @@ export default function Page() {
 						}
 					})}
 				/>
-				<MaskRevertApprovedDialog
+				<RevertApprovedDialog
 					open={revertApprovedTargetRow != null}
-					onOpenChange={open => { if(!open) setRevertApprovedTargetRow(null); }}
+					onOpenChange={open => !open ? setRevertApprovedTargetRow(null) : undefined}
 					isMutating={isMutating}
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await cancelMaskRequestAction(slug, revertApprovedTargetRow!.id);
+							await cancelRequestAction(revertApprovedTargetRow!.id);
 							setRevertApprovedTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
@@ -368,14 +364,14 @@ export default function Page() {
 						}
 					})}
 				/>
-				<MaskRestoreDeletionDialog
+				<RestoreDeletionDialog
 					open={restoreDeletionTargetRow != null}
-					onOpenChange={open => { if(!open) setRestoreDeletionTargetRow(null); }}
+					onOpenChange={open => !open ? setRestoreDeletionTargetRow(null) : undefined}
 					isMutating={isMutating}
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await requestMaskRestoreAction(slug, restoreDeletionTargetRow!.id);
+							await requestRestoreAction(restoreDeletionTargetRow!.id);
 							setRestoreDeletionTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);

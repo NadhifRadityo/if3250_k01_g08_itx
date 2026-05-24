@@ -18,6 +18,10 @@ export type RelationTeam = {
 	name: string;
 };
 
+export type RelationAccess = {
+	name: string;
+};
+
 export type RelationCreditApplication = {
 	name: string;
 	email?: string | null;
@@ -65,20 +69,10 @@ export type RelationRecordingLogAudioFile = {
 	filename: string;
 	filesize: number | null;
 	mimeType: string | null;
-	url?: string | null;
 };
 
 export type RelationRecordingLogTranscription = {
 	filename: string;
 	filesize: number | null;
 	mimeType: string | null;
-	url?: string | null;
-};
-
-export type RelationAccess = {
-	name: string;
-};
-
-export type RelationAccessMask = {
-	name: string;
 };

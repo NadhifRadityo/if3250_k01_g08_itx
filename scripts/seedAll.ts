@@ -7,12 +7,12 @@ await import("./seedCreditApplications");
 await import("./seedCreditApplicationAssignments");
 await import("./seedSurveys");
 await import("./seedSatisfactionSurveys");
-await import("./seedRecordingLogAudioFiles");
-await import("./seedRecordingLogTranscriptions");
-await import("./seedRecordingLogs");
 await import("./seedLoginLogs");
 await import("./seedGPSLogs");
 await import("./seedOTPLogs");
+await import("./seedRecordingLogAudioFiles");
+await import("./seedRecordingLogTranscriptions");
+await import("./seedRecordingLogs");
 
 console.log("Seeded all requested collections in the required order.");
 

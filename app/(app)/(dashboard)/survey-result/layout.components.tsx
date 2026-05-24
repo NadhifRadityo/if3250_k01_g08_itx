@@ -11,9 +11,9 @@ import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } f
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultRelationSurveyRenderer, MenuRowValueRendererConfigColumn, defaultRelationCreditApplicationRenderer } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationUsersAction, searchRelationSurveysAction, searchRelationSurveyResultsAction, searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
-import { defaultRelationUserRenderer } from "../relation-navigation.components";
+import { defaultRelationUserRenderer, defaultRelationSurveyRenderer, defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 function isJsonFormDefinition(value: unknown): value is JsonFormDefinition {
@@ -105,7 +105,7 @@ function SurveyResultAnswersDialog(
 	);
 }
 const defaultSurveyResultAnswersRenderer = ({ buttonLabel, dialogTitle }: { buttonLabel: string, dialogTitle: string }) =>
-	(value: unknown) => value == null ? "-" : (
+	(value: unknown) => (
 		<SurveyResultAnswersDialog buttonLabel={buttonLabel} dialogTitle={dialogTitle} value={value} />
 	);
 

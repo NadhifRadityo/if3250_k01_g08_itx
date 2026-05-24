@@ -1,7 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, buildAccessMasks } from "./AccessCollection";
-
 export const RecordingLogAudioFiles = (): CollectionConfig => ({
 	slug: "recording-log-audio-files",
 	labels: {
@@ -89,47 +87,6 @@ export const RecordingLogs = (): CollectionConfig => ({
 			name: "transcription",
 			type: "relationship",
 			relationTo: "recording-log-transcriptions"
-		}
-	]
-});
-
-export const defaultRecordingLogAccessMaskId = "e00674d4-ee6f-4e48-8eba-b21eb49bf3d6";
-export const RecordingLogAccesses = () => buildAccesses({
-	collection: "recording-logs",
-	defaultMaskId: defaultRecordingLogAccessMaskId
-});
-export const RecordingLogAccessMasks = () => buildAccessMasks({
-	collection: "recording-logs",
-	maskFields: [
-		{
-			name: "maskCreatedAt",
-			label: "Mask Created At",
-			type: "date"
-		},
-		{
-			name: "maskCreditApplication",
-			label: "Mask Credit Application",
-			type: "generic"
-		},
-		{
-			name: "maskOfficer",
-			label: "Mask Officer",
-			type: "generic"
-		},
-		{
-			name: "maskPhoneNumber",
-			label: "Mask Phone Number",
-			type: "phoneNumber"
-		},
-		{
-			name: "maskAudioFile",
-			label: "Mask Audio File",
-			type: "generic"
-		},
-		{
-			name: "maskTranscription",
-			label: "Mask Transcription",
-			type: "generic"
 		}
 	]
 });

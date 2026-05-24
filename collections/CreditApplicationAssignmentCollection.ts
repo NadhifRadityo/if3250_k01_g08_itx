@@ -1,6 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, buildAccessMasks } from "./AccessCollection";
 import { ReviewRichTextEditor } from "./shared";
 
 export const CreditApplicationAssignments = (): CollectionConfig => ({
@@ -154,77 +153,6 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			label: "Review Comment",
 			type: "richText",
 			editor: ReviewRichTextEditor()
-		}
-	]
-});
-
-export const defaultCreditApplicationAssignmentAccessMaskId = "c42bc6bf-7279-409c-8c79-61bfe19703df";
-export const CreditApplicationAssignmentAccesses = () => buildAccesses({
-	collection: "credit-application-assignments",
-	defaultMaskId: defaultCreditApplicationAssignmentAccessMaskId
-});
-export const CreditApplicationAssignmentAccessMasks = () => buildAccessMasks({
-	collection: "credit-application-assignments",
-	maskFields: [
-		{
-			name: "maskCreatedAt",
-			label: "Mask Created At",
-			type: "date"
-		},
-		{
-			name: "maskCreatedBy",
-			label: "Mask Created By",
-			type: "generic"
-		},
-		{
-			name: "maskUpdatedAt",
-			label: "Mask Updated At",
-			type: "date"
-		},
-		{
-			name: "maskUpdatedBy",
-			label: "Mask Updated By",
-			type: "generic"
-		},
-		{
-			name: "maskDeletedAt",
-			label: "Mask Deleted At",
-			type: "date"
-		},
-		{
-			name: "maskDeletedBy",
-			label: "Mask Deleted By",
-			type: "generic"
-		},
-		{
-			name: "maskCreditApplication",
-			label: "Mask Credit Application",
-			type: "generic"
-		},
-		{
-			name: "maskOfficer",
-			label: "Mask Officer",
-			type: "generic"
-		},
-		{
-			name: "maskReviewedAt",
-			label: "Mask Reviewed At",
-			type: "date"
-		},
-		{
-			name: "maskReviewedBy",
-			label: "Mask Reviewed By",
-			type: "generic"
-		},
-		{
-			name: "maskReviewApproved",
-			label: "Mask Review Approved",
-			type: "generic"
-		},
-		{
-			name: "maskReviewComment",
-			label: "Mask Review Comment",
-			type: "generic"
 		}
 	]
 });

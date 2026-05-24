@@ -112,16 +112,15 @@ export async function resolveRelationRecordingLogAudioFiles(
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
-		collection: "recording-log-audio-files" as any,
+		collection: "recording-log-audio-files",
 		pagination: false,
 		where: { id: { in: ids } },
-		select: { filename: true, filesize: true, mimeType: true, url: true }
+		select: { filename: true, filesize: true, mimeType: true }
 	});
 	return Object.fromEntries(result.docs.map(doc => [`recording-log-audio-files:${doc.id}`, {
 		filename: doc.filename!,
 		filesize: doc.filesize!,
-		mimeType: doc.mimeType!,
-		url: doc.url
+		mimeType: doc.mimeType!
 	}]));
 }
 
@@ -132,16 +131,15 @@ export async function resolveRelationRecordingLogTranscriptions(
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
-		collection: "recording-log-transcriptions" as any,
+		collection: "recording-log-transcriptions",
 		pagination: false,
 		where: { id: { in: ids } },
-		select: { filename: true, filesize: true, mimeType: true, url: true }
+		select: { filename: true, filesize: true, mimeType: true }
 	});
 	return Object.fromEntries(result.docs.map(doc => [`recording-log-transcriptions:${doc.id}`, {
 		filename: doc.filename!,
-		filesize: doc.filesize,
-		mimeType: doc.mimeType,
-		url: doc.url
+		filesize: doc.filesize!,
+		mimeType: doc.mimeType!
 	}]));
 }
 
@@ -300,6 +298,28 @@ export async function getRelationSummaryAction(
 			]
 		};
 	}
+	if(relationType == "accesses") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "accesses",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+				name: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.name,
+			description: "Team entry",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
 	if(relationType == "surveys") {
 		const doc = await payload.findByID({
 			user: user,
@@ -386,14 +406,13 @@ export async function getRelationSummaryAction(
 		const doc = await payload.findByID({
 			user: user,
 			overrideAccess: false,
-			collection: "recording-log-audio-files" as any,
+			collection: "recording-log-audio-files",
 			id: relationId,
 			depth: 0,
 			select: {
 				filename: true,
 				filesize: true,
-				mimeType: true,
-				url: true
+				mimeType: true
 			}
 		});
 		return {
@@ -405,8 +424,7 @@ export async function getRelationSummaryAction(
 				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
 				{ label: "File Name", value: doc.filename ?? "-" },
 				{ label: "File Size", value: doc.filesize ?? "-" },
-				{ label: "Mime Type", value: doc.mimeType ?? "-" },
-				{ label: "URL", value: doc.url ?? "-" }
+				{ label: "Mime Type", value: doc.mimeType ?? "-" }
 			]
 		};
 	}
@@ -414,14 +432,13 @@ export async function getRelationSummaryAction(
 		const doc = await payload.findByID({
 			user: user,
 			overrideAccess: false,
-			collection: "recording-log-transcriptions" as any,
+			collection: "recording-log-transcriptions",
 			id: relationId,
 			depth: 0,
 			select: {
 				filename: true,
 				filesize: true,
-				mimeType: true,
-				url: true
+				mimeType: true
 			}
 		});
 		return {
@@ -433,8 +450,7 @@ export async function getRelationSummaryAction(
 				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
 				{ label: "File Name", value: doc.filename ?? "-" },
 				{ label: "File Size", value: doc.filesize ?? "-" },
-				{ label: "Mime Type", value: doc.mimeType ?? "-" },
-				{ label: "URL", value: doc.url ?? "-" }
+				{ label: "Mime Type", value: doc.mimeType ?? "-" }
 			]
 		};
 	}
@@ -442,35 +458,6 @@ export async function getRelationSummaryAction(
 }
 
 const RELATION_SEARCH_LIMIT = 20;
-
-export async function searchRelationRolesAction(keyword: string, selectedIds: string[] = []) {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	const result = await payload.find({
-		user,
-		overrideAccess: false,
-		collection: "roles",
-		draft: true,
-		trash: true,
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
-		sort: "-updatedAt",
-		where: { or: [
-			{ id: { in: selectedIds } },
-			{ id: { like: keyword } },
-			{ name: { like: keyword } }
-		] },
-		select: { name: true, level: true }
-	});
-	return result.docs.map(doc => ({
-		id: doc.id,
-		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
-	}));
-}
 
 export async function searchRelationUsersAction(keyword: string, selectedIds: string[] = []) {
 	const headers = await nextHeaders();
@@ -533,6 +520,66 @@ export async function searchRelationUsersByRoleLevelAction(roleLevel: "admin" | 
 	}));
 }
 
+export async function searchRelationStagedUsersAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "staged-users",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } },
+			{ email: { like: keyword } },
+			{ employeeId: { like: keyword } }
+		] },
+		select: { name: true, email: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>
+	}));
+}
+
+export async function searchRelationRolesAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "roles",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } }
+		] },
+		select: { name: true, level: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
+	}));
+}
+
 export async function searchRelationTeamsAction(keyword: string, selectedIds: string[] = []) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
@@ -543,6 +590,35 @@ export async function searchRelationTeamsAction(keyword: string, selectedIds: st
 		user,
 		overrideAccess: false,
 		collection: "teams",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } }
+		] },
+		select: { name: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
+	}));
+}
+
+export async function searchRelationAccessesAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "accesses",
 		draft: true,
 		trash: true,
 		pagination: false,
@@ -689,6 +765,35 @@ export async function searchAvailableRelationCreditApplicationsAction(keyword: s
 	return [...optionsById.values()].slice(0, RELATION_SEARCH_LIMIT + selectedIds.length);
 }
 
+export async function searchRelationCreditApplicationImportsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "credit-application-imports",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ filename: { like: keyword } }
+		] },
+		select: { filename: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.filename}</>
+	}));
+}
+
 export async function searchRelationCreditApplicationAssignmentsAction(keyword: string, selectedIds: string[] = []) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
@@ -714,37 +819,6 @@ export async function searchRelationCreditApplicationAssignmentsAction(keyword: 
 	return result.docs.map(doc => ({
 		id: doc.id,
 		label: <span className="font-mono">{doc.id}</span>
-	}));
-}
-
-export async function searchRelationStagedUsersAction(keyword: string, selectedIds: string[] = []) {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	const result = await payload.find({
-		user: user,
-		overrideAccess: false,
-		collection: "staged-users",
-		draft: true,
-		trash: true,
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
-		sort: "-updatedAt",
-		where: { or: [
-			{ id: { in: selectedIds } },
-			{ id: { like: keyword } },
-			{ name: { like: keyword } },
-			{ email: { like: keyword } },
-			{ employeeId: { like: keyword } }
-		] },
-		select: { name: true, email: true }
-	});
-	return result.docs.map(doc => ({
-		id: doc.id,
-		label: <>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>
 	}));
 }
 
@@ -777,6 +851,32 @@ export async function searchRelationSurveysAction(keyword: string, selectedIds: 
 	}));
 }
 
+export async function searchRelationSurveyResultsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "survey-results",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-createdAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } }
+		] },
+		select: { createdAt: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
+	}));
+}
+
 export async function searchRelationSatisfactionSurveysAction(keyword: string, selectedIds: string[] = []) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
@@ -803,35 +903,6 @@ export async function searchRelationSatisfactionSurveysAction(keyword: string, s
 	return result.docs.map(doc => ({
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.title}</>
-	}));
-}
-
-export async function searchRelationCreditApplicationImportsAction(keyword: string, selectedIds: string[] = []) {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	const result = await payload.find({
-		user: user,
-		overrideAccess: false,
-		collection: "credit-application-imports",
-		draft: true,
-		trash: true,
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
-		sort: "-updatedAt",
-		where: { or: [
-			{ id: { in: selectedIds } },
-			{ id: { like: keyword } },
-			{ filename: { like: keyword } }
-		] },
-		select: { filename: true }
-	});
-	return result.docs.map(doc => ({
-		id: doc.id,
-		label: <>(<span className="font-mono">{doc.id}</span>) {doc.filename}</>
 	}));
 }
 
@@ -870,7 +941,7 @@ export async function searchRelationGpsLogsAction(keyword: string, selectedIds: 
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "gps-logs" as any,
+		collection: "gps-logs",
 		pagination: false,
 		depth: 0,
 		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
@@ -927,7 +998,7 @@ export async function searchRelationRecordingLogsAction(keyword: string, selecte
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "recording-logs" as any,
+		collection: "recording-logs",
 		pagination: false,
 		depth: 0,
 		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
@@ -954,7 +1025,7 @@ export async function searchRelationRecordingLogAudioFilesAction(keyword: string
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "recording-log-audio-files" as any,
+		collection: "recording-log-audio-files",
 		pagination: false,
 		depth: 0,
 		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
@@ -981,7 +1052,7 @@ export async function searchRelationRecordingLogTranscriptionsAction(keyword: st
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "recording-log-transcriptions" as any,
+		collection: "recording-log-transcriptions",
 		pagination: false,
 		depth: 0,
 		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
@@ -996,31 +1067,5 @@ export async function searchRelationRecordingLogTranscriptionsAction(keyword: st
 	return result.docs.map(doc => ({
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.filename}</>
-	}));
-}
-
-export async function searchRelationSurveyResultsAction(keyword: string, selectedIds: string[] = []) {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	const result = await payload.find({
-		user: user,
-		overrideAccess: false,
-		collection: "survey-results" as any,
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
-		sort: "-createdAt",
-		where: { or: [
-			{ id: { in: selectedIds } },
-			{ id: { like: keyword } }
-		] },
-		select: { createdAt: true }
-	});
-	return result.docs.map(doc => ({
-		id: doc.id,
-		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
 	}));
 }

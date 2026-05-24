@@ -246,9 +246,9 @@ export async function requestUpsertAction(formState: FormState) {
 	if(user == null) return unauthorized();
 
 	if(formState.title == null || formState.title.trim().length == 0)
-		throw new Error("Survey title is required.");
+		throw new Error("Title is required.");
 	if(formState.content == null)
-		throw new Error("Content JSON is required.");
+		throw new Error("Content is required.");
 	if(formState.id == null) {
 		const created = await payload.create({
 			user: user,

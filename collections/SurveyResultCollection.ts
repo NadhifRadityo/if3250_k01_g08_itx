@@ -1,7 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { buildAccesses, buildAccessMasks } from "./AccessCollection";
-
 export const SurveyResults = (): CollectionConfig => ({
 	slug: "survey-results",
 	labels: {
@@ -165,92 +163,6 @@ export const SurveyResults = (): CollectionConfig => ({
 			label: "Answers",
 			type: "json",
 			required: true
-		}
-	]
-});
-
-export const defaultSurveyResultAccessMaskId = "7dc0594f-f01d-4caa-bf9d-02bd20464f4f";
-export const SurveyResultAccesses = () => buildAccesses({
-	collection: "survey-results",
-	defaultMaskId: defaultSurveyResultAccessMaskId
-});
-export const SurveyResultAccessMasks = () => buildAccessMasks({
-	collection: "survey-results",
-	maskFields: [
-		{
-			name: "maskCreatedAt",
-			label: "Mask Created At",
-			type: "date"
-		},
-		{
-			name: "maskCreatedBy",
-			label: "Mask Created By",
-			type: "generic"
-		},
-		{
-			name: "maskUpdatedAt",
-			label: "Mask Updated At",
-			type: "date"
-		},
-		{
-			name: "maskUpdatedBy",
-			label: "Mask Updated By",
-			type: "generic"
-		},
-		{
-			name: "maskDeletedAt",
-			label: "Mask Deleted At",
-			type: "date"
-		},
-		{
-			name: "maskDeletedBy",
-			label: "Mask Deleted By",
-			type: "generic"
-		},
-		{
-			name: "maskSurvey",
-			label: "Mask Survey",
-			type: "generic"
-		},
-		{
-			name: "maskSurveyVersion",
-			label: "Mask Survey Version",
-			type: "generic"
-		},
-		{
-			name: "maskCreditApplication",
-			label: "Mask Credit Application",
-			type: "generic"
-		},
-		{
-			name: "maskOfficer",
-			label: "Mask Officer",
-			type: "generic"
-		},
-		{
-			name: "maskAnswers",
-			label: "Mask Answers",
-			type: "generic"
-		},
-		{
-			name: "maskReviewedAt",
-			label: "Mask Reviewed At",
-			type: "date"
-		},
-		{
-			name: "maskReviewedBy",
-			label: "Mask Reviewed By",
-			type: "generic"
-		},
-		{
-			name: "maskReviewApproved",
-			label: "Mask Review Approved",
-			type: "generic"
-		},
-		{
-			name: "maskReviewComment",
-			label: "Mask Review Comment",
-			type: "generic"
 		}
 	]
 });

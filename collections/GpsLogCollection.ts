@@ -1,7 +1,5 @@
 import { APIError, type CollectionConfig } from "payload";
 
-import { buildAccesses, buildAccessMasks } from "./AccessCollection";
-
 export const GpsLogs = (): CollectionConfig => ({
 	slug: "gps-logs",
 	labels: {
@@ -65,47 +63,6 @@ export const GpsLogs = (): CollectionConfig => ({
 			label: "Longitude",
 			type: "number",
 			required: true
-		}
-	]
-});
-
-export const defaultGpsLogAccessMaskId = "6a2a365c-4208-423d-a219-58b375fa826f";
-export const GpsLogAccesses = () => buildAccesses({
-	collection: "gps-logs",
-	defaultMaskId: defaultGpsLogAccessMaskId
-});
-export const GpsLogAccessMasks = () => buildAccessMasks({
-	collection: "gps-logs",
-	maskFields: [
-		{
-			name: "maskCreatedAt",
-			label: "Mask Created At",
-			type: "date"
-		},
-		{
-			name: "maskOfficer",
-			label: "Mask Officer",
-			type: "generic"
-		},
-		{
-			name: "maskSessionId",
-			label: "Mask Session Id",
-			type: "text"
-		},
-		{
-			name: "maskCreditApplication",
-			label: "Mask Credit Application",
-			type: "generic"
-		},
-		{
-			name: "maskLatitude",
-			label: "Mask Latitude",
-			type: "number"
-		},
-		{
-			name: "maskLongitude",
-			label: "Mask Longitude",
-			type: "number"
 		}
 	]
 });
