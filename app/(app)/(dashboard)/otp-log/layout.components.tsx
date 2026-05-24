@@ -9,8 +9,9 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
+import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationOtpLogsAction, searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
+import { searchRelationOtpLogsAction } from "../relation-navigation.actions";
 import { defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
@@ -23,7 +24,7 @@ export const deliveryStatusSelectOptions = Object.freeze([
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOtpLogsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "creditApplication", label: "Credit Application", type: "relation", relationSearch: searchRelationCreditApplicationsAction },
+	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
 	{ key: "content", label: "Content", type: "text" },
 	{ key: "email", label: "Email", type: "text" },
 	{ key: "whatsappNumber", label: "WhatsApp Number", type: "text" },

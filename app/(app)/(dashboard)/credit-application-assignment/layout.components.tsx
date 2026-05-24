@@ -17,24 +17,26 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { CreditApplicationAssignment } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
+import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationUsersAction, searchRelationUsersByRoleLevelAction, searchRelationCreditApplicationsAction, searchAvailableRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
+import { searchRelationUsersByRoleLevelAction, searchAvailableRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
+import { userFilterConfigColumns, userByRoleFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationCreditApplicationAssignmentsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "createdBy", label: "Created By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
-	{ key: "updatedBy", label: "Updated By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "updatedBy", label: "Updated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
-	{ key: "deletedBy", label: "Deleted By", type: "relation", relationSearch: searchRelationUsersAction },
-	{ key: "creditApplication", label: "Credit Application", type: "relation", relationSearch: searchRelationCreditApplicationsAction },
-	{ key: "officer", label: "Officer", type: "relation", relationSearch: (keyword, selectedIds) => searchRelationUsersByRoleLevelAction("officer", keyword, selectedIds) },
+	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
+	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
+	{ key: "officer", label: "Officer", type: "relation", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("officer")] },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
-	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([

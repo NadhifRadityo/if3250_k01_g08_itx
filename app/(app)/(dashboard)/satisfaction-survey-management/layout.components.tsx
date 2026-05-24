@@ -19,8 +19,9 @@ import { SatsifactionSurvey } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationUsersAction, searchRelationSatisfactionSurveysAction } from "../relation-navigation.actions";
+import { searchRelationSatisfactionSurveysAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
+import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
 const defaultSurveyContentRenderer = ({ buttonLabel, dialogTitle }: { buttonLabel: string, dialogTitle: string }) =>
@@ -32,14 +33,14 @@ export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][n
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationSatisfactionSurveysAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "createdBy", label: "Created By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
-	{ key: "updatedBy", label: "Updated By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "updatedBy", label: "Updated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
-	{ key: "deletedBy", label: "Deleted By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "title", label: "Title", type: "text" },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
-	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([

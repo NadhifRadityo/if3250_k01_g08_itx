@@ -23,7 +23,7 @@ const ROLE_SEEDS = [
 ];
 
 const USER_SEEDS: SeedUser[] = [
-	{ key: "admin", email: "admin@local.local", name: "Admin", password: "admin", employeeId: "ADM-SEED-001", roleKey: "admin", supervisorKey: null },
+	{ key: "admin", email: "admin@local.local", name: "Admin", password: "admin", employeeId: "ADM-001", roleKey: "admin", supervisorKey: null },
 	{ key: "manager-bandung", email: "manager.bandung@local.local", name: "Raka Wirawan", password: "Manager123!", employeeId: "MGR-001", roleKey: "manager", supervisorKey: "admin" },
 	{ key: "manager-jakarta", email: "manager.jakarta@local.local", name: "Maya Pertiwi", password: "Manager123!", employeeId: "MGR-002", roleKey: "manager", supervisorKey: "admin" },
 	{ key: "supervisor-bandung", email: "supervisor.bandung@local.local", name: "Bagus Santoso", password: "Supervisor123!", employeeId: "SPV-001", roleKey: "supervisor", supervisorKey: "manager-bandung" },

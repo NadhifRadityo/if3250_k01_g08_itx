@@ -9,17 +9,19 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
+import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationUsersAction, searchRelationRecordingLogsAction, searchRelationCreditApplicationsAction, searchRelationRecordingLogAudioFilesAction, searchRelationRecordingLogTranscriptionsAction } from "../relation-navigation.actions";
+import { searchRelationRecordingLogsAction, searchRelationRecordingLogAudioFilesAction, searchRelationRecordingLogTranscriptionsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationCreditApplicationRenderer, defaultRelationRecordingLogAudioFileRenderer, defaultRelationRecordingLogTranscriptionRenderer } from "../relation-navigation.components";
+import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationRecordingLogsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "creditApplication", label: "Credit Application", type: "relation", relationSearch: searchRelationCreditApplicationsAction },
-	{ key: "officer", label: "Officer", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
+	{ key: "officer", label: "Officer", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "phoneNumber", label: "Phone Number", type: "text" },
 	{ key: "audioFile", label: "Audio File", type: "relation", relationSearch: searchRelationRecordingLogAudioFilesAction },
 	{ key: "transcription", label: "Transcription", type: "relation", relationSearch: searchRelationRecordingLogTranscriptionsAction }

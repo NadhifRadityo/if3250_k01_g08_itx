@@ -10,8 +10,9 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 import { Skeleton } from "@/components/radix/Skeleton";
 
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationUsersAction, searchRelationLoginLogsAction } from "../relation-navigation.actions";
+import { searchRelationLoginLogsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
+import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
@@ -26,7 +27,7 @@ export const outcomeSelectOptions = Object.freeze([
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationLoginLogsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "user", label: "User", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "user", label: "User", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "ipAddress", label: "IP Address", type: "text" },
 	{ key: "event", label: "Event", type: "select", selectOptions: eventSelectOptions },
 	{ key: "outcome", label: "Outcome", type: "select", selectOptions: outcomeSelectOptions }

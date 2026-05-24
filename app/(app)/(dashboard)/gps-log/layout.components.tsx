@@ -9,18 +9,20 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
+import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationUsersAction, searchRelationGpsLogsAction, searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
+import { searchRelationGpsLogsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
+import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationGpsLogsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "officer", label: "Officer", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "officer", label: "Officer", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "sessionId", label: "Session Id", type: "text" },
-	{ key: "creditApplication", label: "Credit Application", type: "relation", relationSearch: searchRelationCreditApplicationsAction },
+	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
 	{ key: "latitude", label: "Latitude", type: "number" },
 	{ key: "longitude", label: "Longitude", type: "number" }
 ] as MenuFilterConfigColumn[]);

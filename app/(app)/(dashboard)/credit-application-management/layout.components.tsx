@@ -18,20 +18,22 @@ import { CreditApplication } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationUsersAction, searchRelationCreditApplicationsAction, searchRelationCreditApplicationImportsAction } from "../relation-navigation.actions";
+import { searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationCreditApplicationImportRenderer } from "../relation-navigation.components";
+import { userFilterConfigColumns } from "../user-management/layout.components";
+import { filterConfigColumns as creditApplicationImportFilterConfigColumns } from "./import.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationCreditApplicationsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "createdBy", label: "Created By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
-	{ key: "updatedBy", label: "Updated By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "updatedBy", label: "Updated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
-	{ key: "deletedBy", label: "Deleted By", type: "relation", relationSearch: searchRelationUsersAction },
-	{ key: "import", label: "Import", type: "relation", relationSearch: searchRelationCreditApplicationImportsAction },
+	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
+	{ key: "import", label: "Import", type: "relation", relationFilterConfigColumn: () => ["Credit Application Import", creditApplicationImportFilterConfigColumns] },
 	{ key: "name", label: "Name", type: "text" },
 	{ key: "email", label: "Email", type: "text" },
 	{ key: "addresses", label: "Addresses", type: "text_hasMany" },
@@ -54,7 +56,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "otherDate1", label: "Other Date 1", type: "date" },
 	{ key: "otherDate2", label: "Other Date 2", type: "date" },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
-	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([

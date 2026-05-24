@@ -33,7 +33,7 @@ import { columnConfigColumns as SatisfactionSurveysColumnConfigColumns, filterCo
 import { columnConfigColumns as SurveysColumnConfigColumns, filterConfigColumns as SurveysFilterConfigColumns } from "../survey-management/layout.components";
 import { columnConfigColumns as SurveyResultsColumnConfigColumns, filterConfigColumns as SurveyResultsFilterConfigColumns } from "../survey-result/layout.components";
 import { columnConfigColumns as TeamsColumnConfigColumns, filterConfigColumns as TeamsFilterConfigColumns } from "../team-management/layout.components";
-import { columnConfigColumns as StagedUsersColumnConfigColumns, filterConfigColumns as StagedUsersFilterConfigColumns } from "../user-management/layout.components";
+import { columnConfigColumns as StagedUsersColumnConfigColumns, filterConfigColumns as StagedUsersFilterConfigColumns, userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 import { maskOptionsMap, collectionMaskFields, collectionSelectOptions } from "./layout.shared";
 
@@ -91,15 +91,15 @@ export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][n
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationAccessesAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "createdBy", label: "Created By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
-	{ key: "updatedBy", label: "Updated By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "updatedBy", label: "Updated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
-	{ key: "deletedBy", label: "Deleted By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "name", label: "Name", type: "text" },
 	{ key: "collection", label: "Collection", type: "select", selectOptions: collectionSelectOptions },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
-	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
 collectionFilterConfigColumns["accesses"] = filterConfigColumns;

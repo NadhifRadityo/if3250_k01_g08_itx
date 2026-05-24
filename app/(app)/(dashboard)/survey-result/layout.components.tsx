@@ -11,9 +11,12 @@ import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } f
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
+import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationUsersAction, searchRelationSurveysAction, searchRelationSurveyResultsAction, searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
+import { searchRelationSurveyResultsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationSurveyRenderer, defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
+import { filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
+import { userByRoleFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 function isJsonFormDefinition(value: unknown): value is JsonFormDefinition {
@@ -113,9 +116,9 @@ export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationSurveyResultsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "survey", label: "Survey", type: "relation", relationSearch: searchRelationSurveysAction },
-	{ key: "creditApplication", label: "Credit Application", type: "relation", relationSearch: searchRelationCreditApplicationsAction },
-	{ key: "officer", label: "Officer", type: "relation", relationSearch: searchRelationUsersAction }
+	{ key: "survey", label: "Survey", type: "relation", relationFilterConfigColumn: () => ["Survey", surveyFilterConfigColumns] },
+	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
+	{ key: "officer", label: "Officer", type: "relation", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("officer")] }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
