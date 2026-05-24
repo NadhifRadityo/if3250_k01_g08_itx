@@ -18,24 +18,24 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Access } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { filterConfigColumns as CreditApplicationAssignmentsFilterConfigColumns } from "../credit-application-assignment/layout.components";
-import { filterConfigColumns as CreditApplicationImportsFilterConfigColumns } from "../credit-application-management/import.components";
-import { filterConfigColumns as CreditApplicationsFilterConfigColumns } from "../credit-application-management/layout.components";
-import { filterConfigColumns as GpsLogsFilterConfigColumns } from "../gps-log/layout.components";
+import { columnConfigColumns as CreditApplicationAssignmentsColumnConfigColumns, filterConfigColumns as CreditApplicationAssignmentsFilterConfigColumns } from "../credit-application-assignment/layout.components";
+import { columnConfigColumns as CreditApplicationImportsColumnConfigColumns, filterConfigColumns as CreditApplicationImportsFilterConfigColumns } from "../credit-application-management/import.components";
+import { columnConfigColumns as CreditApplicationsColumnConfigColumns, filterConfigColumns as CreditApplicationsFilterConfigColumns } from "../credit-application-management/layout.components";
+import { columnConfigColumns as GpsLogsColumnConfigColumns, filterConfigColumns as GpsLogsFilterConfigColumns } from "../gps-log/layout.components";
 import { MenuFilterState, MenuFilterSummary, useDashboardContext, MenuFilterConfigCard, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { filterConfigColumns as LoginLogsFilterConfigColumns } from "../login-log/layout.components";
-import { filterConfigColumns as OtpLogsFilterConfigColumns } from "../otp-log/layout.components";
-import { filterConfigColumns as RecordingLogsFilterConfigColumns } from "../recording-log/layout.components";
+import { columnConfigColumns as LoginLogsColumnConfigColumns, filterConfigColumns as LoginLogsFilterConfigColumns } from "../login-log/layout.components";
+import { columnConfigColumns as OtpLogsColumnConfigColumns, filterConfigColumns as OtpLogsFilterConfigColumns } from "../otp-log/layout.components";
+import { columnConfigColumns as RecordingLogsColumnConfigColumns, filterConfigColumns as RecordingLogsFilterConfigColumns } from "../recording-log/layout.components";
 import { searchRelationUsersAction, searchRelationAccessesAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
-import { filterConfigColumns as RolesFilterConfigColumns } from "../role-management/layout.components";
-import { filterConfigColumns as SatisfactionSurveysFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
-import { filterConfigColumns as SurveysFilterConfigColumns } from "../survey-management/layout.components";
-import { filterConfigColumns as SurveyResultsFilterConfigColumns } from "../survey-result/layout.components";
-import { filterConfigColumns as TeamsFilterConfigColumns } from "../team-management/layout.components";
-import { filterConfigColumns as StagedUsersFilterConfigColumns } from "../user-management/layout.components";
+import { columnConfigColumns as RolesColumnConfigColumns, filterConfigColumns as RolesFilterConfigColumns } from "../role-management/layout.components";
+import { columnConfigColumns as SatisfactionSurveysColumnConfigColumns, filterConfigColumns as SatisfactionSurveysFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
+import { columnConfigColumns as SurveysColumnConfigColumns, filterConfigColumns as SurveysFilterConfigColumns } from "../survey-management/layout.components";
+import { columnConfigColumns as SurveyResultsColumnConfigColumns, filterConfigColumns as SurveyResultsFilterConfigColumns } from "../survey-result/layout.components";
+import { columnConfigColumns as TeamsColumnConfigColumns, filterConfigColumns as TeamsFilterConfigColumns } from "../team-management/layout.components";
+import { columnConfigColumns as StagedUsersColumnConfigColumns, filterConfigColumns as StagedUsersFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
-import { collectionSelectOptions } from "./layout.shared";
+import { maskOptionsMap, collectionMaskFields, collectionSelectOptions } from "./layout.shared";
 
 const collectionFilterConfigColumns = {
 	"staged-users": StagedUsersFilterConfigColumns,
@@ -52,11 +52,40 @@ const collectionFilterConfigColumns = {
 	"gps-logs": GpsLogsFilterConfigColumns,
 	"otp-logs": OtpLogsFilterConfigColumns,
 	"recording-logs": RecordingLogsFilterConfigColumns
-};
-const defaultFilterContentRenderer = () =>
-	(value: MenuFilterState[], { collection }: { collection: string }) => (
-		<MenuFilterSummary columns={collection != "accesses" ? collectionFilterConfigColumns[collection] : filterConfigColumns} filters={value} />
+} as Record<string, readonly MenuFilterConfigColumn[]>;
+const collectionColumnConfigColumns = {
+	"staged-users": StagedUsersColumnConfigColumns,
+	"roles": RolesColumnConfigColumns,
+	"teams": TeamsColumnConfigColumns,
+	// "accesses": columnConfigColumns,
+	"credit-applications": CreditApplicationsColumnConfigColumns,
+	"credit-application-imports": CreditApplicationImportsColumnConfigColumns,
+	"credit-application-assignments": CreditApplicationAssignmentsColumnConfigColumns,
+	"surveys": SurveysColumnConfigColumns,
+	"survey-results": SurveyResultsColumnConfigColumns,
+	"satisfaction-surveys": SatisfactionSurveysColumnConfigColumns,
+	"login-logs": LoginLogsColumnConfigColumns,
+	"gps-logs": GpsLogsColumnConfigColumns,
+	"otp-logs": OtpLogsColumnConfigColumns,
+	"recording-logs": RecordingLogsColumnConfigColumns
+} as Record<string, readonly MenuColumnConfigColumn[]>;
+const defaultAccessFilterRenderer = () =>
+	(value: MenuFilterState[], { collection }: { collection: Access["collection"] }) => (
+		<MenuFilterSummary columns={collectionFilterConfigColumns[collection]} filters={value} />
 	);
+const defaultAccessMaskRenderer = () =>
+	(value: Record<string, string>, { collection }: { collection: Access["collection"] }, { accessMaskClamp }: { accessMaskClamp?: boolean }) => (sortedValues => (
+		<div className="flex flex-wrap gap-1">
+			{(accessMaskClamp == true ? sortedValues.slice(0, 2) : sortedValues).map(([k, v]) => (
+				<Badge key={k} variant="outline" className="text-xs">
+					{collectionColumnConfigColumns[collection].find(c => c.key == k)!.label}: {maskOptionsMap[collectionMaskFields[collection][k]].find(o => o.value == v)!.label}
+				</Badge>
+			))}
+			{accessMaskClamp == true && sortedValues.length > 2 ? (
+				<Badge variant="outline" className="text-xs">+{sortedValues.length - 2} more</Badge>
+			) : null}
+		</div>
+	))(collectionColumnConfigColumns[collection].filter(c => value[c.key] != null).map(c => [c.key, value[c.key]] as const));
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -73,6 +102,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationSearch: searchRelationUsersAction },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
+collectionFilterConfigColumns["accesses"] = filterConfigColumns;
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
 	{ key: "createdAt", label: "Created At" },
@@ -93,6 +123,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "reviewApproved", label: "Review Approved" },
 	{ key: "reviewComment", label: "Review Comment" }
 ] as MenuColumnConfigColumn[]);
+collectionColumnConfigColumns["accesses"] = columnConfigColumns;
 export const tableConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
@@ -124,8 +155,8 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "name", type: "text" },
 	{ key: "description", type: "richText" },
 	{ key: "collection", type: "select", selectOptions: collectionSelectOptions },
-	{ key: "filter", type: "null", render: defaultFilterContentRenderer() },
-	{ key: "mask", type: "null" }, // TODO mask renderer
+	{ key: "filter", type: "null", render: defaultAccessFilterRenderer() },
+	{ key: "mask", type: "null", render: defaultAccessMaskRenderer() },
 	{ key: "#changeRequest", type: "null", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
@@ -135,6 +166,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;
+	accessMaskClamp?: boolean;
 	isMutating?: boolean;
 	setChangeRequestDrawerRow?: (v: ColumnData | null) => void;
 	setChangeRequestDrawerOpen?: (v: boolean) => void;
@@ -591,7 +623,7 @@ export function FormDrawer(
 					<DrawerDescription>Changes in editor mode create pending access requests that require approver review before publication.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
-					<div className="grid gap-3 pb-4 sm:grid-cols-2">
+					<div className="pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Name</label>
 							<Input value={formState.name ?? ""} onChange={event => onFormStateChange({ ...formState, name: event.target.value })} disabled={isMutating} />
@@ -627,12 +659,47 @@ export function FormDrawer(
 							<MenuFilterConfigCard
 								open={true}
 								onOpenChange={() => {}}
+								disabled={formState.collection == null}
 								columns={formState.collection != null ? collectionFilterConfigColumns[formState.collection] : []}
-								filters={formState.filter != null ? formState.filter : []}
+								filters={formState.filter ?? []}
 								onFiltersChange={value => onFormStateChange({ ...formState, filter: value })}
 							/>
 						</div>
-						{/* TODO mask */}
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Mask</label>
+							{formState.collection != null ? (
+								<div className="grid gap-2 sm:grid-cols-2">
+									{collectionColumnConfigColumns[formState.collection].filter(f => f.key in collectionMaskFields[formState.collection!]).map(f => (
+										<div key={f.key} className="space-y-1">
+											<label className="text-xs text-muted-foreground">{f.label}</label>
+											<Select
+												value={(formState.mask ?? {})[f.key] ?? ""}
+												onValueChange={v => onFormStateChange({ ...formState, mask: { ...formState.mask, [f.key]: v != "<clear>" ? v : undefined } })}
+												disabled={isMutating}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Inherit" />
+												</SelectTrigger>
+												<SelectContent>
+													{(formState.mask ?? {})[f.key] != null ? (
+														<SelectItem value="<clear>">
+															Clear
+														</SelectItem>
+													) : null}
+													{maskOptionsMap[collectionMaskFields[formState.collection!][f.key]].map(o => (
+														<SelectItem key={o.value} value={o.value}>
+															{o.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+									))}
+								</div>
+							) : (
+								<p className="text-sm text-muted-foreground">Select a collection first</p>
+							)}
+						</div>
 						{mutationError != null ? (
 							<Alert variant="destructive" className="sm:col-span-2">
 								<CircleAlertIcon />

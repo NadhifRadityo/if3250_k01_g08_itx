@@ -37,6 +37,7 @@ if(existing == null) {
 			mimetype: "audio/mpeg",
 			size: (await fs.stat(AUDIO_SOURCE_PATH)).size
 		},
+		overwriteExistingFiles: true,
 		data: {}
 	});
 } else

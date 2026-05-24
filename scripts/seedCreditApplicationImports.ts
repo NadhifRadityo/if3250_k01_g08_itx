@@ -326,6 +326,7 @@ if(existingApproved == null) {
 			size: approvedBuffer.byteLength,
 			mimetype: XLSX_MIME_TYPE
 		},
+		overwriteExistingFiles: true,
 		data: {
 			description: lexicalPlainText("Approved seed import containing the canonical credit application rows."),
 			deletedAt: null,
@@ -366,6 +367,7 @@ if(existingPending == null) {
 			size: pendingBuffer.byteLength,
 			mimetype: XLSX_MIME_TYPE
 		},
+		overwriteExistingFiles: true,
 		data: {
 			description: lexicalPlainText("Pending seed import kept available for approver review scenarios."),
 			deletedAt: null,

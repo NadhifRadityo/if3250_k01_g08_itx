@@ -112,6 +112,7 @@ export type RowValueRendererContext = {
 } & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",
+	"title",
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
@@ -544,7 +545,7 @@ export function FormDrawer(
 					<DrawerDescription>Changes in editor mode create pending survey requests that require approver review before publication.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
-					<div className="grid gap-3 pb-4 sm:grid-cols-2">
+					<div className="pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Title</label>
 							<Input value={formState.title ?? ""} onChange={event => onFormStateChange({ ...formState, title: event.target.value })} disabled={isMutating} />

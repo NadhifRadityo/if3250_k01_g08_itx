@@ -2,6 +2,18 @@ export const genericMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "show", label: "Show" }
 ]);
+export const relationMaskOptions = Object.freeze([
+	{ value: "hide", label: "Hide" },
+	{ value: "show", label: "Show" }
+]);
+export const richTextMaskOptions = Object.freeze([
+	{ value: "hide", label: "Hide" },
+	{ value: "show", label: "Show" }
+]);
+export const selectMaskOptions = Object.freeze([
+	{ value: "hide", label: "Hide" },
+	{ value: "show", label: "Show" }
+]);
 export const nameMaskOptions = Object.freeze([
 	{ value: "hide", label: "Hide" },
 	{ value: "showFirstNameOnly", label: "Show First Name Only" },
@@ -115,6 +127,18 @@ export const dateMaskOptions = Object.freeze([
 	{ value: "showWeekOnly", label: "Show Week Only" },
 	{ value: "show", label: "Show" }
 ]);
+export const maskOptionsMap = Object.freeze({
+	"generic": genericMaskOptions,
+	"relation": relationMaskOptions,
+	"richText": richTextMaskOptions,
+	"select": selectMaskOptions,
+	"name": nameMaskOptions,
+	"email": emailMaskOptions,
+	"text": textMaskOptions,
+	"number": numberMaskOptions,
+	"phoneNumber": phoneNumberMaskOptions,
+	"date": dateMaskOptions
+});
 
 export const collectionSelectOptions = Object.freeze([
 	{ value: "staged-users", label: "Users" },
@@ -132,3 +156,213 @@ export const collectionSelectOptions = Object.freeze([
 	{ value: "otp-logs", label: "OTP Logs" },
 	{ value: "recording-logs", label: "Recording Logs" }
 ]);
+
+export const collectionMaskFields = Object.freeze({
+	"staged-users": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"email": "email",
+		"role": "select",
+		"initialPassword": "text",
+		"name": "name",
+		"employeeId": "text",
+		"supervisor": "relation",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"roles": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"name": "text",
+		"level": "select",
+		"menus": "select",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"teams": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"name": "text",
+		"supervisor": "relation",
+		"officers": "relation",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"accesses": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"name": "text",
+		"description": "richText",
+		"collection": "select",
+		"filter": "generic",
+		"mask": "generic",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"credit-applications": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"import": "relation",
+		"name": "text",
+		"email": "email",
+		"addresses": "text",
+		"phoneNumbers": "phoneNumber",
+		"whatsappNumber": "phoneNumber",
+		"smsNumber": "phoneNumber",
+		"collateralRegistryName": "text",
+		"collateralName": "text",
+		"collateralDescription": "richText",
+		"assetId": "text",
+		"assetName": "text",
+		"assetDescription": "richText",
+		"period": "number",
+		"installment": "number",
+		"downPayment": "number",
+		"plafond": "number",
+		"vendor": "text",
+		"remarks": "richText",
+		"otherText1": "text",
+		"otherText2": "text",
+		"otherNumber1": "number",
+		"otherNumber2": "number",
+		"otherDate1": "date",
+		"otherDate2": "date",
+		"others": "generic",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"credit-application-imports": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"description": "richText",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"credit-application-assignments": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"creditApplication": "relation",
+		"officer": "relation",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"surveys": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"title": "text",
+		"description": "richText",
+		"content": "generic",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"survey-results": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"survey": "relation",
+		"surveyVersion": "text",
+		"creditApplication": "relation",
+		"officer": "relation",
+		"answers": "generic"
+	},
+	"satisfaction-surveys": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"title": "text",
+		"description": "richText",
+		"content": "generic",
+		"reviewedAt": "date",
+		"reviewedBy": "relation",
+		"reviewApproved": "generic",
+		"reviewComment": "richText"
+	},
+	"login-logs": {
+		"createdAt": "date",
+		"ipAddress": "text",
+		"user": "relation",
+		"event": "select",
+		"outcome": "select"
+	},
+	"gps-logs": {
+		"createdAt": "date",
+		"officer": "relation",
+		"sessionId": "text",
+		"creditApplication": "relation",
+		"latitude": "number",
+		"longitude": "number"
+	},
+	"otp-logs": {
+		"createdAt": "date",
+		"creditApplication": "relation",
+		"content": "text",
+		"email": "email",
+		"whatsappNumber": "phoneNumber",
+		"smsNumber": "phoneNumber",
+		"emailDeliveryStatus": "select",
+		"whatsappDeliveryStatus": "select",
+		"smsDeliveryStatus": "select"
+	},
+	"recording-logs": {
+		"createdAt": "date",
+		"creditApplication": "relation",
+		"officer": "relation",
+		"phoneNumber": "phoneNumber",
+		"audioFile": "relation",
+		"transcription": "relation"
+	}
+} as Record<string, Record<string, keyof (typeof maskOptionsMap)>>);

@@ -533,7 +533,7 @@ export function FormDrawer(
 					<DrawerDescription>Changes in editor mode create pending credit application assignment requests that require approver review before publication.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 overflow-y-auto px-4">
-					<div className="grid gap-3 pb-4 sm:grid-cols-2">
+					<div className="pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{formState.id == null ? (
 							<div className="space-y-2 sm:col-span-2">
 								<div className="flex items-center justify-between">

@@ -73,9 +73,9 @@ export interface Config {
     roles: Role;
     teams: Team;
     accesses: Access;
-    'credit-application-assignments': CreditApplicationAssignment;
-    'credit-application-imports': CreditApplicationImport;
     'credit-applications': CreditApplication;
+    'credit-application-imports': CreditApplicationImport;
+    'credit-application-assignments': CreditApplicationAssignment;
     surveys: Survey;
     'survey-results': SurveyResult;
     'satsifaction-surveys': SatsifactionSurvey;
@@ -105,9 +105,9 @@ export interface Config {
     roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
     accesses: AccessesSelect<false> | AccessesSelect<true>;
-    'credit-application-assignments': CreditApplicationAssignmentsSelect<false> | CreditApplicationAssignmentsSelect<true>;
-    'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
+    'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
+    'credit-application-assignments': CreditApplicationAssignmentsSelect<false> | CreditApplicationAssignmentsSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
     'survey-results': SurveyResultsSelect<false> | SurveyResultsSelect<true>;
     'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
@@ -255,10 +255,6 @@ export interface Role {
     | 'access-management#auditor'
     | 'access-management#editor'
     | 'access-management#approver'
-    | 'access-management#mask-viewer'
-    | 'access-management#mask-auditor'
-    | 'access-management#mask-editor'
-    | 'access-management#mask-approver'
     | 'credit-application-management#viewer'
     | 'credit-application-management#auditor'
     | 'credit-application-management#editor'
@@ -415,19 +411,20 @@ export interface Access {
     [k: string]: unknown;
   } | null;
   collection:
-    | 'user-management'
-    | 'role-management'
-    | 'team-management'
-    | 'access-management'
-    | 'credit-application-management'
-    | 'credit-application-assignment'
-    | 'survey-management'
-    | 'survey-result'
-    | 'satisfaction-survey-management'
-    | 'login-log'
-    | 'otp-log'
-    | 'gps-log'
-    | 'recording-log';
+    | 'staged-users'
+    | 'roles'
+    | 'teams'
+    | 'accesses'
+    | 'credit-applications'
+    | 'credit-application-imports'
+    | 'credit-application-assignments'
+    | 'surveys'
+    | 'survey-results'
+    | 'satisfaction-surveys'
+    | 'login-logs'
+    | 'gps-logs'
+    | 'otp-logs'
+    | 'recording-logs';
   filter:
     | {
         [k: string]: unknown;
@@ -446,40 +443,6 @@ export interface Access {
     | number
     | boolean
     | null;
-  reviewedAt?: string | null;
-  reviewedBy?: (string | null) | User;
-  reviewApproved?: boolean | null;
-  reviewComment?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-assignments".
- */
-export interface CreditApplicationAssignment {
-  id: string;
-  createdAt: string;
-  createdBy?: (string | null) | User;
-  updatedAt: string;
-  updatedBy?: (string | null) | User;
-  deletedAt?: string | null;
-  deletedBy?: (string | null) | User;
-  creditApplication: string | CreditApplication;
-  officer: string | User;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -667,6 +630,40 @@ export interface CreditApplicationImport {
   height?: number | null;
   focalX?: number | null;
   focalY?: number | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-assignments".
+ */
+export interface CreditApplicationAssignment {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  creditApplication: string | CreditApplication;
+  officer: string | User;
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  _status?: ('draft' | 'published') | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1110,16 +1107,16 @@ export interface PayloadLockedDocument {
         value: string | Access;
       } | null)
     | ({
-        relationTo: 'credit-application-assignments';
-        value: string | CreditApplicationAssignment;
+        relationTo: 'credit-applications';
+        value: string | CreditApplication;
       } | null)
     | ({
         relationTo: 'credit-application-imports';
         value: string | CreditApplicationImport;
       } | null)
     | ({
-        relationTo: 'credit-applications';
-        value: string | CreditApplication;
+        relationTo: 'credit-application-assignments';
+        value: string | CreditApplicationAssignment;
       } | null)
     | ({
         relationTo: 'surveys';
@@ -1347,52 +1344,6 @@ export interface AccessesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-assignments_select".
- */
-export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
-  createdAt?: T;
-  createdBy?: T;
-  updatedAt?: T;
-  updatedBy?: T;
-  deletedAt?: T;
-  deletedBy?: T;
-  creditApplication?: T;
-  officer?: T;
-  reviewedAt?: T;
-  reviewedBy?: T;
-  reviewApproved?: T;
-  reviewComment?: T;
-  _status?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-imports_select".
- */
-export interface CreditApplicationImportsSelect<T extends boolean = true> {
-  createdAt?: T;
-  createdBy?: T;
-  updatedAt?: T;
-  updatedBy?: T;
-  deletedAt?: T;
-  deletedBy?: T;
-  description?: T;
-  reviewedAt?: T;
-  reviewedBy?: T;
-  reviewApproved?: T;
-  reviewComment?: T;
-  creditApplications?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "credit-applications_select".
  */
 export interface CreditApplicationsSelect<T extends boolean = true> {
@@ -1428,6 +1379,52 @@ export interface CreditApplicationsSelect<T extends boolean = true> {
   otherDate1?: T;
   otherDate2?: T;
   others?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-imports_select".
+ */
+export interface CreditApplicationImportsSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  description?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  creditApplications?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-assignments_select".
+ */
+export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  creditApplication?: T;
+  officer?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;

@@ -37,6 +37,7 @@ if(existing == null) {
 			mimetype: "text/plain",
 			size: (await fs.stat(TRANSCRIPT_SOURCE_PATH)).size
 		},
+		overwriteExistingFiles: true,
 		data: {}
 	});
 } else
