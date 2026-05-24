@@ -81,7 +81,7 @@ export function CodeLanguageToolbarPlugin() {
 
 	return (
 		<Select value={codeLanguage} onValueChange={onCodeLanguageSelect}>
-			<SelectTrigger onMouseDown={e => e.stopPropagation()}>
+			<SelectTrigger onMouseDown={e => e.stopPropagation()} size="sm">
 				<SelectValue placeholder="Select Language" />
 			</SelectTrigger>
 			<SelectContent onCloseAutoFocus={e => e.preventDefault()}>

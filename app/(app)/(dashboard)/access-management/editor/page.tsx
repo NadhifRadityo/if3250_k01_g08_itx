@@ -135,7 +135,8 @@ export default function Page() {
 		context: {
 			...rowValueRendererContext,
 			richTextCard: false,
-			richTextClamp: false
+			richTextClamp: false,
+			accessMaskClamp: true
 		},
 		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
 			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
@@ -297,13 +298,13 @@ export default function Page() {
 					mutationError={addFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
 						if(addFormDrawerState.name == null || addFormDrawerState.name.trim().length == 0)
-							return setEditFormMutationError({ name: "ValidationError", message: "Name is required." });
+							return setAddFormMutationError({ name: "ValidationError", message: "Name is required." });
 						if(addFormDrawerState.collection == null)
-							return setEditFormMutationError({ name: "ValidationError", message: "Collection is required." });
+							return setAddFormMutationError({ name: "ValidationError", message: "Collection is required." });
 						if(addFormDrawerState.filter == null)
-							return setEditFormMutationError({ name: "ValidationError", message: "Filter is required." });
+							return setAddFormMutationError({ name: "ValidationError", message: "Filter is required." });
 						if(addFormDrawerState.mask == null)
-							return setEditFormMutationError({ name: "ValidationError", message: "Mask is required." });
+							return setAddFormMutationError({ name: "ValidationError", message: "Mask is required." });
 						setAddFormMutationError(null);
 						try {
 							await requestUpsertAction(addFormDrawerState);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useMemo, useState, useEffect, useContext, createContext, type ReactNode } from "react";
+import React, { useRef, useMemo, useState, useEffect, useContext, createContext, type ReactNode, useCallback, memo } from "react";
 import { redirect, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, LockKeyholeIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
@@ -419,10 +419,47 @@ export type MenuColumnConfigColumn = {
 	label: string;
 };
 export function MenuColumnConfigCard(
-	{ open, onOpenChange, columns, columnOrder, onColumnOrderChange, columnsShown, onColumnsShownChange, defaultColumnOrder, defaultColumnsShown }:
-	{ open: boolean, onOpenChange: (o: boolean) => void, columns: readonly MenuColumnConfigColumn[], columnOrder: string[], onColumnOrderChange: (v: string[]) => void, columnsShown: string[], onColumnsShownChange: (v: string[]) => void, defaultColumnOrder: readonly string[], defaultColumnsShown: readonly string[] }
+	{ open, onOpenChange, columns, columnOrder, onColumnOrderChange, columnsShown, onColumnsShownChange, defaultColumnOrder, defaultColumnsShown, contentOnly = false }:
+	{ open: boolean, onOpenChange: (o: boolean) => void, columns: readonly MenuColumnConfigColumn[], columnOrder: string[], onColumnOrderChange: (v: string[]) => void, columnsShown: string[], onColumnsShownChange: (v: string[]) => void, defaultColumnOrder: readonly string[], defaultColumnsShown: readonly string[], contentOnly?: boolean }
 ) {
 	const [draggedColumn, setDraggedColumn] = useState(null as string | null);
+	const content = (
+		[...new Set([...columnOrder, ...columns.map(column => column.key)])]
+			.map(columnKey => columns.find(column => column.key == columnKey)!).map(column => (
+				<div
+					key={column.key}
+					draggable
+					onDragStart={() => setDraggedColumn(column.key)}
+					onDragOver={e => {
+						e.preventDefault();
+						if(draggedColumn == null || draggedColumn == column.key) return;
+						const draggedIndex = columnOrder.indexOf(draggedColumn);
+						if(draggedIndex == -1) return;
+						const targetIndex = columnOrder.indexOf(column.key);
+						if(targetIndex == -1) return;
+						const changedOrder = [...columnOrder];
+						const [source] = changedOrder.splice(draggedIndex, 1);
+						changedOrder.splice(targetIndex, 0, source);
+						onColumnOrderChange(changedOrder);
+					}}
+					onDragEnd={() => setDraggedColumn(null)}
+					onDrop={() => setDraggedColumn(null)}
+					className="hover:bg-muted/60 flex h-full min-h-14 items-center gap-3 rounded-lg border px-3 py-1.5 text-left"
+				>
+					<GripVerticalIcon className="text-muted-foreground size-4 shrink-0" />
+					<Checkbox
+						checked={columnsShown.includes(column.key)}
+						disabled={columnsShown.length == 1 && columnsShown.includes(column.key)}
+						onCheckedChange={v => onColumnsShownChange(v != false ? [...new Set([...columnsShown, column.key])] : columnsShown.filter(c => c != column.key))}
+					/>
+					<div className="min-w-0 flex-1">
+						<p className="text-sm font-medium">{column.label}</p>
+					</div>
+				</div>
+			))
+	);
+	if(contentOnly)
+		return content;
 	return (
 		<Collapsible open={open} onOpenChange={onOpenChange}>
 			<CollapsibleContent>
@@ -440,39 +477,7 @@ export function MenuColumnConfigCard(
 						</div>
 					</div>
 					<div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-						{[...new Set([...columnOrder, ...columns.map(column => column.key)])]
-							.map(columnKey => columns.find(column => column.key == columnKey)!).map(column => (
-								<div
-									key={column.key}
-									draggable
-									onDragStart={() => setDraggedColumn(column.key)}
-									onDragOver={e => {
-										e.preventDefault();
-										if(draggedColumn == null || draggedColumn == column.key) return;
-										const draggedIndex = columnOrder.indexOf(draggedColumn);
-										if(draggedIndex == -1) return;
-										const targetIndex = columnOrder.indexOf(column.key);
-										if(targetIndex == -1) return;
-										const changedOrder = [...columnOrder];
-										const [source] = changedOrder.splice(draggedIndex, 1);
-										changedOrder.splice(targetIndex, 0, source);
-										onColumnOrderChange(changedOrder);
-									}}
-									onDragEnd={() => setDraggedColumn(null)}
-									onDrop={() => setDraggedColumn(null)}
-									className="hover:bg-muted/60 flex h-full min-h-14 items-center gap-3 rounded-lg border px-3 py-1.5 text-left"
-								>
-									<GripVerticalIcon className="text-muted-foreground size-4 shrink-0" />
-									<Checkbox
-										checked={columnsShown.includes(column.key)}
-										disabled={columnsShown.length == 1 && columnsShown.includes(column.key)}
-										onCheckedChange={v => onColumnsShownChange(v != false ? [...new Set([...columnsShown, column.key])] : columnsShown.filter(c => c != column.key))}
-									/>
-									<div className="min-w-0 flex-1">
-										<p className="text-sm font-medium">{column.label}</p>
-									</div>
-								</div>
-							))}
+						{content}
 					</div>
 				</div>
 			</CollapsibleContent>
@@ -540,7 +545,7 @@ const filterOperatorLabels = Object.freeze({
 	"greater_than_equal": "Is Greater Than Or Equal To",
 	"less_than": "Is Less Than",
 	"less_than_equal": "Is Less Than Or Equal To"
-} as const);
+} as Record<string, string>);
 const filterTypeOperators = Object.freeze({
 	"relation": ["equals", "not_equals", "in", "not_in", "exists"],
 	"relation_hasMany": ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"],
@@ -554,14 +559,42 @@ const filterTypeOperators = Object.freeze({
 	"number_hasMany": ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"],
 	"boolean": ["equals", "not_equals", "in", "not_in", "exists"],
 	"boolean_hasMany": ["equals", "not_equals", "contains", "not_contains", "in", "not_in", "exists"]
-});
+} as Record<string, string[]>);
 export function MenuFilterConfigCard(
-	{ open, onOpenChange, columns, filters, onFiltersChange, disabled = false }:
-	{ open: boolean, onOpenChange: (o: boolean) => void, columns: readonly MenuFilterConfigColumn[], filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void, disabled?: boolean }
+	{ open, onOpenChange, columns, filters, onFiltersChange, disabled = false, contentOnly = false }:
+	{ open: boolean, onOpenChange: (o: boolean) => void, columns: readonly MenuFilterConfigColumn[], filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void, disabled?: boolean, contentOnly?: boolean }
 ) {
-	const [draftedFilters, setDraftedFilters] = useState(filters as Partial<MenuFilterState>[]);
-	const validFilters = useMemo(() => draftedFilters.filter((draftedFilter, i): draftedFilter is MenuFilterState => draftedFilter.columnKey != null && draftedFilter.operator != null &&
-		(i == 0 || draftedFilter.combinator != null) && draftedFilter.value != null && (!Array.isArray(draftedFilter.value) || draftedFilter.value.every(v => v != null))), [draftedFilters]);
+	const InternalMemoizedSelect = useMemo(() => memo((
+		{ options, value, onValueChange, placeholder, disabled = false }:
+		{ options: readonly (({ key?: never, value: string } | { key: string, value?: never }) & { label: React.ReactNode })[], value: string | undefined, onValueChange: (v: string | undefined) => void, placeholder?: string, disabled?: boolean }
+	) => (
+		<Select
+			value={value ?? ""}
+			onValueChange={v => onValueChange(v != "<clear>" ? v : undefined)}
+			disabled={disabled}
+		>
+			<SelectTrigger className="w-full">
+				<SelectValue placeholder={placeholder} />
+			</SelectTrigger>
+			<SelectContent>
+				{options.map(o => (
+					<SelectItem key={o.key ?? o.value} value={o.key ?? o.value}>
+						{o.label}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+	)), []);
+	const MemoizedSelect = useMemo(() => ({ options, onValueChange, ...props }: Parameters<typeof InternalMemoizedSelect>[0]) => {
+		const onValueChangeRef = useRef(onValueChange);
+		onValueChangeRef.current = onValueChange;
+		const onValueChangeStable = useCallback((v: string | undefined) => onValueChangeRef.current(v), []);
+		const optionsStable = useMemo(() => options, [options.some(o => o.label != null && typeof o.label == "object") ? options : JSON.stringify(options)]);
+		return (<InternalMemoizedSelect options={optionsStable} onValueChange={onValueChangeStable} {...props} />);
+	}, []);
+	const [draftedFilters0, setDraftedFilters] = useState(filters as Partial<MenuFilterState>[]);
+	const validFilters = useMemo(() => draftedFilters0.filter((draftedFilter, i): draftedFilter is MenuFilterState => draftedFilter.columnKey != null && draftedFilter.operator != null &&
+		(i == 0 || draftedFilter.combinator != null) && draftedFilter.value != null && (!Array.isArray(draftedFilter.value) || draftedFilter.value.every(v => v != null))), [draftedFilters0]);
 	const serializedFilters = useMemo(() => JSON.stringify(filters), [filters]);
 	const serializedValidFilters = useMemo(() => JSON.stringify(validFilters), [validFilters]);
 	const lastSyncedFilters = useRef(serializedFilters);
@@ -575,6 +608,247 @@ export function MenuFilterConfigCard(
 		lastSyncedFilters.current = serializedValidFilters;
 		onFiltersChange(validFilters);
 	}, [onFiltersChange, validFilters, serializedValidFilters]);
+	const draftedFilters = useMemo(() => {
+		if(serializedFilters != lastSyncedFilters.current) return [];
+		return draftedFilters0;
+	}, [draftedFilters0, serializedFilters]);
+	const content = (
+		<>
+			{draftedFilters.map((draftedFilter, i) => {
+				const columnKeys = draftedFilter.columnKey != null ? draftedFilter.columnKey.split(".").map(p => p.length > 0 ? p : null) : [null];
+				const draftedFilterPath = columnKeys.reduce((p: ([string | null, MenuFilterConfigColumn | null, [string | null, MenuFilterConfigColumn[]] | null])[], v) =>
+					[...p, (c => [v, c, c?.type == "relation" || c?.type == "relation_hasMany" ? c.relationFilterConfigColumn?.() : null] as const)(v != null ? p.at(-1)![2]![1].find(c => c.key == v)! : null)], [[null, null, [null, columns]] as [null, null, [null, MenuFilterConfigColumn[]]]]);
+				const lastDraftedFilterColumn = draftedFilterPath.at(-1)![1];
+				return (
+					<div key={i} className="space-y-3">
+						{i > 0 ? (
+							<div className="rounded-lg border border-dashed p-2">
+								<label className="text-sm font-medium">Combinator with previous filter</label>
+								<MemoizedSelect
+									options={[{ value: "and", label: "AND" }, { value: "or", label: "OR" }]}
+									value={draftedFilter.combinator}
+									onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, combinator: value as any }))}
+									placeholder="Select combinator"
+									disabled={disabled}
+								/>
+							</div>
+						) : null}
+						<div className="space-y-3 rounded-lg border p-3">
+							<div className="flex items-center justify-between">
+								<p className="text-sm font-medium">Filter {i + 1}</p>
+								<Button type="button" variant="ghost" size="sm" onClick={() => setDraftedFilters(draftedFilters.toSpliced(i, 1))} disabled={disabled}>
+									<XIcon />
+									Remove
+								</Button>
+							</div>
+							<div className="flex flex-wrap flex-col sm:flex-row gap-3">
+								{draftedFilterPath.map(([f, c, cs], j) => cs != null ? (
+									<div className="min-w-[120px] flex-1 space-y-2" key={j}>
+										<label className="text-sm font-medium">{cs[0] != null ? `${cs[0]} ` : ""}Column</label>
+										<MemoizedSelect
+											options={cs[1]}
+											value={draftedFilterPath[j + 1][0] ?? ""}
+											onValueChange={value => setDraftedFilters(draftedFilters.with(i, {
+												...draftedFilter,
+												columnKey: [...draftedFilterPath.slice(1, j + 1).map(c => c[0]!), value].join(".") +
+													(c => (c?.type == "relation" || c?.type == "relation_hasMany") && c.relationFilterConfigColumn?.() != null ? "." : "")(cs[1].find(c => c.key == value)!),
+												operator: undefined,
+												value: undefined
+											}))}
+											placeholder="Select column"
+											disabled={disabled}
+										/>
+									</div>
+								) : (
+									<div className="min-w-[120px] flex-1 space-y-2" key={j}>
+										<label className="text-sm font-medium">Operator</label>
+										{f == null || c == null ? (
+											<Select disabled>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="-" />
+												</SelectTrigger>
+											</Select>
+										) : (
+											<MemoizedSelect
+												options={filterTypeOperators[c.type].map(ok => ({ key: ok, label: filterOperatorLabels[ok] }))}
+												value={draftedFilter.operator ?? ""}
+												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, operator: value, value: undefined }))}
+												placeholder="Select operator"
+												disabled={disabled}
+											/>
+										)}
+									</div>
+								))}
+							</div>
+							<div className="space-y-2" key={`${draftedFilter.columnKey}:${draftedFilter.operator}`}>
+								<label className="text-sm font-medium">Filter Value</label>
+								{draftedFilter.operator == null || draftedFilter.columnKey == null || lastDraftedFilterColumn == null ? (
+									<Select disabled>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="-" />
+										</SelectTrigger>
+									</Select>
+								) : draftedFilter.operator == "exists" ? (
+									<MemoizedSelect
+										options={[{ value: "true", label: "TRUE" }, { value: "false", label: "FALSE" }]}
+										value={draftedFilter.value != null ? draftedFilter.value != "false" ? "true" : "false" : undefined}
+										onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value != "false" }))}
+										placeholder="Select value"
+										disabled={disabled}
+									/>
+								) : ((draftedFilter.operator == "equals" || draftedFilter.operator == "not_equals" || draftedFilter.operator == "greater_than" || draftedFilter.operator == "greater_than_equal" || draftedFilter.operator == "less_than" || draftedFilter.operator == "less_than_equal") &&
+									(lastDraftedFilterColumn.type != "relation_hasMany" && lastDraftedFilterColumn.type != "select_hasMany" && lastDraftedFilterColumn.type != "date_hasMany" && lastDraftedFilterColumn.type != "text_hasMany" && lastDraftedFilterColumn.type != "number_hasMany" && lastDraftedFilterColumn.type != "boolean_hasMany")) ? (
+										lastDraftedFilterColumn.type == "relation" ? (
+											<SearchableSelect
+												value={draftedFilter.value}
+												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
+												options={[]}
+												onSearch={(keyword, selectedValues) => lastDraftedFilterColumn.relationSearch!(keyword, selectedValues).then(vs => vs.map(v => ({ value: v.id, label: v.label })))}
+												disabled={disabled}
+												placeholder="Search relation value"
+											/>
+										) : lastDraftedFilterColumn.type == "select" ? (
+											<MemoizedSelect
+												options={lastDraftedFilterColumn.selectOptions}
+												value={draftedFilter.value}
+												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
+												placeholder="Select value"
+												disabled={disabled}
+											/>
+										) : lastDraftedFilterColumn.type == "date" ? (
+											<DatetimeInput
+												className="flex-1"
+												mode="datetime"
+												value={draftedFilter.value != null ? new Date(draftedFilter.value).toISOString() : undefined}
+												onChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
+												disabled={disabled}
+												placeholder="Select date and time"
+												precision="second"
+											/>
+										) : lastDraftedFilterColumn.type == "text" ? (
+											<Input
+												value={draftedFilter.value}
+												onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: e.target.value }))}
+												disabled={disabled}
+												placeholder="Enter value"
+											/>
+										) : lastDraftedFilterColumn.type == "number" ? (
+											<Input
+												type="number"
+												value={draftedFilter.value}
+												onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: e.target.valueAsNumber }))}
+												disabled={disabled}
+												placeholder="Enter value"
+											/>
+										) : lastDraftedFilterColumn.type == "boolean" ? (
+											<MemoizedSelect
+												options={[{ value: "true", label: "TRUE" }, { value: "false", label: "FALSE" }]}
+												value={draftedFilter.value != null ? draftedFilter.value != "false" ? "true" : "false" : undefined}
+												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value != "false" }))}
+												placeholder="Select value"
+												disabled={disabled}
+											/>
+										) : null
+									) : draftedFilter.operator == "in" || draftedFilter.operator == "not_in" || ((draftedFilter.operator == "equals" || draftedFilter.operator == "not_equals") && (lastDraftedFilterColumn.type == "relation_hasMany" || lastDraftedFilterColumn.type == "select_hasMany" || lastDraftedFilterColumn.type == "date_hasMany" || lastDraftedFilterColumn.type == "text_hasMany" || lastDraftedFilterColumn.type == "number_hasMany" || lastDraftedFilterColumn.type == "boolean_hasMany")) ? (
+										lastDraftedFilterColumn.type == "relation" ? (
+											<SearchableMultiSelect
+												values={draftedFilter.value}
+												onValuesChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value }))}
+												options={[]}
+												onSearch={(keyword, selectedValues) => lastDraftedFilterColumn.relationSearch!(keyword, selectedValues).then(vs => vs.map(v => ({ value: v.id, label: v.label })))}
+												disabled={disabled}
+												placeholder="Search relation values"
+											/>
+										) : (
+											<div className="space-y-2">
+												<div className="flex items-center justify-between">
+													<p className="text-muted-foreground text-xs">Define one or more values.</p>
+													<Button
+														type="button"
+														variant="outline"
+														onClick={() => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: [...(draftedFilter.value ?? []), null] }))}
+														disabled={disabled}
+													>
+														<PlusIcon />Add Value
+													</Button>
+												</div>
+												{!Array.isArray(draftedFilter.value) || draftedFilter.value.length == 0 ? (
+													<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
+												) : (
+													<div className="space-y-2">
+														{draftedFilter.value.map((value, valueIndex) => (
+															<div key={valueIndex} className="flex items-start gap-2">
+																{lastDraftedFilterColumn.type == "select" ? (
+																	<MemoizedSelect
+																		options={lastDraftedFilterColumn.selectOptions}
+																		value={value}
+																		onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) }))}
+																		placeholder="Select value"
+																		disabled={disabled}
+																	/>
+																) : lastDraftedFilterColumn.type == "date" ? (
+																	<DatetimeInput
+																		className="flex-1"
+																		mode="datetime"
+																		value={value != null ? new Date(value).toISOString() : undefined}
+																		onChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, Date.parse(value)) }))}
+																		disabled={disabled}
+																		placeholder="Select date and time"
+																		precision="second"
+																	/>
+																) : lastDraftedFilterColumn.type == "text" ? (
+																	<Input
+																		value={value}
+																		onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.value) }))}
+																		disabled={disabled}
+																		placeholder="Enter value"
+																	/>
+																) : lastDraftedFilterColumn.type == "number" ? (
+																	<Input
+																		type="number"
+																		value={value}
+																		onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.valueAsNumber) }))}
+																		disabled={disabled}
+																		placeholder="Enter value"
+																	/>
+																) : lastDraftedFilterColumn.type == "boolean" ? (
+																	<MemoizedSelect
+																		options={[{ value: "true", label: "TRUE" }, { value: "false", label: "FALSE" }]}
+																		value={value != null ? value != "false" ? "true" : "false" : undefined}
+																		onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) }))}
+																		placeholder="Select value"
+																		disabled={disabled}
+																	/>
+																) : null}
+																<Button
+																	type="button"
+																	variant="outline"
+																	className="shrink-0"
+																	onClick={() => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.toSpliced(valueIndex, 1) }))}
+																	disabled={disabled}
+																>
+																	<XIcon />Remove
+																</Button>
+															</div>
+														))}
+													</div>
+												)}
+											</div>
+										)
+									) : null}
+							</div>
+						</div>
+					</div>
+				);
+			})}
+			<Button type="button" variant="outline" onClick={() => setDraftedFilters([...draftedFilters, {}])} disabled={disabled}>
+				<PlusIcon />
+				Add Filter
+			</Button>
+		</>
+	);
+	if(contentOnly)
+		return content;
 	return (
 		<Collapsible open={open} onOpenChange={onOpenChange}>
 			<CollapsibleContent>
@@ -588,329 +862,59 @@ export function MenuFilterConfigCard(
 							<Button type="button" variant="outline" size="sm" onClick={() => setDraftedFilters([])} disabled={disabled}>Clear Filter</Button>
 						) : null}
 					</div>
-					{draftedFilters.map((draftedFilter, i) => {
-						const columnKeys = draftedFilter.columnKey != null ? draftedFilter.columnKey.split(".").map(p => p.length > 0 ? p : null) : [null];
-						const draftedFilterPath = columnKeys.reduce((p: ([string | null, MenuFilterConfigColumn | null, [string | null, MenuFilterConfigColumn[]] | null])[], v) =>
-							[...p, (c => [v, c, c?.type == "relation" || c?.type == "relation_hasMany" ? c.relationFilterConfigColumn?.() : null] as const)(v != null ? p.at(-1)![2]![1].find(c => c.key == v)! : null)], [[null, null, [null, columns]] as [null, null, [null, MenuFilterConfigColumn[]]]]);
-						const lastDraftedFilterColumn = draftedFilterPath.at(-1)![1];
-						return (
-							<div key={i} className="space-y-3">
-								{i > 0 ? (
-									<div className="rounded-lg border border-dashed p-2">
-										<label className="text-sm font-medium">Combinator with previous filter</label>
-										<Select
-											value={draftedFilter.combinator}
-											onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, combinator: value as any }))}
-											disabled={disabled}
-										>
-											<SelectTrigger className="w-full">
-												<SelectValue placeholder="Select combinator" />
-											</SelectTrigger>
-											<SelectContent>
-												<SelectItem value="and">AND</SelectItem>
-												<SelectItem value="or">OR</SelectItem>
-											</SelectContent>
-										</Select>
-									</div>
-								) : null}
-								<div className="space-y-3 rounded-lg border p-3">
-									<div className="flex items-center justify-between">
-										<p className="text-sm font-medium">Filter {i + 1}</p>
-										<Button type="button" variant="ghost" size="sm" onClick={() => setDraftedFilters(draftedFilters.toSpliced(i, 1))} disabled={disabled}>
-											<XIcon />
-											Remove
-										</Button>
-									</div>
-									<div className="flex flex-wrap flex-col sm:flex-row gap-3">
-										{draftedFilterPath.map(([f, c, cs], j) => cs != null ? (
-											<div className="flex-1 space-y-2" key={j}>
-												<label className="text-sm font-medium">{cs[0] != null ? `${cs[0]} ` : ""}Column</label>
-												<Select
-													value={draftedFilterPath[j + 1][0] ?? ""}
-													onValueChange={value => setDraftedFilters(draftedFilters.with(i, {
-														...draftedFilter,
-														columnKey: [...draftedFilterPath.slice(1, j + 1).map(c => c[0]!), value].join(".") +
-															(c => (c?.type == "relation" || c?.type == "relation_hasMany") && c.relationFilterConfigColumn?.() != null ? "." : "")(cs[1].find(c => c.key == value)!),
-														operator: undefined,
-														value: undefined
-													}))}
-													disabled={disabled}
-												>
-													<SelectTrigger className="w-full">
-														<SelectValue placeholder="Select column" />
-													</SelectTrigger>
-													<SelectContent>
-														{cs[1].map(ci => (
-															<SelectItem key={ci.key} value={ci.key}>{ci.label}</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
-										) : (
-											<div className="flex-1 space-y-2" key={j}>
-												<label className="text-sm font-medium">Operator</label>
-												{f == null || c == null ? (
-													<Select disabled>
-														<SelectTrigger className="w-full">
-															<SelectValue placeholder="-" />
-														</SelectTrigger>
-													</Select>
-												) : (
-													<Select
-														value={draftedFilter.operator ?? ""}
-														onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, operator: value, value: undefined }))}
-														disabled={disabled}
-													>
-														<SelectTrigger className="w-full">
-															<SelectValue placeholder="Select operator" />
-														</SelectTrigger>
-														<SelectContent>
-															{filterTypeOperators[c.type].map(operatorKey => (
-																<SelectItem key={operatorKey} value={operatorKey}>{filterOperatorLabels[operatorKey]}</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
-												)}
-											</div>
-										))}
-									</div>
-									<div className="space-y-2" key={`${draftedFilter.columnKey}:${draftedFilter.operator}`}>
-										<label className="text-sm font-medium">Filter Value</label>
-										{draftedFilter.operator == null || draftedFilter.columnKey == null || lastDraftedFilterColumn == null ? (
-											<Select disabled>
-												<SelectTrigger className="w-full">
-													<SelectValue placeholder="-" />
-												</SelectTrigger>
-											</Select>
-										) : draftedFilter.operator == "exists" ? (
-											<Select
-												value={draftedFilter.value != null ? draftedFilter.value != "false" ? "true" : "false" : undefined}
-												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value != "false" }))}
-												disabled={disabled}
-											>
-												<SelectTrigger className="w-full">
-													<SelectValue placeholder="Select value" />
-												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="true">True</SelectItem>
-													<SelectItem value="false">False</SelectItem>
-												</SelectContent>
-											</Select>
-										) : ((draftedFilter.operator == "equals" || draftedFilter.operator == "not_equals" || draftedFilter.operator == "greater_than" || draftedFilter.operator == "greater_than_equal" || draftedFilter.operator == "less_than" || draftedFilter.operator == "less_than_equal") &&
-											(lastDraftedFilterColumn.type != "relation_hasMany" && lastDraftedFilterColumn.type != "select_hasMany" && lastDraftedFilterColumn.type != "date_hasMany" && lastDraftedFilterColumn.type != "text_hasMany" && lastDraftedFilterColumn.type != "number_hasMany" && lastDraftedFilterColumn.type != "boolean_hasMany")) ? (
-												lastDraftedFilterColumn.type == "relation" ? (
-													<SearchableSelect
-														value={draftedFilter.value}
-														onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value }))}
-														options={[]}
-														onSearch={(keyword, selectedValues) => lastDraftedFilterColumn.relationSearch!(keyword, selectedValues).then(vs => vs.map(v => ({ value: v.id, label: v.label })))}
-														disabled={disabled}
-														placeholder="Search relation value"
-													/>
-												) : lastDraftedFilterColumn.type == "select" ? (
-													<Select
-														value={draftedFilter.value}
-														onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
-														disabled={disabled}
-													>
-														<SelectTrigger className="w-full">
-															<SelectValue placeholder="Select value" />
-														</SelectTrigger>
-														<SelectContent>
-															{lastDraftedFilterColumn.selectOptions.map(selectOption => (
-																<SelectItem value={selectOption.value}>{selectOption.label}</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
-												) : lastDraftedFilterColumn.type == "date" ? (
-													<DatetimeInput
-														className="flex-1"
-														mode="datetime"
-														value={draftedFilter.value != null ? new Date(draftedFilter.value).toISOString() : undefined}
-														onChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
-														disabled={disabled}
-														placeholder="Select date and time"
-														precision="second"
-													/>
-												) : lastDraftedFilterColumn.type == "text" ? (
-													<Input
-														value={draftedFilter.value}
-														onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: e.target.value }))}
-														disabled={disabled}
-														placeholder="Enter value"
-													/>
-												) : lastDraftedFilterColumn.type == "number" ? (
-													<Input
-														type="number"
-														value={draftedFilter.value}
-														onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: e.target.valueAsNumber }))}
-														disabled={disabled}
-														placeholder="Enter value"
-													/>
-												) : lastDraftedFilterColumn.type == "boolean" ? (
-													<Select
-														value={draftedFilter.value != null ? draftedFilter.value != "false" ? "true" : "false" : undefined}
-														onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
-														disabled={disabled}
-													>
-														<SelectTrigger className="w-full">
-															<SelectValue placeholder="Select value" />
-														</SelectTrigger>
-														<SelectContent>
-															<SelectItem value="true">True</SelectItem>
-															<SelectItem value="false">False</SelectItem>
-														</SelectContent>
-													</Select>
-												) : null
-											) : draftedFilter.operator == "in" || draftedFilter.operator == "not_in" || ((draftedFilter.operator == "equals" || draftedFilter.operator == "not_equals") && (lastDraftedFilterColumn.type == "relation_hasMany" || lastDraftedFilterColumn.type == "select_hasMany" || lastDraftedFilterColumn.type == "date_hasMany" || lastDraftedFilterColumn.type == "text_hasMany" || lastDraftedFilterColumn.type == "number_hasMany" || lastDraftedFilterColumn.type == "boolean_hasMany")) ? (
-												lastDraftedFilterColumn.type == "relation" ? (
-													<SearchableMultiSelect
-														values={draftedFilter.value}
-														onValuesChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value }))}
-														options={[]}
-														onSearch={(keyword, selectedValues) => lastDraftedFilterColumn.relationSearch!(keyword, selectedValues).then(vs => vs.map(v => ({ value: v.id, label: v.label })))}
-														disabled={disabled}
-														placeholder="Search relation values"
-													/>
-												) : (
-													<div className="space-y-2">
-														<div className="flex items-center justify-between">
-															<p className="text-muted-foreground text-xs">Define one or more values.</p>
-															<Button
-																type="button"
-																variant="outline"
-																onClick={() => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: [...(draftedFilter.value ?? []), null] }))}
-																disabled={disabled}
-															>
-																<PlusIcon />Add Value
-															</Button>
-														</div>
-														{!Array.isArray(draftedFilter.value) || draftedFilter.value.length == 0 ? (
-															<p className="text-muted-foreground text-xs">Click Add Value to create rows.</p>
-														) : (
-															<div className="space-y-2">
-																{draftedFilter.value.map((value, valueIndex) => (
-																	<div key={valueIndex} className="flex items-start gap-2">
-																		{lastDraftedFilterColumn.type == "select" ? (
-																			<Select
-																				value={value}
-																				onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) }))}
-																				disabled={disabled}
-																			>
-																				<SelectTrigger className="w-full">
-																					<SelectValue placeholder="Select value" />
-																				</SelectTrigger>
-																				<SelectContent>
-																					{lastDraftedFilterColumn.selectOptions.map(selectOption => (
-																						<SelectItem value={selectOption.value}>{selectOption.label}</SelectItem>
-																					))}
-																				</SelectContent>
-																			</Select>
-																		) : lastDraftedFilterColumn.type == "date" ? (
-																			<DatetimeInput
-																				className="flex-1"
-																				mode="datetime"
-																				value={value != null ? new Date(value).toISOString() : undefined}
-																				onChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, Date.parse(value)) }))}
-																				disabled={disabled}
-																				placeholder="Select date and time"
-																				precision="second"
-																			/>
-																		) : lastDraftedFilterColumn.type == "text" ? (
-																			<Input
-																				value={value}
-																				onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.value) }))}
-																				disabled={disabled}
-																				placeholder="Enter value"
-																			/>
-																		) : lastDraftedFilterColumn.type == "number" ? (
-																			<Input
-																				type="number"
-																				value={value}
-																				onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.valueAsNumber) }))}
-																				disabled={disabled}
-																				placeholder="Enter value"
-																			/>
-																		) : lastDraftedFilterColumn.type == "boolean" ? (
-																			<Select
-																				value={value != null ? value != "false" ? "true" : "false" : undefined}
-																				onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) }))}
-																				disabled={disabled}
-																			>
-																				<SelectTrigger className="w-full">
-																					<SelectValue placeholder="Select value" />
-																				</SelectTrigger>
-																				<SelectContent>
-																					<SelectItem value="true">True</SelectItem>
-																					<SelectItem value="false">False</SelectItem>
-																				</SelectContent>
-																			</Select>
-																		) : null}
-																		<Button
-																			type="button"
-																			variant="outline"
-																			className="shrink-0"
-																			onClick={() => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.toSpliced(valueIndex, 1) }))}
-																			disabled={disabled}
-																		>
-																			<XIcon />Remove
-																		</Button>
-																	</div>
-																))}
-															</div>
-														)}
-													</div>
-												)
-											) : null}
-									</div>
-								</div>
-							</div>
-						);
-					})}
-					<Button type="button" variant="outline" onClick={() => setDraftedFilters([...draftedFilters, {}])} disabled={disabled}>
-						<PlusIcon />
-						Add Filter
-					</Button>
+					{content}
 				</div>
 			</CollapsibleContent>
 		</Collapsible>
 	);
 }
 export function MenuFilterSummary(
-	{ columns, filters }:
-	{ columns: readonly MenuFilterConfigColumn[], filters: MenuFilterState[] }
+	{ columns, filters, contentOnly = false }:
+	{ columns: readonly MenuFilterConfigColumn[], filters: MenuFilterState[], contentOnly?: boolean }
 ) {
-	if(filters.length == 0)
+	const content = filters.map((filter, i) => {
+		const columnKeys = filter.columnKey.split(".").map(p => p.length > 0 ? p : null);
+		const filterPath = columnKeys.reduce((p: ([string | null, MenuFilterConfigColumn | null, [string | null, MenuFilterConfigColumn[]] | null])[], v) =>
+			[...p, (c => [v, c, c?.type == "relation" || c?.type == "relation_hasMany" ? c.relationFilterConfigColumn?.() : null] as const)(v != null ? p.at(-1)![2]![1].find(c => c.key == v)! : null)], [[null, null, [null, columns]] as [null, null, [null, MenuFilterConfigColumn[]]]]);
+		return (
+			<span key={i} className="inline-flex items-center gap-1.5 text-xs">
+				{i > 0 ? (
+					<span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">
+						{filter.combinator}
+					</span>
+				) : null}
+				<span className="bg-background rounded border px-2 py-0.5">
+					<span className="font-semibold">
+						{filterPath.slice(1).map(c => c[1]!.label).join(" → ")}
+					</span>
+					<span className="text-muted-foreground mx-1 italic">
+						{filterOperatorLabels[filter.operator]}
+					</span>
+					<span className="font-mono text-[11px]">
+						{Array.isArray(filter.value) ? filter.value.map(v => `${v}`).join(", ") : `${filter.value}`}
+					</span>
+				</span>
+			</span>
+		);
+	});
+	if(contentOnly) {
+		if(content.length > 0)
+			return content;
+		return (
+			<span className="bg-background rounded border px-2 py-0.5 text-xs">
+				<span className="text-muted-foreground mx-1 italic">
+					No value
+				</span>
+			</span>
+		);
+	}
+	if(content.length == 0)
 		return null;
 	return (
-		<div className="rounded-lg border border-dashed px-3 py-2 text-xs">
+		<div className="rounded-lg border border-dashed px-3 py-2">
 			<p className="text-muted-foreground font-medium">Active filters</p>
 			<div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-				{filters.map((filter, i) => {
-					const columnKeys = filter.columnKey.split(".").map(p => p.length > 0 ? p : null);
-					const filterPath = columnKeys.reduce((p: ([string | null, MenuFilterConfigColumn | null, [string | null, MenuFilterConfigColumn[]] | null])[], v) =>
-						[...p, (c => [v, c, c?.type == "relation" || c?.type == "relation_hasMany" ? c.relationFilterConfigColumn?.() : null] as const)(v != null ? p.at(-1)![2]![1].find(c => c.key == v)! : null)], [[null, null, [null, columns]] as [null, null, [null, MenuFilterConfigColumn[]]]]);
-					return (
-						<span key={i} className="inline-flex items-center gap-1.5">
-							{i > 0 ? (
-								<span className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide">
-									{filter.combinator}
-								</span>
-							) : null}
-							<span className="bg-background rounded border px-2 py-0.5">
-								<span className="font-semibold">
-									{filterPath.slice(1).map(c => c[1]!.label).join(" → ")}
-								</span>
-								<span className="text-muted-foreground mx-1 italic">
-									{filterOperatorLabels[filter.operator]}
-								</span>
-								<span className="font-mono text-[11px]">
-									{Array.isArray(filter.value) ? filter.value.map(v => `${v}`).join(", ") : `${filter.value}`}
-								</span>
-							</span>
-						</span>
-					);
-				})}
+				{content}
 			</div>
 		</div>
 	);

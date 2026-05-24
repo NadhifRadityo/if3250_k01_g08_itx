@@ -54,7 +54,8 @@ export default function Page() {
 		context: {
 			...rowValueRendererContext,
 			richTextCard: false,
-			richTextClamp: false
+			richTextClamp: false,
+			accessMaskClamp: true
 		},
 		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
 			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),

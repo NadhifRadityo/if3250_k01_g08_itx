@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useCallback, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { HistoryIcon, CircleAlertIcon } from "lucide-react";
@@ -26,14 +26,14 @@ import { MenuFilterState, MenuFilterSummary, useDashboardContext, MenuFilterConf
 import { columnConfigColumns as LoginLogsColumnConfigColumns, filterConfigColumns as LoginLogsFilterConfigColumns } from "../login-log/layout.components";
 import { columnConfigColumns as OtpLogsColumnConfigColumns, filterConfigColumns as OtpLogsFilterConfigColumns } from "../otp-log/layout.components";
 import { columnConfigColumns as RecordingLogsColumnConfigColumns, filterConfigColumns as RecordingLogsFilterConfigColumns } from "../recording-log/layout.components";
-import { searchRelationUsersAction, searchRelationAccessesAction } from "../relation-navigation.actions";
+import { searchRelationAccessesAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
 import { columnConfigColumns as RolesColumnConfigColumns, filterConfigColumns as RolesFilterConfigColumns } from "../role-management/layout.components";
 import { columnConfigColumns as SatisfactionSurveysColumnConfigColumns, filterConfigColumns as SatisfactionSurveysFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
 import { columnConfigColumns as SurveysColumnConfigColumns, filterConfigColumns as SurveysFilterConfigColumns } from "../survey-management/layout.components";
 import { columnConfigColumns as SurveyResultsColumnConfigColumns, filterConfigColumns as SurveyResultsFilterConfigColumns } from "../survey-result/layout.components";
 import { columnConfigColumns as TeamsColumnConfigColumns, filterConfigColumns as TeamsFilterConfigColumns } from "../team-management/layout.components";
-import { columnConfigColumns as StagedUsersColumnConfigColumns, filterConfigColumns as StagedUsersFilterConfigColumns, userFilterConfigColumns } from "../user-management/layout.components";
+import { userFilterConfigColumns, columnConfigColumns as StagedUsersColumnConfigColumns, filterConfigColumns as StagedUsersFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 import { maskOptionsMap, collectionMaskFields, collectionSelectOptions } from "./layout.shared";
 
@@ -71,7 +71,7 @@ const collectionColumnConfigColumns = {
 } as Record<string, readonly MenuColumnConfigColumn[]>;
 const defaultAccessFilterRenderer = () =>
 	(value: MenuFilterState[], { collection }: { collection: Access["collection"] }) => (
-		<MenuFilterSummary columns={collectionFilterConfigColumns[collection]} filters={value} />
+		<MenuFilterSummary columns={collectionFilterConfigColumns[collection]} filters={value} contentOnly />
 	);
 const defaultAccessMaskRenderer = () =>
 	(value: Record<string, string>, { collection }: { collection: Access["collection"] }, { accessMaskClamp }: { accessMaskClamp?: boolean }) => (sortedValues => (
@@ -615,6 +615,39 @@ export function FormDrawer(
 	{ open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating = false }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: FormState, onFormStateChange: (v: FormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
 ) {
+	const InternalMemoizedSelect = useMemo(() => memo((
+		{ options, value, onValueChange, placeholder, disabled = false }:
+		{ options: readonly { value: string, label: React.ReactNode }[], value: string | undefined, onValueChange: (v: string | undefined) => void, placeholder?: string, disabled?: boolean }
+	) => (
+		<Select
+			value={value ?? ""}
+			onValueChange={v => onValueChange(v != "<clear>" ? v : undefined)}
+			disabled={disabled}
+		>
+			<SelectTrigger className="w-full">
+				<SelectValue placeholder={placeholder} />
+			</SelectTrigger>
+			<SelectContent>
+				{value != null ? (
+					<SelectItem value="<clear>">
+						Clear
+					</SelectItem>
+				) : null}
+				{options.map(o => (
+					<SelectItem key={o.value} value={o.value}>
+						{o.label}
+					</SelectItem>
+				))}
+			</SelectContent>
+		</Select>
+	)), []);
+	const MemoizedSelect = useMemo(() => ({ options, onValueChange, ...props }: Parameters<typeof InternalMemoizedSelect>[0]) => {
+		const onValueChangeRef = useRef(onValueChange);
+		onValueChangeRef.current = onValueChange;
+		const onValueChangeStable = useCallback((v: string | undefined) => onValueChangeRef.current(v), []);
+		const optionsStable = useMemo(() => options, [options.some(o => o.label != null && typeof o.label == "object") ? options : JSON.stringify(options)]);
+		return (<InternalMemoizedSelect options={optionsStable} onValueChange={onValueChangeStable} {...props} />);
+	}, []);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -638,7 +671,7 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Collection</label>
-							<Select value={formState.collection} onValueChange={value => onFormStateChange({ ...formState, collection: value as any, filter: [] })}>
+							<Select value={formState.collection} onValueChange={value => onFormStateChange({ ...formState, collection: value as any, filter: [], mask: {} })}>
 								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Select level" />
 								</SelectTrigger>
@@ -663,6 +696,7 @@ export function FormDrawer(
 								columns={formState.collection != null ? collectionFilterConfigColumns[formState.collection] : []}
 								filters={formState.filter ?? []}
 								onFiltersChange={value => onFormStateChange({ ...formState, filter: value })}
+								contentOnly
 							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
@@ -672,27 +706,13 @@ export function FormDrawer(
 									{collectionColumnConfigColumns[formState.collection].filter(f => f.key in collectionMaskFields[formState.collection!]).map(f => (
 										<div key={f.key} className="space-y-1">
 											<label className="text-xs text-muted-foreground">{f.label}</label>
-											<Select
-												value={(formState.mask ?? {})[f.key] ?? ""}
-												onValueChange={v => onFormStateChange({ ...formState, mask: { ...formState.mask, [f.key]: v != "<clear>" ? v : undefined } })}
+											<MemoizedSelect
+												options={maskOptionsMap[collectionMaskFields[formState.collection!][f.key]]}
+												value={(formState.mask ?? {})[f.key]}
+												onValueChange={value => onFormStateChange({ ...formState, mask: { ...formState.mask, [f.key]: value } })}
+												placeholder="Inherit"
 												disabled={isMutating}
-											>
-												<SelectTrigger className="w-full">
-													<SelectValue placeholder="Inherit" />
-												</SelectTrigger>
-												<SelectContent>
-													{(formState.mask ?? {})[f.key] != null ? (
-														<SelectItem value="<clear>">
-															Clear
-														</SelectItem>
-													) : null}
-													{maskOptionsMap[collectionMaskFields[formState.collection!][f.key]].map(o => (
-														<SelectItem key={o.value} value={o.value}>
-															{o.label}
-														</SelectItem>
-													))}
-												</SelectContent>
-											</Select>
+											/>
 										</div>
 									))}
 								</div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useMemo, useState, useEffect } from "react";
+import React, { memo, useRef, useMemo, useState, useEffect } from "react";
 import { CodeNode, CodeHighlightNode } from "@lexical/code";
 import { AutoFocusExtension, ClearEditorExtension, DecoratorTextExtension, HorizontalRuleExtension, SelectionAlwaysOnDisplayExtension } from "@lexical/extension";
 import { HistoryExtension } from "@lexical/history";
@@ -15,7 +15,7 @@ import { TabIndentationPlugin } from "@lexical/react/LexicalTabIndentationPlugin
 import { TablePlugin } from "@lexical/react/LexicalTablePlugin";
 import { RichTextExtension } from "@lexical/rich-text";
 import { TableNode, TableRowNode, TableCellNode } from "@lexical/table";
-import { LexicalEditor, configExtension, defineExtension, KEY_DOWN_COMMAND, COMMAND_PRIORITY_HIGH, type EditorState, type SerializedEditorState, $getRoot } from "lexical";
+import { $getRoot, LexicalEditor, configExtension, defineExtension, KEY_DOWN_COMMAND, COMMAND_PRIORITY_HIGH, type EditorState, type SerializedEditorState } from "lexical";
 
 import cn from "@/utils/cn";
 import useIsMobile from "@/utils/useIsMobile";
@@ -254,6 +254,55 @@ export const RichTextInput = ({
 		};
 	}, [floatingAnchorElem]);
 
+	const MemoizedToolbarChildren = useMemo(() => memo((
+		{ blockType, setIsLinkEditMode: setIsLinkEditMode_, onImageUpload: onImageUpload_ }:
+		{ blockType: string, setIsLinkEditMode: typeof setIsLinkEditMode, onImageUpload: typeof onImageUpload }
+	) => (
+		<ScrollArea>
+			<div className="vertical-align-middle sticky top-0 z-10 flex items-center gap-2 overflow-auto border-b p-1">
+				<HistoryToolbarPlugin />
+				<Separator orientation="vertical" className="h-7!" />
+				<BlockFormatDropDown>
+					<FormatParagraph />
+					<FormatHeading levels={["h1", "h2", "h3"]} />
+					<FormatNumberedList />
+					<FormatBulletedList />
+					<FormatCheckList />
+					<FormatCodeBlock />
+					<FormatQuote />
+				</BlockFormatDropDown>
+				{blockType == "code" ? (
+					<CodeLanguageToolbarPlugin />
+				) : (
+					<>
+						<FontFamilyToolbarPlugin />
+						<FontSizeToolbarPlugin />
+						<Separator orientation="vertical" className="h-7!" />
+						<FontFormatToolbarPlugin />
+						<Separator orientation="vertical" className="h-7!" />
+						<SubSuperToolbarPlugin />
+						<LinkToolbarPlugin setIsLinkEditMode={setIsLinkEditMode_} />
+						<Separator orientation="vertical" className="h-7!" />
+						<ClearFormattingToolbarPlugin />
+						<Separator orientation="vertical" className="h-7!" />
+						<FontColorToolbarPlugin />
+						<FontBackgroundToolbarPlugin />
+						<Separator orientation="vertical" className="h-7!" />
+						<ElementFormatToolbarPlugin />
+						<Separator orientation="vertical" className="h-7!" />
+						<BlockInsertPlugin>
+							<InsertHorizontalRule />
+							<InsertImage onUpload={onImageUpload_} />
+							<InsertTable />
+							<InsertColumnsLayout />
+							<InsertEmbeds />
+						</BlockInsertPlugin>
+					</>
+				)}
+			</div>
+			<ScrollBar orientation="horizontal" className="z-10 opacity-60" />
+		</ScrollArea>
+	)), []);
 	return (
 		<div className={cn("bg-background overflow-hidden rounded-lg border shadow w-full", className)}>
 			<LexicalExtensionComposer extension={AppExtension} contentEditable={null}>
@@ -261,50 +310,11 @@ export const RichTextInput = ({
 					<div className="relative">
 						<ToolbarPlugin>
 							{({ blockType }) => (
-								<ScrollArea>
-									<div className="vertical-align-middle sticky top-0 z-10 flex items-center gap-2 overflow-auto border-b p-1">
-										<HistoryToolbarPlugin />
-										<Separator orientation="vertical" className="h-7!" />
-										<BlockFormatDropDown>
-											<FormatParagraph />
-											<FormatHeading levels={["h1", "h2", "h3"]} />
-											<FormatNumberedList />
-											<FormatBulletedList />
-											<FormatCheckList />
-											<FormatCodeBlock />
-											<FormatQuote />
-										</BlockFormatDropDown>
-										{blockType == "code" ? (
-											<CodeLanguageToolbarPlugin />
-										) : (
-											<>
-												<FontFamilyToolbarPlugin />
-												<FontSizeToolbarPlugin />
-												<Separator orientation="vertical" className="h-7!" />
-												<FontFormatToolbarPlugin />
-												<Separator orientation="vertical" className="h-7!" />
-												<SubSuperToolbarPlugin />
-												<LinkToolbarPlugin setIsLinkEditMode={setIsLinkEditMode} />
-												<Separator orientation="vertical" className="h-7!" />
-												<ClearFormattingToolbarPlugin />
-												<Separator orientation="vertical" className="h-7!" />
-												<FontColorToolbarPlugin />
-												<FontBackgroundToolbarPlugin />
-												<Separator orientation="vertical" className="h-7!" />
-												<ElementFormatToolbarPlugin />
-												<Separator orientation="vertical" className="h-7!" />
-												<BlockInsertPlugin>
-													<InsertHorizontalRule />
-													<InsertImage onUpload={onImageUpload} />
-													<InsertTable />
-													<InsertColumnsLayout />
-													<InsertEmbeds />
-												</BlockInsertPlugin>
-											</>
-										)}
-									</div>
-									<ScrollBar orientation="horizontal" className="z-10 opacity-60" />
-								</ScrollArea>
+								<MemoizedToolbarChildren
+									blockType={blockType}
+									setIsLinkEditMode={setIsLinkEditMode}
+									onImageUpload={onImageUpload}
+								/>
 							)}
 						</ToolbarPlugin>
 						<div className="relative">
