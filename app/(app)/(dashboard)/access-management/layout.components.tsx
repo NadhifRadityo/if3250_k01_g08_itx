@@ -113,9 +113,14 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "name", label: "Name" },
 	{ key: "description", label: "Description" },
+	{ key: "priority", label: "Priority" },
+	{ key: "operation", label: "Operation" },
+	{ key: "subjectUserFilters", label: "Subject User Filters" },
+	{ key: "subjectTeamFilters", label: "Subject Team Filters" },
+	{ key: "subjectRoleFilters", label: "Subject Role Filters" },
 	{ key: "collection", label: "Collection" },
-	{ key: "filter", label: "Filter" },
-	{ key: "mask", label: "Mask" },
+	{ key: "filters", label: "Filters" },
+	{ key: "masks", label: "Masks" },
 	{ key: "#changeRequest", label: "Request" },
 	{ key: "#status", label: "Status" },
 	{ key: "reviewedAt", label: "Reviewed At" },
@@ -134,9 +139,14 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "name", label: "Name", sortable: true, className: "font-medium" },
 	{ key: "description", label: "Description", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ key: "priority", label: "Priority", sortable: true },
+	{ key: "operation", label: "Operation", sortable: true },
+	{ key: "subjectUserFilters", label: "Subject User Filters", sortable: false },
+	{ key: "subjectTeamFilters", label: "Subject Team Filters", sortable: false },
+	{ key: "subjectRoleFilters", label: "Subject Role Filters", sortable: false },
 	{ key: "collection", label: "Collection", sortable: true },
-	{ key: "filter", label: "Filter", sortable: false },
-	{ key: "mask", label: "Mask", sortable: false },
+	{ key: "filters", label: "Filters", sortable: false },
+	{ key: "masks", label: "Masks", sortable: false },
 	{ key: "#changeRequest", label: "Request", sortable: false },
 	{ key: "#status", label: "Status", sortable: false },
 	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
@@ -154,9 +164,14 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "accesses.deletedBy" }) },
 	{ key: "name", type: "text" },
 	{ key: "description", type: "richText" },
+	{ key: "priority", type: "text" },
+	{ key: "operation", type: "text" },
+	{ key: "subjectUserFilters", type: "text", render: v => (<pre className="text-xs whitespace-pre-wrap">{JSON.stringify(v)}</pre>) },
+	{ key: "subjectTeamFilters", type: "text", render: v => (<pre className="text-xs whitespace-pre-wrap">{JSON.stringify(v)}</pre>) },
+	{ key: "subjectRoleFilters", type: "text", render: v => (<pre className="text-xs whitespace-pre-wrap">{JSON.stringify(v)}</pre>) },
 	{ key: "collection", type: "select", selectOptions: collectionSelectOptions },
-	{ key: "filter", type: "null", render: defaultAccessFilterRenderer() },
-	{ key: "mask", type: "null", render: defaultAccessMaskRenderer() },
+	{ key: "filters", type: "null", render: defaultAccessFilterRenderer() },
+	{ key: "masks", type: "null", render: defaultAccessMaskRenderer() },
 	{ key: "#changeRequest", type: "null", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
@@ -194,9 +209,14 @@ export const defaultColumnOrder = Object.freeze([
 	"id",
 	"name",
 	"description",
+	"priority",
+	"operation",
+	"subjectUserFilters",
+	"subjectTeamFilters",
+	"subjectRoleFilters",
 	"collection",
-	"filter",
-	"mask",
+	"filters",
+	"masks",
 	"createdBy",
 	"updatedBy",
 	"deletedBy",
@@ -213,8 +233,8 @@ export const defaultColumnOrder = Object.freeze([
 export const defaultColumnsShown = Object.freeze([
 	"name",
 	"collection",
-	"filter",
-	"mask",
+	"filters",
+	"masks",
 	"#changeRequest",
 	"#status",
 	"updatedAt",
@@ -580,6 +600,7 @@ export function ReviewDrawer(
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
 							onImageUpload={uploadGenericRichtextImage}
+							disabled={isMutating}
 						/>
 					</div>
 				</div>
@@ -597,18 +618,28 @@ export type FormState = {
 	id?: string;
 	name?: string;
 	description?: SerializedEditorState | null;
+	priority?: number;
+	operation?: Access["operation"];
+	subjectUserFilters?: any;
+	subjectTeamFilters?: any;
+	subjectRoleFilters?: any;
 	collection?: Access["collection"];
-	filter?: any;
-	mask?: any;
+	filters?: any;
+	masks?: any;
 };
 export function toFormState(data: Access) {
 	return {
 		id: data.id,
 		name: data.name,
 		description: data.description,
+		priority: data.priority,
+		operation: data.operation,
+		subjectUserFilters: data.subjectUserFilters,
+		subjectTeamFilters: data.subjectTeamFilters,
+		subjectRoleFilters: data.subjectRoleFilters,
 		collection: data.collection,
-		filter: data.filter,
-		mask: data.mask
+		filters: data.filters,
+		masks: data.masks
 	} as FormState;
 }
 export function FormDrawer(
@@ -667,11 +698,66 @@ export function FormDrawer(
 								serializedState={formState.description ?? lexicalPlainText("")}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, description: value })}
 								onImageUpload={uploadGenericRichtextImage}
+								disabled={isMutating}
+							/>
+						</div>
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Priority</label>
+							<Input type="number" value={formState.priority ?? ""} onChange={e => onFormStateChange({ ...formState, priority: e.target.value != "" ? e.target.valueAsNumber : undefined })} disabled={isMutating} />
+						</div>
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Operation</label>
+							<Select value={formState.operation} onValueChange={value => onFormStateChange({ ...formState, operation: value as any })}>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select operation" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="union">Union</SelectItem>
+									<SelectItem value="difference">Difference</SelectItem>
+									<SelectItem value="intersect">Intersect</SelectItem>
+									<SelectItem value="exclusion">Exclusion</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Subject User Filters</label>
+							<MenuFilterConfigCard
+								open={true}
+								onOpenChange={() => {}}
+								disabled={isMutating}
+								columns={StagedUsersFilterConfigColumns}
+								filters={formState.subjectUserFilters ?? []}
+								onFiltersChange={value => onFormStateChange({ ...formState, subjectUserFilters: value.length > 0 ? value : null })}
+								contentOnly
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Subject Team Filters</label>
+							<MenuFilterConfigCard
+								open={true}
+								onOpenChange={() => {}}
+								disabled={isMutating}
+								columns={TeamsFilterConfigColumns}
+								filters={formState.subjectTeamFilters ?? []}
+								onFiltersChange={value => onFormStateChange({ ...formState, subjectTeamFilters: value.length > 0 ? value : null })}
+								contentOnly
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Subject Role Filters</label>
+							<MenuFilterConfigCard
+								open={true}
+								onOpenChange={() => {}}
+								disabled={isMutating}
+								columns={RolesFilterConfigColumns}
+								filters={formState.subjectRoleFilters ?? []}
+								onFiltersChange={value => onFormStateChange({ ...formState, subjectRoleFilters: value.length > 0 ? value : null })}
+								contentOnly
 							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Collection</label>
-							<Select value={formState.collection} onValueChange={value => onFormStateChange({ ...formState, collection: value as any, filter: [], mask: {} })}>
+							<Select value={formState.collection} onValueChange={value => onFormStateChange({ ...formState, collection: value as any, filters: [], masks: {} })} disabled={isMutating}>
 								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Select level" />
 								</SelectTrigger>
@@ -692,10 +778,10 @@ export function FormDrawer(
 							<MenuFilterConfigCard
 								open={true}
 								onOpenChange={() => {}}
-								disabled={formState.collection == null}
+								disabled={isMutating || formState.collection == null}
 								columns={formState.collection != null ? collectionFilterConfigColumns[formState.collection] : []}
-								filters={formState.filter ?? []}
-								onFiltersChange={value => onFormStateChange({ ...formState, filter: value })}
+								filters={formState.filters ?? []}
+								onFiltersChange={value => onFormStateChange({ ...formState, filters: value })}
 								contentOnly
 							/>
 						</div>
@@ -708,8 +794,8 @@ export function FormDrawer(
 											<label className="text-xs text-muted-foreground">{f.label}</label>
 											<MemoizedSelect
 												options={maskOptionsMap[collectionMaskFields[formState.collection!][f.key]]}
-												value={(formState.mask ?? {})[f.key]}
-												onValueChange={value => onFormStateChange({ ...formState, mask: { ...formState.mask, [f.key]: value } })}
+												value={(formState.masks ?? {})[f.key]}
+												onValueChange={value => onFormStateChange({ ...formState, masks: { ...formState.masks, [f.key]: value } })}
 												placeholder="Inherit"
 												disabled={isMutating}
 											/>

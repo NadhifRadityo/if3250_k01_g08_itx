@@ -122,9 +122,14 @@ export async function getDetailsAction(id: string) {
 			deletedBy: true,
 			name: true,
 			description: true,
+			priority: true,
+			operation: true,
+			subjectUserFilters: true,
+			subjectTeamFilters: true,
+			subjectRoleFilters: true,
 			collection: true,
-			filter: true,
-			mask: true,
+			filters: true,
+			masks: true,
 			content: true,
 			reviewedAt: true,
 			reviewedBy: true,
@@ -163,9 +168,14 @@ export async function getDifferenceAction(id: string) {
 				deletedAt: true,
 				name: true,
 				description: true,
+				priority: true,
+				operation: true,
+				subjectUserFilters: true,
+				subjectTeamFilters: true,
+				subjectRoleFilters: true,
 				collection: true,
-				filter: true,
-				mask: true
+				filters: true,
+				masks: true
 			}
 		}
 	})).docs[0];
@@ -193,9 +203,14 @@ export async function getDifferenceAction(id: string) {
 				deletedAt: true,
 				name: true,
 				description: true,
+				priority: true,
+				operation: true,
+				subjectUserFilters: true,
+				subjectTeamFilters: true,
+				subjectRoleFilters: true,
 				collection: true,
-				filter: true,
-				mask: true
+				filters: true,
+				masks: true
 			}
 		}
 	})).docs[0]?.version;
@@ -234,9 +249,14 @@ export async function getHistoryAction(id: string) {
 				deletedBy: true,
 				name: true,
 				description: true,
+				priority: true,
+				operation: true,
+				subjectUserFilters: true,
+				subjectTeamFilters: true,
+				subjectRoleFilters: true,
 				collection: true,
-				filter: true,
-				mask: true,
+				filters: true,
+				masks: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -257,12 +277,18 @@ export async function requestUpsertAction(formState: FormState) {
 
 	if(formState.name == null || formState.name.trim().length == 0)
 		throw new Error("Name is required.");
+	if(formState.priority == null)
+		throw new Error("Priority is required.");
+	if(formState.operation == null)
+		throw new Error("Operation is required.");
+	if(formState.subjectUserFilters == null && formState.subjectTeamFilters == null && formState.subjectRoleFilters == null)
+		throw new Error("At least one of Subject Filters is required.");
 	if(formState.collection == null)
 		throw new Error("Collection is required.");
-	if(formState.filter == null)
-		throw new Error("Filter is required.");
-	if(formState.mask == null)
-		throw new Error("Mask is required.");
+	if(formState.filters == null)
+		throw new Error("Filters is required.");
+	if(formState.masks == null)
+		throw new Error("Masks is required.");
 	if(formState.id == null) {
 		const created = await payload.create({
 			user: user,
@@ -275,9 +301,14 @@ export async function requestUpsertAction(formState: FormState) {
 				deletedBy: null,
 				name: formState.name,
 				description: formState.description as any,
+				priority: formState.priority,
+				operation: formState.operation,
+				subjectUserFilters: formState.subjectUserFilters,
+				subjectTeamFilters: formState.subjectTeamFilters,
+				subjectRoleFilters: formState.subjectRoleFilters,
 				collection: formState.collection,
-				filter: formState.filter,
-				mask: formState.mask,
+				filters: formState.filters,
+				masks: formState.masks,
 				reviewedAt: null,
 				reviewedBy: null,
 				reviewApproved: null,
@@ -299,9 +330,14 @@ export async function requestUpsertAction(formState: FormState) {
 			deletedBy: null,
 			name: formState.name,
 			description: formState.description as any,
+			priority: formState.priority,
+			operation: formState.operation,
+			subjectUserFilters: formState.subjectUserFilters,
+			subjectTeamFilters: formState.subjectTeamFilters,
+			subjectRoleFilters: formState.subjectRoleFilters,
 			collection: formState.collection,
-			filter: formState.filter,
-			mask: formState.mask,
+			filters: formState.filters,
+			masks: formState.masks,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -374,9 +410,14 @@ export async function cancelRequestAction(id: string) {
 				deletedBy: true,
 				name: true,
 				description: true,
+				priority: true,
+				operation: true,
+				subjectUserFilters: true,
+				subjectTeamFilters: true,
+				subjectRoleFilters: true,
 				collection: true,
-				filter: true,
-				mask: true,
+				filters: true,
+				masks: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -416,9 +457,14 @@ export async function cancelRequestAction(id: string) {
 			deletedBy: approvedVersion.deletedBy,
 			name: approvedVersion.name,
 			description: approvedVersion.description,
+			priority: approvedVersion.priority,
+			operation: approvedVersion.operation,
+			subjectUserFilters: approvedVersion.subjectUserFilters,
+			subjectTeamFilters: approvedVersion.subjectTeamFilters,
+			subjectRoleFilters: approvedVersion.subjectRoleFilters,
 			collection: approvedVersion.collection,
-			filter: approvedVersion.filter,
-			mask: approvedVersion.mask,
+			filters: approvedVersion.filters,
+			masks: approvedVersion.masks,
 			reviewedAt: approvedVersion.reviewedAt,
 			reviewedBy: approvedVersion.reviewedBy,
 			reviewApproved: approvedVersion.reviewApproved,

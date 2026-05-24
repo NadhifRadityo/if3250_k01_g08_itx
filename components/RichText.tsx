@@ -111,6 +111,7 @@ export const RichTextInput = ({
 	onImageUpload,
 	placeholder = "Provide a value",
 	className,
+	disabled = false,
 	children
 }: {
 	initialEditorState?: EditorState;
@@ -119,6 +120,7 @@ export const RichTextInput = ({
 	onImageUpload: (formData: FormData) => Promise<UploadedImage>;
 	placeholder?: string;
 	className?: string;
+	disabled?: boolean;
 	children?: React.ReactNode;
 }) => {
 	const isMobile = useIsMobile();
@@ -200,6 +202,7 @@ export const RichTextInput = ({
 				editor.setEditorState(editor.parseEditorState(serializedState));
 			else if(initialEditorState != null)
 				editor.setEditorState(initialEditorState);
+			editor.setEditable(!disabled);
 			editor.registerCommand(
 				KEY_DOWN_COMMAND,
 				event => {
@@ -217,6 +220,12 @@ export const RichTextInput = ({
 		},
 		theme: editorTheme
 	}), []);
+	useEffect(() => {
+		const editor = editorRef.current;
+		if(editor == null)
+			return;
+		editor.setEditable(!disabled);
+	}, [disabled]);
 
 	const serializedStateString = useMemo(() => JSON.stringify(serializedState), [serializedState]);
 	const lastSerializedStateString = useRef(serializedStateString);

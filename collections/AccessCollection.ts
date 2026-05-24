@@ -132,6 +132,39 @@ export const Accesses = (): CollectionConfig => ({
 			editor: AccessRichTextEditor()
 		},
 		{
+			name: "priority",
+			label: "Priority",
+			type: "number",
+			required: true
+		},
+		{
+			name: "operation",
+			label: "Operation",
+			type: "select",
+			required: true,
+			options: [
+				{ value: "union", label: "Union" },
+				{ value: "difference", label: "Difference" },
+				{ value: "intersect", label: "Intersect" },
+				{ value: "exclusion", label: "Exclusion" }
+			]
+		},
+		{
+			name: "subjectUserFilters",
+			label: "SubjectUserFilters",
+			type: "json"
+		},
+		{
+			name: "subjectTeamFilters",
+			label: "SubjectTeamFilters",
+			type: "json"
+		},
+		{
+			name: "subjectRoleFilters",
+			label: "SubjectRoleFilters",
+			type: "json"
+		},
+		{
 			name: "collection",
 			label: "Collection",
 			type: "select",
@@ -155,14 +188,14 @@ export const Accesses = (): CollectionConfig => ({
 			]
 		},
 		{
-			name: "filter",
-			label: "Filter",
+			name: "filters",
+			label: "Filters",
 			type: "json",
 			required: true
 		},
 		{
-			name: "mask",
-			label: "Mask",
+			name: "masks",
+			label: "Masks",
 			type: "json",
 			required: true
 		},

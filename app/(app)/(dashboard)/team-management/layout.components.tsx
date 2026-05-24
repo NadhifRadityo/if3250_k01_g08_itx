@@ -505,6 +505,7 @@ export function ReviewDrawer(
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
 							onImageUpload={uploadGenericRichtextImage}
+							disabled={isMutating}
 						/>
 					</div>
 				</div>

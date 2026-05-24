@@ -507,6 +507,7 @@ export function ReviewDrawer(
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
 							onImageUpload={uploadGenericRichtextImage}
+							disabled={isMutating}
 						/>
 					</div>
 				</div>
@@ -557,6 +558,7 @@ export function FormDrawer(
 								serializedState={formState.description ?? lexicalPlainText("")}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, description: value })}
 								onImageUpload={uploadGenericRichtextImage}
+								disabled={isMutating}
 							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
@@ -570,6 +572,7 @@ export function FormDrawer(
 								dialogTitle={title}
 								value={formState.content}
 								onValueChange={value => onFormStateChange({ ...formState, content: value })}
+								disabled={isMutating}
 							/>
 						</div>
 						{mutationError != null ? (

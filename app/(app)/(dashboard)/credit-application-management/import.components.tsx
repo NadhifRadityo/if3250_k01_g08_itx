@@ -684,6 +684,7 @@ export function FormDrawer(
 							serializedState={formState.description}
 							onSerializedStateChange={value => onFormStateChange({ ...formState, description: value })}
 							onImageUpload={uploadGenericRichtextImage}
+							disabled={isMutating}
 						/>
 					</div>
 					{mutationError != null ? (
@@ -749,6 +750,7 @@ export function ReviewDrawer(
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
 							onImageUpload={uploadGenericRichtextImage}
+							disabled={isMutating}
 						/>
 					</div>
 				</div>

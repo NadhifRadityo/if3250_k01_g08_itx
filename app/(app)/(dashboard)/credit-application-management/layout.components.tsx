@@ -621,6 +621,7 @@ export function ReviewDrawer(
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
 							onImageUpload={uploadGenericRichtextImage}
+							disabled={isMutating}
 						/>
 					</div>
 				</div>
@@ -795,6 +796,7 @@ export function FormDrawer(
 								serializedState={formState.collateralDescription}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, collateralDescription: value })}
 								onImageUpload={uploadGenericRichtextImage}
+								disabled={isMutating}
 							/>
 						</div>
 						<div className="space-y-2">
@@ -811,6 +813,7 @@ export function FormDrawer(
 								serializedState={formState.assetDescription}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, assetDescription: value })}
 								onImageUpload={uploadGenericRichtextImage}
+								disabled={isMutating}
 							/>
 						</div>
 						<div className="space-y-2">
@@ -839,6 +842,7 @@ export function FormDrawer(
 								serializedState={formState.remarks}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, remarks: value })}
 								onImageUpload={uploadGenericRichtextImage}
+								disabled={isMutating}
 							/>
 						</div>
 						<div className="space-y-2">

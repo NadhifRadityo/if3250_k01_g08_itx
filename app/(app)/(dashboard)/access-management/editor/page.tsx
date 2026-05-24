@@ -271,12 +271,18 @@ export default function Page() {
 					onSubmit={() => startMutationTransition(async () => {
 						if(editFormDrawerState.name == null || editFormDrawerState.name.trim().length == 0)
 							return setEditFormMutationError({ name: "ValidationError", message: "Name is required." });
+						if(editFormDrawerState.priority == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Priority is required." });
+						if(editFormDrawerState.operation == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Operation is required." });
+						if(editFormDrawerState.subjectUserFilters == null && editFormDrawerState.subjectTeamFilters == null && editFormDrawerState.subjectRoleFilters == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "At least one of Subject Filters is required." });
 						if(editFormDrawerState.collection == null)
 							return setEditFormMutationError({ name: "ValidationError", message: "Collection is required." });
-						if(editFormDrawerState.filter == null)
-							return setEditFormMutationError({ name: "ValidationError", message: "Filter is required." });
-						if(editFormDrawerState.mask == null)
-							return setEditFormMutationError({ name: "ValidationError", message: "Mask is required." });
+						if(editFormDrawerState.filters == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Filters is required." });
+						if(editFormDrawerState.masks == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Masks is required." });
 						setEditFormMutationError(null);
 						try {
 							await requestUpsertAction(editFormDrawerState);
@@ -299,12 +305,18 @@ export default function Page() {
 					onSubmit={() => startMutationTransition(async () => {
 						if(addFormDrawerState.name == null || addFormDrawerState.name.trim().length == 0)
 							return setAddFormMutationError({ name: "ValidationError", message: "Name is required." });
+						if(addFormDrawerState.priority == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "Priority is required." });
+						if(addFormDrawerState.operation == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "Operation is required." });
+						if(addFormDrawerState.subjectUserFilters == null && addFormDrawerState.subjectTeamFilters == null && addFormDrawerState.subjectRoleFilters == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "At least one of Subject Filters is required." });
 						if(addFormDrawerState.collection == null)
 							return setAddFormMutationError({ name: "ValidationError", message: "Collection is required." });
-						if(addFormDrawerState.filter == null)
-							return setAddFormMutationError({ name: "ValidationError", message: "Filter is required." });
-						if(addFormDrawerState.mask == null)
-							return setAddFormMutationError({ name: "ValidationError", message: "Mask is required." });
+						if(addFormDrawerState.filters == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "Filters is required." });
+						if(addFormDrawerState.masks == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "Masks is required." });
 						setAddFormMutationError(null);
 						try {
 							await requestUpsertAction(addFormDrawerState);

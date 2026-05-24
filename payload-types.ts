@@ -410,6 +410,35 @@ export interface Access {
     };
     [k: string]: unknown;
   } | null;
+  priority: number;
+  operation: 'union' | 'difference' | 'intersect' | 'exclusion';
+  subjectUserFilters?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  subjectTeamFilters?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  subjectRoleFilters?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   collection:
     | 'staged-users'
     | 'roles'
@@ -425,7 +454,7 @@ export interface Access {
     | 'gps-logs'
     | 'otp-logs'
     | 'recording-logs';
-  filter:
+  filters:
     | {
         [k: string]: unknown;
       }
@@ -434,7 +463,7 @@ export interface Access {
     | number
     | boolean
     | null;
-  mask:
+  masks:
     | {
         [k: string]: unknown;
       }
@@ -1333,9 +1362,14 @@ export interface AccessesSelect<T extends boolean = true> {
   deletedBy?: T;
   name?: T;
   description?: T;
+  priority?: T;
+  operation?: T;
+  subjectUserFilters?: T;
+  subjectTeamFilters?: T;
+  subjectRoleFilters?: T;
   collection?: T;
-  filter?: T;
-  mask?: T;
+  filters?: T;
+  masks?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
