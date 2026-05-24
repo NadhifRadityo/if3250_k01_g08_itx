@@ -97,7 +97,7 @@ export default function Page() {
 		context: {
 			...rowValueRendererContext,
 			richTextCard: false,
-			richTextClamp: false,
+			richTextClamp: true,
 			accessMaskClamp: true
 		},
 		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))

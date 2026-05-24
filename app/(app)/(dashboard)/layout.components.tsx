@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useMemo, useState, useEffect, useContext, createContext, type ReactNode, useCallback, memo } from "react";
+import React, { memo, useRef, useMemo, useState, useEffect, useContext, useCallback, createContext, type ReactNode } from "react";
 import { redirect, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, LockKeyholeIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
@@ -929,6 +929,18 @@ export function DashboardMenuTable<T>(
 	{ columns, columnsSort, onColumnsSortChange, columnOrder, columnsShown, rows, renderCell, isLoading = false, isMutating = false }:
 	{ columns: readonly MenuTableConfigColumn[], columnsSort: [string, boolean][], onColumnsSortChange: (v: [string, boolean][]) => void, columnOrder: string[], columnsShown: string[], rows: T[], renderCell: (row: T, columnKey: string) => React.ReactNode, isLoading?: boolean, isMutating?: boolean }
 ) {
+	const MemoizedRow = useMemo(() => memo((
+		{ row, orderedShownColumns, renderCell }:
+		{ row: T, orderedShownColumns: MenuTableConfigColumn[], renderCell: (row: T, columnKey: string) => React.ReactNode }
+	) => (
+		<TableRow>
+			{orderedShownColumns.map(column => (
+				<TableCell key={column.key} className={cn("whitespace-normal", column.className)}>
+					{renderCell(row, column.key)}
+				</TableCell>
+			))}
+		</TableRow>
+	)), []);
 	const orderedShownColumns = useMemo(() => columnOrder.filter(columnKey => columnsShown.includes(columnKey))
 		.map(columnKey => columns.find(column => column.key == columnKey)!), [columns, columnOrder, columnsShown]);
 	return (
@@ -983,13 +995,12 @@ export function DashboardMenuTable<T>(
 						</TableRow>
 					) : null}
 					{rows.map((row, i) => (
-						<TableRow key={(row as any).id ?? i}>
-							{orderedShownColumns.map(column => (
-								<TableCell key={column.key} className={cn("whitespace-normal", column.className)}>
-									{renderCell(row, column.key)}
-								</TableCell>
-							))}
-						</TableRow>
+						<MemoizedRow
+							key={(row as any).id ?? i}
+							row={row}
+							orderedShownColumns={orderedShownColumns}
+							renderCell={renderCell}
+						/>
 					))}
 				</TableBody>
 			</Table>
@@ -1092,17 +1103,31 @@ export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext
 	{ columns, detailsTriggerColumnKey, onOpenDetails, context }:
 	{ columns: readonly MenuRowValueRendererConfigColumn<R, C>[], detailsTriggerColumnKey?: string, onOpenDetails?: (row: R) => void, context: C }
 ) {
-	return (row: R, columnKey: string) => {
+	const onOpenDetailsRef = useRef(onOpenDetails);
+	onOpenDetailsRef.current = onOpenDetails;
+	const contextLastRef = useRef(context);
+	const contextChangeCountRef = useRef(0);
+	if(
+		(contextLastRef.current != context) && (
+			contextLastRef.current == null || context == null ||
+			Object.entries(contextLastRef.current).some(([k, v]) => !(k in context) || context[k] != v) ||
+			Object.entries(context).some(([k, v]) => !(k in contextLastRef.current) || contextLastRef.current[k] != v)
+		)
+	) {
+		contextLastRef.current = context;
+		contextChangeCountRef.current++;
+	}
+	return useCallback((row: R, columnKey: string) => {
 		const column = columns.find(column => column.key == columnKey)!;
 		const value = row[column.property ?? columnKey];
 		const richTextCard = context.richTextCard ?? true;
-		const richTextClamp = context.richTextClamp ?? true;
+		const richTextClamp = context.richTextClamp ?? false;
 		const node = column.render != null ? column.render(value, row, context) : (
 			column.type == "richText" ? (
 				<RichTextPreview
 					serializedState={value}
 					className={cn(!richTextCard ? "bg-transparent shadow-none border-none rounded-none" : null, context.richTextClassName)}
-					contentClassName={cn("min-h-8", !richTextCard ? "p-0" : null, !richTextClamp ? "line-clamp-2 max-h-28" : null, context.richTextContentClassName)}
+					contentClassName={cn("min-h-8", !richTextCard ? "p-0" : null, richTextClamp ? "line-clamp-2 max-h-28" : null, context.richTextContentClassName)}
 					placeholderClassName={cn(!richTextCard ? "p-0" : null, context.richTextPlaceholderClassName)}
 				/>
 			) :
@@ -1134,13 +1159,13 @@ export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext
 			<Button
 				type="button"
 				variant="link"
-				onClick={() => onOpenDetails?.(row)}
+				onClick={() => onOpenDetailsRef.current?.(row)}
 				className="text-primary h-auto p-0 text-left whitespace-normal select-auto"
 			>
 				{node}
 			</Button>
 		);
-	};
+	}, [columns, detailsTriggerColumnKey, contextChangeCountRef.current]);
 }
 export const defaultChangeRequestRenderer = () =>
 	(_, row: { createdAt?: string, updatedAt?: string, deletedAt?: string }, { setChangeRequestDrawerRow, setChangeRequestDrawerOpen }) => (

@@ -152,6 +152,13 @@ export default async function Root({
 			<Html lang={Html.props.lang ?? "id"} suppressHydrationWarning>
 				{children!.groups!.head!.c0!<"head">(Head => (
 					<Head>
+						{process.env.NODE_ENV != "production" ? (
+							<Script
+								src="//unpkg.com/react-scan/dist/auto.global.js"
+								crossOrigin="anonymous"
+								strategy="beforeInteractive"
+							/>
+						) : null}
 						{Head.children.map(c => c(Child => (<Child />)))}
 						{withAnalytics ? (
 							<>

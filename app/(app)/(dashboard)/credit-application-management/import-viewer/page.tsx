@@ -49,7 +49,7 @@ export default function Page() {
 		context: {
 			...rowValueRendererContext,
 			richTextCard: false,
-			richTextClamp: false
+			richTextClamp: true
 		},
 		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
 			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
