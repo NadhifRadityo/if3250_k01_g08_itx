@@ -25,6 +25,7 @@ import { Input } from "@/components/radix/Input";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Separator } from "@/components/radix/Separator";
 import { Sidebar, useSidebar, SidebarMenu, SidebarRail, SidebarGroup, SidebarInset, SidebarFooter, SidebarHeader, SidebarContent, SidebarMenuSub, SidebarTrigger, SidebarMenuItem, SidebarProvider, SidebarGroupLabel, SidebarMenuButton, SidebarMenuSubItem, SidebarMenuSubButton } from "@/components/radix/Sidebar";
+import { Switch } from "@/components/radix/Switch";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 
 import logoEcentrix from "../../_static/favicons/logo.png";
@@ -1149,8 +1150,8 @@ export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext
 											column.type == "text_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
 												column.type == "number" ? `${value}` :
 													column.type == "number_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
-														column.type == "boolean" ? `${value}` :
-															column.type == "boolean_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}>{`${v}`}</li>))}</ul>) :
+														column.type == "boolean" ? <Switch checked={value} disabled /> :
+															column.type == "boolean_hasMany" ? (<ul>{value.map((v, i) => (<li key={i}><Switch checked={v} disabled /></li>))}</ul>) :
 																null
 		);
 		if(detailsTriggerColumnKey != columnKey)

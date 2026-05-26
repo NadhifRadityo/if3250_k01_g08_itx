@@ -410,6 +410,7 @@ export interface Access {
     };
     [k: string]: unknown;
   } | null;
+  enabled: boolean;
   priority: number;
   operation: 'union' | 'difference' | 'intersect' | 'exclusion';
   subjectUserFilters?:
@@ -1362,6 +1363,7 @@ export interface AccessesSelect<T extends boolean = true> {
   deletedBy?: T;
   name?: T;
   description?: T;
+  enabled?: T;
   priority?: T;
   operation?: T;
   subjectUserFilters?: T;

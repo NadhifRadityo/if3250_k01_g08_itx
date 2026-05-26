@@ -140,6 +140,13 @@ export const maskOptionsMap = Object.freeze({
 	"date": dateMaskOptions
 });
 
+export const operationSelectOptions = Object.freeze([
+	{ value: "union", label: "Union" },
+	{ value: "difference", label: "Difference" },
+	{ value: "intersect", label: "Intersect" },
+	{ value: "exclusion", label: "Exclusion" }
+]);
+
 export const collectionSelectOptions = Object.freeze([
 	{ value: "staged-users", label: "Users" },
 	{ value: "roles", label: "Roles" },
@@ -215,6 +222,7 @@ export const collectionMaskFields = Object.freeze({
 		"deletedBy": "relation",
 		"name": "text",
 		"description": "richText",
+		"enabled": "generic",
 		"priority": "number",
 		"operation": "select",
 		"subjectUserFilters": "generic",
@@ -371,3 +379,88 @@ export const collectionMaskFields = Object.freeze({
 		"transcription": "relation"
 	}
 } as Record<string, Record<string, keyof (typeof maskOptionsMap)>>);
+export const collectionRelationFields = Object.freeze({
+	"staged-users": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"supervisor": "staged-users",
+		"reviewedBy": "staged-users"
+	},
+	"roles": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"reviewedBy": "staged-users"
+	},
+	"teams": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"supervisor": "staged-users",
+		"officers": "staged-users",
+		"reviewedBy": "staged-users"
+	},
+	"accesses": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"reviewedBy": "staged-users"
+	},
+	"credit-applications": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"import": "credit-application-imports",
+		"reviewedBy": "staged-users"
+	},
+	"credit-application-imports": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"reviewedBy": "staged-users"
+	},
+	"credit-application-assignments": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"creditApplication": "credit-application",
+		"officer": "staged-users",
+		"reviewedBy": "staged-users"
+	},
+	"surveys": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"reviewedBy": "staged-users"
+	},
+	"survey-results": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"survey": "surveys",
+		"creditApplication": "credit-application",
+		"officer": "staged-users"
+	},
+	"satisfaction-surveys": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"reviewedBy": "staged-users"
+	},
+	"login-logs": {
+		"user": "staged-users"
+	},
+	"gps-logs": {
+		"officer": "staged-users",
+		"creditApplication": "credit-application"
+	},
+	"otp-logs": {
+		"creditApplication": "credit-application"
+	},
+	"recording-logs": {
+		"creditApplication": "credit-application",
+		"officer": "staged-users"
+		// we don't mask recording-log-audio-files nor recording-log-transcriptions
+	}
+} as Record<string, Record<string, string>>);

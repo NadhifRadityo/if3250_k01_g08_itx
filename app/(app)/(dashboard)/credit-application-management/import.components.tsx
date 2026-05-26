@@ -178,10 +178,10 @@ const generateTemplate = async () => {
 		probe.style.position = "absolute";
 		probe.style.pointerEvents = "none";
 		probe.style.opacity = "0";
-		document.body.appendChild(probe);
 		try {
-			const canvasContext = document.createElement("canvas").getContext("2d")!;
+			document.body.appendChild(probe);
 			const computedColor = window.getComputedStyle(probe).color.trim();
+			const canvasContext = document.createElement("canvas").getContext("2d")!;
 			canvasContext.fillStyle = computedColor;
 			canvasContext.fillRect(0, 0, 1, 1);
 			const data = canvasContext.getImageData(0, 0, 1, 1, { colorSpace: "srgb", pixelFormat: "rgba-unorm8" }).data;

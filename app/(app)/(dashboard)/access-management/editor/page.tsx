@@ -269,6 +269,7 @@ export default function Page() {
 					isMutating={isMutating}
 					mutationError={editFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
+						editFormDrawerState.enabled ??= false;
 						if(editFormDrawerState.name == null || editFormDrawerState.name.trim().length == 0)
 							return setEditFormMutationError({ name: "ValidationError", message: "Name is required." });
 						if(editFormDrawerState.priority == null)
@@ -303,6 +304,7 @@ export default function Page() {
 					isMutating={isMutating}
 					mutationError={addFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
+						addFormDrawerState.enabled ??= false;
 						if(addFormDrawerState.name == null || addFormDrawerState.name.trim().length == 0)
 							return setAddFormMutationError({ name: "ValidationError", message: "Name is required." });
 						if(addFormDrawerState.priority == null)

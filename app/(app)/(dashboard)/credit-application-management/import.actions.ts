@@ -2,11 +2,11 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { Payload, getPayload, type Where } from "payload";
+import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import ExcelJS from "@/utils/exceljs";
-import { lexicalPlainText, getRelationshipId } from "@/utils/payload";
+import { buildFilterWhere, lexicalPlainText, getRelationshipId } from "@/utils/payload";
 import type { CreditApplicationImport } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
@@ -43,15 +43,6 @@ const templateColumns = [
 ];
 
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
-
-const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
-	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
-		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
-			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
-			[...termGroups, [unit]], [[]] as Where[][])
-		.filter(termGroups => termGroups.length > 0)
-		.map(termGroups => ({ and: termGroups }))
-});
 
 async function resolveRelations(
 	{ payload, docs }:

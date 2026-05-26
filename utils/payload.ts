@@ -1,9 +1,56 @@
+import { Where } from "payload";
+
 export function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string")
 		return value;
 	if(value != null && typeof value == "object" && "id" in value && typeof value.id == "string")
 		return value.id;
 	return null;
+}
+
+export const buildFilterWhere = (filters: { columnKey: string; operator: string; combinator: "and" | "or"; value: any; }[]) => ({ or:
+	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
+		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
+			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
+			[...termGroups, [unit]], [[]] as Where[][])
+		.filter(termGroups => termGroups.length > 0)
+		.map(termGroups => ({ and: termGroups }))
+});
+
+const negateOperatorMap: Record<string, string> = {
+	equals: "not_equals",
+	not_equals: "equals",
+	in: "not_in",
+	not_in: "in",
+	greater_than: "less_than_equal",
+	greater_than_equal: "less_than",
+	less_than: "greater_than_equal",
+	less_than_equal: "greater_than",
+	like: "not_like",
+	not_like: "like",
+	contains: "not_contains",
+	not_contains: "contains"
+};
+export function negateWhere(where: Where): Where {
+	if("and" in where && Array.isArray(where.and))
+		return { or: where.and.map(negateWhere) };
+	if("or" in where && Array.isArray(where.or))
+		return { and: where.or.map(negateWhere) };
+	const result = {} as Where;
+	for(const [field, condition] of Object.entries(where)) {
+		const negatedCondition = result[field] = {} as Record<string, any>;
+		for(const [operator, value] of Object.entries(condition)) {
+			if(operator == "exists") {
+				negatedCondition.exists = !(value as boolean);
+				continue;
+			}
+			const negated = negateOperatorMap[operator];
+			if(negated == null)
+				throw new Error(`Unsupported operator: ${operator}`);
+			negatedCondition[negated] = value;
+		}
+	}
+	return result;
 }
 
 export function leixcalPreprendPlainText(state: any, value: string) {

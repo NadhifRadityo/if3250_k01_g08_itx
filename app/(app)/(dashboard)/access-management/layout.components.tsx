@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useRef } from "react";
+import { memo, useRef, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { HistoryIcon, CircleAlertIcon } from "lucide-react";
@@ -13,65 +13,67 @@ import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
+import { Label } from "@/components/radix/Label";
 import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 import { Skeleton } from "@/components/radix/Skeleton";
+import { Switch } from "@/components/radix/Switch";
 import { Access } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { columnConfigColumns as CreditApplicationAssignmentsColumnConfigColumns, filterConfigColumns as CreditApplicationAssignmentsFilterConfigColumns } from "../credit-application-assignment/layout.components";
-import { columnConfigColumns as CreditApplicationImportsColumnConfigColumns, filterConfigColumns as CreditApplicationImportsFilterConfigColumns } from "../credit-application-management/import.components";
-import { columnConfigColumns as CreditApplicationsColumnConfigColumns, filterConfigColumns as CreditApplicationsFilterConfigColumns } from "../credit-application-management/layout.components";
-import { columnConfigColumns as GpsLogsColumnConfigColumns, filterConfigColumns as GpsLogsFilterConfigColumns } from "../gps-log/layout.components";
+import { columnConfigColumns as creditApplicationAssignmentColumnConfigColumns, filterConfigColumns as creditApplicationAssignmentFilterConfigColumns } from "../credit-application-assignment/layout.components";
+import { columnConfigColumns as creditApplicationImportColumnConfigColumns, filterConfigColumns as creditApplicationImportFilterConfigColumns } from "../credit-application-management/import.components";
+import { columnConfigColumns as creditApplicationColumnConfigColumns, filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
+import { columnConfigColumns as gpsLogColumnConfigColumns, filterConfigColumns as gpsLogFilterConfigColumns } from "../gps-log/layout.components";
 import { MenuFilterState, MenuFilterSummary, useDashboardContext, MenuFilterConfigCard, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { columnConfigColumns as LoginLogsColumnConfigColumns, filterConfigColumns as LoginLogsFilterConfigColumns } from "../login-log/layout.components";
-import { columnConfigColumns as OtpLogsColumnConfigColumns, filterConfigColumns as OtpLogsFilterConfigColumns } from "../otp-log/layout.components";
-import { columnConfigColumns as RecordingLogsColumnConfigColumns, filterConfigColumns as RecordingLogsFilterConfigColumns } from "../recording-log/layout.components";
+import { columnConfigColumns as loginLogColumnConfigColumns, filterConfigColumns as loginLogFilterConfigColumns } from "../login-log/layout.components";
+import { columnConfigColumns as otpLogColumnConfigColumns, filterConfigColumns as otpLogFilterConfigColumns } from "../otp-log/layout.components";
+import { columnConfigColumns as recordingLogColumnConfigColumns, filterConfigColumns as recordingLogFilterConfigColumns } from "../recording-log/layout.components";
 import { searchRelationAccessesAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
-import { columnConfigColumns as RolesColumnConfigColumns, filterConfigColumns as RolesFilterConfigColumns } from "../role-management/layout.components";
-import { columnConfigColumns as SatisfactionSurveysColumnConfigColumns, filterConfigColumns as SatisfactionSurveysFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
-import { columnConfigColumns as SurveysColumnConfigColumns, filterConfigColumns as SurveysFilterConfigColumns } from "../survey-management/layout.components";
-import { columnConfigColumns as SurveyResultsColumnConfigColumns, filterConfigColumns as SurveyResultsFilterConfigColumns } from "../survey-result/layout.components";
-import { columnConfigColumns as TeamsColumnConfigColumns, filterConfigColumns as TeamsFilterConfigColumns } from "../team-management/layout.components";
-import { userFilterConfigColumns, columnConfigColumns as StagedUsersColumnConfigColumns, filterConfigColumns as StagedUsersFilterConfigColumns } from "../user-management/layout.components";
+import { columnConfigColumns as roleColumnConfigColumns, filterConfigColumns as roleFilterConfigColumns } from "../role-management/layout.components";
+import { columnConfigColumns as satisfactionSurveyColumnConfigColumns, filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
+import { columnConfigColumns as surveyColumnConfigColumns, filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
+import { columnConfigColumns as surveyResultColumnConfigColumns, filterConfigColumns as surveyResultFilterConfigColumns } from "../survey-result/layout.components";
+import { columnConfigColumns as teamColumnConfigColumns, filterConfigColumns as teamFilterConfigColumns } from "../team-management/layout.components";
+import { userFilterConfigColumns, columnConfigColumns as userColumnConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
-import { maskOptionsMap, collectionMaskFields, collectionSelectOptions } from "./layout.shared";
+import { maskOptionsMap, collectionMaskFields, operationSelectOptions, collectionSelectOptions } from "./layout.shared";
 
 const collectionFilterConfigColumns = {
-	"staged-users": StagedUsersFilterConfigColumns,
-	"roles": RolesFilterConfigColumns,
-	"teams": TeamsFilterConfigColumns,
+	"staged-users": userFilterConfigColumns,
+	"roles": roleFilterConfigColumns,
+	"teams": teamFilterConfigColumns,
 	// "accesses": filterConfigColumns,
-	"credit-applications": CreditApplicationsFilterConfigColumns,
-	"credit-application-imports": CreditApplicationImportsFilterConfigColumns,
-	"credit-application-assignments": CreditApplicationAssignmentsFilterConfigColumns,
-	"surveys": SurveysFilterConfigColumns,
-	"survey-results": SurveyResultsFilterConfigColumns,
-	"satisfaction-surveys": SatisfactionSurveysFilterConfigColumns,
-	"login-logs": LoginLogsFilterConfigColumns,
-	"gps-logs": GpsLogsFilterConfigColumns,
-	"otp-logs": OtpLogsFilterConfigColumns,
-	"recording-logs": RecordingLogsFilterConfigColumns
+	"credit-applications": creditApplicationFilterConfigColumns,
+	"credit-application-imports": creditApplicationImportFilterConfigColumns,
+	"credit-application-assignments": creditApplicationAssignmentFilterConfigColumns,
+	"surveys": surveyFilterConfigColumns,
+	"survey-results": surveyResultFilterConfigColumns,
+	"satisfaction-surveys": satisfactionSurveyFilterConfigColumns,
+	"login-logs": loginLogFilterConfigColumns,
+	"gps-logs": gpsLogFilterConfigColumns,
+	"otp-logs": otpLogFilterConfigColumns,
+	"recording-logs": recordingLogFilterConfigColumns
 } as Record<string, readonly MenuFilterConfigColumn[]>;
 const collectionColumnConfigColumns = {
-	"staged-users": StagedUsersColumnConfigColumns,
-	"roles": RolesColumnConfigColumns,
-	"teams": TeamsColumnConfigColumns,
+	"staged-users": userColumnConfigColumns,
+	"roles": roleColumnConfigColumns,
+	"teams": teamColumnConfigColumns,
 	// "accesses": columnConfigColumns,
-	"credit-applications": CreditApplicationsColumnConfigColumns,
-	"credit-application-imports": CreditApplicationImportsColumnConfigColumns,
-	"credit-application-assignments": CreditApplicationAssignmentsColumnConfigColumns,
-	"surveys": SurveysColumnConfigColumns,
-	"survey-results": SurveyResultsColumnConfigColumns,
-	"satisfaction-surveys": SatisfactionSurveysColumnConfigColumns,
-	"login-logs": LoginLogsColumnConfigColumns,
-	"gps-logs": GpsLogsColumnConfigColumns,
-	"otp-logs": OtpLogsColumnConfigColumns,
-	"recording-logs": RecordingLogsColumnConfigColumns
+	"credit-applications": creditApplicationColumnConfigColumns,
+	"credit-application-imports": creditApplicationImportColumnConfigColumns,
+	"credit-application-assignments": creditApplicationAssignmentColumnConfigColumns,
+	"surveys": surveyColumnConfigColumns,
+	"survey-results": surveyResultColumnConfigColumns,
+	"satisfaction-surveys": satisfactionSurveyColumnConfigColumns,
+	"login-logs": loginLogColumnConfigColumns,
+	"gps-logs": gpsLogColumnConfigColumns,
+	"otp-logs": otpLogColumnConfigColumns,
+	"recording-logs": recordingLogColumnConfigColumns
 } as Record<string, readonly MenuColumnConfigColumn[]>;
-const defaultAccessFilterRenderer = () =>
-	(value: MenuFilterState[], { collection }: { collection: Access["collection"] }) => (
-		<MenuFilterSummary columns={collectionFilterConfigColumns[collection]} filters={value} contentOnly />
+const defaultAccessFilterRenderer = ({ collection }: { collection?: Access["collection"] } = {}) =>
+	(value: MenuFilterState[], { collection: collection_ }: { collection: Access["collection"] }) => (
+		<MenuFilterSummary columns={collectionFilterConfigColumns[collection ?? collection_]} filters={value} contentOnly />
 	);
 const defaultAccessMaskRenderer = () =>
 	(value: Record<string, string>, { collection }: { collection: Access["collection"] }, { accessMaskClamp }: { accessMaskClamp?: boolean }) => (sortedValues => (
@@ -97,6 +99,9 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "name", label: "Name", type: "text" },
+	{ key: "enabled", label: "Enabled", type: "boolean" },
+	{ key: "priority", label: "Priority", type: "number" },
+	{ key: "operation", label: "Operation", type: "select", selectOptions: operationSelectOptions },
 	{ key: "collection", label: "Collection", type: "select", selectOptions: collectionSelectOptions },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
@@ -113,6 +118,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "name", label: "Name" },
 	{ key: "description", label: "Description" },
+	{ key: "enabled", label: "Enabled" },
 	{ key: "priority", label: "Priority" },
 	{ key: "operation", label: "Operation" },
 	{ key: "subjectUserFilters", label: "Subject User Filters" },
@@ -139,6 +145,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "name", label: "Name", sortable: true, className: "font-medium" },
 	{ key: "description", label: "Description", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ key: "enabled", label: "Enabled", sortable: true },
 	{ key: "priority", label: "Priority", sortable: true },
 	{ key: "operation", label: "Operation", sortable: true },
 	{ key: "subjectUserFilters", label: "Subject User Filters", sortable: false },
@@ -164,11 +171,12 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "accesses.deletedBy" }) },
 	{ key: "name", type: "text" },
 	{ key: "description", type: "richText" },
-	{ key: "priority", type: "text" },
-	{ key: "operation", type: "text" },
-	{ key: "subjectUserFilters", type: "text", render: v => (<pre className="text-xs whitespace-pre-wrap">{JSON.stringify(v)}</pre>) },
-	{ key: "subjectTeamFilters", type: "text", render: v => (<pre className="text-xs whitespace-pre-wrap">{JSON.stringify(v)}</pre>) },
-	{ key: "subjectRoleFilters", type: "text", render: v => (<pre className="text-xs whitespace-pre-wrap">{JSON.stringify(v)}</pre>) },
+	{ key: "enabled", type: "boolean" },
+	{ key: "priority", type: "number" },
+	{ key: "operation", type: "select", selectOptions: operationSelectOptions },
+	{ key: "subjectUserFilters", type: "null", render: defaultAccessFilterRenderer({ collection: "staged-users" }) },
+	{ key: "subjectTeamFilters", type: "null", render: defaultAccessFilterRenderer({ collection: "teams" }) },
+	{ key: "subjectRoleFilters", type: "null", render: defaultAccessFilterRenderer({ collection: "roles" }) },
 	{ key: "collection", type: "select", selectOptions: collectionSelectOptions },
 	{ key: "filters", type: "null", render: defaultAccessFilterRenderer() },
 	{ key: "masks", type: "null", render: defaultAccessMaskRenderer() },
@@ -209,6 +217,7 @@ export const defaultColumnOrder = Object.freeze([
 	"id",
 	"name",
 	"description",
+	"enabled",
 	"priority",
 	"operation",
 	"subjectUserFilters",
@@ -234,14 +243,16 @@ export const defaultColumnsShown = Object.freeze([
 	"name",
 	"collection",
 	"filters",
-	"masks",
+	"enabled",
+	"priority",
 	"#changeRequest",
 	"#status",
 	"updatedAt",
 	"reviewComment"
 ]) as string[];
 export const defaultColumnsSort = Object.freeze([
-	["updatedAt", false]
+	["priority", false],
+	["createdAt", false]
 ]) as [string, boolean][];
 
 export function DetailsDrawer(
@@ -618,6 +629,7 @@ export type FormState = {
 	id?: string;
 	name?: string;
 	description?: SerializedEditorState | null;
+	enabled?: boolean;
 	priority?: number;
 	operation?: Access["operation"];
 	subjectUserFilters?: any;
@@ -632,6 +644,7 @@ export function toFormState(data: Access) {
 		id: data.id,
 		name: data.name,
 		description: data.description,
+		enabled: data.enabled,
 		priority: data.priority,
 		operation: data.operation,
 		subjectUserFilters: data.subjectUserFilters,
@@ -702,6 +715,11 @@ export function FormDrawer(
 							/>
 						</div>
 						<div className="space-y-2">
+							<label className="text-sm font-medium">Enabled</label>
+							<Switch id="access-management-enabled-switch" checked={formState.enabled ?? false} onCheckedChange={v => onFormStateChange({ ...formState, enabled: v })} disabled={isMutating} />
+							<Label htmlFor="access-management-enabled-switch">{(formState.enabled ?? false) ? "Enabled" : "Disabled"}</Label>
+						</div>
+						<div className="space-y-2">
 							<label className="text-sm font-medium">Priority</label>
 							<Input type="number" value={formState.priority ?? ""} onChange={e => onFormStateChange({ ...formState, priority: e.target.value != "" ? e.target.valueAsNumber : undefined })} disabled={isMutating} />
 						</div>
@@ -725,7 +743,7 @@ export function FormDrawer(
 								open={true}
 								onOpenChange={() => {}}
 								disabled={isMutating}
-								columns={StagedUsersFilterConfigColumns}
+								columns={userFilterConfigColumns}
 								filters={formState.subjectUserFilters ?? []}
 								onFiltersChange={value => onFormStateChange({ ...formState, subjectUserFilters: value.length > 0 ? value : null })}
 								contentOnly
@@ -737,7 +755,7 @@ export function FormDrawer(
 								open={true}
 								onOpenChange={() => {}}
 								disabled={isMutating}
-								columns={TeamsFilterConfigColumns}
+								columns={teamFilterConfigColumns}
 								filters={formState.subjectTeamFilters ?? []}
 								onFiltersChange={value => onFormStateChange({ ...formState, subjectTeamFilters: value.length > 0 ? value : null })}
 								contentOnly
@@ -749,7 +767,7 @@ export function FormDrawer(
 								open={true}
 								onOpenChange={() => {}}
 								disabled={isMutating}
-								columns={RolesFilterConfigColumns}
+								columns={roleFilterConfigColumns}
 								filters={formState.subjectRoleFilters ?? []}
 								onFiltersChange={value => onFormStateChange({ ...formState, subjectRoleFilters: value.length > 0 ? value : null })}
 								contentOnly

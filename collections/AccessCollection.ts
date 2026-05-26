@@ -132,6 +132,12 @@ export const Accesses = (): CollectionConfig => ({
 			editor: AccessRichTextEditor()
 		},
 		{
+			name: "enabled",
+			label: "Enabled",
+			type: "checkbox",
+			required: true
+		},
+		{
 			name: "priority",
 			label: "Priority",
 			type: "number",

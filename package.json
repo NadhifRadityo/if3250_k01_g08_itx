@@ -49,6 +49,7 @@
 		"@lexical/text": "^0.43.0",
 		"@lexical/utils": "^0.43.0",
 		"@payloadcms/db-postgres": "^3.83.0",
+		"@payloadcms/drizzle": "^3.83.0",
 		"@payloadcms/next": "^3.83.0",
 		"@payloadcms/plugin-search": "^3.83.0",
 		"@payloadcms/richtext-lexical": "^3.83.0",

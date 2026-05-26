@@ -2,12 +2,13 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { Payload, getPayload, type Where } from "payload";
+import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
-import { lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
+import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
 import type { Team } from "@/payload-types";
 
+import { compileAccesses } from "../access-management/layout.actions";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationUser } from "../relation-navigation.shared";
@@ -15,15 +16,6 @@ import { FormState } from "./layout.components";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
-
-const buildFilterWhere = (filters: MenuFilterState[]) => ({ or:
-	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
-		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
-			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
-			[...termGroups, [unit]], [[]] as Where[][])
-		.filter(termGroups => termGroups.length > 0)
-		.map(termGroups => ({ and: termGroups }))
-});
 
 async function resolveRelations(
 	{ payload, docs }:
@@ -495,6 +487,7 @@ export async function reviewAction(
 				reviewComment: reviewComment
 			}
 		});
+		await compileAccesses({ payload });
 		return { id: id };
 	}
 	await payload.update({
@@ -511,5 +504,6 @@ export async function reviewAction(
 			reviewComment: reviewComment
 		}
 	});
+	await compileAccesses({ payload });
 	return { id: id };
 }

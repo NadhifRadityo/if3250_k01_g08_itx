@@ -97,6 +97,9 @@ importers:
       '@payloadcms/db-postgres':
         specifier: ^3.83.0
         version: 3.83.0(payload@3.83.0(graphql@16.13.2)(typescript@6.0.3))(postgres@3.4.8)
+      '@payloadcms/drizzle':
+        specifier: ^3.83.0
+        version: 3.83.0(@types/pg@8.20.0)(payload@3.83.0(graphql@16.13.2)(typescript@6.0.3))(pg@8.20.0)(postgres@3.4.8)
       '@payloadcms/next':
         specifier: ^3.83.0
         version: 3.83.0(@types/react@19.2.14)(graphql@16.13.2)(monaco-editor@0.55.1)(next@16.2.4(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(sass@1.99.0))(payload@3.83.0(graphql@16.13.2)(typescript@6.0.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
