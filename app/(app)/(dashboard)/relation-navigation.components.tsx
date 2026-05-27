@@ -125,7 +125,7 @@ function useRelationNavigationSummary() {
 					<DrawerTitle>{summary?.title ?? pickedFallback?.title}</DrawerTitle>
 					<DrawerDescription>{summary?.description ?? pickedFallback?.description}</DrawerDescription>
 				</DrawerHeader>
-				<div className="space-y-3 px-4 pb-4">
+				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
 					{isLoading ? (
 						<div className="text-muted-foreground flex items-center gap-2 text-sm">
 							<Loader2Icon className="size-4 animate-spin" />

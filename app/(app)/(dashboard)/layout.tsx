@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import { redirect, RedirectType } from "next/navigation";
+import { redirect } from "next/navigation";
 import { connection as nextConnection } from "next/server";
 
 import Comment from "@/components/Comment";

@@ -73,7 +73,7 @@ const collectionColumnConfigColumns = {
 } as Record<string, readonly MenuColumnConfigColumn[]>;
 const defaultAccessFilterRenderer = ({ collection }: { collection?: Access["collection"] } = {}) =>
 	(value: MenuFilterState[], { collection: collection_ }: { collection: Access["collection"] }) => (
-		<MenuFilterSummary columns={collectionFilterConfigColumns[collection ?? collection_]} filters={value} contentOnly />
+		<MenuFilterSummary columns={collectionFilterConfigColumns[collection ?? collection_]} filters={value ?? []} contentOnly />
 	);
 const defaultAccessMaskRenderer = () =>
 	(value: Record<string, string>, { collection }: { collection: Access["collection"] }, { accessMaskClamp }: { accessMaskClamp?: boolean }) => (sortedValues => (
@@ -715,13 +715,21 @@ export function FormDrawer(
 							/>
 						</div>
 						<div className="space-y-2">
-							<label className="text-sm font-medium">Enabled</label>
-							<Switch id="access-management-enabled-switch" checked={formState.enabled ?? false} onCheckedChange={v => onFormStateChange({ ...formState, enabled: v })} disabled={isMutating} />
-							<Label htmlFor="access-management-enabled-switch">{(formState.enabled ?? false) ? "Enabled" : "Disabled"}</Label>
-						</div>
-						<div className="space-y-2">
-							<label className="text-sm font-medium">Priority</label>
-							<Input type="number" value={formState.priority ?? ""} onChange={e => onFormStateChange({ ...formState, priority: e.target.value != "" ? e.target.valueAsNumber : undefined })} disabled={isMutating} />
+							<div className="flex flex-row">
+								<div className="flex-1 flex flex-col">
+									<div className="flex items-center justify-between">
+										<label className="text-sm font-medium">Enabled</label>
+									</div>
+									<div className="my-auto flex items-center space-x-2">
+										<Switch id="access-management-enabled-switch" checked={formState.enabled ?? false} onCheckedChange={v => onFormStateChange({ ...formState, enabled: v })} disabled={isMutating} />
+										<Label htmlFor="access-management-enabled-switch">{(formState.enabled ?? false) ? "Enabled" : "Disabled"}</Label>
+									</div>
+								</div>
+								<div className="flex-1">
+									<label className="text-sm font-medium">Priority</label>
+									<Input type="number" value={formState.priority ?? ""} onChange={e => onFormStateChange({ ...formState, priority: e.target.value != "" ? e.target.valueAsNumber : undefined })} disabled={isMutating} />
+								</div>
+							</div>
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Operation</label>
@@ -738,7 +746,9 @@ export function FormDrawer(
 							</Select>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Subject User Filters</label>
+							<div className="flex items-center justify-between">
+								<label className="text-sm font-medium">Subject User Filters</label>
+							</div>
 							<MenuFilterConfigCard
 								open={true}
 								onOpenChange={() => {}}
@@ -750,7 +760,9 @@ export function FormDrawer(
 							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Subject Team Filters</label>
+							<div className="flex items-center justify-between">
+								<label className="text-sm font-medium">Subject Team Filters</label>
+							</div>
 							<MenuFilterConfigCard
 								open={true}
 								onOpenChange={() => {}}
@@ -762,7 +774,9 @@ export function FormDrawer(
 							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Subject Role Filters</label>
+							<div className="flex items-center justify-between">
+								<label className="text-sm font-medium">Subject Role Filters</label>
+							</div>
 							<MenuFilterConfigCard
 								open={true}
 								onOpenChange={() => {}}

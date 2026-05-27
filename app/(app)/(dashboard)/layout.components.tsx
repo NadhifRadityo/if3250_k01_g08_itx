@@ -10,6 +10,7 @@ import useIsMobile from "@/utils/useIsMobile";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { Image } from "@/components/Image";
 import { Link } from "@/components/Link";
+import { RedactProvider } from "@/components/Redact";
 import { RichTextPreview } from "@/components/RichText";
 import { SearchableSelect, SearchableMultiSelect } from "@/components/SearchableSelect";
 import { Avatar, AvatarFallback } from "@/components/radix/Avatar";
@@ -190,69 +191,57 @@ export function DashboardShell(
 	}, [activeMenu]);
 
 	return (
-		<DashboardContext.Provider value={context}>
-			<SidebarProvider className="[--sidebar-width:20rem]!">
-				<Sidebar collapsible="icon" variant="inset" className="bg-sidebar h-lvh pb-[calc(100lvh-100dvh)] [anchor-name:--sidebar-anchor]">
-					<SidebarHeader>
-						<SidebarMenu>
-							<SidebarMenuItem>
-								<SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
-									<Link href="/" className="flex h-18">
-										<Image src={logoEcentrix} alt="eCentrix symbol" className="mt-px h-12 w-12 transition-all duration-150 shrink-0 object-contain scale-100 group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5 group-data-[collapsible=icon]:scale-150" />
-										<div className="flex flex-col gap-2">
-											<span className="text-[15px] text-sidebar-accent-foreground leading-none font-semibold uppercase whitespace-nowrap line-clamp-2 text-clip">
-												PT. Intelix Global<br />Crossing
-											</span>
-											<span className="text-[10px] leading-none font-semibold uppercase whitespace-nowrap line-clamp-1 text-clip">
-												Mobile Survey Management
-											</span>
-										</div>
-									</Link>
-								</SidebarMenuButton>
-							</SidebarMenuItem>
-						</SidebarMenu>
-					</SidebarHeader>
-					<SidebarContent>
-						{dashboardMenuGroups
-							.map(([groupName, groupMenus]) => [groupName, groupMenus.map(groupMenu =>
-								menusWithoutMasked.find(menu => menu.key == groupMenu)).filter(menu => menu != null)] as const)
-							.filter(([_, menus]) => menus.length > 0)
-							.map(([groupName, menus]) => (
-								<SidebarGroup key={groupName}>
-									<DashboardMenuGroupLabel>{groupName}</DashboardMenuGroupLabel>
-									<SidebarMenu className="gap-2">
-										{menus.map(menu => (
-											<DashboardMenuKey
-												key={menu.key}
-												pathname={pathname}
-												openSubmenuKeys={openSubmenuKeys}
-												setOpenSubmenuKeys={setOpenSubmenuKeys}
-												menu={menu}
-											/>
-										))}
-									</SidebarMenu>
-								</SidebarGroup>
-							))}
-					</SidebarContent>
-					<SidebarFooter>
-						<SidebarMenu>
-							<SidebarMenuItem>
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
-											<Avatar className="h-8 w-8">
-												<AvatarFallback>{user.name.split(/\s+/g).slice(0, 2).map(w => w.charAt(0)).join("")}</AvatarFallback>
-											</Avatar>
-											<div className="grid flex-1 text-left text-sm leading-tight">
-												<span className="truncate font-medium">{user.name}</span>
-												<span className="truncate text-xs">{user.email}</span>
+		<RedactProvider canvasClassName="z-51">
+			<DashboardContext.Provider value={context}>
+				<SidebarProvider className="[--sidebar-width:20rem]!">
+					<Sidebar collapsible="icon" variant="inset" className="bg-sidebar h-lvh pb-[calc(100lvh-100dvh)] [anchor-name:--sidebar-anchor]">
+						<SidebarHeader>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:p-1.5!">
+										<Link href="/" className="flex h-18">
+											<Image src={logoEcentrix} alt="eCentrix symbol" className="mt-px h-12 w-12 transition-all duration-150 shrink-0 object-contain scale-100 group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:h-5 group-data-[collapsible=icon]:w-5 group-data-[collapsible=icon]:scale-150" />
+											<div className="flex flex-col gap-2">
+												<span className="text-[15px] text-sidebar-accent-foreground leading-none font-semibold uppercase whitespace-nowrap line-clamp-2 text-clip">
+													PT. Intelix Global<br />Crossing
+												</span>
+												<span className="text-[10px] leading-none font-semibold uppercase whitespace-nowrap line-clamp-1 text-clip">
+													Mobile Survey Management
+												</span>
 											</div>
-											<ChevronsUpDownIcon className="ml-auto size-4" />
-										</SidebarMenuButton>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg" side={isMobile ? "bottom" : "right"} align="end" sideOffset={4}>
-										<DropdownMenuLabel className="p-0 font-normal">
-											<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+										</Link>
+									</SidebarMenuButton>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarHeader>
+						<SidebarContent>
+							{dashboardMenuGroups
+								.map(([groupName, groupMenus]) => [groupName, groupMenus.map(groupMenu =>
+									menusWithoutMasked.find(menu => menu.key == groupMenu)).filter(menu => menu != null)] as const)
+								.filter(([_, menus]) => menus.length > 0)
+								.map(([groupName, menus]) => (
+									<SidebarGroup key={groupName}>
+										<DashboardMenuGroupLabel>{groupName}</DashboardMenuGroupLabel>
+										<SidebarMenu className="gap-2">
+											{menus.map(menu => (
+												<DashboardMenuKey
+													key={menu.key}
+													pathname={pathname}
+													openSubmenuKeys={openSubmenuKeys}
+													setOpenSubmenuKeys={setOpenSubmenuKeys}
+													menu={menu}
+												/>
+											))}
+										</SidebarMenu>
+									</SidebarGroup>
+								))}
+						</SidebarContent>
+						<SidebarFooter>
+							<SidebarMenu>
+								<SidebarMenuItem>
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<SidebarMenuButton size="lg" className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
 												<Avatar className="h-8 w-8">
 													<AvatarFallback>{user.name.split(/\s+/g).slice(0, 2).map(w => w.charAt(0)).join("")}</AvatarFallback>
 												</Avatar>
@@ -260,62 +249,76 @@ export function DashboardShell(
 													<span className="truncate font-medium">{user.name}</span>
 													<span className="truncate text-xs">{user.email}</span>
 												</div>
-											</div>
-										</DropdownMenuLabel>
-										<DropdownMenuSeparator />
-										<DropdownMenuItem onClick={() => logoutAction()}>
-											<LogOutIcon />
-											Log out
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-							</SidebarMenuItem>
-						</SidebarMenu>
-					</SidebarFooter>
-					<SidebarRail />
-				</Sidebar>
-				<div className="fixed [position-anchor:--sidebar-anchor] top-[anchor(top)] bottom-0 left-[anchor(right)] right-0 z-50 pointer-events-none select-none bg-sidebar mask-[url(#sidebar-cutout)] [anchor-name:--sidebar-cutout]" />
-				<div className="fixed [position-anchor:--sidebar-cutout] top-[calc(100svh-1px)] left-[anchor(left)] w-[anchor-size(width)] h-[calc(100lvh-100dvh)] z-50 pointer-events-none select-none bg-sidebar" />
-				<svg className="fixed [position-anchor:--sidebar-cutout] top-[anchor(top)] h-[anchor-size(height)] left-[anchor(left)] w-[anchor-size(width)] opacity-0 pointer-events-none select-none">
-					<mask id="sidebar-cutout">
-						<rect className="w-full h-full fill-white" />
-						<rect className="[y:--spacing(2)] w-[calc(100%---spacing(2))] h-[calc(100%---spacing(4))] [rx:calc(var(--radius)*1.4)] fill-black" />
-					</mask>
-				</svg>
-				<SidebarInset className="md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-1 m-0! rounded-none sm:py-2 sm:pr-2">
-					<header className="flex bg-muted h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-						<div className="flex items-center gap-2 px-4">
-							<SidebarTrigger className="-ml-1" />
-							<Separator orientation="vertical" className="mr-1 my-auto data-[orientation=vertical]:h-4" />
-							<Breadcrumb>
-								<BreadcrumbList>
-									{activeMenu != null && activeMode != null ? (
-										<>
+												<ChevronsUpDownIcon className="ml-auto size-4" />
+											</SidebarMenuButton>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg" side={isMobile ? "bottom" : "right"} align="end" sideOffset={4}>
+											<DropdownMenuLabel className="p-0 font-normal">
+												<div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+													<Avatar className="h-8 w-8">
+														<AvatarFallback>{user.name.split(/\s+/g).slice(0, 2).map(w => w.charAt(0)).join("")}</AvatarFallback>
+													</Avatar>
+													<div className="grid flex-1 text-left text-sm leading-tight">
+														<span className="truncate font-medium">{user.name}</span>
+														<span className="truncate text-xs">{user.email}</span>
+													</div>
+												</div>
+											</DropdownMenuLabel>
+											<DropdownMenuSeparator />
+											<DropdownMenuItem onClick={() => logoutAction()}>
+												<LogOutIcon />
+												Log out
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								</SidebarMenuItem>
+							</SidebarMenu>
+						</SidebarFooter>
+						<SidebarRail />
+					</Sidebar>
+					<div className="fixed [position-anchor:--sidebar-anchor] top-[anchor(top)] bottom-0 left-[anchor(right)] right-0 z-50 pointer-events-none select-none bg-sidebar mask-[url(#sidebar-cutout)] [anchor-name:--sidebar-cutout]" />
+					<div className="fixed [position-anchor:--sidebar-cutout] top-[calc(100svh-1px)] left-[anchor(left)] w-[anchor-size(width)] h-[calc(100lvh-100dvh)] z-50 pointer-events-none select-none bg-sidebar" />
+					<svg className="fixed [position-anchor:--sidebar-cutout] top-[anchor(top)] h-[anchor-size(height)] left-[anchor(left)] w-[anchor-size(width)] opacity-0 pointer-events-none select-none">
+						<mask id="sidebar-cutout">
+							<rect className="w-full h-full fill-white" />
+							<rect className="[y:--spacing(2)] w-[calc(100%---spacing(2))] h-[calc(100%---spacing(4))] [rx:calc(var(--radius)*1.4)] fill-black" />
+						</mask>
+					</svg>
+					<SidebarInset className="md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-1 m-0! rounded-none sm:py-2 sm:pr-2">
+						<header className="flex bg-muted h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+							<div className="flex items-center gap-2 px-4">
+								<SidebarTrigger className="-ml-1" />
+								<Separator orientation="vertical" className="mr-1 my-auto data-[orientation=vertical]:h-4" />
+								<Breadcrumb>
+									<BreadcrumbList>
+										{activeMenu != null && activeMode != null ? (
+											<>
+												<BreadcrumbItem>
+													{dashboardMenuGroups.find(([_, groupMenus]) => groupMenus.includes(activeMenu.key))?.[0]}
+												</BreadcrumbItem>
+												<BreadcrumbSeparator />
+												<BreadcrumbItem>
+													{activeMenu.label}
+												</BreadcrumbItem>
+												<BreadcrumbSeparator />
+												<BreadcrumbItem>
+													{activeMode.shortLabel}
+												</BreadcrumbItem>
+											</>
+										) : (
 											<BreadcrumbItem>
-												{dashboardMenuGroups.find(([_, groupMenus]) => groupMenus.includes(activeMenu.key))?.[0]}
+												<BreadcrumbPage>Dashboard</BreadcrumbPage>
 											</BreadcrumbItem>
-											<BreadcrumbSeparator />
-											<BreadcrumbItem>
-												{activeMenu.label}
-											</BreadcrumbItem>
-											<BreadcrumbSeparator />
-											<BreadcrumbItem>
-												{activeMode.shortLabel}
-											</BreadcrumbItem>
-										</>
-									) : (
-										<BreadcrumbItem>
-											<BreadcrumbPage>Dashboard</BreadcrumbPage>
-										</BreadcrumbItem>
-									)}
-								</BreadcrumbList>
-							</Breadcrumb>
-						</div>
-					</header>
-					{children}
-				</SidebarInset>
-			</SidebarProvider>
-		</DashboardContext.Provider>
+										)}
+									</BreadcrumbList>
+								</Breadcrumb>
+							</div>
+						</header>
+						{children}
+					</SidebarInset>
+				</SidebarProvider>
+			</DashboardContext.Provider>
+		</RedactProvider>
 	);
 }
 
@@ -324,17 +327,19 @@ export function MenuPage(
 	{ title: string, description: string, children: ReactNode }
 ) {
 	return (
-		<main className="bg-muted p-4 md:p-6">
-			<div className="mb-4 space-y-1">
-				<h1 className="text-2xl font-semibold font-sans">{title}</h1>
-				<p className="text-muted-foreground text-sm">{description}</p>
-			</div>
-			<Card>
-				<CardContent className="space-y-4">
-					{children}
-				</CardContent>
-			</Card>
-		</main>
+		<RedactProvider>
+			<main className="bg-muted p-4 md:p-6">
+				<div className="mb-4 space-y-1">
+					<h1 className="text-2xl font-semibold font-sans">{title}</h1>
+					<p className="text-muted-foreground text-sm">{description}</p>
+				</div>
+				<Card>
+					<CardContent className="space-y-4">
+						{children}
+					</CardContent>
+				</Card>
+			</main>
+		</RedactProvider>
 	);
 }
 
