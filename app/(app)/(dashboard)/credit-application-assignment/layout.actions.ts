@@ -130,6 +130,8 @@ export async function getDetailsAction(id: string) {
 			dueDate: true,
 			rescheduleCount: true,
 			geofenceRegions: true,
+			changeRequestType: true,
+			changeRequestComment: true,
 			reviewedAt: true,
 			reviewedBy: true,
 			reviewApproved: true,
@@ -172,7 +174,9 @@ export async function getDifferenceAction(id: string) {
 				approvalDate: true,
 				dueDate: true,
 				rescheduleCount: true,
-				geofenceRegions: true
+				geofenceRegions: true,
+				changeRequestType: true,
+				changeRequestComment: true
 			}
 		}
 	})).docs[0];
@@ -205,13 +209,14 @@ export async function getDifferenceAction(id: string) {
 				approvalDate: true,
 				dueDate: true,
 				rescheduleCount: true,
-				geofenceRegions: true
+				geofenceRegions: true,
+				changeRequestType: true,
+				changeRequestComment: true
 			}
 		}
 	})).docs[0]?.version;
 	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
-		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
 		approvedVersion: approvedVersion,
 		requestedVersion: requestedVersion,
 		relations: relations
@@ -252,6 +257,8 @@ export async function getHistoryAction(id: string) {
 				dueDate: true,
 				rescheduleCount: true,
 				geofenceRegions: true,
+				changeRequestType: true,
+				changeRequestComment: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -354,6 +361,8 @@ export async function requestUpsertAction(formState: FormState) {
 						dueDate: formState.dueDate,
 						rescheduleCount: formState.rescheduleCount,
 						geofenceRegions: formState.geofenceRegions,
+						changeRequestType: "create",
+						changeRequestComment: formState.changeRequestComment,
 						reviewedAt: null,
 						reviewedBy: null,
 						reviewApproved: null,
@@ -382,6 +391,8 @@ export async function requestUpsertAction(formState: FormState) {
 					dueDate: formState.dueDate,
 					rescheduleCount: formState.rescheduleCount,
 					geofenceRegions: formState.geofenceRegions,
+					changeRequestType: "create",
+					changeRequestComment: formState.changeRequestComment,
 					reviewedAt: null,
 					reviewedBy: null,
 					reviewApproved: null,
@@ -411,6 +422,8 @@ export async function requestUpsertAction(formState: FormState) {
 			dueDate: formState.dueDate,
 			rescheduleCount: formState.rescheduleCount,
 			geofenceRegions: formState.geofenceRegions,
+			changeRequestType: "update",
+			changeRequestComment: formState.changeRequestComment,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -420,7 +433,10 @@ export async function requestUpsertAction(formState: FormState) {
 	return { id: formState.id };
 }
 
-export async function requestDeleteAction(id: string) {
+export async function requestDeleteAction(
+	{ id, changeRequestComment }:
+	{ id: string, changeRequestComment?: any }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -437,6 +453,8 @@ export async function requestDeleteAction(id: string) {
 			_status: "draft",
 			deletedAt: new Date().toISOString(),
 			deletedBy: user.id,
+			changeRequestType: "delete",
+			changeRequestComment: changeRequestComment,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -446,7 +464,10 @@ export async function requestDeleteAction(id: string) {
 	return { id: id };
 }
 
-export async function cancelRequestAction(id: string) {
+export async function cancelRequestAction(
+	{ id }:
+	{ id: string }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -489,6 +510,8 @@ export async function cancelRequestAction(id: string) {
 				dueDate: true,
 				rescheduleCount: true,
 				geofenceRegions: true,
+				changeRequestType: true,
+				changeRequestComment: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -534,6 +557,8 @@ export async function cancelRequestAction(id: string) {
 			dueDate: approvedVersion.dueDate,
 			rescheduleCount: approvedVersion.rescheduleCount,
 			geofenceRegions: approvedVersion.geofenceRegions,
+			changeRequestType: approvedVersion.changeRequestType,
+			changeRequestComment: approvedVersion.changeRequestComment,
 			reviewedAt: approvedVersion.reviewedAt,
 			reviewedBy: approvedVersion.reviewedBy,
 			reviewApproved: approvedVersion.reviewApproved,
@@ -543,7 +568,10 @@ export async function cancelRequestAction(id: string) {
 	return { id: id };
 }
 
-export async function requestRestoreAction(id: string) {
+export async function requestRestoreAction(
+	{ id, changeRequestComment }:
+	{ id: string, changeRequestComment?: any }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -571,6 +599,8 @@ export async function requestRestoreAction(id: string) {
 			_status: "draft",
 			deletedAt: null,
 			deletedBy: null,
+			changeRequestType: "create",
+			changeRequestComment: changeRequestComment,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,

@@ -1174,17 +1174,18 @@ export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext
 		);
 	}, [columns, detailsTriggerColumnKey, contextChangeCountRef.current]);
 }
-export const defaultChangeRequestRenderer = () =>
-	(_, row: { createdAt?: string, updatedAt?: string, deletedAt?: string }, { setChangeRequestDrawerRow, setChangeRequestDrawerOpen }) => (
+export const defaultChangeRequestRenderer = (
+	{ selectOptions }:
+	{ selectOptions: readonly { value: string, label: React.ReactNode }[] }
+) =>
+	(value: string | null | undefined, row, { setChangeRequestDrawerRow, setChangeRequestDrawerOpen }) => (
 		<Button
 			type="button"
 			variant="link"
 			onClick={() => { setChangeRequestDrawerRow(row); setChangeRequestDrawerOpen(true); }}
 			className="text-primary h-auto p-0 select-auto"
 		>
-			{row.deletedAt != null ? "Delete" :
-				row.createdAt == null || row.updatedAt == null ? "Update" :
-					row.createdAt == row.updatedAt ? "Create" : "Update"}
+			{selectOptions.find(option => option.value == value)?.label ?? "-"}
 		</Button>
 	);
 export const defaultStatusRenderer = () =>

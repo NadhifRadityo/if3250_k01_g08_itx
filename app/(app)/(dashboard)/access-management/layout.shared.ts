@@ -180,6 +180,8 @@ export const collectionMaskFields = Object.freeze({
 		"name": "name",
 		"employeeId": "text",
 		"supervisor": "relation",
+		"changeRequestType": "select",
+		"changeRequestComment": "richText",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -195,6 +197,8 @@ export const collectionMaskFields = Object.freeze({
 		"name": "text",
 		"level": "select",
 		"menus": "select",
+		"changeRequestType": "select",
+		"changeRequestComment": "richText",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -210,6 +214,8 @@ export const collectionMaskFields = Object.freeze({
 		"name": "text",
 		"supervisor": "relation",
 		"members": "relation",
+		"changeRequestType": "select",
+		"changeRequestComment": "richText",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -233,6 +239,8 @@ export const collectionMaskFields = Object.freeze({
 		"collection": "select",
 		"filters": "generic",
 		"masks": "generic",
+		"changeRequestType": "select",
+		"changeRequestComment": "richText",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -271,6 +279,8 @@ export const collectionMaskFields = Object.freeze({
 		"otherDate1": "date",
 		"otherDate2": "date",
 		"others": "generic",
+		"changeRequestType": "select",
+		"changeRequestComment": "richText",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -298,6 +308,14 @@ export const collectionMaskFields = Object.freeze({
 		"deletedBy": "relation",
 		"creditApplication": "relation",
 		"officer": "relation",
+		"assignedDate": "date",
+		"surveyDate": "date",
+		"approvalDate": "date",
+		"dueDate": "date",
+		"rescheduleCount": "number",
+		"geofencingRegion": "generic",
+		"changeRequestType": "select",
+		"changeRequestComment": "richText",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -326,6 +344,8 @@ export const collectionMaskFields = Object.freeze({
 		"title": "text",
 		"description": "richText",
 		"content": "generic",
+		"changeRequestType": "select",
+		"changeRequestComment": "richText",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -352,6 +372,8 @@ export const collectionMaskFields = Object.freeze({
 		"title": "text",
 		"description": "richText",
 		"content": "generic",
+		"changeRequestType": "select",
+		"changeRequestComment": "richText",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -377,15 +399,15 @@ export const collectionMaskFields = Object.freeze({
 	},
 	"gps-logs": {
 		"createdAt": "date",
-		"officer": "relation",
+		"user": "relation",
 		"sessionId": "text",
-		"creditApplication": "relation",
+		"officerTask": "relation",
 		"latitude": "number",
 		"longitude": "number"
 	},
 	"otp-logs": {
 		"createdAt": "date",
-		"creditApplication": "relation",
+		"officerTask": "relation",
 		"content": "text",
 		"email": "email",
 		"whatsappNumber": "phoneNumber",
@@ -396,8 +418,7 @@ export const collectionMaskFields = Object.freeze({
 	},
 	"recording-logs": {
 		"createdAt": "date",
-		"creditApplication": "relation",
-		"officer": "relation",
+		"officerTask": "relation",
 		"phoneNumber": "phoneNumber",
 		"audioFile": "relation",
 		"transcription": "relation"
@@ -448,7 +469,7 @@ export const collectionRelationFields = Object.freeze({
 		"createdBy": "staged-users",
 		"updatedBy": "staged-users",
 		"deletedBy": "staged-users",
-		"creditApplication": "credit-application",
+		"creditApplication": "credit-applications",
 		"officer": "staged-users",
 		"reviewedBy": "staged-users"
 	},
@@ -491,13 +512,13 @@ export const collectionRelationFields = Object.freeze({
 	},
 	"gps-logs": {
 		"user": "staged-users",
-		"officerTask": "credit-application"
+		"officerTask": "officer-tasks"
 	},
 	"otp-logs": {
-		"officerTask": "credit-application"
+		"officerTask": "officer-tasks"
 	},
 	"recording-logs": {
-		"officerTask": "credit-application"
+		"officerTask": "officer-tasks"
 		// we don't mask recording-log-audio-files nor recording-log-transcriptions
 	}
 } as Record<string, Record<string, string>>);

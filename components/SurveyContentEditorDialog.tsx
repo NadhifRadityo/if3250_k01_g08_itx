@@ -7,27 +7,11 @@ import FormEditor from "@/components/FormEditor";
 import { Button } from "@/components/radix/Button";
 import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } from "@/components/radix/Dialog";
 
-type SurveyContentEditorDialogProps = {
-	buttonClassName?: string;
-	buttonLabel?: string;
-	description?: string;
-	dialogTitle: string;
-	disabled?: boolean;
-	onValueChange?: (value: any) => void;
-	value: any;
-};
-
-export function SurveyContentEditorDialog({
-	buttonClassName,
-	buttonLabel,
-	description,
-	dialogTitle,
-	disabled = false,
-	onValueChange,
-	value
-}: SurveyContentEditorDialogProps) {
+export function SurveyContentEditorDialog(
+	{ buttonClassName, buttonLabel, description, dialogTitle, disabled = false, onValueChange, value }:
+	{ buttonClassName?: string, buttonLabel?: string, description?: string, dialogTitle: string, disabled?: boolean, onValueChange?: (value: any) => void, value: any }
+) {
 	const [open, setOpen] = React.useState(false);
-
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<Button

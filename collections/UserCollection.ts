@@ -397,6 +397,23 @@ export const StagedUsers = (): CollectionConfig => ({
 			relationTo: "users"
 		},
 		{
+			name: "changeRequestType",
+			label: "Change Request Type",
+			type: "select",
+			required: true,
+			options: [
+				{ value: "create", label: "Create" },
+				{ value: "update", label: "Update" },
+				{ value: "delete", label: "Delete" }
+			]
+		},
+		{
+			name: "changeRequestComment",
+			label: "Change Request Comment",
+			type: "richText",
+			editor: ReviewRichTextEditor()
+		},
+		{
 			name: "reviewedAt",
 			label: "Reviewed At",
 			type: "date"

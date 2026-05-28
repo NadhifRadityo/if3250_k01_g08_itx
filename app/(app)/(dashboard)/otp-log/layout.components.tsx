@@ -17,9 +17,9 @@ import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layou
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
 export const deliveryStatusSelectOptions = Object.freeze([
-	{ value: "Sent", label: "Sent" },
-	{ value: "Failed", label: "Failed" },
-	{ value: "Pending", label: "Pending" }
+	{ value: "sent", label: "Sent" },
+	{ value: "failed", label: "Failed" },
+	{ value: "pending", label: "Pending" }
 ] as const);
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOtpLogsAction },

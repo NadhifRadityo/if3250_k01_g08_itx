@@ -154,6 +154,8 @@ export async function getDetailsAction(id: string) {
 			otherDate1: true,
 			otherDate2: true,
 			others: true,
+			changeRequestType: true,
+			changeRequestComment: true,
 			reviewedAt: true,
 			reviewedBy: true,
 			reviewApproved: true,
@@ -214,7 +216,9 @@ export async function getDifferenceAction(id: string) {
 				otherNumber2: true,
 				otherDate1: true,
 				otherDate2: true,
-				others: true
+				others: true,
+				changeRequestType: true,
+				changeRequestComment: true
 			}
 		}
 	})).docs[0];
@@ -265,13 +269,14 @@ export async function getDifferenceAction(id: string) {
 				otherNumber2: true,
 				otherDate1: true,
 				otherDate2: true,
-				others: true
+				others: true,
+				changeRequestType: true,
+				changeRequestComment: true
 			}
 		}
 	})).docs[0]?.version;
 	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
-		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",
 		approvedVersion: approvedVersion,
 		requestedVersion: requestedVersion,
 		relations: relations
@@ -328,6 +333,8 @@ export async function getHistoryAction(id: string) {
 				otherDate1: true,
 				otherDate2: true,
 				others: true,
+				changeRequestType: true,
+				changeRequestComment: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -390,6 +397,8 @@ export async function requestUpsertAction(formState: FormState) {
 				otherDate1: formState.otherDate1,
 				otherDate2: formState.otherDate2,
 				others: formState.others,
+				changeRequestType: "create",
+				changeRequestComment: formState.changeRequestComment,
 				reviewedAt: null,
 				reviewedBy: null,
 				reviewApproved: null,
@@ -434,6 +443,8 @@ export async function requestUpsertAction(formState: FormState) {
 			otherDate1: formState.otherDate1,
 			otherDate2: formState.otherDate2,
 			others: formState.others,
+			changeRequestType: "update",
+			changeRequestComment: formState.changeRequestComment,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -443,7 +454,10 @@ export async function requestUpsertAction(formState: FormState) {
 	return { id: formState.id };
 }
 
-export async function requestDeleteAction(id: string) {
+export async function requestDeleteAction(
+	{ id, changeRequestComment }:
+	{ id: string, changeRequestComment?: any }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -460,6 +474,8 @@ export async function requestDeleteAction(id: string) {
 			_status: "draft",
 			deletedAt: new Date().toISOString(),
 			deletedBy: user.id,
+			changeRequestType: "delete",
+			changeRequestComment: changeRequestComment,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -469,7 +485,10 @@ export async function requestDeleteAction(id: string) {
 	return { id: id };
 }
 
-export async function cancelRequestAction(id: string) {
+export async function cancelRequestAction(
+	{ id }:
+	{ id: string }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -530,6 +549,8 @@ export async function cancelRequestAction(id: string) {
 				otherDate1: true,
 				otherDate2: true,
 				others: true,
+				changeRequestType: true,
+				changeRequestComment: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -593,6 +614,8 @@ export async function cancelRequestAction(id: string) {
 			otherDate1: approvedVersion.otherDate1,
 			otherDate2: approvedVersion.otherDate2,
 			others: approvedVersion.others,
+			changeRequestType: approvedVersion.changeRequestType,
+			changeRequestComment: approvedVersion.changeRequestComment,
 			reviewedAt: approvedVersion.reviewedAt,
 			reviewedBy: getRelationshipId(approvedVersion.reviewedBy),
 			reviewApproved: approvedVersion.reviewApproved,
@@ -602,7 +625,10 @@ export async function cancelRequestAction(id: string) {
 	return { id: id };
 }
 
-export async function requestRestoreAction(id: string) {
+export async function requestRestoreAction(
+	{ id, changeRequestComment }:
+	{ id: string, changeRequestComment?: any }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -630,6 +656,8 @@ export async function requestRestoreAction(id: string) {
 			_status: "draft",
 			deletedAt: null,
 			deletedBy: null,
+			changeRequestType: "create",
+			changeRequestComment: changeRequestComment,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,

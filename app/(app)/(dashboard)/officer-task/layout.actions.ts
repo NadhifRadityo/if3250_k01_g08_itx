@@ -10,10 +10,15 @@ import { OfficerTask } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationSurveys, resolveRelationSurveyResults, resolveRelationSatisfactionSurveys, resolveRelationSatisfactionSurveyResults, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
-import { RelationCreditApplication } from "../relation-navigation.shared";
+import { RelationUser, RelationSurvey, RelationSurveyResult, RelationSatisfactionSurvey, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
-export type RelationValues = Partial<Record<`credit-applications:${string}`, RelationCreditApplication>>;
+export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
+	Partial<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> &
+	Partial<Record<`surveys:${string}`, RelationSurvey>> &
+	Partial<Record<`survey-results:${string}`, RelationSurveyResult>> &
+	Partial<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> &
+	Partial<Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult>>;
 
 async function resolveRelations(
 	{ payload, docs }:

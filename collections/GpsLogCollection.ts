@@ -13,7 +13,7 @@ export const GpsLogs = (): CollectionConfig => ({
 	timestamps: false,
 	admin: {
 		useAsTitle: "createdAt",
-		defaultColumns: ["createdAt", "officer", "sessionId", "creditApplication", "latitude", "longitude"]
+		defaultColumns: ["createdAt", "sessionId", "user", "officerTask", "latitude", "longitude"]
 	},
 	hooks: {
 		beforeChange: [

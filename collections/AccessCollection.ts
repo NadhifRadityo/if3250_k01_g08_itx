@@ -188,7 +188,7 @@ export const Accesses = (): CollectionConfig => ({
 				{ value: "surveys", label: "Surveys" },
 				{ value: "survey-results", label: "Survey Results" },
 				{ value: "satisfaction-surveys", label: "Satisfaction Surveys" },
-				{ value: "satisfaction-survey-results", label: "Satisfaction Surveys" },
+				{ value: "satisfaction-survey-results", label: "Satisfaction Survey Results" },
 				{ value: "login-logs", label: "Login Logs" },
 				{ value: "gps-logs", label: "GPS Logs" },
 				{ value: "otp-logs", label: "OTP Logs" },
@@ -206,6 +206,23 @@ export const Accesses = (): CollectionConfig => ({
 			label: "Masks",
 			type: "json",
 			required: true
+		},
+		{
+			name: "changeRequestType",
+			label: "Change Request Type",
+			type: "select",
+			required: true,
+			options: [
+				{ value: "create", label: "Create" },
+				{ value: "update", label: "Update" },
+				{ value: "delete", label: "Delete" }
+			]
+		},
+		{
+			name: "changeRequestComment",
+			label: "Change Request Comment",
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		},
 		{
 			name: "reviewedAt",

@@ -18,6 +18,7 @@ import { CreditApplication } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationCreditApplicationImportRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
@@ -55,6 +56,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "otherNumber2", label: "Other Number 2", type: "number" },
 	{ key: "otherDate1", label: "Other Date 1", type: "date" },
 	{ key: "otherDate2", label: "Other Date 2", type: "date" },
+	{ key: "changeRequestType", label: "Change Request Type", type: "select", selectOptions: changeRequestTypeSelectOptions },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
@@ -93,7 +95,8 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "otherDate1", label: "Other Date 1" },
 	{ key: "otherDate2", label: "Other Date 2" },
 	{ key: "others", label: "Others" },
-	{ key: "#changeRequest", label: "Request" },
+	{ key: "changeRequestType", label: "Change Request Type" },
+	{ key: "changeRequestComment", label: "Change Request Comment" },
 	{ key: "#status", label: "Status" },
 	{ key: "reviewedAt", label: "Reviewed At" },
 	{ key: "reviewedBy", label: "Reviewed By" },
@@ -134,7 +137,8 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "otherDate1", label: "Other Date 1", sortable: true },
 	{ key: "otherDate2", label: "Other Date 2", sortable: true },
 	{ key: "others", label: "Others", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
-	{ key: "#changeRequest", label: "Request", sortable: false },
+	{ key: "changeRequestType", label: "Change Request Type", sortable: true },
+	{ key: "changeRequestComment", label: "Change Request Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ key: "#status", label: "Status", sortable: false },
 	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
 	{ key: "reviewedBy", label: "Reviewed By", sortable: false },
@@ -175,7 +179,8 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "otherDate1", type: "date" },
 	{ key: "otherDate2", type: "date" },
 	{ key: "others", type: "text", render: value => value == null ? "-" : (<pre className="text-xs whitespace-pre-wrap break-all">{typeof value == "string" ? value : JSON.stringify(value, null, 2)}</pre>) },
-	{ key: "#changeRequest", type: "null", render: defaultChangeRequestRenderer() },
+	{ key: "changeRequestType", type: "select", selectOptions: changeRequestTypeSelectOptions, render: defaultChangeRequestRenderer({ selectOptions: changeRequestTypeSelectOptions }) },
+	{ key: "changeRequestComment", type: "richText" },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
 	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "credit-applications.reviewedBy" }) },
@@ -241,7 +246,8 @@ export const defaultColumnOrder = Object.freeze([
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
-	"#changeRequest",
+	"changeRequestType",
+	"changeRequestComment",
 	"#status",
 	"reviewedAt",
 	"reviewedBy",
@@ -256,7 +262,7 @@ export const defaultColumnsShown = Object.freeze([
 	"whatsappNumber",
 	"assetName",
 	"vendor",
-	"#changeRequest",
+	"changeRequestType",
 	"#status",
 	"updatedAt",
 	"reviewComment"
@@ -466,7 +472,7 @@ export function ChangeRequestDrawer(
 					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
 						<p>
 							<span className="font-medium">Request Type</span>{": "}
-							{query.data?.requestType ?? "-"}
+							{changeRequestTypeSelectOptions.find(option => option.value == query.data?.requestedVersion?.changeRequestType)?.label ?? "-"}
 						</p>
 						<p className="text-muted-foreground">
 							{diffs != null ? `${diffs.filter(([_, changed]) => changed).length} changed field(s)` : "Loading differences..."}
@@ -558,7 +564,7 @@ export function ReviewDrawer(
 					<div className="bg-muted/30 rounded-lg border p-3 text-sm">
 						<p>
 							<span className="font-medium">Request Type</span>{": "}
-							{query.data?.requestType ?? "-"}
+							{changeRequestTypeSelectOptions.find(option => option.value == query.data?.requestedVersion?.changeRequestType)?.label ?? "-"}
 						</p>
 						<p className="text-muted-foreground">
 							{diffs != null ? `${diffs.filter(([_, changed]) => changed).length} changed field(s)` : "Loading differences..."}
@@ -662,6 +668,7 @@ export type FormState = {
 	otherDate1?: string;
 	otherDate2?: string;
 	others?: string;
+	changeRequestComment?: any;
 };
 export function toFormState(data: CreditApplication) {
 	return {
@@ -690,7 +697,8 @@ export function toFormState(data: CreditApplication) {
 		otherNumber2: data.otherNumber2,
 		otherDate1: data.otherDate1,
 		otherDate2: data.otherDate2,
-		others: data.others
+		others: data.others,
+		changeRequestComment: data.changeRequestComment
 	} as FormState;
 }
 export function FormDrawer(
@@ -878,6 +886,15 @@ export function FormDrawer(
 								rows={6}
 							/>
 						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Change Request Comment</label>
+							<RichTextInput
+								serializedState={formState.changeRequestComment ?? undefined}
+								onSerializedStateChange={value => onFormStateChange({ ...formState, changeRequestComment: value })}
+								onImageUpload={uploadGenericRichtextImage}
+								disabled={isMutating}
+							/>
+						</div>
 						{mutationError != null ? (
 							<Alert variant="destructive" className="sm:col-span-2">
 								<CircleAlertIcon />
@@ -897,8 +914,8 @@ export function FormDrawer(
 }
 
 export function DeleteDialog(
-	{ open, onOpenChange, onConfirm, isMutating = false }:
-	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
+	{ open, onOpenChange, onConfirm, changeRequestComment, onChangeRequestCommentChange, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, changeRequestComment: SerializedEditorState, onChangeRequestCommentChange: (v: SerializedEditorState) => void, isMutating?: boolean }
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -909,6 +926,15 @@ export function DeleteDialog(
 						Delete does not hard-delete data. It creates a pending delete request by setting deletedAt, and requires approver review.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
+				<div className="space-y-2">
+					<label className="text-sm font-medium">Change Request Comment</label>
+					<RichTextInput
+						serializedState={changeRequestComment}
+						onSerializedStateChange={onChangeRequestCommentChange}
+						onImageUpload={uploadGenericRichtextImage}
+						disabled={isMutating}
+					/>
+				</div>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
 					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Delete</AlertDialogAction>
@@ -963,8 +989,8 @@ export function RevertApprovedDialog(
 }
 
 export function RestoreDeletionDialog(
-	{ open, onOpenChange, onConfirm, isMutating = false }:
-	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
+	{ open, onOpenChange, onConfirm, changeRequestComment, onChangeRequestCommentChange, isMutating = false }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, changeRequestComment: SerializedEditorState, onChangeRequestCommentChange: (v: SerializedEditorState) => void, isMutating?: boolean }
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -975,6 +1001,15 @@ export function RestoreDeletionDialog(
 						This will create a new change request to restore the data.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
+				<div className="space-y-2">
+					<label className="text-sm font-medium">Change Request Comment</label>
+					<RichTextInput
+						serializedState={changeRequestComment}
+						onSerializedStateChange={onChangeRequestCommentChange}
+						onImageUpload={uploadGenericRichtextImage}
+						disabled={isMutating}
+					/>
+				</div>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
 					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Restore Deletion</AlertDialogAction>

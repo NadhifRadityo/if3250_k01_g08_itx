@@ -568,6 +568,8 @@ export async function reviewAction(
 				otherDate1: row.otherDate1,
 				otherDate2: row.otherDate2,
 				others: row.others,
+				changeRequestType: "create",
+				changeRequestComment: null,
 				reviewedAt: new Date().toISOString(),
 				reviewedBy: user.id,
 				reviewApproved: true,

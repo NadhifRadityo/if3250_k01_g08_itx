@@ -270,3 +270,9 @@ export const dashboardMenuGroups = Object.freeze([
 	["Survey and Feedback", ["survey-management", "survey-result", "satisfaction-survey-management", "satisfaction-survey-result"]],
 	["Security and Audit", ["login-log", "otp-log", "gps-log", "recording-log"]]
 ] as [string, string[]][]);
+
+export const changeRequestTypeSelectOptions = Object.freeze([
+	{ value: "create", label: "Create" },
+	{ value: "update", label: "Update" },
+	{ value: "delete", label: "Delete" }
+] as const);

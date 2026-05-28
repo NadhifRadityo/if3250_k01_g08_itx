@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { XIcon, PlusIcon, PencilIcon, Trash2Icon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
@@ -119,6 +120,8 @@ export default function Page() {
 	const [cancelPendingRequestTargetRow, setCancelPendingRequestTargetRow] = useState(null as ColumnData | null);
 	const [revertApprovedTargetRow, setRevertApprovedTargetRow] = useState(null as ColumnData | null);
 	const [restoreDeletionTargetRow, setRestoreDeletionTargetRow] = useState(null as ColumnData | null);
+	const [deleteChangeRequestComment, setDeleteChangeRequestComment] = useState(lexicalPlainText(""));
+	const [restoreDeletionChangeRequestComment, setRestoreDeletionChangeRequestComment] = useState(lexicalPlainText(""));
 	const rowValueRendererContext = {
 		relationValues: query.data?.relations,
 		isMutating: isMutating,
@@ -284,7 +287,8 @@ export default function Page() {
 								id: editFormDrawerState.id,
 								name: editFormDrawerState.name,
 								level: editFormDrawerState.level,
-								menus: editFormDrawerState.menus
+								menus: editFormDrawerState.menus,
+								changeRequestComment: editFormDrawerState.changeRequestComment
 							});
 							setEditFormDrawerOpen(false);
 							setEditFormDrawerState({});
@@ -318,7 +322,8 @@ export default function Page() {
 							await requestUpsertAction({
 								name: addFormDrawerState.name,
 								level: addFormDrawerState.level,
-								menus: addFormDrawerState.menus
+								menus: addFormDrawerState.menus,
+								changeRequestComment: addFormDrawerState.changeRequestComment
 							});
 							setAddFormDrawerOpen(false);
 							setAddFormDrawerState({});
@@ -332,15 +337,21 @@ export default function Page() {
 				<DeleteDialog
 					open={deleteTargetRow != null}
 					onOpenChange={v => { if(v) return; setDeleteTargetRow(null); }}
+					changeRequestComment={deleteChangeRequestComment}
+					onChangeRequestCommentChange={setDeleteChangeRequestComment}
 					isMutating={isMutating}
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await requestDeleteAction(deleteTargetRow!.id);
+							await requestDeleteAction({
+								id: deleteTargetRow!.id,
+								changeRequestComment: deleteChangeRequestComment
+							});
 						} catch(error) {
 							setGenericMutationError(error);
 						} finally {
 							setDeleteTargetRow(null);
+							setDeleteChangeRequestComment(lexicalPlainText(""));
 							await queryClient.invalidateQueries({ queryKey: ["role-management"] });
 						}
 					})}
@@ -352,7 +363,9 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await cancelRequestAction(cancelPendingRequestTargetRow!.id);
+							await cancelRequestAction({
+								id: cancelPendingRequestTargetRow!.id
+							});
 						} catch(error) {
 							setGenericMutationError(error);
 						} finally {
@@ -368,7 +381,9 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await cancelRequestAction(revertApprovedTargetRow!.id);
+							await cancelRequestAction({
+								id: revertApprovedTargetRow!.id
+							});
 						} catch(error) {
 							setGenericMutationError(error);
 						} finally {
@@ -380,15 +395,21 @@ export default function Page() {
 				<RestoreDeletionDialog
 					open={restoreDeletionTargetRow != null}
 					onOpenChange={v => { if(v) return; setRestoreDeletionTargetRow(null); }}
+					changeRequestComment={restoreDeletionChangeRequestComment}
+					onChangeRequestCommentChange={setRestoreDeletionChangeRequestComment}
 					isMutating={isMutating}
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await requestRestoreAction(restoreDeletionTargetRow!.id);
+							await requestRestoreAction({
+								id: restoreDeletionTargetRow!.id,
+								changeRequestComment: restoreDeletionChangeRequestComment
+							});
 						} catch(error) {
 							setGenericMutationError(error);
 						} finally {
 							setRestoreDeletionTargetRow(null);
+							setRestoreDeletionChangeRequestComment(lexicalPlainText(""));
 							await queryClient.invalidateQueries({ queryKey: ["role-management"] });
 						}
 					})}
