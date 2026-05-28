@@ -481,7 +481,8 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
-	approvedVersion.id = id;
+	if(approvedVersion != null)
+		approvedVersion.id = id;
 	requestedVersion.id = id;
 	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
@@ -508,7 +509,6 @@ export async function getHistoryAction(id: string) {
 		where: { parent: { equals: id } },
 		select: {
 			version: {
-				id: true,
 				createdAt: true,
 				createdBy: true,
 				updatedAt: true,
@@ -535,8 +535,8 @@ export async function getHistoryAction(id: string) {
 			}
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: versionsResult.docs.map(v => v.version) });
-	const entries = versionsResult.docs.map(v => ({ ...v.version, versionId: v.id }));
+	const entries = versionsResult.docs.map(v => ({ ...v.version, id: id, versionId: v.id }));
+	const relations = await resolveRelations({ payload, docs: entries });
 	return { entries, relations };
 }
 

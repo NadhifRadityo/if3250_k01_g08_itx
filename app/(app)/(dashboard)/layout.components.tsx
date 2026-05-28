@@ -3,7 +3,7 @@
 import React, { memo, useRef, useMemo, useState, useEffect, useContext, useCallback, createContext, type ReactNode } from "react";
 import { redirect, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, ArrowUpDownIcon, LocateFixedIcon, LockKeyholeIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
+import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, TrendingUpIcon, ArrowUpDownIcon, LocateFixedIcon, LockKeyholeIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
 
 import cn from "@/utils/cn";
 import useIsMobile from "@/utils/useIsMobile";
@@ -44,7 +44,7 @@ const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSV
 	"survey-management": ClipboardListIcon,
 	"survey-result": BarChart3Icon,
 	"satisfaction-survey-management": SmileIcon,
-	"satisfaction-survey-result": BarChart3Icon,
+	"satisfaction-survey-result": TrendingUpIcon,
 	"officer-task": ClipboardCheckIcon,
 	"officer-tracking": MapPinnedIcon,
 	"login-log": HistoryIcon,

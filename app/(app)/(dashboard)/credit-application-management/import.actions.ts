@@ -247,7 +247,6 @@ async function queryAction(
 			buildFilterWhere(filters)
 		] },
 		select: {
-			id: true,
 			filename: true,
 			filesize: true,
 			mimeType: true,
@@ -293,7 +292,6 @@ export async function getDetailsAction(id: string) {
 		id: id,
 		depth: 0,
 		select: {
-			id: true,
 			filename: true,
 			filesize: true,
 			mimeType: true,

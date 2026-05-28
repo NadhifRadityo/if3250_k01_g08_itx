@@ -41,7 +41,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "approvalDate", label: "Approval Date", type: "date" },
 	{ key: "dueDate", label: "Due Date", type: "date" },
 	{ key: "rescheduleCount", label: "Reschedule Count", type: "number" },
-	{ key: "changeRequestType", label: "Change Request Type", type: "select", selectOptions: changeRequestTypeSelectOptions },
+	{ key: "changeRequestType", label: "Request", type: "select", selectOptions: changeRequestTypeSelectOptions },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
@@ -62,7 +62,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "dueDate", label: "Due Date" },
 	{ key: "rescheduleCount", label: "Reschedule Count" },
 	{ key: "geofenceRegions", label: "Geofence Regions" },
-	{ key: "changeRequestType", label: "Change Request Type" },
+	{ key: "changeRequestType", label: "Request" },
 	{ key: "changeRequestComment", label: "Change Request Comment" },
 	{ key: "#status", label: "Status" },
 	{ key: "reviewedAt", label: "Reviewed At" },
@@ -86,7 +86,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "dueDate", label: "Due Date", sortable: true },
 	{ key: "rescheduleCount", label: "Reschedule Count", sortable: true },
 	{ key: "geofenceRegions", label: "Geofence Regions", sortable: false },
-	{ key: "changeRequestType", label: "Change Request Type", sortable: true },
+	{ key: "changeRequestType", label: "Request", sortable: true },
 	{ key: "changeRequestComment", label: "Change Request Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ key: "#status", label: "Status", sortable: false },
 	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
@@ -364,7 +364,7 @@ export function ChangeRequestDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion ?? {}), ...Object.keys(query.data.requestedVersion)])]
+	const diffs = query.data != null ? tableConfigColumns.filter(c => c.key != "id" && (c.key in (query.data.approvedVersion ?? {}) || c.key in query.data.requestedVersion)).map(c => c.key)
 		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion?.[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion[columnKey] ?? null)] as const) : null;
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
@@ -456,7 +456,7 @@ export function ReviewDrawer(
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
-	const diffs = query.data != null ? [...new Set([...Object.keys(query.data.approvedVersion ?? {}), ...Object.keys(query.data.requestedVersion)])]
+	const diffs = query.data != null ? tableConfigColumns.filter(c => c.key != "id" && (c.key in (query.data.approvedVersion ?? {}) || c.key in query.data.requestedVersion)).map(c => c.key)
 		.map(columnKey => [columnKey, JSON.stringify(query.data.approvedVersion?.[columnKey] ?? null) != JSON.stringify(query.data.requestedVersion[columnKey] ?? null)] as const) : null;
 	const renderValue = useMenuRowValueRenderer({
 		columns: drawerValueRendererConfigColumns,
