@@ -26,6 +26,7 @@ import { columnConfigColumns as creditApplicationColumnConfigColumns, filterConf
 import { columnConfigColumns as gpsLogColumnConfigColumns, filterConfigColumns as gpsLogFilterConfigColumns } from "../gps-log/layout.components";
 import { MenuFilterState, MenuFilterSummary, useDashboardContext, MenuFilterConfigCard, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { columnConfigColumns as loginLogColumnConfigColumns, filterConfigColumns as loginLogFilterConfigColumns } from "../login-log/layout.components";
+import { columnConfigColumns as officerTaskColumnConfigColumns, filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { columnConfigColumns as otpLogColumnConfigColumns, filterConfigColumns as otpLogFilterConfigColumns } from "../otp-log/layout.components";
 import { columnConfigColumns as recordingLogColumnConfigColumns, filterConfigColumns as recordingLogFilterConfigColumns } from "../recording-log/layout.components";
 import { searchRelationAccessesAction } from "../relation-navigation.actions";
@@ -48,6 +49,7 @@ const collectionFilterConfigColumns = {
 	"credit-applications": creditApplicationFilterConfigColumns,
 	"credit-application-imports": creditApplicationImportFilterConfigColumns,
 	"credit-application-assignments": creditApplicationAssignmentFilterConfigColumns,
+	"officer-tasks": officerTaskFilterConfigColumns,
 	"surveys": surveyFilterConfigColumns,
 	"survey-results": surveyResultFilterConfigColumns,
 	"satisfaction-surveys": satisfactionSurveyFilterConfigColumns,
@@ -65,6 +67,7 @@ const collectionColumnConfigColumns = {
 	"credit-applications": creditApplicationColumnConfigColumns,
 	"credit-application-imports": creditApplicationImportColumnConfigColumns,
 	"credit-application-assignments": creditApplicationAssignmentColumnConfigColumns,
+	"officer-tasks": officerTaskColumnConfigColumns,
 	"surveys": surveyColumnConfigColumns,
 	"survey-results": surveyResultColumnConfigColumns,
 	"satisfaction-surveys": satisfactionSurveyColumnConfigColumns,

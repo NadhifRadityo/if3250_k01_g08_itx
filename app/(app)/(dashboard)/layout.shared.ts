@@ -136,10 +136,10 @@ export const dashboardRoleLabels = Object.freeze({
 	"officer-tracking#reporting": "Officer Tracking — Reporting",
 	"login-log#monitoring": "Login Log — Monitoring",
 	"login-log#reporting": "Login Log — Reporting",
-	"otp-log#monitoring": "Otp Log — Monitoring",
-	"otp-log#reporting": "Otp Log — Reporting",
-	"gps-log#monitoring": "Gps Log — Monitoring",
-	"gps-log#reporting": "Gps Log — Reporting",
+	"otp-log#monitoring": "OTP Log — Monitoring",
+	"otp-log#reporting": "OTP Log — Reporting",
+	"gps-log#monitoring": "GPS Log — Monitoring",
+	"gps-log#reporting": "GPS Log — Reporting",
 	"recording-log#monitoring": "Recording Log — Monitoring",
 	"recording-log#reporting": "Recording Log — Reporting"
 } as const);

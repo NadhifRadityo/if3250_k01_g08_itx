@@ -35,6 +35,11 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
 	{ key: "officer", label: "Officer", type: "relation", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("officer")] },
+	{ key: "assignedDate", label: "Assigned Date", type: "date" },
+	{ key: "surveyDate", label: "Survey Date", type: "date" },
+	{ key: "approvalDate", label: "Approval Date", type: "date" },
+	{ key: "dueDate", label: "Due Date", type: "date" },
+	{ key: "rescheduleCount", label: "Reschedule Count", type: "number" },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
@@ -49,6 +54,12 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "creditApplication", label: "Credit Application" },
 	{ key: "officer", label: "Officer" },
+	{ key: "assignedDate", label: "Assigned Date" },
+	{ key: "surveyDate", label: "Survey Date" },
+	{ key: "approvalDate", label: "Approval Date" },
+	{ key: "dueDate", label: "Due Date" },
+	{ key: "rescheduleCount", label: "Reschedule Count" },
+	{ key: "geofenceRegions", label: "Geofence Regions" },
 	{ key: "#changeRequest", label: "Request" },
 	{ key: "#status", label: "Status" },
 	{ key: "reviewedAt", label: "Reviewed At" },
@@ -66,6 +77,12 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "creditApplication", label: "Credit Application", sortable: false, className: "font-medium" },
 	{ key: "officer", label: "Officer", sortable: false },
+	{ key: "assignedDate", label: "Assigned Date", sortable: true },
+	{ key: "surveyDate", label: "Survey Date", sortable: true },
+	{ key: "approvalDate", label: "Approval Date", sortable: true },
+	{ key: "dueDate", label: "Due Date", sortable: true },
+	{ key: "rescheduleCount", label: "Reschedule Count", sortable: true },
+	{ key: "geofenceRegions", label: "Geofence Regions", sortable: false },
 	{ key: "#changeRequest", label: "Request", sortable: false },
 	{ key: "#status", label: "Status", sortable: false },
 	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
@@ -83,6 +100,11 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "credit-application-assignments.deletedBy" }) },
 	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "credit-application-assignments.creditApplication" }) },
 	{ key: "officer", type: "relation", render: defaultRelationUserRenderer({ description: "Officer", relationSource: "credit-application-assignments.officer" }) },
+	{ key: "assignedDate", type: "date" },
+	{ key: "surveyDate", type: "date" },
+	{ key: "approvalDate", type: "date" },
+	{ key: "dueDate", type: "date" },
+	{ key: "rescheduleCount", type: "number" },
 	{ key: "#changeRequest", type: "null", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
@@ -106,6 +128,11 @@ export type RowValueRendererContext = {
 } & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",
+	"assignedDate",
+	"surveyDate",
+	"approvalDate",
+	"dueDate",
+	"rescheduleCount",
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
@@ -117,6 +144,12 @@ export const defaultColumnOrder = Object.freeze([
 	"id",
 	"creditApplication",
 	"officer",
+	"assignedDate",
+	"surveyDate",
+	"approvalDate",
+	"dueDate",
+	"rescheduleCount",
+	"geofenceRegions",
 	"createdBy",
 	"updatedBy",
 	"deletedBy",
@@ -133,6 +166,10 @@ export const defaultColumnOrder = Object.freeze([
 export const defaultColumnsShown = Object.freeze([
 	"creditApplication",
 	"officer",
+	"assignedDate",
+	"surveyDate",
+	"approvalDate",
+	"dueDate",
 	"#changeRequest",
 	"#status",
 	"updatedAt",
@@ -515,6 +552,12 @@ export type FormState = {
 	id?: string;
 	creditApplications?: string[];
 	officer?: string;
+	assignedDate?: string;
+	surveyDate?: string;
+	approvalDate?: string;
+	dueDate?: string;
+	rescheduleCount?: number;
+	geofenceRegions?: any;
 };
 export function toFormState(data: CreditApplicationAssignment) {
 	const creditApplication = getRelationshipId(data.creditApplication);

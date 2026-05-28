@@ -155,6 +155,7 @@ export const collectionSelectOptions = Object.freeze([
 	{ value: "credit-applications", label: "Credit Applications" },
 	{ value: "credit-application-imports", label: "Credit Application Imports" },
 	{ value: "credit-application-assignments", label: "Credit Application Assignments" },
+	{ value: "officer-tasks", label: "Officer Tasks" },
 	{ value: "surveys", label: "Surveys" },
 	{ value: "survey-results", label: "Survey Results" },
 	{ value: "satisfaction-surveys", label: "Satisfaction Surveys" },
@@ -302,6 +303,19 @@ export const collectionMaskFields = Object.freeze({
 		"reviewApproved": "generic",
 		"reviewComment": "richText"
 	},
+	"officer-tasks": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"creditApplicationAssignment": "relation",
+		"survey": "relation",
+		"surveyResult": "relation",
+		"satisfactionSurvey": "relation",
+		"satisfactionSurveyResult": "relation"
+	},
 	"surveys": {
 		"createdAt": "date",
 		"createdBy": "relation",
@@ -437,6 +451,16 @@ export const collectionRelationFields = Object.freeze({
 		"creditApplication": "credit-application",
 		"officer": "staged-users",
 		"reviewedBy": "staged-users"
+	},
+	"officer-tasks": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"creditApplicationAssignment": "credit-application-assignments",
+		"survey": "surveys",
+		"surveyResult": "survey-results",
+		"satisfactionSurvey": "satisfaction-surveys",
+		"satisfactionSurveyResult": "satisfaction-survey-results"
 	},
 	"surveys": {
 		"createdBy": "staged-users",

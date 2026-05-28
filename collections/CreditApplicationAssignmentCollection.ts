@@ -158,6 +158,11 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			type: "number"
 		},
 		{
+			name: "geofenceRegions",
+			label: "Geofence Regions",
+			type: "json"
+		},
+		{
 			name: "reviewedAt",
 			label: "Reviewed At",
 			type: "date"
