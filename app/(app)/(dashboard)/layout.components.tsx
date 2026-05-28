@@ -32,7 +32,7 @@ import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@
 import logoEcentrix from "../../_static/favicons/logo.png";
 import { logoutAction } from "./layout.actions";
 import { DashboardMenu, getDashboardContextAction } from "./layout.actions";
-import { dashboardRoleKeys, dashboardMenuGroups } from "./layout.shared";
+import { dashboardRoleKeys, dashboardMenuGroups, changeRequestTypeSelectOptions } from "./layout.shared";
 
 const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
 	"user-management": UserCogIcon,
@@ -1174,10 +1174,7 @@ export function useMenuRowValueRenderer<R, C extends MenuRowValueRendererContext
 		);
 	}, [columns, detailsTriggerColumnKey, contextChangeCountRef.current]);
 }
-export const defaultChangeRequestRenderer = (
-	{ selectOptions }:
-	{ selectOptions: readonly { value: string, label: React.ReactNode }[] }
-) =>
+export const defaultChangeRequestRenderer = () =>
 	(value: string | null | undefined, row, { setChangeRequestDrawerRow, setChangeRequestDrawerOpen }) => (
 		<Button
 			type="button"
@@ -1185,7 +1182,7 @@ export const defaultChangeRequestRenderer = (
 			onClick={() => { setChangeRequestDrawerRow(row); setChangeRequestDrawerOpen(true); }}
 			className="text-primary h-auto p-0 select-auto"
 		>
-			{selectOptions.find(option => option.value == value)?.label ?? "-"}
+			{changeRequestTypeSelectOptions.find(option => option.value == value)?.label ?? "-"}
 		</Button>
 	);
 export const defaultStatusRenderer = () =>

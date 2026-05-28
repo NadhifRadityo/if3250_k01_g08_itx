@@ -275,6 +275,8 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
+	approvedVersion.id = id;
+	requestedVersion.id = id;
 	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
 		approvedVersion: approvedVersion,

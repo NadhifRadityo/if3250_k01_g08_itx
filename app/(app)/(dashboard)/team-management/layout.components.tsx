@@ -91,7 +91,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "name", type: "text" },
 	{ key: "supervisor", type: "relation", render: defaultRelationUserRenderer({ description: "Supervisor", relationSource: "teams.supervisor" }) },
 	{ key: "members", type: "relation_hasMany", render: defaultRelationUsersRenderer({ description: "Members", relationSource: "teams.members" }) },
-	{ key: "changeRequestType", type: "select", selectOptions: changeRequestTypeSelectOptions, render: defaultChangeRequestRenderer({ selectOptions: changeRequestTypeSelectOptions }) },
+	{ key: "changeRequestType", type: "select", selectOptions: changeRequestTypeSelectOptions, render: defaultChangeRequestRenderer() },
 	{ key: "changeRequestComment", type: "richText" },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
@@ -630,14 +630,14 @@ export function DeleteDialog(
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
-			<AlertDialogContent>
+			<AlertDialogContent className="md:min-w-[520px]">
 				<AlertDialogHeader>
 					<AlertDialogTitle>Delete</AlertDialogTitle>
 					<AlertDialogDescription>
 						Delete does not hard-delete data. It creates a pending delete request by setting deletedAt, and requires approver review.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
-				<div className="space-y-2">
+				<div className="space-y-2 min-w-0">
 					<label className="text-sm font-medium">Change Request Comment</label>
 					<RichTextInput
 						serializedState={changeRequestComment}
@@ -712,7 +712,7 @@ export function RestoreDeletionDialog(
 						This will create a new change request to restore the data.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
-				<div className="space-y-2">
+				<div className="space-y-2 min-w-0">
 					<label className="text-sm font-medium">Change Request Comment</label>
 					<RichTextInput
 						serializedState={changeRequestComment}

@@ -91,7 +91,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "name", type: "text" },
 	{ key: "level", type: "select", selectOptions: levelSelectOptions },
 	{ key: "menus", type: "select_hasMany", selectOptions: menusSelectOptions },
-	{ key: "changeRequestType", type: "select", selectOptions: changeRequestTypeSelectOptions, render: defaultChangeRequestRenderer({ selectOptions: changeRequestTypeSelectOptions }) },
+	{ key: "changeRequestType", type: "select", selectOptions: changeRequestTypeSelectOptions, render: defaultChangeRequestRenderer() },
 	{ key: "changeRequestComment", type: "richText" },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
@@ -582,7 +582,7 @@ export function FormDrawer(
 								<label className="text-sm font-medium">Menus</label>
 								<Badge variant="outline">{(formState.menus ?? []).length} selected</Badge>
 							</div>
-							<div className="max-h-1/4 space-y-2 overflow-y-auto rounded-lg border p-2">
+							<div className="max-h-[35lvh] space-y-2 overflow-y-auto rounded-lg border p-2">
 								{menusSelectOptions.map(menu => (
 									<Button
 										key={menu.value}
@@ -594,7 +594,7 @@ export function FormDrawer(
 												(formState.menus ?? []).filter(m => m != menu.value) :
 												[...new Set([...(formState.menus ?? []), menu.value])]
 										})}
-										className="h-auto w-full justify-between py-2"
+										className="h-auto w-full justify-between py-2 whitespace-pre-wrap"
 									>
 										<span className="text-left text-sm">{menu.label}</span>
 										{(formState.menus ?? []).includes(menu.value) ? <CheckIcon className="size-4" /> : null}
@@ -635,14 +635,14 @@ export function DeleteDialog(
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
-			<AlertDialogContent>
+			<AlertDialogContent className="md:min-w-[520px]">
 				<AlertDialogHeader>
 					<AlertDialogTitle>Delete</AlertDialogTitle>
 					<AlertDialogDescription>
 						Delete does not hard-delete data. It creates a pending delete request by setting deletedAt, and requires approver review.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
-				<div className="space-y-2">
+				<div className="space-y-2 min-w-0">
 					<label className="text-sm font-medium">Change Request Comment</label>
 					<RichTextInput
 						serializedState={changeRequestComment}
@@ -717,7 +717,7 @@ export function RestoreDeletionDialog(
 						This will create a new change request to restore the data.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
-				<div className="space-y-2">
+				<div className="space-y-2 min-w-0">
 					<label className="text-sm font-medium">Change Request Comment</label>
 					<RichTextInput
 						serializedState={changeRequestComment}

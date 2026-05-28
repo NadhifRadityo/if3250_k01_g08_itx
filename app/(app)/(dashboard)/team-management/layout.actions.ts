@@ -99,7 +99,7 @@ export async function queryApproverAction(p: Omit<Parameters<typeof queryAction>
 	return await queryAction({ ...p, mode: "approver" });
 }
 
-export async function getDetailsAction(teamId: string) {
+export async function getDetailsAction(id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -111,7 +111,7 @@ export async function getDetailsAction(teamId: string) {
 		collection: "teams",
 		draft: true,
 		trash: true,
-		id: teamId,
+		id: id,
 		depth: 0,
 		select: {
 			_status: true,
@@ -199,6 +199,8 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
+	approvedVersion.id = id;
+	requestedVersion.id = id;
 	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
 		approvedVersion: approvedVersion,
@@ -207,7 +209,7 @@ export async function getDifferenceAction(id: string) {
 	};
 }
 
-export async function getHistoryAction(teamId: string) {
+export async function getHistoryAction(id: string) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -222,7 +224,7 @@ export async function getHistoryAction(teamId: string) {
 		limit: 100,
 		depth: 0,
 		sort: "-updatedAt",
-		where: { parent: { equals: teamId } },
+		where: { parent: { equals: id } },
 		select: {
 			updatedAt: true,
 			version: {
@@ -476,7 +478,7 @@ export async function requestRestoreAction(
 			reviewComment: null
 		}
 	});
-	return { teamId: id };
+	return { id: id };
 }
 
 export async function reviewAction(

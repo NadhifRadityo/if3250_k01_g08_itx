@@ -212,6 +212,7 @@ export const Accesses = (): CollectionConfig => ({
 			label: "Change Request Type",
 			type: "select",
 			required: true,
+			dbName: "enum_change_request_type",
 			options: [
 				{ value: "create", label: "Create" },
 				{ value: "update", label: "Update" },
