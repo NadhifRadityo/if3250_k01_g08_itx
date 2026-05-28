@@ -6,24 +6,26 @@ import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
-import { SurveyResult } from "@/payload-types";
+import { OfficerTask } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationUsers, resolveRelationSurveys } from "../relation-navigation.actions";
-import { RelationUser, RelationSurvey } from "../relation-navigation.shared";
+import { resolveRelationUsers, resolveRelationSurveys, resolveRelationSurveyResults, resolveRelationSatisfactionSurveys, resolveRelationSatisfactionSurveyResults, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
+import { RelationCreditApplication } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
-
-export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
-	Partial<Record<`surveys:${string}`, RelationSurvey>>;
+export type RelationValues = Partial<Record<`credit-applications:${string}`, RelationCreditApplication>>;
 
 async function resolveRelations(
 	{ payload, docs }:
-	{ payload?: Payload, docs: SurveyResult[] }
+	{ payload?: Payload, docs: OfficerTask[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
+	const creditApplicationAssignmentIds = new Set<string>();
 	const surveyIds = new Set<string>();
+	const surveyResultIds = new Set<string>();
+	const satisfactionSurveyIds = new Set<string>();
+	const satisfactionSurveyResultIds = new Set<string>();
 	for(const doc of docs) {
 		const createdBy = getRelationshipId(doc.createdBy);
 		if(createdBy != null)
@@ -34,13 +36,29 @@ async function resolveRelations(
 		const deletedBy = getRelationshipId(doc.deletedBy);
 		if(deletedBy != null)
 			userIds.add(deletedBy);
+		const creditApplicationAssignment = getRelationshipId(doc.creditApplicationAssignment);
+		if(creditApplicationAssignment != null)
+			creditApplicationAssignmentIds.add(creditApplicationAssignment);
 		const survey = getRelationshipId(doc.survey);
 		if(survey != null)
 			surveyIds.add(survey);
+		const surveyResult = getRelationshipId(doc.surveyResult);
+		if(surveyResult != null)
+			surveyResultIds.add(surveyResult);
+		const satisfactionSurvey = getRelationshipId(doc.satisfactionSurvey);
+		if(satisfactionSurvey != null)
+			satisfactionSurveyIds.add(satisfactionSurvey);
+		const satisfactionSurveyResult = getRelationshipId(doc.satisfactionSurveyResult);
+		if(satisfactionSurveyResult != null)
+			satisfactionSurveyResultIds.add(satisfactionSurveyResult);
 	}
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
+	Object.assign(relations, await resolveRelationCreditApplicationAssignments({ payload, ids: [...creditApplicationAssignmentIds] }));
 	Object.assign(relations, await resolveRelationSurveys({ payload, ids: [...surveyIds] }));
+	Object.assign(relations, await resolveRelationSurveyResults({ payload, ids: [...surveyResultIds] }));
+	Object.assign(relations, await resolveRelationSatisfactionSurveys({ payload, ids: [...satisfactionSurveyIds] }));
+	Object.assign(relations, await resolveRelationSatisfactionSurveyResults({ payload, ids: [...satisfactionSurveyResultIds] }));
 	return relations;
 }
 
@@ -55,7 +73,7 @@ async function queryAction(
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "survey-results",
+		collection: "officer-tasks",
 		depth: 0,
 		page: pageIndex,
 		limit: PAGE_LIMIT,
@@ -67,11 +85,12 @@ async function queryAction(
 			] : []),
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
+				{ "creditApplicationAssignment.creditApplication.name": { like: keyword } },
+				{ "creditApplicationAssignment.creditApplication.email": { like: keyword } },
+				{ "creditApplicationAssignment.officer.name": { like: keyword } },
+				{ "creditApplicationAssignment.officer.email": { like: keyword } },
 				{ "survey.title": { like: keyword } },
-				{ "creditApplication.name": { like: keyword } },
-				{ "creditApplication.email": { like: keyword } },
-				{ "officer.name": { like: keyword } },
-				{ "officer.email": { like: keyword } }
+				{ "satisfactionSurvey.title": { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }
@@ -96,17 +115,23 @@ export async function getDetailsAction(id: string) {
 	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "survey-results",
+		collection: "officer-tasks",
 		id: id,
 		depth: 0,
 		select: {
 			createdAt: true,
+			createdBy: true,
+			updatedAt: true,
+			updatedBy: true,
+			deletedAt: true,
+			deletedBy: true,
+			creditApplicationAssignment: true,
 			survey: true,
-			creditApplication: true,
-			officer: true,
-			answers: true
+			surveyResult: true,
+			satisfactionSurvey: true,
+			satisfactionSurveyResult: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result as SurveyResult] });
+	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: result, relations };
 }

@@ -9,10 +9,10 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { searchRelationGpsLogsAction } from "../relation-navigation.actions";
-import { defaultRelationUserRenderer, defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
+import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
@@ -20,36 +20,36 @@ export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationGpsLogsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "officer", label: "Officer", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
+	{ key: "user", label: "User", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "sessionId", label: "Session Id", type: "text" },
-	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
+	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] },
 	{ key: "latitude", label: "Latitude", type: "number" },
 	{ key: "longitude", label: "Longitude", type: "number" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
 	{ key: "createdAt", label: "Created At" },
-	{ key: "officer", label: "Officer" },
+	{ key: "user", label: "User" },
 	{ key: "sessionId", label: "Session Id" },
-	{ key: "creditApplication", label: "Credit Application" },
+	{ key: "officerTask", label: "Officer Task" },
 	{ key: "latitude", label: "Latitude" },
 	{ key: "longitude", label: "Longitude" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
-	{ key: "officer", label: "Officer", sortable: false },
+	{ key: "user", label: "User", sortable: false },
 	{ key: "sessionId", label: "Session Id", sortable: true },
-	{ key: "creditApplication", label: "Credit Application", sortable: false },
+	{ key: "officerTask", label: "Officer Task", sortable: false },
 	{ key: "latitude", label: "Latitude", sortable: true },
 	{ key: "longitude", label: "Longitude", sortable: true }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
-	{ key: "officer", type: "relation", render: defaultRelationUserRenderer({ description: "Officer", relationSource: "gps-logs.officer" }) },
+	{ key: "user", type: "relation", render: defaultRelationUserRenderer({ description: "User", relationSource: "gps-logs.user" }) },
 	{ key: "sessionId", type: "text" },
-	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "gps-logs.creditApplication" }) },
+	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "gps-logs.officerTask" }) },
 	{ key: "latitude", type: "number" },
 	{ key: "longitude", type: "number" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
@@ -67,17 +67,17 @@ export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 export const defaultColumnOrder = Object.freeze([
 	"id",
 	"createdAt",
-	"officer",
+	"user",
 	"sessionId",
-	"creditApplication",
+	"officerTask",
 	"latitude",
 	"longitude"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"createdAt",
-	"officer",
+	"user",
 	"sessionId",
-	"creditApplication",
+	"officerTask",
 	"latitude",
 	"longitude"
 ]) as string[];

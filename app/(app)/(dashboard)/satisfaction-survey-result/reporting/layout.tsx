@@ -6,9 +6,9 @@ import { getDashboardContextAction } from "../../layout.actions";
 export default async function Layout({ children }: { children: ReactNode }) {
 	const dashboardContext = await getDashboardContextAction();
 	if(dashboardContext == null) return redirect("/login");
-	const thisMenu = dashboardContext.menus.find(menu => menu.key == "officer-task");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "satisfaction-survey-result");
 	if(thisMenu == null) return redirect("/");
-	const thisMode = thisMenu.modes["monitoring"];
+	const thisMode = thisMenu.modes["reporting"];
 	if(thisMode == null) return redirect(thisMenu.modes[thisMenu.defaultMode].href);
 	return children;
 }

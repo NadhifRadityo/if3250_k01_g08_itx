@@ -145,7 +145,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 
 	console.log(`[seedSatisfactionSurveys] Checking existing satisfaction survey '${seed.title}'...`);
 	const existing = (await payload.find({
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		overrideAccess: true,
 		where: {
 			title: { equals: seed.title }
@@ -191,7 +191,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 	if(existing == null) {
 		console.log(`[seedSatisfactionSurveys] Creating satisfaction survey '${seed.title}' as draft...`);
 		const created = await payload.create({
-			collection: "satsifaction-surveys",
+			collection: "satisfaction-surveys",
 			user: actingUser,
 			overrideAccess: true,
 			data: pendingData,
@@ -202,7 +202,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 		console.log(`[seedSatisfactionSurveys] Updating existing satisfaction survey '${seed.title}' (id: ${existing.id})...`);
 		id = existing.id;
 		await payload.update({
-			collection: "satsifaction-surveys",
+			collection: "satisfaction-surveys",
 			user: actingUser,
 			overrideAccess: true,
 			trash: true,
@@ -214,7 +214,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 
 	console.log(`[seedSatisfactionSurveys] Publishing satisfaction survey '${seed.title}'...`);
 	await payload.update({
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		user: actingUser,
 		overrideAccess: true,
 		trash: true,
@@ -225,7 +225,7 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 
 	console.log(`[seedSatisfactionSurveys] Setting satisfaction survey '${seed.title}' back to draft...`);
 	await payload.update({
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		user: actingUser,
 		overrideAccess: true,
 		trash: true,

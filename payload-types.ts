@@ -76,9 +76,11 @@ export interface Config {
     'credit-applications': CreditApplication;
     'credit-application-imports': CreditApplicationImport;
     'credit-application-assignments': CreditApplicationAssignment;
+    'officer-tasks': OfficerTask;
     surveys: Survey;
     'survey-results': SurveyResult;
-    'satsifaction-surveys': SatsifactionSurvey;
+    'satisfaction-surveys': SatisfactionSurvey;
+    'satisfaction-survey-results': SatisfactionSurveyResult;
     'login-logs': LoginLog;
     'gps-logs': GpsLog;
     'otp-logs': OtpLog;
@@ -108,9 +110,11 @@ export interface Config {
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
     'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
     'credit-application-assignments': CreditApplicationAssignmentsSelect<false> | CreditApplicationAssignmentsSelect<true>;
+    'officer-tasks': OfficerTasksSelect<false> | OfficerTasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
     'survey-results': SurveyResultsSelect<false> | SurveyResultsSelect<true>;
-    'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
+    'satisfaction-surveys': SatisfactionSurveysSelect<false> | SatisfactionSurveysSelect<true>;
+    'satisfaction-survey-results': SatisfactionSurveyResultsSelect<false> | SatisfactionSurveyResultsSelect<true>;
     'login-logs': LoginLogsSelect<false> | LoginLogsSelect<true>;
     'gps-logs': GpsLogsSelect<false> | GpsLogsSelect<true>;
     'otp-logs': OtpLogsSelect<false> | OtpLogsSelect<true>;
@@ -276,6 +280,8 @@ export interface Role {
     | 'satisfaction-survey-management#auditor'
     | 'satisfaction-survey-management#editor'
     | 'satisfaction-survey-management#approver'
+    | 'satisfaction-survey-result#monitoring'
+    | 'satisfaction-survey-result#reporting'
     | 'officer-task#monitoring'
     | 'officer-task#reporting'
     | 'officer-tracking#monitoring'
@@ -361,7 +367,7 @@ export interface Team {
   deletedBy?: (string | null) | User;
   name: string;
   supervisor: string | User;
-  officers: (string | User)[];
+  members: (string | User)[];
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -675,6 +681,11 @@ export interface CreditApplicationAssignment {
   deletedBy?: (string | null) | User;
   creditApplication: string | CreditApplication;
   officer: string | User;
+  assignedDate?: string | null;
+  surveyDate?: string | null;
+  approvalDate?: string | null;
+  dueDate?: string | null;
+  rescheduleCount?: number | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -693,6 +704,25 @@ export interface CreditApplicationAssignment {
     };
     [k: string]: unknown;
   } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "officer-tasks".
+ */
+export interface OfficerTask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  creditApplicationAssignment: string | CreditApplicationAssignment;
+  survey: string | Survey;
+  surveyResult?: (string | null) | SurveyResult;
+  satisfactionSurvey: string | SatisfactionSurvey;
+  satisfactionSurveyResult?: (string | null) | SatisfactionSurveyResult;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -766,8 +796,6 @@ export interface SurveyResult {
   deletedBy?: (string | null) | User;
   survey: string | Survey;
   surveyVersion: string;
-  creditApplication: string | CreditApplication;
-  officer: string | User;
   answers:
     | {
         [k: string]: unknown;
@@ -781,9 +809,9 @@ export interface SurveyResult {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "satsifaction-surveys".
+ * via the `definition` "satisfaction-surveys".
  */
-export interface SatsifactionSurvey {
+export interface SatisfactionSurvey {
   id: string;
   createdAt: string;
   createdBy?: (string | null) | User;
@@ -838,6 +866,31 @@ export interface SatsifactionSurvey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satisfaction-survey-results".
+ */
+export interface SatisfactionSurveyResult {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  satisfactionSurvey: string | SatisfactionSurvey;
+  satisfactionSurveyVersion: string;
+  answers:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "login-logs".
  */
 export interface LoginLog {
@@ -855,9 +908,9 @@ export interface LoginLog {
 export interface GpsLog {
   id: string;
   createdAt: string;
-  officer: string | User;
+  user: string | User;
   sessionId: string;
-  creditApplication?: (string | null) | CreditApplication;
+  officerTask?: (string | null) | OfficerTask;
   latitude: number;
   longitude: number;
 }
@@ -868,7 +921,7 @@ export interface GpsLog {
 export interface OtpLog {
   id: string;
   createdAt: string;
-  creditApplication: string | CreditApplication;
+  officerTask?: (string | null) | OfficerTask;
   content: string;
   email?: string | null;
   whatsappNumber?: string | null;
@@ -884,8 +937,7 @@ export interface OtpLog {
 export interface RecordingLog {
   id: string;
   createdAt: string;
-  creditApplication: string | CreditApplication;
-  officer: string | User;
+  officerTask?: (string | null) | OfficerTask;
   phoneNumber: string;
   audioFile?: (string | null) | RecordingLogAudioFile;
   transcription?: (string | null) | RecordingLogTranscription;
@@ -1149,6 +1201,10 @@ export interface PayloadLockedDocument {
         value: string | CreditApplicationAssignment;
       } | null)
     | ({
+        relationTo: 'officer-tasks';
+        value: string | OfficerTask;
+      } | null)
+    | ({
         relationTo: 'surveys';
         value: string | Survey;
       } | null)
@@ -1157,8 +1213,12 @@ export interface PayloadLockedDocument {
         value: string | SurveyResult;
       } | null)
     | ({
-        relationTo: 'satsifaction-surveys';
-        value: string | SatsifactionSurvey;
+        relationTo: 'satisfaction-surveys';
+        value: string | SatisfactionSurvey;
+      } | null)
+    | ({
+        relationTo: 'satisfaction-survey-results';
+        value: string | SatisfactionSurveyResult;
       } | null)
     | ({
         relationTo: 'login-logs';
@@ -1343,7 +1403,7 @@ export interface TeamsSelect<T extends boolean = true> {
   deletedBy?: T;
   name?: T;
   supervisor?: T;
-  officers?: T;
+  members?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1461,10 +1521,33 @@ export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
   deletedBy?: T;
   creditApplication?: T;
   officer?: T;
+  assignedDate?: T;
+  surveyDate?: T;
+  approvalDate?: T;
+  dueDate?: T;
+  rescheduleCount?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
   reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "officer-tasks_select".
+ */
+export interface OfficerTasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  creditApplicationAssignment?: T;
+  survey?: T;
+  surveyResult?: T;
+  satisfactionSurvey?: T;
+  satisfactionSurveyResult?: T;
   _status?: T;
 }
 /**
@@ -1500,16 +1583,14 @@ export interface SurveyResultsSelect<T extends boolean = true> {
   deletedBy?: T;
   survey?: T;
   surveyVersion?: T;
-  creditApplication?: T;
-  officer?: T;
   answers?: T;
   _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "satsifaction-surveys_select".
+ * via the `definition` "satisfaction-surveys_select".
  */
-export interface SatsifactionSurveysSelect<T extends boolean = true> {
+export interface SatisfactionSurveysSelect<T extends boolean = true> {
   createdAt?: T;
   createdBy?: T;
   updatedAt?: T;
@@ -1523,6 +1604,22 @@ export interface SatsifactionSurveysSelect<T extends boolean = true> {
   reviewedBy?: T;
   reviewApproved?: T;
   reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satisfaction-survey-results_select".
+ */
+export interface SatisfactionSurveyResultsSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  satisfactionSurvey?: T;
+  satisfactionSurveyVersion?: T;
+  answers?: T;
   _status?: T;
 }
 /**
@@ -1542,9 +1639,9 @@ export interface LoginLogsSelect<T extends boolean = true> {
  */
 export interface GpsLogsSelect<T extends boolean = true> {
   createdAt?: T;
-  officer?: T;
+  user?: T;
   sessionId?: T;
-  creditApplication?: T;
+  officerTask?: T;
   latitude?: T;
   longitude?: T;
 }
@@ -1554,7 +1651,7 @@ export interface GpsLogsSelect<T extends boolean = true> {
  */
 export interface OtpLogsSelect<T extends boolean = true> {
   createdAt?: T;
-  creditApplication?: T;
+  officerTask?: T;
   content?: T;
   email?: T;
   whatsappNumber?: T;
@@ -1569,8 +1666,7 @@ export interface OtpLogsSelect<T extends boolean = true> {
  */
 export interface RecordingLogsSelect<T extends boolean = true> {
   createdAt?: T;
-  creditApplication?: T;
-  officer?: T;
+  officerTask?: T;
   phoneNumber?: T;
   audioFile?: T;
   transcription?: T;

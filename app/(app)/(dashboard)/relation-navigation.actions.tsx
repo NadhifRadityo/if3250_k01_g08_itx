@@ -10,7 +10,7 @@ import { getRelationshipId } from "@/utils/payload";
 import payloadConfig from "@/payload.config";
 
 import { dashboardRoleLabels } from "./layout.shared";
-import { RelationRole, RelationUser, RelationSurvey, RelationCreditApplication, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription } from "./relation-navigation.shared";
+import { RelationRole, RelationUser, RelationSurvey, RelationOfficerTask, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
 export async function resolveRelationUsers(
 	{ payload, ids }:
@@ -68,6 +68,63 @@ export async function resolveRelationSurveys(
 	}]));
 }
 
+export async function resolveRelationSurveyResults(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`survey-results:${string}`, RelationSurveyResult>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "survey-results",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: {}
+	});
+	return Object.fromEntries(result.docs.map(doc => [`survey-results:${doc.id}`, {
+		_: null
+	}]));
+}
+
+export async function resolveRelationSatisfactionSurveys(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "satisfaction-surveys",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { title: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`satisfaction-surveys:${doc.id}`, {
+		title: doc.title
+	}]));
+}
+
+export async function resolveRelationSatisfactionSurveyResults(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "satisfaction-survey-results",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: {}
+	});
+	return Object.fromEntries(result.docs.map(doc => [`satisfaction-survey-results:${doc.id}`, {
+		_: null
+	}]));
+}
+
 export async function resolveRelationCreditApplications(
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
@@ -102,6 +159,44 @@ export async function resolveRelationCreditApplicationImports(
 		filename: doc.filename!,
 		filesize: doc.filesize!,
 		mimeType: doc.mimeType!
+	}]));
+}
+
+export async function resolveRelationCreditApplicationAssignments(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "credit-application-assignments",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: {}
+	});
+	return Object.fromEntries(result.docs.map(doc => [`credit-application-assignments:${doc.id}`, {
+		_: null
+	}]));
+}
+
+export async function resolveRelationOfficerTasks(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`officer-tasks:${string}`, RelationOfficerTask>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "officer-tasks",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: {}
+	});
+	return Object.fromEntries(result.docs.map(doc => [`officer-tasks:${doc.id}`, {
+		_: null
 	}]));
 }
 
@@ -283,7 +378,7 @@ export async function getRelationSummaryAction(
 			select: {
 				name: true,
 				supervisor: true,
-				officers: true,
+				members: true,
 				deletedAt: true
 			}
 		});
@@ -346,6 +441,74 @@ export async function getRelationSummaryAction(
 			]
 		};
 	}
+	if(relationType == "survey-results") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "survey-results",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.id,
+			description: "Survey result",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
+	if(relationType == "satisfaction-surveys") {
+		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
+			collection: "satisfaction-surveys",
+			id: relationId,
+			draft: true,
+			trash: true,
+			depth: 0,
+			select: {
+				title: true,
+				deletedAt: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.title,
+			description: "Satisfaction Survey",
+			fields: [
+				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "Title", value: doc.title },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
+			]
+		};
+	}
+	if(relationType == "satisfaction-survey-results") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "satisfaction-survey-results",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.id,
+			description: "Satisfaction survey result",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
 	if(relationType == "credit-applications") {
 		const doc = await payload.findByID({
 			user: user,
@@ -402,6 +565,48 @@ export async function getRelationSummaryAction(
 			]
 		};
 	}
+	if(relationType == "credit-application-assignments") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "credit-application-assignments",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.id,
+			description: "Credit application assignment entry",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
+	if(relationType == "officer-tasks") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "officer-tasks",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.id,
+			description: "Officer task entry",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
 	if(relationType == "recording-log-audio-files") {
 		const doc = await payload.findByID({
 			user: user,
@@ -419,7 +624,7 @@ export async function getRelationSummaryAction(
 			relationType: relationType,
 			relationId: doc.id,
 			title: doc.filename ?? doc.id,
-			description: "Recording audio file",
+			description: "Recording log audio file",
 			fields: [
 				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
 				{ label: "File Name", value: doc.filename ?? "-" },
@@ -445,7 +650,7 @@ export async function getRelationSummaryAction(
 			relationType: relationType,
 			relationId: doc.id,
 			title: doc.filename ?? doc.id,
-			description: "Recording transcription file",
+			description: "Recording log transcription file",
 			fields: [
 				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
 				{ label: "File Name", value: doc.filename ?? "-" },
@@ -822,6 +1027,34 @@ export async function searchRelationCreditApplicationAssignmentsAction(keyword: 
 	}));
 }
 
+export async function searchRelationOfficerTasksAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "officer-tasks",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } }
+		] },
+		select: {}
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <span className="font-mono">{doc.id}</span>
+	}));
+}
+
 export async function searchRelationSurveysAction(keyword: string, selectedIds: string[] = []) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
@@ -886,7 +1119,7 @@ export async function searchRelationSatisfactionSurveysAction(keyword: string, s
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		draft: true,
 		trash: true,
 		pagination: false,
@@ -903,6 +1136,32 @@ export async function searchRelationSatisfactionSurveysAction(keyword: string, s
 	return result.docs.map(doc => ({
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.title}</>
+	}));
+}
+
+export async function searchRelationSatisfactionSurveyResultsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "satisfaction-survey-results",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-createdAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } }
+		] },
+		select: { createdAt: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
 	}));
 }
 

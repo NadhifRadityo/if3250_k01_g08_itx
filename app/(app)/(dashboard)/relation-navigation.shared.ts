@@ -37,6 +37,10 @@ export type RelationCreditApplicationAssignment = {
 	_: null;
 };
 
+export type RelationOfficerTask = {
+	_: null;
+};
+
 export type RelationSurvey = {
 	title: string;
 };
@@ -47,6 +51,10 @@ export type RelationSurveyResult = {
 
 export type RelationSatisfactionSurvey = {
 	title: string;
+};
+
+export type RelationSatisfactionSurveyResult = {
+	_: null;
 };
 
 export type RelationLoginLog = {

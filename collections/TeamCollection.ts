@@ -21,8 +21,8 @@ export const Teams = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "name",
-		listSearchableFields: ["name", "supervisor.email", "supervisor.name", "officers.email", "officers.name", "reviewComment"],
-		defaultColumns: ["name", "supervisor", "officers", "updatedAt", "reviewedBy", "reviewComment"]
+		listSearchableFields: ["name", "supervisor.email", "supervisor.name", "members.email", "members.name", "reviewComment"],
+		defaultColumns: ["name", "supervisor", "members", "updatedAt", "reviewedBy", "reviewComment"]
 	},
 	hooks: {
 		beforeChange: [
@@ -124,17 +124,15 @@ export const Teams = (): CollectionConfig => ({
 			label: "Supervisor",
 			type: "relationship",
 			relationTo: "users",
-			required: true,
-			filterOptions: { "role.level": { equals: "supervisor" } }
+			required: true
 		},
 		{
-			name: "officers",
-			label: "Officers",
+			name: "members",
+			label: "Members",
 			type: "relationship",
 			relationTo: "users",
 			required: true,
-			hasMany: true,
-			filterOptions: { "role.level": { equals: "officer" } }
+			hasMany: true
 		},
 		{
 			name: "reviewedAt",

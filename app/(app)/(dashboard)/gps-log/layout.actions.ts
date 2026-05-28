@@ -9,12 +9,12 @@ import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { GpsLog } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationUsers, resolveRelationCreditApplications } from "../relation-navigation.actions";
-import { RelationUser, RelationCreditApplication } from "../relation-navigation.shared";
+import { resolveRelationUsers, resolveRelationOfficerTasks } from "../relation-navigation.actions";
+import { RelationUser, RelationOfficerTask } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
-	Partial<Record<`credit-applications:${string}`, RelationCreditApplication>>;
+	Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
 	{ payload, docs }:
@@ -22,18 +22,18 @@ async function resolveRelations(
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
-	const creditApplicationIds = new Set<string>();
+	const officerTaskIds = new Set<string>();
 	for(const doc of docs) {
-		const officer = getRelationshipId(doc.officer);
-		if(officer != null)
-			userIds.add(officer);
-		const creditApplication = getRelationshipId(doc.creditApplication);
-		if(creditApplication != null)
-			creditApplicationIds.add(creditApplication);
+		const user = getRelationshipId(doc.user);
+		if(user != null)
+			userIds.add(user);
+		const officerTask = getRelationshipId(doc.officerTask);
+		if(officerTask != null)
+			officerTaskIds.add(officerTask);
 	}
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
-	Object.assign(relations, await resolveRelationCreditApplications({ payload, ids: [...creditApplicationIds] }));
+	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -60,11 +60,13 @@ async function queryAction(
 			] : []),
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
-				{ "officer.name": { like: keyword } },
-				{ "officer.email": { like: keyword } },
+				{ "user.name": { like: keyword } },
+				{ "user.email": { like: keyword } },
 				{ sessionId: { like: keyword } },
-				{ "creditApplication.name": { like: keyword } },
-				{ "creditApplication.email": { like: keyword } }
+				{ "officerTask.creditApplicationAssignment.creditApplication.name": { like: keyword } },
+				{ "officerTask.creditApplicationAssignment.creditApplication.email": { like: keyword } },
+				{ "officerTask.creditApplicationAssignment.officer.name": { like: keyword } },
+				{ "officerTask.creditApplicationAssignment.officer.email": { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }
@@ -94,9 +96,9 @@ export async function getDetailsAction(id: string) {
 		depth: 0,
 		select: {
 			createdAt: true,
-			officer: true,
+			user: true,
 			sessionId: true,
-			creditApplication: true,
+			officerTask: true,
 			latitude: true,
 			longitude: true
 		}

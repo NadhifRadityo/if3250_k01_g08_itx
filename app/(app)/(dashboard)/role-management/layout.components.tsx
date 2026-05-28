@@ -61,18 +61,18 @@ export const columnConfigColumns = Object.freeze([
 export const tableConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
-	{ key: "createdBy", label: "Created By", sortable: true },
+	{ key: "createdBy", label: "Created By", sortable: false },
 	{ key: "updatedAt", label: "Updated At", sortable: true },
-	{ key: "updatedBy", label: "Updated By", sortable: true },
+	{ key: "updatedBy", label: "Updated By", sortable: false },
 	{ key: "deletedAt", label: "Deleted At", sortable: true },
-	{ key: "deletedBy", label: "Deleted By", sortable: true },
+	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "name", label: "Name", sortable: true, className: "font-medium" },
 	{ key: "level", label: "Level", sortable: true },
 	{ key: "menus", label: "Menus", sortable: true, className: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ key: "#changeRequest", label: "Request", sortable: false },
 	{ key: "#status", label: "Status", sortable: false },
 	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
-	{ key: "reviewedBy", label: "Reviewed By", sortable: true },
+	{ key: "reviewedBy", label: "Reviewed By", sortable: false },
 	{ key: "reviewApproved", label: "Review Approved", sortable: true },
 	{ key: "reviewComment", label: "Review Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" }
 ] as MenuTableConfigColumn[]);

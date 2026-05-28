@@ -8,8 +8,8 @@ export const OtpLogs = (): CollectionConfig => ({
 	},
 	timestamps: false,
 	admin: {
-		useAsTitle: "creditApplication",
-		defaultColumns: ["createdAt", "creditApplication", "content", "email", "whatsappNumber", "smsNumber", "emailDeliveryStatus", "whatsappDeliveryStatus", "smsDeliveryStatus"]
+		useAsTitle: "officerTask",
+		defaultColumns: ["createdAt", "officerTask", "content", "email", "whatsappNumber", "smsNumber", "emailDeliveryStatus", "whatsappDeliveryStatus", "smsDeliveryStatus"]
 	},
 	hooks: {
 		beforeChange: [
@@ -34,11 +34,10 @@ export const OtpLogs = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "creditApplication",
-			label: "Credit Application",
+			name: "officerTask",
+			label: "Officer Task",
 			type: "relationship",
-			relationTo: "credit-applications",
-			required: true
+			relationTo: "officer-tasks"
 		},
 		{
 			name: "content",

@@ -12,9 +12,9 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 import { Skeleton } from "@/components/radix/Skeleton";
 
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationSurveyResultsAction } from "../relation-navigation.actions";
-import { defaultRelationUserRenderer, defaultRelationSurveyRenderer } from "../relation-navigation.components";
-import { filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
+import { searchRelationSatisfactionSurveyResultsAction } from "../relation-navigation.actions";
+import { defaultRelationUserRenderer, defaultRelationSatisfactionSurveyRenderer } from "../relation-navigation.components";
+import { filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
@@ -84,7 +84,7 @@ function SurveyResultAnswersDialog(
 				<div className="flex h-[90vh] flex-col">
 					<DialogHeader className="border-b px-4 py-3">
 						<DialogTitle>{dialogTitle}</DialogTitle>
-						<DialogDescription>Review the survey answers in a read-only view.</DialogDescription>
+						<DialogDescription>Review the satisfaction survey answers in a read-only view.</DialogDescription>
 					</DialogHeader>
 					<div className="flex-1 overflow-auto p-4 max-h-full">
 						{formPreview != null ? (
@@ -113,15 +113,15 @@ const defaultSurveyResultAnswersRenderer = ({ buttonLabel, dialogTitle }: { butt
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationSurveyResultsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationSatisfactionSurveyResultsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
 	{ key: "updatedBy", label: "Updated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
-	{ key: "survey", label: "Survey", type: "relation", relationFilterConfigColumn: () => ["Survey", surveyFilterConfigColumns] },
-	{ key: "surveyVersion", label: "Survey Version", type: "text" }
+	{ key: "satisfactionSurvey", label: "Satisfaction Survey", type: "relation", relationFilterConfigColumn: () => ["Satisfaction Survey", satisfactionSurveyFilterConfigColumns] },
+	{ key: "satisfactionSurveyVersion", label: "Survey Version", type: "text" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
@@ -131,8 +131,8 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "updatedBy", label: "Updated By" },
 	{ key: "deletedAt", label: "Deleted At" },
 	{ key: "deletedBy", label: "Deleted By" },
-	{ key: "survey", label: "Survey" },
-	{ key: "surveyVersion", label: "Survey Version" },
+	{ key: "satisfactionSurvey", label: "Satisfaction Survey" },
+	{ key: "satisfactionSurveyVersion", label: "Satisfaction Survey Version" },
 	{ key: "answers", label: "Answers" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
@@ -143,8 +143,8 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "updatedBy", label: "Updated By", sortable: false },
 	{ key: "deletedAt", label: "Deleted At", sortable: true },
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
-	{ key: "survey", label: "Survey", sortable: false },
-	{ key: "surveyVersion", label: "Survey Version", sortable: true },
+	{ key: "satisfactionSurvey", label: "Satisfaction Survey", sortable: false },
+	{ key: "satisfactionSurveyVersion", label: "Satisfaction Survey Version", sortable: true },
 	{ key: "answers", label: "Answers", sortable: false }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
@@ -155,9 +155,9 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "survey-results.updatedBy" }) },
 	{ key: "deletedAt", type: "date" },
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "survey-results.deletedBy" }) },
-	{ key: "survey", type: "relation", render: defaultRelationSurveyRenderer({ description: "Survey", relationSource: "survey-results.survey" }) },
-	{ key: "surveyVersion", type: "text" },
-	{ key: "answers", type: "text", render: defaultSurveyResultAnswersRenderer({ buttonLabel: "View answers", dialogTitle: "Survey Result Answers" }) }
+	{ key: "satisfactionSurvey", type: "relation", render: defaultRelationSatisfactionSurveyRenderer({ description: "Satisfaction Survey", relationSource: "satisfaction-survey-results.satisfactionSurvey" }) },
+	{ key: "satisfactionSurveyVersion", type: "text" },
+	{ key: "answers", type: "text", render: defaultSurveyResultAnswersRenderer({ buttonLabel: "View answers", dialogTitle: "Satisfaction Survey Result Answers" }) }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;
@@ -167,7 +167,7 @@ export const eligibleDetailsTriggerColumns = Object.freeze([
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
-	"surveyVersion"
+	"satisfactionSurveyVersion"
 ]);
 export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 export const defaultColumnOrder = Object.freeze([
@@ -178,14 +178,14 @@ export const defaultColumnOrder = Object.freeze([
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
-	"survey",
-	"surveyVersion",
+	"satisfactionSurvey",
+	"satisfactionSurveyVersion",
 	"answers"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"updatedAt",
-	"survey",
-	"surveyVersion",
+	"satisfactionSurvey",
+	"satisfactionSurveyVersion",
 	"answers"
 ]) as string[];
 export const defaultColumnsSort = Object.freeze([
@@ -197,7 +197,7 @@ export function DetailsDrawer(
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
 	const query = useQuery({
-		queryKey: ["survey-result", "details", row?.id ?? null],
+		queryKey: ["satisfaction-survey-result", "details", row?.id ?? null],
 		enabled: open && row != null,
 		queryFn: async () => await getDetailsAction(row!.id) as { row: ColumnData, relations: RelationValues },
 		refetchInterval: 10000,
@@ -216,13 +216,13 @@ export function DetailsDrawer(
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>Survey Result Details</DrawerTitle>
-					<DrawerDescription>Review all available columns for this survey result entry.</DrawerDescription>
+					<DrawerTitle>Satisfaction Survey Result Details</DrawerTitle>
+					<DrawerDescription>Review all available columns for this satisfaction survey result entry.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
 					{row == null ? (
 						<p className="text-muted-foreground text-sm">
-							No survey result selected.
+							No satisfaction survey result selected.
 						</p>
 					) : query.isPending ? (
 						<div className="space-y-2">
@@ -237,7 +237,7 @@ export function DetailsDrawer(
 								{`${query.error?.name ?? "Error"}`}
 							</AlertTitle>
 							<AlertDescription>
-								{`${query.error?.message ?? "Unable to load survey result details."}`}
+								{`${query.error?.message ?? "Unable to load satisfaction survey result details."}`}
 							</AlertDescription>
 						</Alert>
 					) : (

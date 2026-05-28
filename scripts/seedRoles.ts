@@ -40,6 +40,8 @@ const ALL_MENUS: Role["menus"] = [
 	"satisfaction-survey-management#auditor",
 	"satisfaction-survey-management#editor",
 	"satisfaction-survey-management#approver",
+	"satisfaction-survey-result#monitoring",
+	"satisfaction-survey-result#reporting",
 	"officer-task#monitoring",
 	"officer-task#reporting",
 	"officer-tracking#monitoring",

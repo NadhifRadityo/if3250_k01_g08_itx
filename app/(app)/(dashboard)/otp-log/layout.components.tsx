@@ -9,10 +9,10 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { searchRelationOtpLogsAction } from "../relation-navigation.actions";
-import { defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
+import { defaultRelationOfficerTaskRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
@@ -24,7 +24,7 @@ export const deliveryStatusSelectOptions = Object.freeze([
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOtpLogsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
+	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] },
 	{ key: "content", label: "Content", type: "text" },
 	{ key: "email", label: "Email", type: "text" },
 	{ key: "whatsappNumber", label: "WhatsApp Number", type: "text" },
@@ -36,7 +36,7 @@ export const filterConfigColumns = Object.freeze([
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
 	{ key: "createdAt", label: "Created At" },
-	{ key: "creditApplication", label: "Credit Application" },
+	{ key: "officerTask", label: "Officer Task" },
 	{ key: "content", label: "Content" },
 	{ key: "email", label: "Email" },
 	{ key: "whatsappNumber", label: "WhatsApp Number" },
@@ -48,7 +48,7 @@ export const columnConfigColumns = Object.freeze([
 export const tableConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
-	{ key: "creditApplication", label: "Credit Application", sortable: false },
+	{ key: "officerTask", label: "Officer Task", sortable: false },
 	{ key: "content", label: "Content", sortable: true, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ key: "email", label: "Email", sortable: true },
 	{ key: "whatsappNumber", label: "WhatsApp Number", sortable: true },
@@ -60,7 +60,7 @@ export const tableConfigColumns = Object.freeze([
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
-	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "otp-logs.creditApplication" }) },
+	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "otp-logs.officerTask" }) },
 	{ key: "content", type: "text" },
 	{ key: "email", type: "text" },
 	{ key: "whatsappNumber", type: "text" },
@@ -84,7 +84,7 @@ export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 export const defaultColumnOrder = Object.freeze([
 	"id",
 	"createdAt",
-	"creditApplication",
+	"officerTask",
 	"content",
 	"email",
 	"whatsappNumber",
@@ -95,7 +95,7 @@ export const defaultColumnOrder = Object.freeze([
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"createdAt",
-	"creditApplication",
+	"officerTask",
 	"content",
 	"emailDeliveryStatus",
 	"whatsappDeliveryStatus",

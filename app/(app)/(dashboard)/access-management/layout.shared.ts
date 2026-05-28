@@ -158,6 +158,7 @@ export const collectionSelectOptions = Object.freeze([
 	{ value: "surveys", label: "Surveys" },
 	{ value: "survey-results", label: "Survey Results" },
 	{ value: "satisfaction-surveys", label: "Satisfaction Surveys" },
+	{ value: "satisfaction-survey-results", label: "Satisfaction Survey Results" },
 	{ value: "login-logs", label: "Login Logs" },
 	{ value: "gps-logs", label: "GPS Logs" },
 	{ value: "otp-logs", label: "OTP Logs" },
@@ -207,7 +208,7 @@ export const collectionMaskFields = Object.freeze({
 		"deletedBy": "relation",
 		"name": "text",
 		"supervisor": "relation",
-		"officers": "relation",
+		"members": "relation",
 		"reviewedAt": "date",
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
@@ -325,8 +326,6 @@ export const collectionMaskFields = Object.freeze({
 		"deletedBy": "relation",
 		"survey": "relation",
 		"surveyVersion": "text",
-		"creditApplication": "relation",
-		"officer": "relation",
 		"answers": "generic"
 	},
 	"satisfaction-surveys": {
@@ -343,6 +342,17 @@ export const collectionMaskFields = Object.freeze({
 		"reviewedBy": "relation",
 		"reviewApproved": "generic",
 		"reviewComment": "richText"
+	},
+	"satisfaction-survey-results": {
+		"createdAt": "date",
+		"createdBy": "relation",
+		"updatedAt": "date",
+		"updatedBy": "relation",
+		"deletedAt": "date",
+		"deletedBy": "relation",
+		"satisfactionSurvey": "relation",
+		"satisfactionSurveyVersion": "text",
+		"answers": "generic"
 	},
 	"login-logs": {
 		"createdAt": "date",
@@ -398,7 +408,7 @@ export const collectionRelationFields = Object.freeze({
 		"updatedBy": "staged-users",
 		"deletedBy": "staged-users",
 		"supervisor": "staged-users",
-		"officers": "staged-users",
+		"members": "staged-users",
 		"reviewedBy": "staged-users"
 	},
 	"accesses": {
@@ -438,9 +448,7 @@ export const collectionRelationFields = Object.freeze({
 		"createdBy": "staged-users",
 		"updatedBy": "staged-users",
 		"deletedBy": "staged-users",
-		"survey": "surveys",
-		"creditApplication": "credit-application",
-		"officer": "staged-users"
+		"survey": "surveys"
 	},
 	"satisfaction-surveys": {
 		"createdBy": "staged-users",
@@ -448,19 +456,24 @@ export const collectionRelationFields = Object.freeze({
 		"deletedBy": "staged-users",
 		"reviewedBy": "staged-users"
 	},
+	"satisfaction-survey-results": {
+		"createdBy": "staged-users",
+		"updatedBy": "staged-users",
+		"deletedBy": "staged-users",
+		"satisfactionSurvey": "satisfaction-surveys"
+	},
 	"login-logs": {
 		"user": "staged-users"
 	},
 	"gps-logs": {
-		"officer": "staged-users",
-		"creditApplication": "credit-application"
+		"user": "staged-users",
+		"officerTask": "credit-application"
 	},
 	"otp-logs": {
-		"creditApplication": "credit-application"
+		"officerTask": "credit-application"
 	},
 	"recording-logs": {
-		"creditApplication": "credit-application",
-		"officer": "staged-users"
+		"officerTask": "credit-application"
 		// we don't mask recording-log-audio-files nor recording-log-transcriptions
 	}
 } as Record<string, Record<string, string>>);

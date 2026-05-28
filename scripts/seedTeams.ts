@@ -8,7 +8,7 @@ const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
 type SeedTeam = {
 	key: string;
 	name: string;
-	officerKeys: string[];
+	membersKeys: string[];
 	supervisorKey: string;
 };
 
@@ -29,13 +29,13 @@ const TEAM_SEEDS: SeedTeam[] = [
 		key: "bandung-team",
 		name: "Bandung Survey Team",
 		supervisorKey: "supervisor-bandung",
-		officerKeys: ["officer-bandung-1", "officer-bandung-2"]
+		membersKeys: ["officer-bandung-1", "officer-bandung-2"]
 	},
 	{
 		key: "jakarta-team",
 		name: "Jakarta Survey Team",
 		supervisorKey: "supervisor-jakarta",
-		officerKeys: ["officer-jakarta-1", "officer-jakarta-2"]
+		membersKeys: ["officer-jakarta-1", "officer-jakarta-2"]
 	}
 ];
 
@@ -107,7 +107,7 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 	const publishedData = {
 		name: teamSeed.name,
 		supervisor: userIdMap.get(teamSeed.supervisorKey)!,
-		officers: teamSeed.officerKeys.map(key => userIdMap.get(key)).filter(v => v != null),
+		members: teamSeed.membersKeys.map(key => userIdMap.get(key)).filter(v => v != null),
 		createdAt: publishedAt,
 		updatedAt: publishedAt,
 		deletedAt: null,
@@ -122,7 +122,7 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 	const pendingData = {
 		name: teamSeed.name,
 		supervisor: userIdMap.get(teamSeed.supervisorKey),
-		officers: teamSeed.officerKeys.map(key => userIdMap.get(key)).filter(v => v != null),
+		members: teamSeed.membersKeys.map(key => userIdMap.get(key)).filter(v => v != null),
 		createdAt: publishedAt,
 		updatedAt: pendingAt,
 		deletedAt: null,

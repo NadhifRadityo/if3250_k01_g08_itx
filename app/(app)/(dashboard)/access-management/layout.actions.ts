@@ -172,7 +172,7 @@ export async function executeAccesses(
 			{ deletedAt: { exists: false } },
 			{ or: [
 				{ supervisor: { equals: user.id } },
-				{ officers: { contains: user.id } }
+				{ members: { contains: user.id } }
 			] }
 		] },
 		select: {}

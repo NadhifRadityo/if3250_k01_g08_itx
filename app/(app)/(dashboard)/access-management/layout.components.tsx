@@ -32,6 +32,7 @@ import { searchRelationAccessesAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
 import { columnConfigColumns as roleColumnConfigColumns, filterConfigColumns as roleFilterConfigColumns } from "../role-management/layout.components";
 import { columnConfigColumns as satisfactionSurveyColumnConfigColumns, filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
+import { columnConfigColumns as satisfactionSurveyResultColumnConfigColumns, filterConfigColumns as satisfactionSurveyResultFilterConfigColumns } from "../satisfaction-survey-result/layout.components";
 import { columnConfigColumns as surveyColumnConfigColumns, filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
 import { columnConfigColumns as surveyResultColumnConfigColumns, filterConfigColumns as surveyResultFilterConfigColumns } from "../survey-result/layout.components";
 import { columnConfigColumns as teamColumnConfigColumns, filterConfigColumns as teamFilterConfigColumns } from "../team-management/layout.components";
@@ -50,6 +51,7 @@ const collectionFilterConfigColumns = {
 	"surveys": surveyFilterConfigColumns,
 	"survey-results": surveyResultFilterConfigColumns,
 	"satisfaction-surveys": satisfactionSurveyFilterConfigColumns,
+	"satisfaction-survey-results": satisfactionSurveyResultFilterConfigColumns,
 	"login-logs": loginLogFilterConfigColumns,
 	"gps-logs": gpsLogFilterConfigColumns,
 	"otp-logs": otpLogFilterConfigColumns,
@@ -66,6 +68,7 @@ const collectionColumnConfigColumns = {
 	"surveys": surveyColumnConfigColumns,
 	"survey-results": surveyResultColumnConfigColumns,
 	"satisfaction-surveys": satisfactionSurveyColumnConfigColumns,
+	"satisfaction-survey-results": satisfactionSurveyResultColumnConfigColumns,
 	"login-logs": loginLogColumnConfigColumns,
 	"gps-logs": gpsLogColumnConfigColumns,
 	"otp-logs": otpLogColumnConfigColumns,

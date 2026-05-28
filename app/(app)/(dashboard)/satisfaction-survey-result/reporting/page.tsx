@@ -13,15 +13,15 @@ import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tabl
 
 export default function Page() {
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "officer-task.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "officer-task.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "satisfaction-survey-result.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "satisfaction-survey-result.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: "officer-task.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "satisfaction-survey-result.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-task.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "satisfaction-survey-result.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["officer-task", "reporting", {
+		queryKey: ["satisfaction-survey-result", "reporting", {
 			keyword,
 			filters,
 			columnsSort,
@@ -56,14 +56,14 @@ export default function Page() {
 
 	return (
 		<MenuPage
-			title="Officer Task Reporting"
-			description="View officer task entries through the reporting mode."
+			title="Satisfaction Survey Result Reporting"
+			description="View satisfaction survey result entries through the reporting mode."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar
 					keyword={keyword}
 					onKeywordChange={setKeyword}
-					searchPlaceholder="Search logs by credit application, delivery target, or content"
+					searchPlaceholder="Search by satisfaction survey, credit application, or officer"
 					filterCount={filters.length}
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}

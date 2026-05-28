@@ -36,9 +36,9 @@ async function resolveRelations(
 		const supervisor = getRelationshipId(doc.supervisor);
 		if(supervisor != null)
 			userIds.add(supervisor);
-		for(const officer of doc.officers.map(officer => getRelationshipId(officer))) {
-			if(officer != null)
-				userIds.add(officer);
+		for(const member of doc.members.map(member => getRelationshipId(member))) {
+			if(member != null)
+				userIds.add(member);
 		}
 		const reviewedBy = getRelationshipId(doc.reviewedBy);
 		if(reviewedBy != null)
@@ -79,8 +79,8 @@ async function queryAction(
 				{ name: { like: keyword } },
 				{ "supervisor.name": { like: keyword } },
 				{ "supervisor.email": { like: keyword } },
-				{ "officers.name": { like: keyword } },
-				{ "officers.email": { like: keyword } }
+				{ "members.name": { like: keyword } },
+				{ "members.email": { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }
@@ -123,7 +123,7 @@ export async function getDetailsAction(teamId: string) {
 			deletedBy: true,
 			name: true,
 			supervisor: true,
-			officers: true,
+			members: true,
 			reviewedAt: true,
 			reviewedBy: true,
 			reviewApproved: true,
@@ -161,7 +161,7 @@ export async function getDifferenceAction(id: string) {
 				deletedAt: true,
 				name: true,
 				supervisor: true,
-				officers: true
+				members: true
 			}
 		}
 	})).docs[0];
@@ -189,7 +189,7 @@ export async function getDifferenceAction(id: string) {
 				deletedAt: true,
 				name: true,
 				supervisor: true,
-				officers: true
+				members: true
 			}
 		}
 	})).docs[0]?.version;
@@ -230,7 +230,7 @@ export async function getHistoryAction(teamId: string) {
 				deletedBy: true,
 				name: true,
 				supervisor: true,
-				officers: true,
+				members: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -249,13 +249,13 @@ export async function requestUpsertAction(formState: FormState) {
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	formState.officers ??= [];
+	formState.members ??= [];
 	if(formState.name == null || formState.name.trim().length == 0)
 		throw new Error("Team name is required.");
 	if(formState.supervisor == null || formState.supervisor.trim().length == 0)
 		throw new Error("Supervisor is required.");
-	if(formState.officers.length == 0)
-		throw new Error("Team officers are required.");
+	if(formState.members.length == 0)
+		throw new Error("Team members are required.");
 
 	if(formState.id == null) {
 		const created = await payload.create({
@@ -269,7 +269,7 @@ export async function requestUpsertAction(formState: FormState) {
 				deletedBy: null,
 				name: formState.name,
 				supervisor: formState.supervisor,
-				officers: formState.officers,
+				members: formState.members,
 				reviewedAt: null,
 				reviewedBy: null,
 				reviewApproved: null,
@@ -291,7 +291,7 @@ export async function requestUpsertAction(formState: FormState) {
 			deletedBy: null,
 			name: formState.name,
 			supervisor: formState.supervisor,
-			officers: formState.officers,
+			members: formState.members,
 			reviewedAt: null,
 			reviewedBy: null,
 			reviewApproved: null,
@@ -364,7 +364,7 @@ export async function cancelRequestAction(id: string) {
 				deletedBy: true,
 				name: true,
 				supervisor: true,
-				officers: true,
+				members: true,
 				reviewedAt: true,
 				reviewedBy: true,
 				reviewApproved: true,
@@ -404,7 +404,7 @@ export async function cancelRequestAction(id: string) {
 			deletedBy: approvedVersion.deletedBy,
 			name: approvedVersion.name,
 			supervisor: approvedVersion.supervisor,
-			officers: approvedVersion.officers,
+			members: approvedVersion.members,
 			reviewedAt: approvedVersion.reviewedAt,
 			reviewedBy: approvedVersion.reviewedBy,
 			reviewApproved: approvedVersion.reviewApproved,

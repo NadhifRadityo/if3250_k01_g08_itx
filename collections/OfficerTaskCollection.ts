@@ -1,23 +1,10 @@
-import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
-import { CollectionConfig } from "payload";
+import { APIError, CollectionConfig } from "payload";
 
-import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
-
-const SatisfactionSurveyRichTextEditor = () => lexicalEditor({
-	features: [
-		...AllFormatsFeature(),
-		...MultiLineFeature(),
-		UploadFeature({
-			enabledCollections: ["generic-richtext-uploads"]
-		})
-	]
-});
-
-export const SatisfactionSurveys = (): CollectionConfig => ({
-	slug: "satisfaction-surveys",
+export const OfficerTasks = (): CollectionConfig => ({
+	slug: "officer-tasks",
 	labels: {
-		singular: "Satisfaction Survey",
-		plural: "Satisfaction Surveys"
+		singular: "Officer Task",
+		plural: "Officer Tasks"
 	},
 	trash: true,
 	timestamps: true,
@@ -30,10 +17,24 @@ export const SatisfactionSurveys = (): CollectionConfig => ({
 			validate: true
 		}
 	},
-	admin: {
-		useAsTitle: "title",
-		listSearchableFields: ["title", "description", "reviewComment"],
-		defaultColumns: ["title"]
+	hooks: {
+		beforeChange: [
+			({ req, operation, data }) => {
+				if(req.user == null) return;
+				if(data.deletedAt != null)
+					data = { deletedBy: req.user.id, ...data };
+				if(operation == "create")
+					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
+				if(operation == "update")
+					data = { updatedBy: req.user.id, ...data };
+				return data;
+			}
+		],
+		beforeDelete: [
+			() => {
+				throw new APIError("Cannot hard delete an officer task", 400, undefined, true);
+			}
+		]
 	},
 	fields: [
 		// timestamps: createdAt
@@ -106,44 +107,40 @@ export const SatisfactionSurveys = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "title",
-			label: "Title",
-			type: "text",
-			required: true
-		},
-		{
-			name: "description",
-			label: "Description",
-			type: "richText",
-			editor: SatisfactionSurveyRichTextEditor()
-		},
-		{
-			name: "content",
-			label: "Content",
-			type: "json",
-			required: true
-		},
-		{
-			name: "reviewedAt",
-			label: "Reviewed At",
-			type: "date"
-		},
-		{
-			name: "reviewedBy",
-			label: "Reviewed By",
+			name: "creditApplicationAssignment",
+			label: "Credit Application Assignment",
 			type: "relationship",
-			relationTo: "users"
+			relationTo: "credit-application-assignments",
+			required: true,
+			unique: true
 		},
 		{
-			name: "reviewApproved",
-			label: "Review Approved",
-			type: "checkbox"
+			name: "survey",
+			label: "Survey",
+			type: "relationship",
+			relationTo: "surveys",
+			required: true
 		},
 		{
-			name: "reviewComment",
-			label: "Review Comment",
-			type: "richText",
-			editor: ReviewRichTextEditor()
+			name: "surveyResult",
+			label: "Survey Result",
+			type: "relationship",
+			relationTo: "survey-results",
+			unique: true
+		},
+		{
+			name: "satisfactionSurvey",
+			label: "Satisfaction Survey",
+			type: "relationship",
+			relationTo: "satisfaction-surveys",
+			required: true
+		},
+		{
+			name: "satisfactionSurveyResult",
+			label: "Satisfaction Survey Result",
+			type: "relationship",
+			relationTo: "satisfaction-survey-results",
+			unique: true
 		}
 	]
 });

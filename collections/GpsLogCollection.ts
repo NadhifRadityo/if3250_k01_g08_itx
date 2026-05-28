@@ -1,5 +1,9 @@
 import { APIError, type CollectionConfig } from "payload";
 
+import { getRelationshipId } from "@/utils/payload";
+
+import { effectiveDoc } from "./shared";
+
 export const GpsLogs = (): CollectionConfig => ({
 	slug: "gps-logs",
 	labels: {
@@ -16,6 +20,26 @@ export const GpsLogs = (): CollectionConfig => ({
 			({ operation }) => {
 				if(operation != "create")
 					throw new APIError("GPS logs are append only");
+			},
+			async ({ data, originalDoc, req, req: { payload } }) => {
+				const doc = effectiveDoc(originalDoc, data);
+				if(doc.officerTask != null) {
+					const creditApplicationAssignment = (await payload.findByID({
+						req: req,
+						overrideAccess: true,
+						disableErrors: true,
+						collection: "officer-tasks",
+						id: getRelationshipId(doc.officerTask)!,
+						depth: 1,
+						select: { creditApplicationAssignment: true },
+						populate: { "credit-application-assignments": { officer: true } }
+					}))?.creditApplicationAssignment;
+					if(creditApplicationAssignment == null)
+						throw new Error("Invalid credit application assignment");
+					const officer = getRelationshipId((creditApplicationAssignment as Extract<typeof creditApplicationAssignment, object>).officer)!;
+					if(officer != getRelationshipId(doc.user)!)
+						throw new Error("Officer task must be the same as user");
+				}
 			}
 		]
 	},
@@ -34,8 +58,8 @@ export const GpsLogs = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "officer",
-			label: "Officer",
+			name: "user",
+			label: "User",
 			type: "relationship",
 			relationTo: "users",
 			required: true
@@ -47,10 +71,10 @@ export const GpsLogs = (): CollectionConfig => ({
 			required: true
 		},
 		{
-			name: "creditApplication",
-			label: "Credit Application",
+			name: "officerTask",
+			label: "Officer Task",
 			type: "relationship",
-			relationTo: "credit-applications"
+			relationTo: "officer-tasks"
 		},
 		{
 			name: "latitude",

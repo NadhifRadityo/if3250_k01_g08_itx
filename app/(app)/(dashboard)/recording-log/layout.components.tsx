@@ -9,19 +9,17 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { searchRelationRecordingLogsAction, searchRelationRecordingLogAudioFilesAction, searchRelationRecordingLogTranscriptionsAction } from "../relation-navigation.actions";
-import { defaultRelationUserRenderer, defaultRelationCreditApplicationRenderer, defaultRelationRecordingLogAudioFileRenderer, defaultRelationRecordingLogTranscriptionRenderer } from "../relation-navigation.components";
-import { userFilterConfigColumns } from "../user-management/layout.components";
+import { defaultRelationOfficerTaskRenderer, defaultRelationRecordingLogAudioFileRenderer, defaultRelationRecordingLogTranscriptionRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationRecordingLogsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
-	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
-	{ key: "officer", label: "Officer", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
+	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] },
 	{ key: "phoneNumber", label: "Phone Number", type: "text" },
 	{ key: "audioFile", label: "Audio File", type: "relation", relationSearch: searchRelationRecordingLogAudioFilesAction },
 	{ key: "transcription", label: "Transcription", type: "relation", relationSearch: searchRelationRecordingLogTranscriptionsAction }
@@ -29,8 +27,7 @@ export const filterConfigColumns = Object.freeze([
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
 	{ key: "createdAt", label: "Created At" },
-	{ key: "creditApplication", label: "Credit Application" },
-	{ key: "officer", label: "Officer" },
+	{ key: "officerTask", label: "Officer Task" },
 	{ key: "phoneNumber", label: "Phone Number" },
 	{ key: "audioFile", label: "Audio File" },
 	{ key: "transcription", label: "Transcription" }
@@ -38,8 +35,7 @@ export const columnConfigColumns = Object.freeze([
 export const tableConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
-	{ key: "creditApplication", label: "Credit Application", sortable: false },
-	{ key: "officer", label: "Officer", sortable: false },
+	{ key: "officerTask", label: "Officer Task", sortable: false },
 	{ key: "phoneNumber", label: "Phone Number", sortable: true },
 	{ key: "audioFile", label: "Audio File", sortable: false },
 	{ key: "transcription", label: "Transcription", sortable: false }
@@ -47,8 +43,7 @@ export const tableConfigColumns = Object.freeze([
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
-	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "recording-logs.creditApplication" }) },
-	{ key: "officer", type: "relation", render: defaultRelationUserRenderer({ description: "Officer", relationSource: "recording-logs.officer" }) },
+	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "recording-logs.officerTask" }) },
 	{ key: "phoneNumber", type: "text" },
 	{ key: "audioFile", type: "relation", render: defaultRelationRecordingLogAudioFileRenderer({ description: "Audio File", relationSource: "recording-logs.audioFile" }) },
 	{ key: "transcription", type: "relation", render: defaultRelationRecordingLogTranscriptionRenderer({ description: "Transcription", relationSource: "recording-logs.transcription" }) }
@@ -65,16 +60,14 @@ export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 export const defaultColumnOrder = Object.freeze([
 	"id",
 	"createdAt",
-	"creditApplication",
-	"officer",
+	"officerTask",
 	"phoneNumber",
 	"audioFile",
 	"transcription"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"createdAt",
-	"creditApplication",
-	"officer",
+	"officerTask",
 	"phoneNumber",
 	"audioFile",
 	"transcription"

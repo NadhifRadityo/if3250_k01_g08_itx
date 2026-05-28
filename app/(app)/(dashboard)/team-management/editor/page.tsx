@@ -148,13 +148,13 @@ export default function Page() {
 	return (
 		<MenuPage
 			title="Team Management"
-			description="Manage team requests with editor workflows, including supervisor and officer assignment changes."
+			description="Manage team requests with editor workflows, including supervisor and members assignment changes."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar
 					keyword={keyword}
 					onKeywordChange={setKeyword}
-					searchPlaceholder="Search teams by name, supervisor, or officer"
+					searchPlaceholder="Search teams by name, supervisor, or members"
 					filterCount={filters.length}
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
@@ -268,20 +268,20 @@ export default function Page() {
 					isMutating={isMutating}
 					mutationError={editFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
-						editFormDrawerState.officers ??= [];
+						editFormDrawerState.members ??= [];
 						if(editFormDrawerState.name == null || editFormDrawerState.name.trim().length == 0)
 							return setEditFormMutationError({ name: "ValidationError", message: "Team name is required." });
 						if(editFormDrawerState.supervisor == null || editFormDrawerState.supervisor.trim().length == 0)
 							return setEditFormMutationError({ name: "ValidationError", message: "Supervisor is required." });
-						if(editFormDrawerState.officers.length == 0)
-							return setEditFormMutationError({ name: "ValidationError", message: "Team officers are required." });
+						if(editFormDrawerState.members.length == 0)
+							return setEditFormMutationError({ name: "ValidationError", message: "Team members are required." });
 						setEditFormMutationError(null);
 						try {
 							await requestUpsertAction({
 								id: editFormDrawerState.id,
 								name: editFormDrawerState.name,
 								supervisor: editFormDrawerState.supervisor,
-								officers: editFormDrawerState.officers
+								members: editFormDrawerState.members
 							});
 							setEditFormDrawerOpen(false);
 							setEditFormDrawerState({});
@@ -301,19 +301,19 @@ export default function Page() {
 					isMutating={isMutating}
 					mutationError={addFormMutationError}
 					onSubmit={() => startMutationTransition(async () => {
-						addFormDrawerState.officers ??= [];
+						addFormDrawerState.members ??= [];
 						if(addFormDrawerState.name == null || addFormDrawerState.name.trim().length == 0)
 							return setAddFormMutationError({ name: "ValidationError", message: "Team name is required." });
 						if(addFormDrawerState.supervisor == null || addFormDrawerState.supervisor.trim().length == 0)
 							return setAddFormMutationError({ name: "ValidationError", message: "Supervisor is required." });
-						if(addFormDrawerState.officers.length == 0)
-							return setAddFormMutationError({ name: "ValidationError", message: "Team officers are required." });
+						if(addFormDrawerState.members.length == 0)
+							return setAddFormMutationError({ name: "ValidationError", message: "Team members are required." });
 						setAddFormMutationError(null);
 						try {
 							await requestUpsertAction({
 								name: addFormDrawerState.name,
 								supervisor: addFormDrawerState.supervisor,
-								officers: addFormDrawerState.officers
+								members: addFormDrawerState.members
 							});
 							setAddFormDrawerOpen(false);
 							setAddFormDrawerState({});

@@ -1,12 +1,10 @@
 import { APIError, CollectionConfig } from "payload";
 
-import { ReviewRichTextEditor } from "./shared";
-
-export const CreditApplicationAssignments = (): CollectionConfig => ({
-	slug: "credit-application-assignments",
+export const SatisfactionSurveyResults = (): CollectionConfig => ({
+	slug: "satisfaction-survey-results",
 	labels: {
-		singular: "Credit Application Assignment",
-		plural: "Credit Application Assignments"
+		singular: "Satisfaction Survey Result",
+		plural: "Satisfaction Survey Results"
 	},
 	trash: true,
 	timestamps: true,
@@ -20,15 +18,13 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 		}
 	},
 	admin: {
-		useAsTitle: "creditApplication",
-		listSearchableFields: ["reviewComment"],
-		defaultColumns: ["creditApplication", "officer", "updatedAt", "reviewedBy", "reviewComment"]
+		useAsTitle: "createdAt",
+		defaultColumns: ["satisfactionSurvey", "satisfactionSurveyVersion", "createdAt"]
 	},
 	hooks: {
 		beforeChange: [
 			({ req, operation, data }) => {
-				if(req.user == null)
-					return data;
+				if(req.user == null) return;
 				if(data.deletedAt != null)
 					data = { deletedBy: req.user.id, ...data };
 				if(operation == "create")
@@ -40,7 +36,7 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 		],
 		beforeDelete: [
 			() => {
-				throw new APIError("Cannot hard delete a credit application assignment", 400, undefined, true);
+				throw new APIError("Cannot hard delete a survey result", 400, undefined, true);
 			}
 		]
 	},
@@ -115,69 +111,41 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "creditApplication",
-			label: "Credit Application",
+			name: "satisfactionSurvey",
+			label: "Satisfaction Survey",
 			type: "relationship",
-			relationTo: "credit-applications",
+			relationTo: "satisfaction-surveys",
 			required: true,
-			unique: true,
 			index: true
 		},
 		{
-			name: "officer",
-			label: "Officer",
-			type: "relationship",
-			relationTo: "users",
+			name: "satisfactionSurveyVersion",
+			label: "Satisfaction Survey Version",
+			type: "text",
 			required: true,
-			index: true,
-			filterOptions: { "role.level": { equals: "officer" } }
+			hooks: {
+				beforeChange: [
+					async ({ value, previousValue, data, originalDoc, req, req: { payload } }) => {
+						const version = await payload.findVersionByID({
+							req: req,
+							disableErrors: true,
+							overrideAccess: true,
+							collection: "surveys",
+							id: value ?? previousValue,
+							depth: 0,
+							select: { parent: true }
+						});
+						if(version == null || version.parent != (data?.survey ?? originalDoc.survey))
+							throw new APIError("Invalid survey version", 400, undefined, true);
+					}
+				]
+			}
 		},
 		{
-			name: "assignedDate",
-			label: "Assigned Date",
-			type: "date"
-		},
-		{
-			name: "surveyDate",
-			label: "Survey Date",
-			type: "date"
-		},
-		{
-			name: "approvalDate",
-			label: "Approval Date",
-			type: "date"
-		},
-		{
-			name: "dueDate",
-			label: "Due Date",
-			type: "date"
-		},
-		{
-			name: "rescheduleCount",
-			label: "Reschedule Count",
-			type: "number"
-		},
-		{
-			name: "reviewedAt",
-			label: "Reviewed At",
-			type: "date"
-		},
-		{
-			name: "reviewedBy",
-			label: "Reviewed By",
-			type: "relationship",
-			relationTo: "users"
-		},
-		{
-			name: "reviewApproved",
-			label: "Review Approved",
-			type: "checkbox"
-		},
-		{
-			name: "reviewComment",
-			label: "Review Comment",
-			type: "richText",
-			editor: ReviewRichTextEditor()
+			name: "answers",
+			label: "Answers",
+			type: "json",
+			required: true
 		}
 	]
 });

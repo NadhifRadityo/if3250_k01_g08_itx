@@ -9,25 +9,25 @@ import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { OtpLog } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationCreditApplications } from "../relation-navigation.actions";
-import { RelationCreditApplication } from "../relation-navigation.shared";
+import { resolveRelationOfficerTasks } from "../relation-navigation.actions";
+import { RelationOfficerTask } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
-export type RelationValues = Partial<Record<`credit-applications:${string}`, RelationCreditApplication>>;
+export type RelationValues = Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
 	{ payload, docs }:
 	{ payload?: Payload, docs: OtpLog[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
-	const creditApplicationIds = new Set<string>();
+	const officerTaskIds = new Set<string>();
 	for(const doc of docs) {
-		const creditApplication = getRelationshipId(doc.creditApplication);
-		if(creditApplication != null)
-			creditApplicationIds.add(creditApplication);
+		const officerTask = getRelationshipId(doc.officerTask);
+		if(officerTask != null)
+			officerTaskIds.add(officerTask);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await resolveRelationCreditApplications({ payload, ids: [...creditApplicationIds] }));
+	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -54,8 +54,10 @@ async function queryAction(
 			] : []),
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
-				{ "creditApplication.name": { like: keyword } },
-				{ "creditApplication.email": { like: keyword } },
+				{ "officerTask.creditApplicationAssignment.creditApplication.name": { like: keyword } },
+				{ "officerTask.creditApplicationAssignment.creditApplication.email": { like: keyword } },
+				{ "officerTask.creditApplicationAssignment.officer.name": { like: keyword } },
+				{ "officerTask.creditApplicationAssignment.officer.email": { like: keyword } },
 				{ content: { like: keyword } },
 				{ email: { like: keyword } },
 				{ whatsappNumber: { like: keyword } },
@@ -92,7 +94,7 @@ export async function getDetailsAction(id: string) {
 		depth: 0,
 		select: {
 			createdAt: true,
-			creditApplication: true,
+			officerTask: true,
 			content: true,
 			email: true,
 			whatsappNumber: true,

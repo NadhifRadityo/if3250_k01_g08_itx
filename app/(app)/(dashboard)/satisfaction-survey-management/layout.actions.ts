@@ -6,7 +6,7 @@ import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
-import type { SatsifactionSurvey } from "@/payload-types";
+import type { SatisfactionSurvey } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers } from "../relation-navigation.actions";
@@ -18,7 +18,7 @@ export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 async function resolveRelations(
 	{ payload, docs }:
-	{ payload?: Payload, docs: SatsifactionSurvey[] }
+	{ payload?: Payload, docs: SatisfactionSurvey[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
@@ -52,7 +52,7 @@ async function queryAction(
 	const result = await payload.find({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		draft: true,
 		trash: true,
 		page: pageIndex,
@@ -97,7 +97,7 @@ export async function getDetailsAction(id: string) {
 	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		draft: true,
 		trash: true,
 		id: id,
@@ -132,7 +132,7 @@ export async function getDifferenceAction(id: string) {
 	const requestedDoc = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -160,7 +160,7 @@ export async function getDifferenceAction(id: string) {
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -200,7 +200,7 @@ export async function getHistoryAction(id: string) {
 	const versionsResult = await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		trash: true,
 		pagination: false,
 		depth: 0,
@@ -243,7 +243,7 @@ export async function requestUpsertAction(formState: FormState) {
 	if(formState.id == null) {
 		const created = await payload.create({
 			user: user,
-			collection: "satsifaction-surveys",
+			collection: "satisfaction-surveys",
 			overrideAccess: true,
 			draft: true,
 			data: {
@@ -263,7 +263,7 @@ export async function requestUpsertAction(formState: FormState) {
 	}
 	await payload.update({
 		user: user,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		id: formState.id,
 		overrideAccess: true,
 		draft: true,
@@ -293,7 +293,7 @@ export async function requestDeleteAction(id: string) {
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		id: id,
 		draft: true,
 		trash: true,
@@ -319,7 +319,7 @@ export async function cancelRequestAction(id: string) {
 	const survey = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		id: id,
 		draft: true,
 		trash: true,
@@ -330,7 +330,7 @@ export async function cancelRequestAction(id: string) {
 	const approvedVersion = (await payload.findVersions({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		trash: true,
 		pagination: false,
 		limit: 1,
@@ -359,7 +359,7 @@ export async function cancelRequestAction(id: string) {
 		await payload.update({
 			user: user,
 			overrideAccess: true,
-			collection: "satsifaction-surveys",
+			collection: "satisfaction-surveys",
 			id: id,
 			draft: true,
 			trash: true,
@@ -377,7 +377,7 @@ export async function cancelRequestAction(id: string) {
 	}
 	await payload.update({
 		user: user,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		id: id,
 		overrideAccess: true,
 		trash: true,
@@ -406,7 +406,7 @@ export async function requestRestoreAction(id: string) {
 	const survey = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		id: id,
 		draft: true,
 		trash: true,
@@ -417,7 +417,7 @@ export async function requestRestoreAction(id: string) {
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		id: id,
 		draft: true,
 		trash: true,
@@ -446,7 +446,7 @@ export async function reviewAction(
 	const survey = await payload.findByID({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		id: id,
 		draft: true,
 		trash: true,
@@ -458,7 +458,7 @@ export async function reviewAction(
 		await payload.update({
 			user: user,
 			overrideAccess: true,
-			collection: "satsifaction-surveys",
+			collection: "satisfaction-surveys",
 			id: id,
 			draft: true,
 			trash: true,
@@ -475,7 +475,7 @@ export async function reviewAction(
 	await payload.update({
 		user: user,
 		overrideAccess: true,
-		collection: "satsifaction-surveys",
+		collection: "satisfaction-surveys",
 		id: id,
 		trash: true,
 		data: {

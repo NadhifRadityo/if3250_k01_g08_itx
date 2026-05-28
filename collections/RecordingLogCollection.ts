@@ -34,8 +34,8 @@ export const RecordingLogs = (): CollectionConfig => ({
 	},
 	timestamps: false,
 	admin: {
-		useAsTitle: "creditApplication",
-		defaultColumns: ["createdAt", "creditApplication", "officer", "phoneNumber", "audioFile", "transcription"]
+		useAsTitle: "officerTask",
+		defaultColumns: ["createdAt", "officerTask", "phoneNumber", "audioFile", "transcription"]
 	},
 	hooks: {
 		beforeChange: [
@@ -60,18 +60,10 @@ export const RecordingLogs = (): CollectionConfig => ({
 			}
 		},
 		{
-			name: "creditApplication",
-			label: "Credit Application",
+			name: "officerTask",
+			label: "Officer Task",
 			type: "relationship",
-			relationTo: "credit-applications",
-			required: true
-		},
-		{
-			name: "officer",
-			label: "Officer",
-			type: "relationship",
-			relationTo: "users",
-			required: true
+			relationTo: "officer-tasks"
 		},
 		{
 			name: "phoneNumber",

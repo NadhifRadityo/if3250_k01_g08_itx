@@ -37,7 +37,7 @@ export const userByRoleFilterConfigColumns = (roleLevel: "admin" | "manager" | "
 	{ key: "name", label: "Name", type: "text" },
 	{ key: "employeeId", label: "Employee ID", type: "text" },
 	{ key: "role", label: "Role", type: "relation", relationFilterConfigColumn: () => ["Role", roleFilterConfigColumns] },
-	{ key: "supervisor", label: "Supervisor", type: "relation", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("supervisor")] },
+	{ key: "supervisor", label: "Supervisor", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
@@ -54,7 +54,7 @@ export const userFilterConfigColumns = Object.freeze([
 	{ key: "name", label: "Name", type: "text" },
 	{ key: "employeeId", label: "Employee ID", type: "text" },
 	{ key: "role", label: "Role", type: "relation", relationFilterConfigColumn: () => ["Role", roleFilterConfigColumns] },
-	{ key: "supervisor", label: "Supervisor", type: "relation", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("supervisor")] },
+	{ key: "supervisor", label: "Supervisor", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
@@ -71,7 +71,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "name", label: "Name", type: "text" },
 	{ key: "employeeId", label: "Employee ID", type: "text" },
 	{ key: "role", label: "Role", type: "relation", relationFilterConfigColumn: () => ["Role", roleFilterConfigColumns] },
-	{ key: "supervisor", label: "Supervisor", type: "relation", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("supervisor")] },
+	{ key: "supervisor", label: "Supervisor", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }

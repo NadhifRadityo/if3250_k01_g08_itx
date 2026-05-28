@@ -15,7 +15,7 @@ import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
 import { Skeleton } from "@/components/radix/Skeleton";
-import { SatsifactionSurvey } from "@/payload-types";
+import { SatisfactionSurvey } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
@@ -82,18 +82,18 @@ export const tableConfigColumns = Object.freeze([
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
-	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "satsifaction-surveys.createdBy" }) },
+	{ key: "createdBy", type: "relation", render: defaultRelationUserRenderer({ description: "Created By", relationSource: "satisfaction-surveys.createdBy" }) },
 	{ key: "updatedAt", type: "date" },
-	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "satsifaction-surveys.updatedBy" }) },
+	{ key: "updatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Updated By", relationSource: "satisfaction-surveys.updatedBy" }) },
 	{ key: "deletedAt", type: "date" },
-	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "satsifaction-surveys.deletedBy" }) },
+	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "satisfaction-surveys.deletedBy" }) },
 	{ key: "title", type: "text" },
 	{ key: "description", type: "richText" },
 	{ key: "content", type: "null", render: defaultSurveyContentRenderer({ buttonLabel: "View content", dialogTitle: "Satisfaction Survey Content" }) },
 	{ key: "#changeRequest", type: "null", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
-	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "satsifaction-surveys.reviewedBy" }) },
+	{ key: "reviewedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Reviewed By", relationSource: "satisfaction-surveys.reviewedBy" }) },
 	{ key: "reviewApproved", type: "boolean" },
 	{ key: "reviewComment", type: "richText" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
@@ -527,7 +527,7 @@ export type FormState = {
 	description?: SerializedEditorState | null;
 	content?: any;
 };
-export function toFormState(data: SatsifactionSurvey) {
+export function toFormState(data: SatisfactionSurvey) {
 	return {
 		id: data.id,
 		title: data.title,

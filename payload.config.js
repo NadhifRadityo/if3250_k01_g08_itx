@@ -10,10 +10,12 @@ import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { GenericRichtextUploads } from "./collections/GenericCollection";
 import { GpsLogs } from "./collections/GpsLogCollection";
 import { LoginLogs } from "./collections/LoginLogCollection";
+import { OfficerTasks } from "./collections/OfficerTaskCollection";
 import { OtpLogs } from "./collections/OtpLogCollection";
 import { RecordingLogs, RecordingLogAudioFiles, RecordingLogTranscriptions } from "./collections/RecordingLogCollection";
 import { Roles } from "./collections/RoleCollection";
 import { SatisfactionSurveys } from "./collections/SatisfactionSurveyCollection";
+import { SatisfactionSurveyResults } from "./collections/SatisfactionSurveyResultCollection";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
 import { Surveys } from "./collections/SurveyCollection";
@@ -44,9 +46,11 @@ export default buildConfig({
 		CreditApplications(),
 		CreditApplicationImports(),
 		CreditApplicationAssignments(),
+		OfficerTasks(),
 		Surveys(),
 		SurveyResults(),
 		SatisfactionSurveys(),
+		SatisfactionSurveyResults(),
 		LoginLogs(),
 		GpsLogs(),
 		OtpLogs(),

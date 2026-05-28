@@ -18,8 +18,8 @@ export const SurveyResults = (): CollectionConfig => ({
 		}
 	},
 	admin: {
-		useAsTitle: "creditApplication",
-		defaultColumns: ["survey", "creditApplication", "officer", "createdAt"]
+		useAsTitle: "createdAt",
+		defaultColumns: ["survey", "surveyVersion", "createdAt"]
 	},
 	hooks: {
 		beforeChange: [
@@ -140,23 +140,6 @@ export const SurveyResults = (): CollectionConfig => ({
 					}
 				]
 			}
-		},
-		{
-			name: "creditApplication",
-			label: "Credit Application",
-			type: "relationship",
-			relationTo: "credit-applications",
-			required: true,
-			index: true
-		},
-		{
-			name: "officer",
-			label: "Officer",
-			type: "relationship",
-			relationTo: "users",
-			required: true,
-			index: true,
-			filterOptions: { "role.level": { equals: "officer" } }
 		},
 		{
 			name: "answers",

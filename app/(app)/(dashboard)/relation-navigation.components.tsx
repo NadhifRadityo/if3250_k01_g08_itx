@@ -12,7 +12,7 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 
 import { useDashboardContext } from "./layout.components";
 import { RelationSummary, getRelationSummaryAction } from "./relation-navigation.actions";
-import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationOtpLog, RelationSurvey, RelationLoginLog, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
+import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationOtpLog, RelationSurvey, RelationLoginLog, RelationOfficerTask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
 type PendingRelationRedirectData = {
 	relationType: string;
@@ -673,6 +673,50 @@ export const defaultRelationCreditApplicationAssignmentsRenderer = ({ descriptio
 			))(context?.relationValues?.[`credit-application-assignments:${creditApplicationAssignmentId}`]))}
 		</RelationNavigationLink>
 	);
+export const defaultRelationOfficerTaskRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(officerTaskId: string | null, row: { id: string }, context: { relationValues?: Record<`officer-tasks:${string}`, RelationOfficerTask> }) => officerTaskId == null ? "-" : (officerTaskRelation => (
+		<RelationNavigationLink
+			relationType="officer-tasks"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			relationId={officerTaskId}
+			fallback={{
+				title: officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>),
+				description: description,
+				fields: [
+					{ label: "Id", value: (<span className="font-mono">{officerTaskId}</span>) }
+				]
+			}}
+		>
+			{officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>)}
+		</RelationNavigationLink>
+	))(context?.relationValues?.[`officer-tasks:${officerTaskId}`]);
+export const defaultRelationOfficerTasksRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(officerTaskIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`officer-tasks:${string}`, RelationOfficerTask> }) => officerTaskIds == null || officerTaskIds.length == 0 ? "-" : (
+		<RelationNavigationLink
+			relationType="officer-tasks"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			pickerTitle="Select credit application assignments"
+			pickerDescription={description}
+			relationChoices={officerTaskIds.map(officerTaskId => (officerTaskRelation => ({
+				id: officerTaskId,
+				name: officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>),
+				fallback: {
+					title: officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>),
+					description: description,
+					fields: [
+						{ label: "Id", value: (<span className="font-mono">{officerTaskId}</span>) }
+					]
+				}
+			}))(context?.relationValues?.[`officer-tasks:${officerTaskId}`]))}
+		>
+			{officerTaskIds.map((officerTaskId, i) => (officerTaskRelation => (
+				<React.Fragment key={officerTaskId}>
+					{officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>)}
+					{i != officerTaskIds.length - 1 ? ", " : ""}
+				</React.Fragment>
+			))(context?.relationValues?.[`officer-tasks:${officerTaskId}`]))}
+		</RelationNavigationLink>
+	);
 export const defaultRelationSurveyRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
 	(surveyId: string | null, row: { id: string }, context: { relationValues?: Record<`surveys:${string}`, RelationSurvey> }) => surveyId == null ? "-" : (surveyRelation => (
 		<RelationNavigationLink
@@ -807,6 +851,50 @@ export const defaultRelationSatisfactionSurveysRenderer = ({ description, relati
 					{i != satisfactionSurveyIds.length - 1 ? ", " : ""}
 				</React.Fragment>
 			))(context?.relationValues?.[`satisfaction-surveys:${satisfactionSurveyId}`]))}
+		</RelationNavigationLink>
+	);
+export const defaultRelationSatisfactionSurveyResultRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(satisfactionSurveyResultId: string | null, row: { id: string }, context: { relationValues?: Record<`survey-results:${string}`, RelationSatisfactionSurveyResult> }) => satisfactionSurveyResultId == null ? "-" : (surverResultRelation => (
+		<RelationNavigationLink
+			relationType="satisfaction-survey-results"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			relationId={satisfactionSurveyResultId}
+			fallback={{
+				title: surverResultRelation?._ ?? (<>Satisfaction Survey Result <span className="font-mono">{satisfactionSurveyResultId}</span></>),
+				description: description,
+				fields: [
+					{ label: "Id", value: (<span className="font-mono">{satisfactionSurveyResultId}</span>) }
+				]
+			}}
+		>
+			{surverResultRelation?._ ?? (<>Satisfaction Survey Result <span className="font-mono">{satisfactionSurveyResultId}</span></>)}
+		</RelationNavigationLink>
+	))(context?.relationValues?.[`satisfaction-survey-results:${satisfactionSurveyResultId}`]);
+export const defaultRelationSatisfactionSurveyResultsRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(satisfactionSurveyResultIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult> }) => satisfactionSurveyResultIds == null || satisfactionSurveyResultIds.length == 0 ? "-" : (
+		<RelationNavigationLink
+			relationType="satisfaction-survey-results"
+			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
+			pickerTitle="Select satisfaction survey results"
+			pickerDescription={description}
+			relationChoices={satisfactionSurveyResultIds.map(satisfactionSurveyResultId => (surverResultRelation => ({
+				id: satisfactionSurveyResultId,
+				name: surverResultRelation?._ ?? (<>Satisfaction Survey Result <span className="font-mono">{satisfactionSurveyResultId}</span></>),
+				fallback: {
+					title: surverResultRelation?._ ?? (<>Satisfaction Survey Result <span className="font-mono">{satisfactionSurveyResultId}</span></>),
+					description: description,
+					fields: [
+						{ label: "Id", value: (<span className="font-mono">{satisfactionSurveyResultId}</span>) }
+					]
+				}
+			}))(context?.relationValues?.[`satisfaction-survey-results:${satisfactionSurveyResultId}`]))}
+		>
+			{satisfactionSurveyResultIds.map((satisfactionSurveyResultId, i) => (surverResultRelation => (
+				<React.Fragment key={satisfactionSurveyResultId}>
+					{surverResultRelation?._ ?? (<>Satisfaction Survey Result <span className="font-mono">{satisfactionSurveyResultId}</span></>)}
+					{i != satisfactionSurveyResultIds.length - 1 ? ", " : ""}
+				</React.Fragment>
+			))(context?.relationValues?.[`satisfaction-survey-results:${satisfactionSurveyResultId}`]))}
 		</RelationNavigationLink>
 	);
 export const defaultRelationLoginLogRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>

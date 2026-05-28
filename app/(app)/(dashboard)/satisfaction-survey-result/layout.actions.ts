@@ -6,40 +6,41 @@ import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
-import { RecordingLog } from "@/payload-types";
+import { SatisfactionSurveyResult } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationOfficerTasks, resolveRelationRecordingLogAudioFiles, resolveRelationRecordingLogTranscriptions } from "../relation-navigation.actions";
-import { RelationOfficerTask, RelationRecordingLogAudioFile, RelationRecordingLogTranscription } from "../relation-navigation.shared";
+import { resolveRelationUsers, resolveRelationSatisfactionSurveys } from "../relation-navigation.actions";
+import { RelationUser, RelationSatisfactionSurvey } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
-export type RelationValues = Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>> &
-	Partial<Record<`recording-log-audio-files:${string}`, RelationRecordingLogAudioFile>> &
-	Partial<Record<`recording-log-transcriptions:${string}`, RelationRecordingLogTranscription>>;
+
+export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
+	Partial<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>>;
 
 async function resolveRelations(
 	{ payload, docs }:
-	{ payload?: Payload, docs: RecordingLog[] }
+	{ payload?: Payload, docs: SatisfactionSurveyResult[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
-	const officerTaskIds = new Set<string>();
-	const audioFileIds = new Set<string>();
-	const transcriptionIds = new Set<string>();
+	const userIds = new Set<string>();
+	const satisfactionSurveyIds = new Set<string>();
 	for(const doc of docs) {
-		const officerTask = getRelationshipId(doc.officerTask);
-		if(officerTask != null)
-			officerTaskIds.add(officerTask);
-		const audioFile = getRelationshipId(doc.audioFile);
-		if(audioFile != null)
-			audioFileIds.add(audioFile);
-		const transcription = getRelationshipId(doc.transcription);
-		if(transcription != null)
-			transcriptionIds.add(transcription);
+		const createdBy = getRelationshipId(doc.createdBy);
+		if(createdBy != null)
+			userIds.add(createdBy);
+		const updatedBy = getRelationshipId(doc.updatedBy);
+		if(updatedBy != null)
+			userIds.add(updatedBy);
+		const deletedBy = getRelationshipId(doc.deletedBy);
+		if(deletedBy != null)
+			userIds.add(deletedBy);
+		const satisfactionSurvey = getRelationshipId(doc.satisfactionSurvey);
+		if(satisfactionSurvey != null)
+			satisfactionSurveyIds.add(satisfactionSurvey);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: [...officerTaskIds] }));
-	Object.assign(relations, await resolveRelationRecordingLogAudioFiles({ payload, ids: [...audioFileIds] }));
-	Object.assign(relations, await resolveRelationRecordingLogTranscriptions({ payload, ids: [...transcriptionIds] }));
+	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
+	Object.assign(relations, await resolveRelationSatisfactionSurveys({ payload, ids: [...satisfactionSurveyIds] }));
 	return relations;
 }
 
@@ -54,7 +55,7 @@ async function queryAction(
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "recording-logs",
+		collection: "satisfaction-survey-results",
 		depth: 0,
 		page: pageIndex,
 		limit: PAGE_LIMIT,
@@ -66,13 +67,11 @@ async function queryAction(
 			] : []),
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
-				{ "officerTask.creditApplicationAssignment.creditApplication.name": { like: keyword } },
-				{ "officerTask.creditApplicationAssignment.creditApplication.email": { like: keyword } },
-				{ "officerTask.creditApplicationAssignment.officer.name": { like: keyword } },
-				{ "officerTask.creditApplicationAssignment.officer.email": { like: keyword } },
-				{ phoneNumber: { like: keyword } },
-				{ "audioFile.filename": { like: keyword } },
-				{ "transcription.filename": { like: keyword } }
+				{ "satisfactionSurvey.title": { like: keyword } },
+				{ "creditApplication.name": { like: keyword } },
+				{ "creditApplication.email": { like: keyword } },
+				{ "officer.name": { like: keyword } },
+				{ "officer.email": { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }
@@ -97,17 +96,17 @@ export async function getDetailsAction(id: string) {
 	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "recording-logs",
+		collection: "satisfaction-survey-results",
 		id: id,
 		depth: 0,
 		select: {
 			createdAt: true,
-			officerTask: true,
-			phoneNumber: true,
-			audioFile: true,
-			transcription: true
+			satisfactionSurvey: true,
+			creditApplication: true,
+			officer: true,
+			answers: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
+	const relations = await resolveRelations({ payload, docs: [result as SatisfactionSurveyResult] });
 	return { row: result, relations };
 }

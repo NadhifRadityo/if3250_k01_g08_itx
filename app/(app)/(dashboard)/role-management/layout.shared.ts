@@ -42,6 +42,8 @@ export const menusSelectOptions = Object.freeze([
 	{ value: "satisfaction-survey-management#auditor", label: "Satisfaction Survey Management - Auditor" },
 	{ value: "satisfaction-survey-management#editor", label: "Satisfaction Survey Management - Editor" },
 	{ value: "satisfaction-survey-management#approver", label: "Satisfaction Survey Management - Approver" },
+	{ value: "satisfaction-survey-result#monitoring", label: "Satisfaction Survey Result — Monitoring" },
+	{ value: "satisfaction-survey-result#reporting", label: "Satisfaction Survey Result — Reporting" },
 	{ value: "officer-task#monitoring", label: "Officer Task - Monitoring" },
 	{ value: "officer-task#reporting", label: "Officer Task - Reporting" },
 	{ value: "officer-tracking#monitoring", label: "Officer Tracking - Monitoring" },

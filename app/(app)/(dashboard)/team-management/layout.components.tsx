@@ -19,7 +19,7 @@ import { Team } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationTeamsAction, searchRelationUsersByRoleLevelAction } from "../relation-navigation.actions";
+import { searchRelationTeamsAction, searchRelationUsersAction, searchRelationUsersByRoleLevelAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationUsersRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns, userByRoleFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
@@ -34,8 +34,8 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "name", label: "Name", type: "text" },
-	{ key: "supervisor", label: "Supervisor", type: "relation", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("supervisor")] },
-	{ key: "officers", label: "Officers", type: "relation_hasMany", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("officer")] },
+	{ key: "supervisor", label: "Supervisor", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
+	{ key: "members", label: "Members", type: "relation_hasMany", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
@@ -50,7 +50,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "name", label: "Name" },
 	{ key: "supervisor", label: "Supervisor" },
-	{ key: "officers", label: "Officers" },
+	{ key: "members", label: "Members" },
 	{ key: "#changeRequest", label: "Request" },
 	{ key: "#status", label: "Status" },
 	{ key: "reviewedAt", label: "Reviewed At" },
@@ -68,7 +68,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "name", label: "Name", sortable: true, className: "font-medium" },
 	{ key: "supervisor", label: "Supervisor", sortable: false },
-	{ key: "officers", label: "Officers", sortable: false, className: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ key: "members", label: "Members", sortable: false, className: "max-w-[360px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ key: "#changeRequest", label: "Request", sortable: false },
 	{ key: "#status", label: "Status", sortable: false },
 	{ key: "reviewedAt", label: "Reviewed At", sortable: true },
@@ -86,7 +86,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "teams.deletedBy" }) },
 	{ key: "name", type: "text" },
 	{ key: "supervisor", type: "relation", render: defaultRelationUserRenderer({ description: "Supervisor", relationSource: "teams.supervisor" }) },
-	{ key: "officers", type: "relation_hasMany", render: defaultRelationUsersRenderer({ description: "Officer", relationSource: "teams.officers" }) },
+	{ key: "members", type: "relation_hasMany", render: defaultRelationUsersRenderer({ description: "Members", relationSource: "teams.members" }) },
 	{ key: "#changeRequest", type: "null", render: defaultChangeRequestRenderer() },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "reviewedAt", type: "date" },
@@ -122,7 +122,7 @@ export const defaultColumnOrder = Object.freeze([
 	"id",
 	"name",
 	"supervisor",
-	"officers",
+	"members",
 	"createdBy",
 	"updatedBy",
 	"deletedBy",
@@ -139,7 +139,7 @@ export const defaultColumnOrder = Object.freeze([
 export const defaultColumnsShown = Object.freeze([
 	"name",
 	"supervisor",
-	"officers",
+	"members",
 	"#changeRequest",
 	"#status",
 	"updatedAt",
@@ -522,14 +522,14 @@ export type FormState = {
 	id?: string;
 	name?: string;
 	supervisor?: string;
-	officers?: string[];
+	members?: string[];
 };
 export function toFormState(data: Team) {
 	return {
 		id: data.id,
 		name: data.name,
 		supervisor: getRelationshipId(data.supervisor),
-		officers: data.officers.map(officer => getRelationshipId(officer))
+		members: data.members.map(member => getRelationshipId(member))
 	} as FormState;
 }
 export function FormDrawer(
@@ -559,7 +559,7 @@ export function FormDrawer(
 								value={formState.supervisor!}
 								onValueChange={value => onFormStateChange({ ...formState, supervisor: value })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationUsersByRoleLevelAction("supervisor", keyword, selectedValues)
+								onSearch={(keyword, selectedValues) => searchRelationUsersAction(keyword, selectedValues)
 									.then(users => users.map(user => ({
 										value: user.id,
 										label: user.label
@@ -572,20 +572,20 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">
-								<label className="text-sm font-medium">Officers</label>
-								<Badge variant="outline">{(formState.officers ?? []).length} selected</Badge>
+								<label className="text-sm font-medium">Members</label>
+								<Badge variant="outline">{(formState.members ?? []).length} selected</Badge>
 							</div>
 							<SearchableMultiSelect
-								values={formState.officers ?? []}
-								onValuesChange={values => onFormStateChange({ ...formState, officers: values })}
+								values={formState.members ?? []}
+								onValuesChange={values => onFormStateChange({ ...formState, members: values })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationUsersByRoleLevelAction("officer", keyword, selectedValues)
+								onSearch={(keyword, selectedValues) => searchRelationUsersAction(keyword, selectedValues)
 									.then(users => users.map(user => ({
 										value: user.id,
 										label: user.label
 									})))}
-								placeholder="Search officers"
-								searchPlaceholder="Search officers..."
+								placeholder="Search members"
+								searchPlaceholder="Search members..."
 								disabled={isMutating}
 							/>
 						</div>
