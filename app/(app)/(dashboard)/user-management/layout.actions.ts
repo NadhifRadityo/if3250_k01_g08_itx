@@ -8,7 +8,7 @@ import payloadConfig from "@payload-config";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
 import type { StagedUser } from "@/payload-types";
 
-import { compileAccesses } from "../access-management/layout.actions";
+import { compileAccesses, executeAccesses } from "../access-management/layout.actions";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationRoles, resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationRole, RelationUser } from "../relation-navigation.shared";
@@ -59,6 +59,7 @@ async function queryAction(
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
+	const accesses = await executeAccesses({ payload, user, accessesCollection: "staged-users" });
 	const result = await payload.find({
 		user: user,
 		overrideAccess: true,
@@ -86,11 +87,13 @@ async function queryAction(
 				{ "supervisor.name": { like: keyword } },
 				{ "supervisor.email": { like: keyword } }
 			] }] : []),
+			accesses.filter,
 			buildFilterWhere(filters)
 		] }
 	});
+	const masks = await accesses.getMasksFor(result.docs.map(d => d.id));
 	const relations = await resolveRelations({ payload, docs: result.docs });
-	return { ...result, relations };
+	return { ...result, masks, relations };
 }
 
 export async function queryViewerAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
@@ -109,14 +112,18 @@ export async function getDetailsAction(id: string) {
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const result = await payload.findByID({
+	const accesses = await executeAccesses({ payload, user, accessesCollection: "staged-users" });
+	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
 		collection: "staged-users",
 		draft: true,
 		trash: true,
-		id: id,
 		depth: 0,
+		where: { and: [
+			{ id: { equals: id } },
+			accesses.filter
+		] },
 		select: {
 			_status: true,
 			createdAt: true,
@@ -137,8 +144,10 @@ export async function getDetailsAction(id: string) {
 			reviewComment: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
-	return { row: result, relations };
+	if(result.docs.length == 0) return null;
+	const masks = await accesses.getMasksFor(result.docs.map(d => d.id));
+	const relations = await resolveRelations({ payload, docs: result.docs });
+	return { row: result.docs[0], mask: masks[0], relations };
 }
 
 export async function getDifferenceAction(id: string) {
@@ -206,6 +215,7 @@ export async function getDifferenceAction(id: string) {
 			}
 		}
 	})).docs[0]?.version;
+	const accesses = await executeAccesses({ payload, user, accessesCollection: "staged-users" });
 	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
 		requestType: requestedVersion.deletedAt != null ? "Delete" : approvedVersion == null ? "Create" : "Update",

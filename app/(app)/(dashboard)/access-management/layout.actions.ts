@@ -81,8 +81,6 @@ export async function compileAccesses(
 			pagination: false,
 			depth: 0,
 			where: { and: [
-				{ _status: { equals: "published" } },
-				{ reviewedAt: { exists: true } },
 				{ deletedAt: { exists: false } },
 				buildFilterWhere(JSON.parse(filtersKey))
 			] },
@@ -159,8 +157,8 @@ export async function compileAccesses(
 		await payload.kv.set(`accesses:${collection}`, JSON.stringify(compiledAccesses));
 }
 export async function executeAccesses(
-	{ payload, accessesCollection, user }:
-	{ payload?: Payload, accessesCollection: keyof (typeof collectionMaskFields), user: User }
+	{ payload, user, accessesCollection }:
+	{ payload?: Payload, user: User, accessesCollection: keyof (typeof collectionMaskFields) }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userTeams = (await payload.find({
@@ -220,6 +218,7 @@ export async function executeAccesses(
 	}
 	if(currentFilter == null)
 		currentFilter = { id: { exists: false } };
+	const defaultMask = Object.fromEntries(Object.keys(collectionMaskFields[accessesCollection]).map(f => [f, "hide"] as [string, string]));
 	const getMasksFor = async (ids: string[]) => {
 		const adapter = payload.db as PostgresAdapter;
 		const collectionConfig = payload.config.collections.find(c => c.slug == accessesCollection)!;
@@ -228,16 +227,18 @@ export async function executeAccesses(
 		const table = adapter.tables[tableName];
 		// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/find/findMany.ts
 		const queryOptions = buildQuery({ adapter: adapter, fields: collectionConfig.flattenedFields, tableName: tableName, where: { or: appliedAccesses.map(a => buildFilterWhere(a.filters)) } });
+		if(queryOptions.where == null) return { ...defaultMask };
 		// getTransaction with shouldReadFromPrimary logic
 		// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/utilities/getTransaction.ts, https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/utilities/readAfterWrite.ts
 		const db = adapter.primaryDrizzle != null && adapter.lastWriteTimestamp != null && (Date.now() - adapter.lastWriteTimestamp < adapter.readReplicasAfterWriteInterval) ? adapter.primaryDrizzle : adapter.drizzle;
-		// queryOptions.where sql is in form of [StringChunk("("), SQL(chunks=[SQLChunk, StringChunk(" or "), SQLChunk, ...]), StringChunk(")")]
-		const selectFilterMatches = Object.fromEntries((queryOptions.where.queryChunks[1] as SQL).queryChunks.filter((_, i) => i % 2 == 0).map((condition, i) => [`filters_${i}`, sql`CASE WHEN ${condition} THEN 1 ELSE 0 END`]));
+		// queryOptions.where sql is in form of [StringChunk("("), SQL(chunks=[SQLChunk, StringChunk(" or "), SQLChunk, ...]), StringChunk(")")] if there are more than one `OR` conditions.
+		const selectFilterMatches = queryOptions.where.queryChunks.length >= 3 ?
+			Object.fromEntries((queryOptions.where.queryChunks[1] as SQL).queryChunks.filter((_, i) => i % 2 == 0).map((condition, i) => [`filters_${i}`, sql`CASE WHEN ${condition} THEN 1 ELSE 0 END`])) :
+			{ "filters_0": sql`CASE WHEN ${(queryOptions.where.queryChunks[0] as SQL).queryChunks[0]} THEN 1 ELSE 0 END` };
 		let query = db.selectDistinct({ id: table.id, ...selectFilterMatches } as ({ id: typeof table.id } & Record<`filters_${number}`, ReturnType<typeof sql<0 | 1>>>)).from(table).where(inArray(table.id, ids)).$dynamic();
 		for(const join of queryOptions.joins)
 			query = query[join.type ?? "leftJoin"](join.table as any, join.condition) as any;
 		const filterMatchesResults = await query;
-		const defaultMask = Object.fromEntries(Object.keys(collectionMaskFields[accessesCollection]).map(f => [f, "hide"] as [string, string]));
 		return ids.map(id => {
 			const filterMatches = filterMatchesResults.find(r => r.id == id) ?? (Object.fromEntries(appliedAccesses.map((_, i) => [`filters_${i}`, 0])) as Record<`filters_${number}`, 0 | 1>);
 			let isIncluded = false;

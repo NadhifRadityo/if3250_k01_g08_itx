@@ -44,6 +44,7 @@ const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSV
 	"survey-management": ClipboardListIcon,
 	"survey-result": BarChart3Icon,
 	"satisfaction-survey-management": SmileIcon,
+	"satisfaction-survey-result": BarChart3Icon,
 	"officer-task": ClipboardCheckIcon,
 	"officer-tracking": MapPinnedIcon,
 	"login-log": HistoryIcon,
