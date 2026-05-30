@@ -1088,6 +1088,7 @@ export interface GpsLog {
   officerTask?: (string | null) | OfficerTask;
   latitude: number;
   longitude: number;
+  accuracy: number;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1842,6 +1843,7 @@ export interface GpsLogsSelect<T extends boolean = true> {
   officerTask?: T;
   latitude?: T;
   longitude?: T;
+  accuracy?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

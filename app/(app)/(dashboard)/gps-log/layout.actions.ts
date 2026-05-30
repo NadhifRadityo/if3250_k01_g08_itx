@@ -100,7 +100,8 @@ export async function getDetailsAction(id: string) {
 			sessionId: true,
 			officerTask: true,
 			latitude: true,
-			longitude: true
+			longitude: true,
+			accuracy: true
 		}
 	});
 	const relations = await resolveRelations({ payload, docs: [result] });

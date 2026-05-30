@@ -409,7 +409,8 @@ export const collectionMaskFields = Object.freeze({
 		"sessionId": "text",
 		"officerTask": "relation",
 		"latitude": "number",
-		"longitude": "number"
+		"longitude": "number",
+		"accuracy": "number"
 	},
 	"message-logs": {
 		"createdAt": "date",

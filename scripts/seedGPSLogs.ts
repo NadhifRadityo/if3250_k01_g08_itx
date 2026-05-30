@@ -22,6 +22,7 @@ type SeedGps = {
 	creditApplicationKey: null | string;
 	latitude: number;
 	longitude: number;
+	accuracy: number;
 	officerKey: string;
 	sessionId: string;
 };
@@ -39,7 +40,8 @@ const GPS_LOG_SEEDS: SeedGps[] = [
 		sessionId: "GPS-SESSION-001",
 		creditApplicationKey: "CA-SEED-001",
 		latitude: -6.914744,
-		longitude: 107.60981
+		longitude: 107.60981,
+		accuracy: 8.5
 	},
 	{
 		createdAt: isoAt(805),
@@ -47,7 +49,8 @@ const GPS_LOG_SEEDS: SeedGps[] = [
 		sessionId: "GPS-SESSION-001",
 		creditApplicationKey: "CA-SEED-001",
 		latitude: -6.915201,
-		longitude: 107.61112
+		longitude: 107.61112,
+		accuracy: 12.3
 	},
 	{
 		createdAt: isoAt(810),
@@ -55,7 +58,8 @@ const GPS_LOG_SEEDS: SeedGps[] = [
 		sessionId: "GPS-SESSION-002",
 		creditApplicationKey: "CA-SEED-003",
 		latitude: -6.92712,
-		longitude: 107.62783
+		longitude: 107.62783,
+		accuracy: 6.2
 	},
 	{
 		createdAt: isoAt(815),
@@ -63,7 +67,8 @@ const GPS_LOG_SEEDS: SeedGps[] = [
 		sessionId: "GPS-SESSION-003",
 		creditApplicationKey: "CA-SEED-002",
 		latitude: -6.21462,
-		longitude: 106.84513
+		longitude: 106.84513,
+		accuracy: 15.0
 	}
 ];
 
@@ -162,7 +167,8 @@ for(const seed of GPS_LOG_SEEDS) {
 				sessionId: seed.sessionId,
 				creditApplication: seed.creditApplicationKey == null ? null : creditApplicationIdMap.get(seed.creditApplicationKey),
 				latitude: seed.latitude,
-				longitude: seed.longitude
+				longitude: seed.longitude,
+				accuracy: seed.accuracy
 			}
 		});
 	} else

@@ -24,7 +24,8 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "sessionId", label: "Session Id", type: "text" },
 	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] },
 	{ key: "latitude", label: "Latitude", type: "number" },
-	{ key: "longitude", label: "Longitude", type: "number" }
+	{ key: "longitude", label: "Longitude", type: "number" },
+	{ key: "accuracy", label: "Accuracy", type: "number" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
@@ -33,7 +34,8 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "sessionId", label: "Session Id" },
 	{ key: "officerTask", label: "Officer Task" },
 	{ key: "latitude", label: "Latitude" },
-	{ key: "longitude", label: "Longitude" }
+	{ key: "longitude", label: "Longitude" },
+	{ key: "accuracy", label: "Accuracy" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
@@ -42,7 +44,8 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "sessionId", label: "Session Id", sortable: true },
 	{ key: "officerTask", label: "Officer Task", sortable: false },
 	{ key: "latitude", label: "Latitude", sortable: true },
-	{ key: "longitude", label: "Longitude", sortable: true }
+	{ key: "longitude", label: "Longitude", sortable: true },
+	{ key: "accuracy", label: "Accuracy", sortable: true }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
@@ -51,7 +54,8 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "sessionId", type: "text" },
 	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "gps-logs.officerTask" }) },
 	{ key: "latitude", type: "number" },
-	{ key: "longitude", type: "number" }
+	{ key: "longitude", type: "number" },
+	{ key: "accuracy", type: "number" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;
@@ -61,7 +65,8 @@ export const eligibleDetailsTriggerColumns = Object.freeze([
 	"createdAt",
 	"sessionId",
 	"latitude",
-	"longitude"
+	"longitude",
+	"accuracy"
 ]);
 export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 export const defaultColumnOrder = Object.freeze([
@@ -71,7 +76,8 @@ export const defaultColumnOrder = Object.freeze([
 	"sessionId",
 	"officerTask",
 	"latitude",
-	"longitude"
+	"longitude",
+	"accuracy"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"createdAt",
@@ -79,7 +85,8 @@ export const defaultColumnsShown = Object.freeze([
 	"sessionId",
 	"officerTask",
 	"latitude",
-	"longitude"
+	"longitude",
+	"accuracy"
 ]) as string[];
 export const defaultColumnsSort = Object.freeze([
 	["createdAt", false]
