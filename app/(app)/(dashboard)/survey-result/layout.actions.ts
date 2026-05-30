@@ -9,13 +9,14 @@ import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { SurveyResult } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationUsers, resolveRelationSurveys } from "../relation-navigation.actions";
-import { RelationUser, RelationSurvey } from "../relation-navigation.shared";
+import { resolveRelationUsers, resolveRelationSurveys, resolveRelationOfficerTasks } from "../relation-navigation.actions";
+import { RelationUser, RelationSurvey, RelationOfficerTask } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
 
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
-	Partial<Record<`surveys:${string}`, RelationSurvey>>;
+	Partial<Record<`surveys:${string}`, RelationSurvey>> &
+	Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
 	{ payload, docs }:
@@ -24,6 +25,7 @@ async function resolveRelations(
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
 	const surveyIds = new Set<string>();
+	const officerTaskIds = new Set<string>();
 	for(const doc of docs) {
 		const createdBy = getRelationshipId(doc.createdBy);
 		if(createdBy != null)
@@ -37,10 +39,14 @@ async function resolveRelations(
 		const survey = getRelationshipId(doc.survey);
 		if(survey != null)
 			surveyIds.add(survey);
+		const officerTask = getRelationshipId(doc.officerTask);
+		if(officerTask != null)
+			officerTaskIds.add(officerTask);
 	}
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
 	Object.assign(relations, await resolveRelationSurveys({ payload, ids: [...surveyIds] }));
+	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -101,12 +107,17 @@ export async function getDetailsAction(id: string) {
 		depth: 0,
 		select: {
 			createdAt: true,
+			createdBy: true,
+			updatedAt: true,
+			updatedBy: true,
+			deletedAt: true,
+			deletedBy: true,
 			survey: true,
-			creditApplication: true,
-			officer: true,
+			surveyVersion: true,
+			officerTask: true,
 			answers: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result as SurveyResult] });
+	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: result, relations };
 }

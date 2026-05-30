@@ -142,6 +142,13 @@ export const SatisfactionSurveyResults = (): CollectionConfig => ({
 			}
 		},
 		{
+			name: "officerTask",
+			label: "Officer Task",
+			type: "relationship",
+			relationTo: "officer-tasks",
+			unique: true
+		},
+		{
 			name: "answers",
 			label: "Answers",
 			type: "json",

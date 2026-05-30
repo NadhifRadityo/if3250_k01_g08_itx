@@ -12,8 +12,9 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 import { Skeleton } from "@/components/radix/Skeleton";
 
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { searchRelationSurveyResultsAction } from "../relation-navigation.actions";
-import { defaultRelationUserRenderer, defaultRelationSurveyRenderer } from "../relation-navigation.components";
+import { defaultRelationUserRenderer, defaultRelationSurveyRenderer, defaultRelationOfficerTaskRenderer } from "../relation-navigation.components";
 import { filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
@@ -121,7 +122,8 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "survey", label: "Survey", type: "relation", relationFilterConfigColumn: () => ["Survey", surveyFilterConfigColumns] },
-	{ key: "surveyVersion", label: "Survey Version", type: "text" }
+	{ key: "surveyVersion", label: "Survey Version", type: "text" },
+	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
@@ -133,6 +135,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "survey", label: "Survey" },
 	{ key: "surveyVersion", label: "Survey Version" },
+	{ key: "officerTask", label: "Officer Task" },
 	{ key: "answers", label: "Answers" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
@@ -145,6 +148,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "survey", label: "Survey", sortable: false },
 	{ key: "surveyVersion", label: "Survey Version", sortable: true },
+	{ key: "officerTask", label: "Officer Task", sortable: false },
 	{ key: "answers", label: "Answers", sortable: false }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
@@ -157,6 +161,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "survey-results.deletedBy" }) },
 	{ key: "survey", type: "relation", render: defaultRelationSurveyRenderer({ description: "Survey", relationSource: "survey-results.survey" }) },
 	{ key: "surveyVersion", type: "text" },
+	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "survey-results.officerTask" }) },
 	{ key: "answers", type: "text", render: defaultSurveyResultAnswersRenderer({ buttonLabel: "View answers", dialogTitle: "Survey Result Answers" }) }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
@@ -180,12 +185,14 @@ export const defaultColumnOrder = Object.freeze([
 	"deletedAt",
 	"survey",
 	"surveyVersion",
+	"officerTask",
 	"answers"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"updatedAt",
 	"survey",
 	"surveyVersion",
+	"officerTask",
 	"answers"
 ]) as string[];
 export const defaultColumnsSort = Object.freeze([
@@ -199,7 +206,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["survey-result", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id) as { row: ColumnData, relations: RelationValues },
+		queryFn: async () => await getDetailsAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});

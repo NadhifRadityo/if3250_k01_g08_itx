@@ -52,9 +52,9 @@ async function resolveRelations(
 	return relations;
 }
 
-async function queryAction(
-	{ mode, keyword, filters, columnsSort, pageIndex }:
-	{ mode: "monitoring" | "reporting", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
+export async function queryEvaluatorAction(
+	{ keyword, filters, columnsSort, pageIndex }:
+	{ keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
 ) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
@@ -69,10 +69,9 @@ async function queryAction(
 		limit: PAGE_LIMIT,
 		sort: columnsSort.map(([columnKey, ascending]) => `${!ascending ? "-" : ""}${columnKey}`),
 		where: { and: [
-			...(mode == "monitoring" ? [
-				{ createdAt: { greater_than_equal: new Date(new Date().setHours(0, 0, 0, 0)).toISOString() } },
-				{ createdAt: { less_than_equal: new Date(new Date().setHours(23, 59, 59, 999)).toISOString() } }
-			] : []),
+			{ evaluatedAt: { exists: false } },
+			{ cancelledAt: { exists: false } },
+			{ deletedAt: { exists: false } },
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
 				{ "creditApplicationAssignment.creditApplication.name": { like: keyword } },
@@ -89,41 +88,40 @@ async function queryAction(
 	return { ...result, relations };
 }
 
-export async function queryReportingAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
-	return await queryAction({ ...p, mode: "reporting" });
-}
-export async function queryMonitoringAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
-	return await queryAction({ ...p, mode: "monitoring" });
-}
-
-export async function getDetailsAction(id: string) {
+export async function evaluateAction(
+	{ id, decision, evaluationComment }:
+	{ id: string, decision: "approve" | "reject", evaluationComment: any }
+) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const result = await payload.findByID({
+	const officerTask = await payload.findByID({
 		user: user,
-		overrideAccess: false,
+		overrideAccess: true,
 		collection: "officer-tasks",
 		id: id,
-		depth: 0,
-		select: {
-			createdAt: true,
-			createdBy: true,
-			updatedAt: true,
-			updatedBy: true,
-			deletedAt: true,
-			deletedBy: true,
-			creditApplicationAssignment: true,
-			next: true,
-			cancelledAt: true,
-			evaluatedAt: true,
-			evaluatedBy: true,
-			evaluationApproved: true,
-			evaluationComment: true
+		draft: true,
+		trash: true,
+		depth: 0
+	});
+	if(officerTask.evaluatedAt != null)
+		throw new Error("This officer task has already been evaluated.");
+	if(officerTask.cancelledAt != null)
+		throw new Error("Cannot evaluate a cancelled officer task.");
+	await payload.update({
+		user: user,
+		overrideAccess: true,
+		collection: "officer-tasks",
+		id: id,
+		trash: true,
+		data: {
+			evaluatedAt: new Date().toISOString(),
+			evaluatedBy: user.id,
+			evaluationApproved: decision == "approve",
+			evaluationComment: evaluationComment
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
-	return { row: result, relations };
+	return { id: id };
 }

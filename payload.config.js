@@ -1,4 +1,6 @@
 import { postgresAdapter } from "@payloadcms/db-postgres";
+import { sql } from "@payloadcms/db-postgres";
+import { uniqueIndex } from "@payloadcms/db-postgres/drizzle";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig, databaseKVAdapter } from "payload";
 import sharp from "sharp";
@@ -29,7 +31,23 @@ export default buildConfig({
 	serverURL: process.env.PROJECT_WEB_ORIGIN,
 	db: postgresAdapter({
 		pool: { connectionString: process.env.PAYLOAD_POSTGRES },
-		idType: "uuid"
+		idType: "uuid",
+		afterSchemaInit: [
+			({ schema, extendTable }) => {
+				extendTable({
+					table: schema.tables["officer_tasks"],
+					extraConfig: t => ({
+						officerTaskActiveOrSettledUniqueIdx: uniqueIndex("officer_tasks_credit_application_assignment_active_settled_idx")
+							.on(t.creditApplicationAssignment)
+							.where(sql`("cancelled_at" IS NULL OR "evaluated_at" IS NOT NULL)`),
+						officerTaskTailUniqueIdx: uniqueIndex("officer_tasks_credit_application_assignment_tail_idx")
+							.on(t.creditApplicationAssignment)
+							.where(sql`"next_id" IS NULL`)
+					})
+				});
+				return schema;
+			}
+		]
 	}),
 	kv: databaseKVAdapter(),
 	sharp: sharp,

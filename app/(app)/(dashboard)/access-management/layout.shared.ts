@@ -311,11 +311,8 @@ export const collectionMaskFields = Object.freeze({
 		"survey": "relation",
 		"satisfactionSurvey": "relation",
 		"assignedDate": "date",
-		"surveyDate": "date",
-		"approvalDate": "date",
 		"dueDate": "date",
-		"rescheduleCount": "number",
-		"geofencingRegion": "generic",
+		"geofenceRegions": "generic",
 		"changeRequestType": "select",
 		"changeRequestComment": "richText",
 		"reviewedAt": "date",
@@ -331,8 +328,12 @@ export const collectionMaskFields = Object.freeze({
 		"deletedAt": "date",
 		"deletedBy": "relation",
 		"creditApplicationAssignment": "relation",
-		"surveyResult": "relation",
-		"satisfactionSurveyResult": "relation"
+		"next": "relation",
+		"cancelledAt": "date",
+		"evaluatedAt": "date",
+		"evaluatedBy": "relation",
+		"evaluationApproved": "generic",
+		"evaluationComment": "richText"
 	},
 	"surveys": {
 		"createdAt": "date",
@@ -360,6 +361,7 @@ export const collectionMaskFields = Object.freeze({
 		"deletedBy": "relation",
 		"survey": "relation",
 		"surveyVersion": "text",
+		"officerTask": "relation",
 		"answers": "generic"
 	},
 	"satisfaction-surveys": {
@@ -388,6 +390,7 @@ export const collectionMaskFields = Object.freeze({
 		"deletedBy": "relation",
 		"satisfactionSurvey": "relation",
 		"satisfactionSurveyVersion": "text",
+		"officerTask": "relation",
 		"answers": "generic"
 	},
 	"login-logs": {
@@ -480,8 +483,8 @@ export const collectionRelationFields = Object.freeze({
 		"updatedBy": "staged-users",
 		"deletedBy": "staged-users",
 		"creditApplicationAssignment": "credit-application-assignments",
-		"surveyResult": "survey-results",
-		"satisfactionSurveyResult": "satisfaction-survey-results"
+		"next": "officer-tasks",
+		"evaluatedBy": "staged-users"
 	},
 	"surveys": {
 		"createdBy": "staged-users",
@@ -493,7 +496,8 @@ export const collectionRelationFields = Object.freeze({
 		"createdBy": "staged-users",
 		"updatedBy": "staged-users",
 		"deletedBy": "staged-users",
-		"survey": "surveys"
+		"survey": "surveys",
+		"officerTask": "officer-tasks"
 	},
 	"satisfaction-surveys": {
 		"createdBy": "staged-users",
@@ -505,7 +509,8 @@ export const collectionRelationFields = Object.freeze({
 		"createdBy": "staged-users",
 		"updatedBy": "staged-users",
 		"deletedBy": "staged-users",
-		"satisfactionSurvey": "satisfaction-surveys"
+		"satisfactionSurvey": "satisfaction-surveys",
+		"officerTask": "officer-tasks"
 	},
 	"login-logs": {
 		"user": "staged-users"

@@ -1,5 +1,7 @@
 import { APIError, CollectionConfig } from "payload";
 
+import { getRelationshipId } from "@/utils/payload";
+
 import { ReviewRichTextEditor } from "./shared";
 
 export const CreditApplicationAssignments = (): CollectionConfig => ({
@@ -26,7 +28,7 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 	},
 	hooks: {
 		beforeChange: [
-			({ req, operation, data }) => {
+			({ req, operation, data, originalDoc }) => {
 				if(req.user == null)
 					return data;
 				if(data.deletedAt != null)
@@ -35,6 +37,43 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
 				if(operation == "update")
 					data = { updatedBy: req.user.id, ...data };
+				if(operation == "update" && originalDoc != null && data.creditApplication != null) {
+					const previousCreditApplicationId = getRelationshipId(originalDoc.creditApplication);
+					const nextCreditApplicationId = getRelationshipId(data.creditApplication);
+					if(previousCreditApplicationId != null && nextCreditApplicationId != null && previousCreditApplicationId != nextCreditApplicationId)
+						throw new APIError("Credit application cannot be modified after the assignment is created", 400, undefined, true);
+				}
+				return data;
+			},
+			async ({ req, req: { payload }, operation, data, originalDoc }) => {
+				const isActive = data.deletedAt == null && (
+					operation == "create" ||
+					(operation == "update" && (data.deletedAt != undefined ? data.deletedAt == null : originalDoc?.deletedAt == null))
+				);
+				if(!isActive)
+					return data;
+				const creditApplicationId = getRelationshipId(data.creditApplication ?? originalDoc?.creditApplication);
+				if(creditApplicationId == null)
+					return data;
+				const conflictWhere: any = { and: [
+					{ creditApplication: { equals: creditApplicationId } },
+					{ deletedAt: { exists: false } }
+				] };
+				if(operation == "update" && originalDoc?.id != null)
+					conflictWhere.and.push({ id: { not_equals: originalDoc.id } });
+				const conflict = await payload.find({
+					req: req,
+					overrideAccess: true,
+					collection: "credit-application-assignments",
+					trash: true,
+					pagination: false,
+					depth: 0,
+					limit: 1,
+					where: conflictWhere,
+					select: {}
+				});
+				if(conflict.docs.length > 0)
+					throw new APIError("Another active credit application assignment already exists for this credit application", 400, undefined, true);
 				return data;
 			}
 		],
@@ -44,6 +83,12 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			}
 		]
 	},
+	indexes: [
+		{
+			fields: ["creditApplication", "officer"],
+			unique: true
+		}
+	],
 	fields: [
 		// timestamps: createdAt
 		// timestamps: updatedAt
@@ -120,7 +165,6 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			type: "relationship",
 			relationTo: "credit-applications",
 			required: true,
-			unique: true,
 			index: true
 		},
 		{
@@ -152,24 +196,9 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			type: "date"
 		},
 		{
-			name: "surveyDate",
-			label: "Survey Date",
-			type: "date"
-		},
-		{
-			name: "approvalDate",
-			label: "Approval Date",
-			type: "date"
-		},
-		{
 			name: "dueDate",
 			label: "Due Date",
 			type: "date"
-		},
-		{
-			name: "rescheduleCount",
-			label: "Reschedule Count",
-			type: "number"
 		},
 		{
 			name: "geofenceRegions",

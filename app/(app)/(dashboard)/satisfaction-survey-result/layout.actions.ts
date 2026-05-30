@@ -9,13 +9,14 @@ import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { SatisfactionSurveyResult } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationUsers, resolveRelationSatisfactionSurveys } from "../relation-navigation.actions";
-import { RelationUser, RelationSatisfactionSurvey } from "../relation-navigation.shared";
+import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationSatisfactionSurveys } from "../relation-navigation.actions";
+import { RelationUser, RelationOfficerTask, RelationSatisfactionSurvey } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
 
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
-	Partial<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>>;
+	Partial<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> &
+	Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
 	{ payload, docs }:
@@ -24,6 +25,7 @@ async function resolveRelations(
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
 	const satisfactionSurveyIds = new Set<string>();
+	const officerTaskIds = new Set<string>();
 	for(const doc of docs) {
 		const createdBy = getRelationshipId(doc.createdBy);
 		if(createdBy != null)
@@ -37,10 +39,14 @@ async function resolveRelations(
 		const satisfactionSurvey = getRelationshipId(doc.satisfactionSurvey);
 		if(satisfactionSurvey != null)
 			satisfactionSurveyIds.add(satisfactionSurvey);
+		const officerTask = getRelationshipId(doc.officerTask);
+		if(officerTask != null)
+			officerTaskIds.add(officerTask);
 	}
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
 	Object.assign(relations, await resolveRelationSatisfactionSurveys({ payload, ids: [...satisfactionSurveyIds] }));
+	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -101,12 +107,17 @@ export async function getDetailsAction(id: string) {
 		depth: 0,
 		select: {
 			createdAt: true,
+			createdBy: true,
+			updatedAt: true,
+			updatedBy: true,
+			deletedAt: true,
+			deletedBy: true,
 			satisfactionSurvey: true,
-			creditApplication: true,
-			officer: true,
+			satisfactionSurveyVersion: true,
+			officerTask: true,
 			answers: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result as SatisfactionSurveyResult] });
+	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: result, relations };
 }

@@ -4,19 +4,24 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { getRelationshipId } from "@/utils/payload";
+import { SearchableSelect } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
+import { OfficerTask } from "@/payload-types";
 
 import { filterConfigColumns as creditApplicationAssignmentFilterConfigColumns } from "../credit-application-assignment/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
+import { searchRelationOfficerTasksAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
+import { FormState, queryExecutorAction } from "./executor.actions";
+import { RelationValues, getDetailsAction } from "./layout.actions";
 
-export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
+export type ColumnData = Awaited<ReturnType<typeof queryExecutorAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOfficerTasksAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
@@ -82,6 +87,11 @@ export const rowValueRendererConfigColumns = Object.freeze([
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;
+	isMutating?: boolean;
+	setEditFormDrawerState?: (v: FormState) => void;
+	setEditFormDrawerOpen?: (v: boolean) => void;
+	setCancelTargetRow?: (v: ColumnData | null) => void;
+	setRestoreTargetRow?: (v: ColumnData | null) => void;
 } & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",
@@ -122,8 +132,8 @@ export const defaultColumnsSort = Object.freeze([
 ]) as [string, boolean][];
 
 export function DetailsDrawer(
-	{ open, onOpenChange, row, rowValueRendererContext }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
+	{ open, onOpenChange, row, rowValueRendererContext, renderActions }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode }
 ) {
 	const query = useQuery({
 		queryKey: ["officer-task", "details", row?.id ?? null],
@@ -184,8 +194,126 @@ export function DetailsDrawer(
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
 						Close
 					</Button>
+					{row != null && renderActions != null ? (
+						renderActions(row)
+					) : null}
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
+	);
+}
+export function toFormState(data: OfficerTask) {
+	return {
+		id: data.id,
+		creditApplicationAssignment: getRelationshipId(data.creditApplicationAssignment),
+		next: getRelationshipId(data.next) ?? undefined
+	} as FormState;
+}
+export function FormDrawer(
+	{ open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: FormState, onFormStateChange: (v: FormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
+) {
+	return (
+		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
+			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
+				<DrawerHeader>
+					<DrawerTitle>{title}</DrawerTitle>
+					<DrawerDescription>Manage the officer task linkage to its credit application assignment and the next officer task in the chain.</DrawerDescription>
+				</DrawerHeader>
+				<div className="flex-1 overflow-y-auto px-4">
+					<div className="pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Credit Application Assignment</label>
+							<SearchableSelect
+								value={formState.creditApplicationAssignment!}
+								onValueChange={value => onFormStateChange({ ...formState, creditApplicationAssignment: value })}
+								options={[]}
+								onSearch={(keyword, selectedValues) => searchRelationCreditApplicationAssignmentsAction(keyword, selectedValues)
+									.then(creditApplicationAssignments => creditApplicationAssignments.map(creditApplicationAssignment => ({
+										value: creditApplicationAssignment.id,
+										label: creditApplicationAssignment.label
+									})))}
+								disabled={isMutating}
+								placeholder="Search credit application assignment"
+								searchPlaceholder="Search credit application assignment..."
+								allowClear
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Next</label>
+							<SearchableSelect
+								value={formState.next!}
+								onValueChange={value => onFormStateChange({ ...formState, next: value.length > 0 ? value : undefined })}
+								options={[]}
+								onSearch={(keyword, selectedValues) => searchRelationOfficerTasksAction(keyword, selectedValues)
+									.then(officerTasks => officerTasks.map(officerTask => ({
+										value: officerTask.id,
+										label: officerTask.label
+									})))}
+								disabled={isMutating}
+								placeholder="Search next officer task"
+								searchPlaceholder="Search next officer task..."
+								allowClear
+							/>
+						</div>
+						{mutationError != null ? (
+							<Alert variant="destructive" className="sm:col-span-2">
+								<CircleAlertIcon />
+								<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
+								<AlertDescription>{`${mutationError?.message ?? "Unable to submit form."}`}</AlertDescription>
+							</Alert>
+						) : null}
+					</div>
+				</div>
+				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
+					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
+				</DrawerFooter>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
+export function CancelDialog(
+	{ open, onOpenChange, onConfirm, isMutating }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating: boolean }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Cancel Officer Task</AlertDialogTitle>
+					<AlertDialogDescription>
+						This will mark the officer task as cancelled by setting cancelledAt.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Cancel</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+export function RestoreDialog(
+	{ open, onOpenChange, onConfirm, isMutating }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating: boolean }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Restore Officer Task</AlertDialogTitle>
+					<AlertDialogDescription>
+						This will clear cancelledAt to restore the officer task.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Restore</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
 	);
 }

@@ -17,6 +17,12 @@ export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
 	Partial<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> &
 	Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
+export type FormState = {
+	id?: string;
+	creditApplicationAssignment?: string;
+	next?: string;
+};
+
 async function resolveRelations(
 	{ payload, docs }:
 	{ payload?: Payload, docs: OfficerTask[] }
@@ -52,9 +58,9 @@ async function resolveRelations(
 	return relations;
 }
 
-async function queryAction(
-	{ mode, keyword, filters, columnsSort, pageIndex }:
-	{ mode: "monitoring" | "reporting", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
+export async function queryExecutorAction(
+	{ keyword, filters, columnsSort, includeDeleted, pageIndex }:
+	{ keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], includeDeleted: boolean, pageIndex: number }
 ) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
@@ -64,14 +70,14 @@ async function queryAction(
 		user: user,
 		overrideAccess: false,
 		collection: "officer-tasks",
-		depth: 0,
+		trash: true,
 		page: pageIndex,
 		limit: PAGE_LIMIT,
+		depth: 0,
 		sort: columnsSort.map(([columnKey, ascending]) => `${!ascending ? "-" : ""}${columnKey}`),
 		where: { and: [
-			...(mode == "monitoring" ? [
-				{ createdAt: { greater_than_equal: new Date(new Date().setHours(0, 0, 0, 0)).toISOString() } },
-				{ createdAt: { less_than_equal: new Date(new Date().setHours(23, 59, 59, 999)).toISOString() } }
+			...(!includeDeleted ? [
+				{ deletedAt: { exists: false } }
 			] : []),
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
@@ -89,41 +95,129 @@ async function queryAction(
 	return { ...result, relations };
 }
 
-export async function queryReportingAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
-	return await queryAction({ ...p, mode: "reporting" });
-}
-export async function queryMonitoringAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
-	return await queryAction({ ...p, mode: "monitoring" });
-}
-
-export async function getDetailsAction(id: string) {
+export async function upsertAction(formState: FormState) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const result = await payload.findByID({
+	if(formState.creditApplicationAssignment == null || formState.creditApplicationAssignment.trim().length == 0)
+		throw new Error("Credit application assignment is required.");
+	const creditApplicationAssignment = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "officer-tasks",
-		id: id,
+		collection: "credit-application-assignments",
+		id: formState.creditApplicationAssignment,
 		depth: 0,
 		select: {
-			createdAt: true,
-			createdBy: true,
-			updatedAt: true,
-			updatedBy: true,
-			deletedAt: true,
-			deletedBy: true,
-			creditApplicationAssignment: true,
-			next: true,
-			cancelledAt: true,
-			evaluatedAt: true,
-			evaluatedBy: true,
-			evaluationApproved: true,
-			evaluationComment: true
+			_status: true,
+			deletedAt: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
-	return { row: result, relations };
+	if(creditApplicationAssignment._status != "published" || creditApplicationAssignment.deletedAt != null)
+		throw new Error("Selected credit application assignment must be an active published credit application assignment.");
+
+	if(formState.id == null) {
+		const created = await payload.create({
+			user: user,
+			collection: "officer-tasks",
+			overrideAccess: true,
+			data: {
+				_status: "published",
+				deletedAt: null,
+				deletedBy: null,
+				creditApplicationAssignment: formState.creditApplicationAssignment,
+				next: formState.next ?? null,
+				cancelledAt: null,
+				evaluatedAt: null,
+				evaluatedBy: null,
+				evaluationApproved: null,
+				evaluationComment: null
+			}
+		});
+		return { id: created.id };
+	}
+	await payload.update({
+		user: user,
+		collection: "officer-tasks",
+		id: formState.id,
+		overrideAccess: true,
+		trash: true,
+		data: {
+			_status: "published",
+			deletedAt: null,
+			deletedBy: null,
+			creditApplicationAssignment: formState.creditApplicationAssignment,
+			next: formState.next ?? null
+		}
+	});
+	return { id: formState.id };
+}
+
+export async function cancelAction(
+	{ id }:
+	{ id: string }
+) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const officerTask = await payload.findByID({
+		user: user,
+		overrideAccess: true,
+		collection: "officer-tasks",
+		id: id,
+		draft: true,
+		trash: true,
+		depth: 0
+	});
+	if(officerTask.cancelledAt != null)
+		throw new Error("Officer task is already cancelled.");
+	if(officerTask.evaluatedAt != null)
+		throw new Error("Cannot cancel an evaluated officer task.");
+	await payload.update({
+		user: user,
+		overrideAccess: true,
+		collection: "officer-tasks",
+		id: id,
+		trash: true,
+		data: {
+			cancelledAt: new Date().toISOString()
+		}
+	});
+	return { id: id };
+}
+
+export async function restoreAction(
+	{ id }:
+	{ id: string }
+) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const officerTask = await payload.findByID({
+		user: user,
+		overrideAccess: true,
+		collection: "officer-tasks",
+		id: id,
+		draft: true,
+		trash: true,
+		depth: 0
+	});
+	if(officerTask.cancelledAt == null)
+		throw new Error("Officer task is not cancelled.");
+	await payload.update({
+		user: user,
+		overrideAccess: true,
+		collection: "officer-tasks",
+		id: id,
+		trash: true,
+		data: {
+			cancelledAt: null
+		}
+	});
+	return { id: id };
 }

@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, Al
 import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
+import { Input } from "@/components/radix/Input";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { CreditApplicationAssignment } from "@/payload-types";
 
@@ -47,10 +48,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "survey", label: "Survey", type: "relation", relationFilterConfigColumn: () => ["Survey", surveyFilterConfigColumns] },
 	{ key: "satisfactionSurvey", label: "Satisfaction Survey", type: "relation", relationFilterConfigColumn: () => ["Satisfaction Survey", satisfactionSurveyFilterConfigColumns] },
 	{ key: "assignedDate", label: "Assigned Date", type: "date" },
-	{ key: "surveyDate", label: "Survey Date", type: "date" },
-	{ key: "approvalDate", label: "Approval Date", type: "date" },
 	{ key: "dueDate", label: "Due Date", type: "date" },
-	{ key: "rescheduleCount", label: "Reschedule Count", type: "number" },
 	{ key: "changeRequestType", label: "Request", type: "select", selectOptions: changeRequestTypeSelectOptions },
 	{ key: "reviewedAt", label: "Reviewed At", type: "date" },
 	{ key: "reviewedBy", label: "Reviewed By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
@@ -69,10 +67,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "survey", label: "Survey" },
 	{ key: "satisfactionSurvey", label: "Satisfaction Survey" },
 	{ key: "assignedDate", label: "Assigned Date" },
-	{ key: "surveyDate", label: "Survey Date" },
-	{ key: "approvalDate", label: "Approval Date" },
 	{ key: "dueDate", label: "Due Date" },
-	{ key: "rescheduleCount", label: "Reschedule Count" },
 	{ key: "geofenceRegions", label: "Geofence Regions" },
 	{ key: "changeRequestType", label: "Request" },
 	{ key: "changeRequestComment", label: "Change Request Comment" },
@@ -95,10 +90,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "survey", label: "Survey", sortable: false },
 	{ key: "satisfactionSurvey", label: "Satisfaction Survey", sortable: false },
 	{ key: "assignedDate", label: "Assigned Date", sortable: true },
-	{ key: "surveyDate", label: "Survey Date", sortable: true },
-	{ key: "approvalDate", label: "Approval Date", sortable: true },
 	{ key: "dueDate", label: "Due Date", sortable: true },
-	{ key: "rescheduleCount", label: "Reschedule Count", sortable: true },
 	{ key: "geofenceRegions", label: "Geofence Regions", sortable: false },
 	{ key: "changeRequestType", label: "Request", sortable: true },
 	{ key: "changeRequestComment", label: "Change Request Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
@@ -121,10 +113,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "survey", type: "relation", render: defaultRelationSurveyRenderer({ description: "Survey", relationSource: "credit-application-assignments.survey" }) },
 	{ key: "satisfactionSurvey", type: "relation", render: defaultRelationSatisfactionSurveyRenderer({ description: "Satisfaction Survey", relationSource: "credit-application-assignments.satisfactionSurvey" }) },
 	{ key: "assignedDate", type: "date" },
-	{ key: "surveyDate", type: "date" },
-	{ key: "approvalDate", type: "date" },
 	{ key: "dueDate", type: "date" },
-	{ key: "rescheduleCount", type: "number" },
 	{ key: "geofenceRegions", type: "null", render: defaultGeofenceRegionsRenderer({ buttonLabel: "View content", dialogTitle: "Geofence Regions" }) },
 	{ key: "changeRequestType", type: "select", selectOptions: changeRequestTypeSelectOptions, render: defaultChangeRequestRenderer() },
 	{ key: "changeRequestComment", type: "richText" },
@@ -151,10 +140,7 @@ export type RowValueRendererContext = {
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",
 	"assignedDate",
-	"surveyDate",
-	"approvalDate",
 	"dueDate",
-	"rescheduleCount",
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
@@ -169,10 +155,7 @@ export const defaultColumnOrder = Object.freeze([
 	"survey",
 	"satisfactionSurvey",
 	"assignedDate",
-	"surveyDate",
-	"approvalDate",
 	"dueDate",
-	"rescheduleCount",
 	"geofenceRegions",
 	"createdBy",
 	"updatedBy",
@@ -194,8 +177,6 @@ export const defaultColumnsShown = Object.freeze([
 	"survey",
 	"satisfactionSurvey",
 	"assignedDate",
-	"surveyDate",
-	"approvalDate",
 	"dueDate",
 	"changeRequestType",
 	"#status",
@@ -582,10 +563,7 @@ export type FormState = {
 	survey?: string;
 	satisfactionSurvey?: string;
 	assignedDate?: string;
-	surveyDate?: string;
-	approvalDate?: string;
 	dueDate?: string;
-	rescheduleCount?: number;
 	geofenceRegions?: any;
 	changeRequestComment?: any;
 };
@@ -597,6 +575,9 @@ export function toFormState(data: CreditApplicationAssignment) {
 		officer: getRelationshipId(data.officer),
 		survey: getRelationshipId(data.survey),
 		satisfactionSurvey: getRelationshipId(data.satisfactionSurvey),
+		assignedDate: data.assignedDate ?? undefined,
+		dueDate: data.dueDate ?? undefined,
+		geofenceRegions: data.geofenceRegions,
 		changeRequestComment: data.changeRequestComment
 	} as FormState;
 }
@@ -702,6 +683,14 @@ export function FormDrawer(
 								searchPlaceholder="Search satisfaction survey..."
 								allowClear
 							/>
+						</div>
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Assigned Date</label>
+							<Input type="date" value={formState.assignedDate ?? ""} onChange={event => onFormStateChange({ ...formState, assignedDate: event.target.value.length > 0 ? event.target.value : undefined })} disabled={isMutating} />
+						</div>
+						<div className="space-y-2">
+							<label className="text-sm font-medium">Due Date</label>
+							<Input type="date" value={formState.dueDate ?? ""} onChange={event => onFormStateChange({ ...formState, dueDate: event.target.value.length > 0 ? event.target.value : undefined })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">

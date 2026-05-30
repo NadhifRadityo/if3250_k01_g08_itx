@@ -12,8 +12,9 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 import { Skeleton } from "@/components/radix/Skeleton";
 
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { searchRelationSatisfactionSurveyResultsAction } from "../relation-navigation.actions";
-import { defaultRelationUserRenderer, defaultRelationSatisfactionSurveyRenderer } from "../relation-navigation.components";
+import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationSatisfactionSurveyRenderer } from "../relation-navigation.components";
 import { filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
@@ -121,7 +122,8 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "satisfactionSurvey", label: "Satisfaction Survey", type: "relation", relationFilterConfigColumn: () => ["Satisfaction Survey", satisfactionSurveyFilterConfigColumns] },
-	{ key: "satisfactionSurveyVersion", label: "Survey Version", type: "text" }
+	{ key: "satisfactionSurveyVersion", label: "Survey Version", type: "text" },
+	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
@@ -133,6 +135,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "satisfactionSurvey", label: "Satisfaction Survey" },
 	{ key: "satisfactionSurveyVersion", label: "Satisfaction Survey Version" },
+	{ key: "officerTask", label: "Officer Task" },
 	{ key: "answers", label: "Answers" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
@@ -145,6 +148,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "satisfactionSurvey", label: "Satisfaction Survey", sortable: false },
 	{ key: "satisfactionSurveyVersion", label: "Satisfaction Survey Version", sortable: true },
+	{ key: "officerTask", label: "Officer Task", sortable: false },
 	{ key: "answers", label: "Answers", sortable: false }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
@@ -157,6 +161,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "survey-results.deletedBy" }) },
 	{ key: "satisfactionSurvey", type: "relation", render: defaultRelationSatisfactionSurveyRenderer({ description: "Satisfaction Survey", relationSource: "satisfaction-survey-results.satisfactionSurvey" }) },
 	{ key: "satisfactionSurveyVersion", type: "text" },
+	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "satisfaction-survey-results.officerTask" }) },
 	{ key: "answers", type: "text", render: defaultSurveyResultAnswersRenderer({ buttonLabel: "View answers", dialogTitle: "Satisfaction Survey Result Answers" }) }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
@@ -180,12 +185,14 @@ export const defaultColumnOrder = Object.freeze([
 	"deletedAt",
 	"satisfactionSurvey",
 	"satisfactionSurveyVersion",
+	"officerTask",
 	"answers"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"updatedAt",
 	"satisfactionSurvey",
 	"satisfactionSurveyVersion",
+	"officerTask",
 	"answers"
 ]) as string[];
 export const defaultColumnsSort = Object.freeze([
@@ -199,7 +206,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["satisfaction-survey-result", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id) as { row: ColumnData, relations: RelationValues },
+		queryFn: async () => await getDetailsAction(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});

@@ -1,5 +1,9 @@
 import { APIError, CollectionConfig } from "payload";
 
+import { getRelationshipId } from "@/utils/payload";
+
+import { ReviewRichTextEditor } from "./shared";
+
 export const OfficerTasks = (): CollectionConfig => ({
 	slug: "officer-tasks",
 	labels: {
@@ -27,6 +31,30 @@ export const OfficerTasks = (): CollectionConfig => ({
 					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
 				if(operation == "update")
 					data = { updatedBy: req.user.id, ...data };
+				return data;
+			},
+			async ({ req, req: { payload }, data, originalDoc }) => {
+				const nextId = getRelationshipId(data.next ?? originalDoc?.next);
+				if(nextId == null)
+					return data;
+				const creditApplicationAssignmentId = getRelationshipId(data.creditApplicationAssignment ?? originalDoc?.creditApplicationAssignment);
+				if(creditApplicationAssignmentId == null)
+					return data;
+				if(originalDoc?.id != null && nextId == originalDoc.id)
+					throw new APIError("Officer task cannot reference itself as next", 400, undefined, true);
+				const next = await payload.findByID({
+					req: req,
+					overrideAccess: true,
+					collection: "officer-tasks",
+					id: nextId,
+					draft: true,
+					trash: true,
+					depth: 0,
+					select: { creditApplicationAssignment: true }
+				});
+				const nextCreditApplicationAssignmentId = getRelationshipId(next.creditApplicationAssignment);
+				if(nextCreditApplicationAssignmentId != creditApplicationAssignmentId)
+					throw new APIError("Next officer task must belong to the same credit application assignment", 400, undefined, true);
 				return data;
 			}
 		],
@@ -111,22 +139,41 @@ export const OfficerTasks = (): CollectionConfig => ({
 			label: "Credit Application Assignment",
 			type: "relationship",
 			relationTo: "credit-application-assignments",
-			required: true,
+			required: true
+		},
+		{
+			name: "next",
+			label: "Next",
+			type: "relationship",
+			relationTo: "officer-tasks",
 			unique: true
 		},
 		{
-			name: "surveyResult",
-			label: "Survey Result",
-			type: "relationship",
-			relationTo: "survey-results",
-			unique: true
+			name: "cancelledAt",
+			label: "Cancelled At",
+			type: "date"
 		},
 		{
-			name: "satisfactionSurveyResult",
-			label: "Satisfaction Survey Result",
+			name: "evaluatedAt",
+			label: "Evaluated At",
+			type: "date"
+		},
+		{
+			name: "evaluatedBy",
+			label: "Evaluated By",
 			type: "relationship",
-			relationTo: "satisfaction-survey-results",
-			unique: true
+			relationTo: "users"
+		},
+		{
+			name: "evaluationApproved",
+			label: "Evaluation Approved",
+			type: "checkbox"
+		},
+		{
+			name: "evaluationComment",
+			label: "Evaluation Comment",
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		}
 	]
 });

@@ -282,9 +282,10 @@ export interface Role {
     | 'satisfaction-survey-management#approver'
     | 'satisfaction-survey-result#monitoring'
     | 'satisfaction-survey-result#reporting'
-    | 'officer-task#viewer'
     | 'officer-task#monitoring'
     | 'officer-task#reporting'
+    | 'officer-task#executor'
+    | 'officer-task#evaluator'
     | 'officer-tracking#monitoring'
     | 'officer-tracking#reporting'
     | 'login-log#monitoring'
@@ -767,10 +768,7 @@ export interface CreditApplicationAssignment {
   survey: string | Survey;
   satisfactionSurvey: string | SatisfactionSurvey;
   assignedDate?: string | null;
-  surveyDate?: string | null;
-  approvalDate?: string | null;
   dueDate?: string | null;
-  rescheduleCount?: number | null;
   geofenceRegions?:
     | {
         [k: string]: unknown;
@@ -975,8 +973,28 @@ export interface OfficerTask {
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
   creditApplicationAssignment: string | CreditApplicationAssignment;
-  surveyResult?: (string | null) | SurveyResult;
-  satisfactionSurveyResult?: (string | null) | SatisfactionSurveyResult;
+  creditApplicationAssignmentVersion: string;
+  next?: (string | null) | OfficerTask;
+  settledAt?: string | null;
+  settlementStatus?: ('finished' | 'cancelled') | null;
+  evaluatedAt?: string | null;
+  evaluatedBy?: (string | null) | User;
+  evaluationApproved?: boolean | null;
+  evaluationComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -993,6 +1011,7 @@ export interface SurveyResult {
   deletedBy?: (string | null) | User;
   survey: string | Survey;
   surveyVersion: string;
+  officerTask?: (string | null) | OfficerTask;
   answers:
     | {
         [k: string]: unknown;
@@ -1018,6 +1037,7 @@ export interface SatisfactionSurveyResult {
   deletedBy?: (string | null) | User;
   satisfactionSurvey: string | SatisfactionSurvey;
   satisfactionSurveyVersion: string;
+  officerTask?: (string | null) | OfficerTask;
   answers:
     | {
         [k: string]: unknown;
@@ -1674,10 +1694,7 @@ export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
   survey?: T;
   satisfactionSurvey?: T;
   assignedDate?: T;
-  surveyDate?: T;
-  approvalDate?: T;
   dueDate?: T;
-  rescheduleCount?: T;
   geofenceRegions?: T;
   changeRequestType?: T;
   changeRequestComment?: T;
@@ -1699,8 +1716,14 @@ export interface OfficerTasksSelect<T extends boolean = true> {
   deletedAt?: T;
   deletedBy?: T;
   creditApplicationAssignment?: T;
-  surveyResult?: T;
-  satisfactionSurveyResult?: T;
+  creditApplicationAssignmentVersion?: T;
+  next?: T;
+  settledAt?: T;
+  settlementStatus?: T;
+  evaluatedAt?: T;
+  evaluatedBy?: T;
+  evaluationApproved?: T;
+  evaluationComment?: T;
   _status?: T;
 }
 /**
@@ -1738,6 +1761,7 @@ export interface SurveyResultsSelect<T extends boolean = true> {
   deletedBy?: T;
   survey?: T;
   surveyVersion?: T;
+  officerTask?: T;
   answers?: T;
   _status?: T;
 }
@@ -1776,6 +1800,7 @@ export interface SatisfactionSurveyResultsSelect<T extends boolean = true> {
   deletedBy?: T;
   satisfactionSurvey?: T;
   satisfactionSurveyVersion?: T;
+  officerTask?: T;
   answers?: T;
   _status?: T;
 }
