@@ -70,7 +70,7 @@ export async function queryEvaluatorAction(
 		sort: columnsSort.map(([columnKey, ascending]) => `${!ascending ? "-" : ""}${columnKey}`),
 		where: { and: [
 			{ evaluatedAt: { exists: false } },
-			{ cancelledAt: { exists: false } },
+			{ settledAt: { exists: false } },
 			{ deletedAt: { exists: false } },
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
@@ -108,8 +108,8 @@ export async function evaluateAction(
 	});
 	if(officerTask.evaluatedAt != null)
 		throw new Error("This officer task has already been evaluated.");
-	if(officerTask.cancelledAt != null)
-		throw new Error("Cannot evaluate a cancelled officer task.");
+	if(officerTask.settledAt != null)
+		throw new Error("Cannot evaluate a settled officer task.");
 	await payload.update({
 		user: user,
 		overrideAccess: true,
@@ -117,6 +117,8 @@ export async function evaluateAction(
 		id: id,
 		trash: true,
 		data: {
+			settledAt: new Date().toISOString(),
+			settlementStatus: "finished",
 			evaluatedAt: new Date().toISOString(),
 			evaluatedBy: user.id,
 			evaluationApproved: decision == "approve",

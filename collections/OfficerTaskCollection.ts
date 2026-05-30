@@ -142,6 +142,29 @@ export const OfficerTasks = (): CollectionConfig => ({
 			required: true
 		},
 		{
+			name: "creditApplicationAssignmentVersion",
+			label: "Credit Application Assignment Version",
+			type: "text",
+			required: true,
+			hooks: {
+				beforeChange: [
+					async ({ value, previousValue, data, originalDoc, req, req: { payload } }) => {
+						const version = await payload.findVersionByID({
+							req: req,
+							disableErrors: true,
+							overrideAccess: true,
+							collection: "credit-application-assignments",
+							id: value ?? previousValue,
+							depth: 0,
+							select: { parent: true }
+						});
+						if(version == null || version.parent != (data?.creditApplicationAssignment ?? originalDoc.creditApplicationAssignment))
+							throw new APIError("Invalid credit application assignment version", 400, undefined, true);
+					}
+				]
+			}
+		},
+		{
 			name: "next",
 			label: "Next",
 			type: "relationship",
@@ -149,9 +172,18 @@ export const OfficerTasks = (): CollectionConfig => ({
 			unique: true
 		},
 		{
-			name: "cancelledAt",
-			label: "Cancelled At",
+			name: "settledAt",
+			label: "Settled At",
 			type: "date"
+		},
+		{
+			name: "settlementStatus",
+			label: "Settlement Status",
+			type: "select",
+			options: [
+				{ value: "finished", label: "Finished" },
+				{ value: "cancelled", label: "Cancelled" }
+			]
 		},
 		{
 			name: "evaluatedAt",

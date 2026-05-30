@@ -19,6 +19,7 @@ import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaul
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { queryEvaluatorAction } from "./evaluator.actions";
 import { RelationValues, getDetailsAction } from "./layout.actions";
+import { settlementStatusSelectOptions } from "./layout.shared";
 
 export type ColumnData = Awaited<ReturnType<typeof queryEvaluatorAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -30,8 +31,10 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment", type: "relation", relationFilterConfigColumn: () => ["Credit Application Assignment", creditApplicationAssignmentFilterConfigColumns] },
+	{ key: "creditApplicationAssignmentVersion", label: "Credit Application Assignment Version", type: "text" },
 	{ key: "next", label: "Next", type: "relation", relationSearch: searchRelationOfficerTasksAction },
-	{ key: "cancelledAt", label: "Cancelled At", type: "date" },
+	{ key: "settledAt", label: "Settled At", type: "date" },
+	{ key: "settlementStatus", label: "Settlement Status", type: "select", selectOptions: settlementStatusSelectOptions },
 	{ key: "evaluatedAt", label: "Evaluated At", type: "date" },
 	{ key: "evaluatedBy", label: "Evaluated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "evaluationApproved", label: "Evaluation Approved", type: "boolean" }
@@ -45,8 +48,10 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At" },
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment" },
+	{ key: "creditApplicationAssignmentVersion", label: "Credit Application Assignment Version" },
 	{ key: "next", label: "Next" },
-	{ key: "cancelledAt", label: "Cancelled At" },
+	{ key: "settledAt", label: "Settled At" },
+	{ key: "settlementStatus", label: "Settlement Status" },
 	{ key: "evaluatedAt", label: "Evaluated At" },
 	{ key: "evaluatedBy", label: "Evaluated By" },
 	{ key: "evaluationApproved", label: "Evaluation Approved" },
@@ -61,8 +66,10 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", sortable: true },
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment", sortable: false },
+	{ key: "creditApplicationAssignmentVersion", label: "Credit Application Assignment Version", sortable: true },
 	{ key: "next", label: "Next", sortable: false },
-	{ key: "cancelledAt", label: "Cancelled At", sortable: true },
+	{ key: "settledAt", label: "Settled At", sortable: true },
+	{ key: "settlementStatus", label: "Settlement Status", sortable: true },
 	{ key: "evaluatedAt", label: "Evaluated At", sortable: true },
 	{ key: "evaluatedBy", label: "Evaluated By", sortable: false },
 	{ key: "evaluationApproved", label: "Evaluation Approved", sortable: true },
@@ -77,8 +84,10 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedAt", type: "date" },
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "officer-tasks.deletedBy" }) },
 	{ key: "creditApplicationAssignment", type: "relation", render: defaultRelationCreditApplicationAssignmentRenderer({ description: "Credit Application Assignment", relationSource: "officer-tasks.creditApplicationAssignment" }) },
+	{ key: "creditApplicationAssignmentVersion", type: "text" },
 	{ key: "next", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Next", relationSource: "officer-tasks.next" }) },
-	{ key: "cancelledAt", type: "date" },
+	{ key: "settledAt", type: "date" },
+	{ key: "settlementStatus", type: "select", selectOptions: settlementStatusSelectOptions },
 	{ key: "evaluatedAt", type: "date" },
 	{ key: "evaluatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Evaluated By", relationSource: "officer-tasks.evaluatedBy" }) },
 	{ key: "evaluationApproved", type: "boolean" },
@@ -95,7 +104,9 @@ export const eligibleDetailsTriggerColumns = Object.freeze([
 	"createdAt",
 	"updatedAt",
 	"deletedAt",
-	"cancelledAt",
+	"creditApplicationAssignmentVersion",
+	"settledAt",
+	"settlementStatus",
 	"evaluatedAt",
 	"evaluationApproved"
 ]);
@@ -103,8 +114,10 @@ export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 export const defaultColumnOrder = Object.freeze([
 	"id",
 	"creditApplicationAssignment",
+	"creditApplicationAssignmentVersion",
 	"next",
-	"cancelledAt",
+	"settledAt",
+	"settlementStatus",
 	"evaluatedAt",
 	"evaluatedBy",
 	"evaluationApproved",
@@ -119,7 +132,9 @@ export const defaultColumnOrder = Object.freeze([
 export const defaultColumnsShown = Object.freeze([
 	"id",
 	"creditApplicationAssignment",
-	"cancelledAt",
+	"creditApplicationAssignmentVersion",
+	"settledAt",
+	"settlementStatus",
 	"evaluatedAt",
 	"evaluationApproved",
 	"updatedAt"

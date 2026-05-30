@@ -38,13 +38,13 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 					Edit
 				</Button>
 			) : null}
-			{row.deletedAt == null && row.evaluatedAt == null && row.cancelledAt == null ? (
+			{row.deletedAt == null && row.evaluatedAt == null && row.settledAt == null ? (
 				<Button type="button" size="sm" variant="destructive" onClick={() => setCancelTargetRow!(row)} disabled={isMutating}>
 					<XIcon />
 					Cancel
 				</Button>
 			) : null}
-			{row.deletedAt == null && row.evaluatedAt == null && row.cancelledAt != null ? (
+			{row.deletedAt == null && row.evaluatedAt == null && row.settlementStatus == "cancelled" ? (
 				<Button type="button" size="sm" variant="secondary" onClick={() => setRestoreTargetRow!(row)} disabled={isMutating}>
 					<HistoryIcon />
 					Restore

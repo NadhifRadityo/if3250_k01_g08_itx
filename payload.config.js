@@ -1,6 +1,6 @@
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { sql } from "@payloadcms/db-postgres";
-import { uniqueIndex } from "@payloadcms/db-postgres/drizzle";
+import { check, uniqueIndex } from "@payloadcms/db-postgres/drizzle";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig, databaseKVAdapter } from "payload";
 import sharp from "sharp";
@@ -37,12 +37,25 @@ export default buildConfig({
 				extendTable({
 					table: schema.tables["officer_tasks"],
 					extraConfig: t => ({
-						officerTaskActiveOrSettledUniqueIdx: uniqueIndex("officer_tasks_credit_application_assignment_active_settled_idx")
-							.on(t.creditApplicationAssignment)
-							.where(sql`("cancelled_at" IS NULL OR "evaluated_at" IS NOT NULL)`),
 						officerTaskTailUniqueIdx: uniqueIndex("officer_tasks_credit_application_assignment_tail_idx")
 							.on(t.creditApplicationAssignment)
-							.where(sql`"next_id" IS NULL`)
+							.where(sql`"next_id" IS NULL`),
+						officerTaskActiveImpliesTailCheck: check(
+							"officer_tasks_active_implies_tail_check",
+							sql`"settled_at" IS NOT NULL OR "next_id" IS NULL`
+						),
+						officerTaskApprovedImpliesTailCheck: check(
+							"officer_tasks_approved_implies_tail_check",
+							sql`"evaluation_approved" IS NOT TRUE OR "next_id" IS NULL`
+						),
+						officerTaskEvaluatedRequiresFinishedCheck: check(
+							"officer_tasks_evaluated_requires_finished_check",
+							sql`"evaluated_at" IS NULL OR "settlement_status" = 'finished'`
+						),
+						officerTaskFinishedWithSuccessorRequiresRejectedCheck: check(
+							"officer_tasks_finished_with_successor_requires_rejected_check",
+							sql`"settlement_status" IS DISTINCT FROM 'finished' OR "next_id" IS NULL OR "evaluation_approved" IS FALSE`
+						)
 					})
 				});
 				return schema;

@@ -29,7 +29,7 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 			size="sm"
 			variant="default"
 			onClick={() => { setEvaluateDrawerRow!(row); setEvaluateDrawerOpen!(true); }}
-			disabled={row.evaluatedAt != null || row.cancelledAt != null || isMutating}
+			disabled={row.evaluatedAt != null || row.settledAt != null || isMutating}
 		>
 			<CheckIcon />
 			Evaluate

@@ -116,6 +116,22 @@ export async function upsertAction(formState: FormState) {
 	});
 	if(creditApplicationAssignment._status != "published" || creditApplicationAssignment.deletedAt != null)
 		throw new Error("Selected credit application assignment must be an active published credit application assignment.");
+	const creditApplicationAssignmentVersion = (await payload.findVersions({
+		user: user,
+		overrideAccess: true,
+		collection: "credit-application-assignments",
+		pagination: false,
+		limit: 1,
+		depth: 0,
+		sort: "-updatedAt",
+		where: { and: [
+			{ parent: { equals: formState.creditApplicationAssignment } },
+			{ "version._status": { equals: "published" } }
+		] },
+		select: {}
+	})).docs[0];
+	if(creditApplicationAssignmentVersion == null)
+		throw new Error("Selected credit application assignment has no published version.");
 
 	if(formState.id == null) {
 		const created = await payload.create({
@@ -127,8 +143,10 @@ export async function upsertAction(formState: FormState) {
 				deletedAt: null,
 				deletedBy: null,
 				creditApplicationAssignment: formState.creditApplicationAssignment,
+				creditApplicationAssignmentVersion: creditApplicationAssignmentVersion.id,
 				next: formState.next ?? null,
-				cancelledAt: null,
+				settledAt: null,
+				settlementStatus: null,
 				evaluatedAt: null,
 				evaluatedBy: null,
 				evaluationApproved: null,
@@ -148,6 +166,7 @@ export async function upsertAction(formState: FormState) {
 			deletedAt: null,
 			deletedBy: null,
 			creditApplicationAssignment: formState.creditApplicationAssignment,
+			creditApplicationAssignmentVersion: creditApplicationAssignmentVersion.id,
 			next: formState.next ?? null
 		}
 	});
@@ -172,8 +191,8 @@ export async function cancelAction(
 		trash: true,
 		depth: 0
 	});
-	if(officerTask.cancelledAt != null)
-		throw new Error("Officer task is already cancelled.");
+	if(officerTask.settledAt != null)
+		throw new Error("Officer task is already settled.");
 	if(officerTask.evaluatedAt != null)
 		throw new Error("Cannot cancel an evaluated officer task.");
 	await payload.update({
@@ -183,7 +202,8 @@ export async function cancelAction(
 		id: id,
 		trash: true,
 		data: {
-			cancelledAt: new Date().toISOString()
+			settledAt: new Date().toISOString(),
+			settlementStatus: "cancelled"
 		}
 	});
 	return { id: id };
@@ -207,7 +227,7 @@ export async function restoreAction(
 		trash: true,
 		depth: 0
 	});
-	if(officerTask.cancelledAt == null)
+	if(officerTask.settledAt == null || officerTask.settlementStatus != "cancelled")
 		throw new Error("Officer task is not cancelled.");
 	await payload.update({
 		user: user,
@@ -216,7 +236,8 @@ export async function restoreAction(
 		id: id,
 		trash: true,
 		data: {
-			cancelledAt: null
+			settledAt: null,
+			settlementStatus: null
 		}
 	});
 	return { id: id };
