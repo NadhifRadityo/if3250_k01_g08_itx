@@ -977,6 +977,21 @@ export interface OfficerTask {
   next?: (string | null) | OfficerTask;
   settledAt?: string | null;
   settlementStatus?: ('finished' | 'cancelled') | null;
+  settlementComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   evaluatedAt?: string | null;
   evaluatedBy?: (string | null) | User;
   evaluationApproved?: boolean | null;
@@ -1720,6 +1735,7 @@ export interface OfficerTasksSelect<T extends boolean = true> {
   next?: T;
   settledAt?: T;
   settlementStatus?: T;
+  settlementComment?: T;
   evaluatedAt?: T;
   evaluatedBy?: T;
   evaluationApproved?: T;

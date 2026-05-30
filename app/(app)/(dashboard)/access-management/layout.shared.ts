@@ -332,6 +332,7 @@ export const collectionMaskFields = Object.freeze({
 		"next": "relation",
 		"settledAt": "date",
 		"settlementStatus": "select",
+		"settlementComment": "richText",
 		"evaluatedAt": "date",
 		"evaluatedBy": "relation",
 		"evaluationApproved": "generic",

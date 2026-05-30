@@ -189,6 +189,12 @@ export const OfficerTasks = (): CollectionConfig => ({
 			]
 		},
 		{
+			name: "settlementComment",
+			label: "Settlement Comment",
+			type: "richText",
+			editor: ReviewRichTextEditor()
+		},
+		{
 			name: "evaluatedAt",
 			label: "Evaluated At",
 			type: "date"

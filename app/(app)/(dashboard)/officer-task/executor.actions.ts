@@ -147,6 +147,7 @@ export async function upsertAction(formState: FormState) {
 				next: formState.next ?? null,
 				settledAt: null,
 				settlementStatus: null,
+				settlementComment: null,
 				evaluatedAt: null,
 				evaluatedBy: null,
 				evaluationApproved: null,

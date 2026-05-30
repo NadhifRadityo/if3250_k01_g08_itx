@@ -120,6 +120,7 @@ export async function getDetailsAction(id: string) {
 			next: true,
 			settledAt: true,
 			settlementStatus: true,
+			settlementComment: true,
 			evaluatedAt: true,
 			evaluatedBy: true,
 			evaluationApproved: true,
