@@ -1,4 +1,7 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { APIError, CollectionConfig } from "payload";
+import { check, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { getRelationshipId } from "@/utils/payload";
 
@@ -209,3 +212,30 @@ export const OfficerTasks = (): CollectionConfig => ({
 		}
 	]
 });
+export const OfficerTasksSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["officer_tasks"],
+		extraConfig: t => ({
+			officerTaskTailUniqueIdx: uniqueIndex("officer_tasks_credit_application_assignment_tail_idx")
+				.on(t.creditApplicationAssignment)
+				.where(sql`"next_id" IS NULL`),
+			officerTaskActiveImpliesTailCheck: check(
+				"officer_tasks_active_implies_tail_check",
+				sql`"settled_at" IS NOT NULL OR "next_id" IS NULL`
+			),
+			officerTaskApprovedImpliesTailCheck: check(
+				"officer_tasks_approved_implies_tail_check",
+				sql`"evaluation_approved" IS NOT TRUE OR "next_id" IS NULL`
+			),
+			officerTaskEvaluatedRequiresFinishedCheck: check(
+				"officer_tasks_evaluated_requires_finished_check",
+				sql`"evaluated_at" IS NULL OR "settlement_status" = 'finished'`
+			),
+			officerTaskFinishedWithSuccessorRequiresRejectedCheck: check(
+				"officer_tasks_finished_with_successor_requires_rejected_check",
+				sql`"settlement_status" IS DISTINCT FROM 'finished' OR "next_id" IS NULL OR "evaluation_approved" IS FALSE`
+			)
+		})
+	});
+	return schema;
+};

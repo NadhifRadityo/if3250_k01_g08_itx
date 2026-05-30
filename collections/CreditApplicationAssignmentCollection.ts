@@ -1,4 +1,7 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { APIError, CollectionConfig } from "payload";
+import { check } from "drizzle-orm/pg-core";
 
 import { getRelationshipId } from "@/utils/payload";
 
@@ -247,3 +250,15 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 		}
 	]
 });
+export const CreditApplicationAssignmentsSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["credit_application_assignments"],
+		extraConfig: () => ({
+			creditApplicationAssignmentsReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"credit_application_assignments_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};

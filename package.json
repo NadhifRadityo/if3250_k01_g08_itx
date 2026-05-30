@@ -61,6 +61,7 @@
 		"cmdk": "^1.1.1",
 		"date-fns": "^4.1.0",
 		"dedent-js": "^1.0.1",
+		"drizzle-orm": "^0.45.2",
 		"graphql": "^16.13.2",
 		"leaflet": "^1.9.4",
 		"lexical": "^0.43.0",

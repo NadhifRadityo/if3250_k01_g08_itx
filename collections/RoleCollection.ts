@@ -1,4 +1,7 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { APIError, CollectionConfig } from "payload";
+import { check } from "drizzle-orm/pg-core";
 
 import { ReviewRichTextEditor } from "./shared";
 
@@ -237,3 +240,15 @@ export const Roles = (): CollectionConfig => ({
 		}
 	]
 });
+export const RolesSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["roles"],
+		extraConfig: () => ({
+			rolesReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"roles_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};

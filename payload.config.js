@@ -1,29 +1,27 @@
 import { postgresAdapter } from "@payloadcms/db-postgres";
-import { sql } from "@payloadcms/db-postgres";
-import { check, uniqueIndex } from "@payloadcms/db-postgres/drizzle";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
 import { buildConfig, databaseKVAdapter } from "payload";
 import sharp from "sharp";
 
-import { Accesses } from "./collections/AccessCollection";
-import { CreditApplicationAssignments } from "./collections/CreditApplicationAssignmentCollection";
-import { CreditApplications, CreditApplicationImports } from "./collections/CreditApplicationCollection";
+import { Accesses, AccessesSchemaHook } from "./collections/AccessCollection";
+import { CreditApplicationAssignments, CreditApplicationAssignmentsSchemaHook } from "./collections/CreditApplicationAssignmentCollection";
+import { CreditApplications, CreditApplicationImports, CreditApplicationsSchemaHook, CreditApplicationImportsSchemaHook } from "./collections/CreditApplicationCollection";
 import { DatabaseLockingPlugin } from "./collections/DatabaseLockingPlugin";
 import { GenericRichtextUploads } from "./collections/GenericCollection";
 import { GpsLogs } from "./collections/GpsLogCollection";
 import { LoginLogs } from "./collections/LoginLogCollection";
-import { OfficerTasks } from "./collections/OfficerTaskCollection";
+import { OfficerTasks, OfficerTasksSchemaHook } from "./collections/OfficerTaskCollection";
 import { OtpLogs } from "./collections/OtpLogCollection";
 import { RecordingLogs, RecordingLogAudioFiles, RecordingLogTranscriptions } from "./collections/RecordingLogCollection";
-import { Roles } from "./collections/RoleCollection";
-import { SatisfactionSurveys } from "./collections/SatisfactionSurveyCollection";
+import { Roles, RolesSchemaHook } from "./collections/RoleCollection";
+import { SatisfactionSurveys, SatisfactionSurveysSchemaHook } from "./collections/SatisfactionSurveyCollection";
 import { SatisfactionSurveyResults } from "./collections/SatisfactionSurveyResultCollection";
 import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
-import { Surveys } from "./collections/SurveyCollection";
+import { Surveys, SurveysSchemaHook } from "./collections/SurveyCollection";
 import { SurveyResults } from "./collections/SurveyResultCollection";
-import { Teams } from "./collections/TeamCollection";
-import { Users, StagedUsers } from "./collections/UserCollection";
+import { Teams, TeamsSchemaHook } from "./collections/TeamCollection";
+import { Users, StagedUsers, StagedUsersSchemaHook } from "./collections/UserCollection";
 import { SkipVirtualFieldValidationPlugin, EmptyableRequiredFieldValidationPlugin } from "./collections/ValidationPlugin";
 
 export default buildConfig({
@@ -33,33 +31,16 @@ export default buildConfig({
 		pool: { connectionString: process.env.PAYLOAD_POSTGRES },
 		idType: "uuid",
 		afterSchemaInit: [
-			({ schema, extendTable }) => {
-				extendTable({
-					table: schema.tables["officer_tasks"],
-					extraConfig: t => ({
-						officerTaskTailUniqueIdx: uniqueIndex("officer_tasks_credit_application_assignment_tail_idx")
-							.on(t.creditApplicationAssignment)
-							.where(sql`"next_id" IS NULL`),
-						officerTaskActiveImpliesTailCheck: check(
-							"officer_tasks_active_implies_tail_check",
-							sql`"settled_at" IS NOT NULL OR "next_id" IS NULL`
-						),
-						officerTaskApprovedImpliesTailCheck: check(
-							"officer_tasks_approved_implies_tail_check",
-							sql`"evaluation_approved" IS NOT TRUE OR "next_id" IS NULL`
-						),
-						officerTaskEvaluatedRequiresFinishedCheck: check(
-							"officer_tasks_evaluated_requires_finished_check",
-							sql`"evaluated_at" IS NULL OR "settlement_status" = 'finished'`
-						),
-						officerTaskFinishedWithSuccessorRequiresRejectedCheck: check(
-							"officer_tasks_finished_with_successor_requires_rejected_check",
-							sql`"settlement_status" IS DISTINCT FROM 'finished' OR "next_id" IS NULL OR "evaluation_approved" IS FALSE`
-						)
-					})
-				});
-				return schema;
-			}
+			StagedUsersSchemaHook(),
+			RolesSchemaHook(),
+			TeamsSchemaHook(),
+			AccessesSchemaHook(),
+			CreditApplicationsSchemaHook(),
+			CreditApplicationImportsSchemaHook(),
+			CreditApplicationAssignmentsSchemaHook(),
+			OfficerTasksSchemaHook(),
+			SurveysSchemaHook(),
+			SatisfactionSurveysSchemaHook()
 		]
 	}),
 	kv: databaseKVAdapter(),

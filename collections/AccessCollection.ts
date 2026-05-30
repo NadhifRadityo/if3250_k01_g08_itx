@@ -1,5 +1,8 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
 import { CollectionConfig } from "payload";
+import { check } from "drizzle-orm/pg-core";
 
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
@@ -249,3 +252,15 @@ export const Accesses = (): CollectionConfig => ({
 		}
 	]
 });
+export const AccessesSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["accesses"],
+		extraConfig: () => ({
+			accessesReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"accesses_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};

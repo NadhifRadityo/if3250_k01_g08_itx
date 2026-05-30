@@ -1,5 +1,8 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
 import { APIError, CollectionConfig } from "payload";
+import { check } from "drizzle-orm/pg-core";
 
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
@@ -472,3 +475,27 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 		}
 	]
 });
+export const CreditApplicationsSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["credit_applications"],
+		extraConfig: () => ({
+			creditApplicationsReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"credit_applications_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};
+export const CreditApplicationImportsSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["credit_application_imports"],
+		extraConfig: () => ({
+			creditApplicationImportsReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"credit_application_imports_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};
