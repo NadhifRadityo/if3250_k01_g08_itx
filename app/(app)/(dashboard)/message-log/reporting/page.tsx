@@ -8,26 +8,26 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
-import { queryMonitoringAction } from "../layout.actions";
+import { queryReportingAction } from "../layout.actions";
 import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 export default function Page() {
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "otp-log.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "otp-log.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "message-log.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "message-log.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: "otp-log.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "message-log.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "otp-log.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "message-log.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["otp-log", "monitoring", {
+		queryKey: ["message-log", "reporting", {
 			keyword,
 			filters,
 			columnsSort,
 			pageIndex
 		}],
-		queryFn: async () => await queryMonitoringAction({
+		queryFn: async () => await queryReportingAction({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -56,8 +56,8 @@ export default function Page() {
 
 	return (
 		<MenuPage
-			title="OTP Log Monitoring"
-			description="View OTP log entries through the monitoring mode."
+			title="Message Log Reporting"
+			description="View message log entries through the reporting mode."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar

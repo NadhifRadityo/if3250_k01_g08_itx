@@ -12,7 +12,7 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 
 import { useDashboardContext } from "./layout.components";
 import { RelationSummary, getRelationSummaryAction } from "./relation-navigation.actions";
-import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationOtpLog, RelationSurvey, RelationLoginLog, RelationOfficerTask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
+import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationMessageLog, RelationSurvey, RelationLoginLog, RelationOfficerTask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
 type PendingRelationRedirectData = {
 	relationType: string;
@@ -222,7 +222,7 @@ const relationToMenuMap = {
 	// "": "officer-tracking",
 	"login-logs": "login-log",
 	"gps-logs": "gps-log",
-	"otp-logs": "otp-log",
+	"message-logs": "message-log",
 	"recording-logs": "recording-log"
 };
 function useRelationNavigationRedirect() {
@@ -991,51 +991,51 @@ export const defaultRelationGpsLogsRenderer = ({ description, relationSource }: 
 			))(context?.relationValues?.[`gps-logs:${gpsLogId}`]))}
 		</RelationNavigationLink>
 	);
-export const defaultRelationOtpLogRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(otpLogId: string | null, row: { id: string }, context: { relationValues?: Record<`otp-logs:${string}`, RelationOtpLog> }) => otpLogId == null ? "-" : (otpLogRelation => (
+export const defaultRelationMessageLogRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(messageLogId: string | null, row: { id: string }, context: { relationValues?: Record<`message-logs:${string}`, RelationMessageLog> }) => messageLogId == null ? "-" : (messageLogRelation => (
 		<RelationNavigationLink
-			relationType="otp-logs"
+			relationType="message-logs"
 			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={otpLogId}
+			relationId={messageLogId}
 			fallback={{
-				title: otpLogRelation?.createdAt ?? (<>OTP Log <span className="font-mono">{otpLogId}</span></>),
+				title: messageLogRelation?.createdAt ?? (<>Message Log <span className="font-mono">{messageLogId}</span></>),
 				description: description,
 				fields: [
-					{ label: "Id", value: (<span className="font-mono">{otpLogId}</span>) },
-					...(otpLogRelation != null ? [{ label: "Created At", value: otpLogRelation.createdAt }] : [])
+					{ label: "Id", value: (<span className="font-mono">{messageLogId}</span>) },
+					...(messageLogRelation != null ? [{ label: "Created At", value: messageLogRelation.createdAt }] : [])
 				]
 			}}
 		>
-			{otpLogRelation?.createdAt ?? (<>OTP Log <span className="font-mono">{otpLogId}</span></>)}
+			{messageLogRelation?.createdAt ?? (<>Message Log <span className="font-mono">{messageLogId}</span></>)}
 		</RelationNavigationLink>
-	))(context?.relationValues?.[`otp-logs:${otpLogId}`]);
-export const defaultRelationOtpLogsRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(otpLogIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`otp-logs:${string}`, RelationOtpLog> }) => otpLogIds == null || otpLogIds.length == 0 ? "-" : (
+	))(context?.relationValues?.[`message-logs:${messageLogId}`]);
+export const defaultRelationMessageLogsRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
+	(messageLogIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`message-logs:${string}`, RelationMessageLog> }) => messageLogIds == null || messageLogIds.length == 0 ? "-" : (
 		<RelationNavigationLink
-			relationType="otp-logs"
+			relationType="message-logs"
 			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			pickerTitle="Select OTP logs"
+			pickerTitle="Select message logs"
 			pickerDescription={description}
-			relationChoices={otpLogIds.map(otpLogId => (otpLogRelation => ({
-				id: otpLogId,
-				name: otpLogRelation?.createdAt ?? (<>OTP Log <span className="font-mono">{otpLogId}</span></>),
-				description: otpLogRelation?.createdAt,
+			relationChoices={messageLogIds.map(messageLogId => (messageLogRelation => ({
+				id: messageLogId,
+				name: messageLogRelation?.createdAt ?? (<>Message Log <span className="font-mono">{messageLogId}</span></>),
+				description: messageLogRelation?.createdAt,
 				fallback: {
-					title: otpLogRelation?.createdAt ?? (<>OTP Log <span className="font-mono">{otpLogId}</span></>),
+					title: messageLogRelation?.createdAt ?? (<>Message Log <span className="font-mono">{messageLogId}</span></>),
 					description: description,
 					fields: [
-						{ label: "Id", value: (<span className="font-mono">{otpLogId}</span>) },
-						...(otpLogRelation != null ? [{ label: "Created At", value: otpLogRelation.createdAt }] : [])
+						{ label: "Id", value: (<span className="font-mono">{messageLogId}</span>) },
+						...(messageLogRelation != null ? [{ label: "Created At", value: messageLogRelation.createdAt }] : [])
 					]
 				}
-			}))(context?.relationValues?.[`otp-logs:${otpLogId}`]))}
+			}))(context?.relationValues?.[`message-logs:${messageLogId}`]))}
 		>
-			{otpLogIds.map((otpLogId, i) => (otpLogRelation => (
-				<React.Fragment key={otpLogId}>
-					{otpLogRelation?.createdAt ?? (<>OTP Log <span className="font-mono">{otpLogId}</span></>)}
-					{i != otpLogIds.length - 1 ? ", " : ""}
+			{messageLogIds.map((messageLogId, i) => (messageLogRelation => (
+				<React.Fragment key={messageLogId}>
+					{messageLogRelation?.createdAt ?? (<>Message Log <span className="font-mono">{messageLogId}</span></>)}
+					{i != messageLogIds.length - 1 ? ", " : ""}
 				</React.Fragment>
-			))(context?.relationValues?.[`otp-logs:${otpLogId}`]))}
+			))(context?.relationValues?.[`message-logs:${messageLogId}`]))}
 		</RelationNavigationLink>
 	);
 export const defaultRelationRecordingLogRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>

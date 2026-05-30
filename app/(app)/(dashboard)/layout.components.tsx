@@ -48,7 +48,7 @@ const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSV
 	"officer-task": ClipboardCheckIcon,
 	"officer-tracking": MapPinnedIcon,
 	"login-log": HistoryIcon,
-	"otp-log": KeyRoundIcon,
+	"message-log": KeyRoundIcon,
 	"gps-log": LocateFixedIcon,
 	"recording-log": AudioLinesIcon
 };

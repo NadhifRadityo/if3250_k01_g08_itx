@@ -162,7 +162,7 @@ export const collectionSelectOptions = Object.freeze([
 	{ value: "satisfaction-survey-results", label: "Satisfaction Survey Results" },
 	{ value: "login-logs", label: "Login Logs" },
 	{ value: "gps-logs", label: "GPS Logs" },
-	{ value: "otp-logs", label: "OTP Logs" },
+	{ value: "message-logs", label: "Message Logs" },
 	{ value: "recording-logs", label: "Recording Logs" }
 ]);
 
@@ -410,7 +410,7 @@ export const collectionMaskFields = Object.freeze({
 		"latitude": "number",
 		"longitude": "number"
 	},
-	"otp-logs": {
+	"message-logs": {
 		"createdAt": "date",
 		"officerTask": "relation",
 		"content": "text",
@@ -521,7 +521,7 @@ export const collectionRelationFields = Object.freeze({
 		"user": "staged-users",
 		"officerTask": "officer-tasks"
 	},
-	"otp-logs": {
+	"message-logs": {
 		"officerTask": "officer-tasks"
 	},
 	"recording-logs": {

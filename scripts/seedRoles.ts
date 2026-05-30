@@ -50,8 +50,8 @@ const ALL_MENUS: Role["menus"] = [
 	"officer-tracking#reporting",
 	"login-log#monitoring",
 	"login-log#reporting",
-	"otp-log#monitoring",
-	"otp-log#reporting",
+	"message-log#monitoring",
+	"message-log#reporting",
 	"gps-log#monitoring",
 	"gps-log#reporting",
 	"recording-log#monitoring",
@@ -127,7 +127,7 @@ const ROLE_SEEDS: SeedRole[] = [
 			"officer-tracking#monitoring",
 			"recording-log#monitoring",
 			"gps-log#monitoring",
-			"otp-log#monitoring"
+			"message-log#monitoring"
 		]
 	},
 	{
@@ -140,7 +140,7 @@ const ROLE_SEEDS: SeedRole[] = [
 			"officer-tracking#reporting",
 			"recording-log#reporting",
 			"gps-log#reporting",
-			"otp-log#reporting"
+			"message-log#reporting"
 		]
 	}
 ];

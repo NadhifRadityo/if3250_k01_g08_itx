@@ -9,7 +9,7 @@ await import("./seedSurveys");
 await import("./seedSatisfactionSurveys");
 await import("./seedLoginLogs");
 await import("./seedGPSLogs");
-await import("./seedOTPLogs");
+await import("./seedMessageLogs");
 await import("./seedRecordingLogAudioFiles");
 await import("./seedRecordingLogTranscriptions");
 await import("./seedRecordingLogs");

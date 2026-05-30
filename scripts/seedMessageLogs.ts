@@ -11,7 +11,7 @@ const CREDIT_APPLICATION_SEEDS = [
 	{ key: "CA-SEED-003", name: "Mila Kartika", email: "mila.kartika@seed.local" }
 ];
 
-type SeedOtp = {
+type SeedMessage = {
 	content: string;
 	createdAt: string;
 	creditApplicationKey: string;
@@ -29,7 +29,7 @@ function isoAt(minutesOffset: number): string {
 	return value.toISOString();
 }
 
-const OTP_LOG_SEEDS: SeedOtp[] = [
+const MESSAGE_LOG_SEEDS: SeedMessage[] = [
 	{
 		createdAt: isoAt(900),
 		creditApplicationKey: "CA-SEED-001",
@@ -67,10 +67,10 @@ const OTP_LOG_SEEDS: SeedOtp[] = [
 
 const payload = await getPayload({ config: payloadConfig });
 
-console.log("[seedOTPLogs] Starting OTP log seeding...");
+console.log("[seedMessageLogs] Starting message log seeding...");
 
 // Get approved import
-console.log("[seedOTPLogs] Looking up approved import...");
+console.log("[seedMessageLogs] Looking up approved import...");
 const approvedImport = (await payload.find({
 	collection: "credit-application-imports",
 	overrideAccess: true,
@@ -86,7 +86,7 @@ const approvedImport = (await payload.find({
 if(approvedImport == null) throw new Error("Approved import workbook is missing. Run 'payload run ./scripts/seedCreditApplicationImports.ts' first.");
 
 // Build credit application ID map
-console.log("[seedOTPLogs] Building credit application ID map...");
+console.log("[seedMessageLogs] Building credit application ID map...");
 const creditApplicationIdMap = new Map<string, string>();
 for(const seed of CREDIT_APPLICATION_SEEDS) {
 	const ca = (await payload.find({
@@ -109,11 +109,11 @@ for(const seed of CREDIT_APPLICATION_SEEDS) {
 	creditApplicationIdMap.set(seed.key, ca.id);
 }
 
-// Seed OTP logs
-for(const seed of OTP_LOG_SEEDS) {
-	console.log(`[seedOTPLogs] Checking existing OTP log (email: ${seed.email}, time: ${seed.createdAt})...`);
+// Seed message logs
+for(const seed of MESSAGE_LOG_SEEDS) {
+	console.log(`[seedMessageLogs] Checking existing message log (email: ${seed.email}, time: ${seed.createdAt})...`);
 	const existing = (await payload.find({
-		collection: "otp-logs",
+		collection: "message-logs",
 		overrideAccess: true,
 		where: {
 			and: [
@@ -130,9 +130,9 @@ for(const seed of OTP_LOG_SEEDS) {
 	})).docs[0];
 
 	if(existing == null) {
-		console.log(`[seedOTPLogs] Creating OTP log for ${seed.email}...`);
+		console.log(`[seedMessageLogs] Creating message log for ${seed.email}...`);
 		await payload.create({
-			collection: "otp-logs",
+			collection: "message-logs",
 			overrideAccess: true,
 			data: {
 				createdAt: seed.createdAt,
@@ -148,7 +148,7 @@ for(const seed of OTP_LOG_SEEDS) {
 			}
 		});
 	} else
-		console.log(`[seedOTPLogs] OTP log for ${seed.email} already exists (id: ${existing.id}), skipping.`);
+		console.log(`[seedMessageLogs] Message log for ${seed.email} already exists (id: ${existing.id}), skipping.`);
 }
 
-console.log(`[seedOTPLogs] Done. Seeded ${OTP_LOG_SEEDS.length} OTP logs.`);
+console.log(`[seedMessageLogs] Done. Seeded ${MESSAGE_LOG_SEEDS.length} message logs.`);

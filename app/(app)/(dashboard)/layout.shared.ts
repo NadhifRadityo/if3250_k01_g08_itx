@@ -12,7 +12,7 @@ export const dashboardMenuKeys = Object.freeze([
 	"officer-task",
 	"officer-tracking",
 	"login-log",
-	"otp-log",
+	"message-log",
 	"gps-log",
 	"recording-log"
 ] as const);
@@ -31,7 +31,7 @@ export const dashboardMenuLabels = Object.freeze({
 	"officer-task": "Officer Task",
 	"officer-tracking": "Officer Tracking",
 	"login-log": "Login Log",
-	"otp-log": "OTP Log",
+	"message-log": "Message Log",
 	"gps-log": "GPS Log",
 	"recording-log": "Recording Log"
 } as const);
@@ -84,8 +84,8 @@ export const dashboardRoleKeys = Object.freeze([
 	"officer-tracking#reporting",
 	"login-log#monitoring",
 	"login-log#reporting",
-	"otp-log#monitoring",
-	"otp-log#reporting",
+	"message-log#monitoring",
+	"message-log#reporting",
 	"gps-log#monitoring",
 	"gps-log#reporting",
 	"recording-log#monitoring",
@@ -140,8 +140,8 @@ export const dashboardRoleLabels = Object.freeze({
 	"officer-tracking#reporting": "Officer Tracking — Reporting",
 	"login-log#monitoring": "Login Log — Monitoring",
 	"login-log#reporting": "Login Log — Reporting",
-	"otp-log#monitoring": "OTP Log — Monitoring",
-	"otp-log#reporting": "OTP Log — Reporting",
+	"message-log#monitoring": "Message Log — Monitoring",
+	"message-log#reporting": "Message Log — Reporting",
 	"gps-log#monitoring": "GPS Log — Monitoring",
 	"gps-log#reporting": "GPS Log — Reporting",
 	"recording-log#monitoring": "Recording Log — Monitoring",
@@ -196,8 +196,8 @@ export const dashboardRoleSubLabels = Object.freeze({
 	"officer-tracking#reporting": "Reporting",
 	"login-log#monitoring": "Monitoring",
 	"login-log#reporting": "Reporting",
-	"otp-log#monitoring": "Monitoring",
-	"otp-log#reporting": "Reporting",
+	"message-log#monitoring": "Monitoring",
+	"message-log#reporting": "Reporting",
 	"gps-log#monitoring": "Monitoring",
 	"gps-log#reporting": "Reporting",
 	"recording-log#monitoring": "Monitoring",
@@ -252,8 +252,8 @@ export const dashboardRoleHrefs = Object.freeze({
 	"officer-tracking#reporting": "/officer-tracking/reporting",
 	"login-log#monitoring": "/login-log/monitoring",
 	"login-log#reporting": "/login-log/reporting",
-	"otp-log#monitoring": "/otp-log/monitoring",
-	"otp-log#reporting": "/otp-log/reporting",
+	"message-log#monitoring": "/message-log/monitoring",
+	"message-log#reporting": "/message-log/reporting",
 	"gps-log#monitoring": "/gps-log/monitoring",
 	"gps-log#reporting": "/gps-log/reporting",
 	"recording-log#monitoring": "/recording-log/monitoring",
@@ -278,7 +278,7 @@ export const dashboardMenuGroups = Object.freeze([
 	["Credit Operations", ["credit-application-management", "credit-application-assignment"]],
 	["Officer Operations", ["officer-task", "officer-tracking"]],
 	["Survey and Feedback", ["survey-management", "survey-result", "satisfaction-survey-management", "satisfaction-survey-result"]],
-	["Security and Audit", ["login-log", "otp-log", "gps-log", "recording-log"]]
+	["Security and Audit", ["login-log", "message-log", "gps-log", "recording-log"]]
 ] as [string, string[]][]);
 
 export const changeRequestTypeSelectOptions = Object.freeze([

@@ -83,7 +83,7 @@ export interface Config {
     'satisfaction-survey-results': SatisfactionSurveyResult;
     'login-logs': LoginLog;
     'gps-logs': GpsLog;
-    'otp-logs': OtpLog;
+    'message-logs': MessageLog;
     'recording-logs': RecordingLog;
     'recording-log-audio-files': RecordingLogAudioFile;
     'recording-log-transcriptions': RecordingLogTranscription;
@@ -117,7 +117,7 @@ export interface Config {
     'satisfaction-survey-results': SatisfactionSurveyResultsSelect<false> | SatisfactionSurveyResultsSelect<true>;
     'login-logs': LoginLogsSelect<false> | LoginLogsSelect<true>;
     'gps-logs': GpsLogsSelect<false> | GpsLogsSelect<true>;
-    'otp-logs': OtpLogsSelect<false> | OtpLogsSelect<true>;
+    'message-logs': MessageLogsSelect<false> | MessageLogsSelect<true>;
     'recording-logs': RecordingLogsSelect<false> | RecordingLogsSelect<true>;
     'recording-log-audio-files': RecordingLogAudioFilesSelect<false> | RecordingLogAudioFilesSelect<true>;
     'recording-log-transcriptions': RecordingLogTranscriptionsSelect<false> | RecordingLogTranscriptionsSelect<true>;
@@ -290,8 +290,8 @@ export interface Role {
     | 'officer-tracking#reporting'
     | 'login-log#monitoring'
     | 'login-log#reporting'
-    | 'otp-log#monitoring'
-    | 'otp-log#reporting'
+    | 'message-log#monitoring'
+    | 'message-log#reporting'
     | 'gps-log#monitoring'
     | 'gps-log#reporting'
     | 'recording-log#monitoring'
@@ -511,7 +511,7 @@ export interface Access {
     | 'satisfaction-survey-results'
     | 'login-logs'
     | 'gps-logs'
-    | 'otp-logs'
+    | 'message-logs'
     | 'recording-logs';
   filters:
     | {
@@ -1076,9 +1076,9 @@ export interface GpsLog {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "otp-logs".
+ * via the `definition` "message-logs".
  */
-export interface OtpLog {
+export interface MessageLog {
   id: string;
   createdAt: string;
   officerTask?: (string | null) | OfficerTask;
@@ -1389,8 +1389,8 @@ export interface PayloadLockedDocument {
         value: string | GpsLog;
       } | null)
     | ({
-        relationTo: 'otp-logs';
-        value: string | OtpLog;
+        relationTo: 'message-logs';
+        value: string | MessageLog;
       } | null)
     | ({
         relationTo: 'recording-logs';
@@ -1829,9 +1829,9 @@ export interface GpsLogsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "otp-logs_select".
+ * via the `definition` "message-logs_select".
  */
-export interface OtpLogsSelect<T extends boolean = true> {
+export interface MessageLogsSelect<T extends boolean = true> {
   createdAt?: T;
   officerTask?: T;
   content?: T;

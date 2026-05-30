@@ -65,7 +65,7 @@ export type RelationGpsLog = {
 	createdAt: string;
 };
 
-export type RelationOtpLog = {
+export type RelationMessageLog = {
 	createdAt: string;
 };
 

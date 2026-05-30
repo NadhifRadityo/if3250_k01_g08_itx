@@ -28,7 +28,7 @@ import { MenuFilterState, MenuFilterSummary, useDashboardContext, MenuFilterConf
 import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { columnConfigColumns as loginLogColumnConfigColumns, filterConfigColumns as loginLogFilterConfigColumns } from "../login-log/layout.components";
 import { columnConfigColumns as officerTaskColumnConfigColumns, filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
-import { columnConfigColumns as otpLogColumnConfigColumns, filterConfigColumns as otpLogFilterConfigColumns } from "../otp-log/layout.components";
+import { columnConfigColumns as messageLogColumnConfigColumns, filterConfigColumns as messageLogFilterConfigColumns } from "../message-log/layout.components";
 import { columnConfigColumns as recordingLogColumnConfigColumns, filterConfigColumns as recordingLogFilterConfigColumns } from "../recording-log/layout.components";
 import { searchRelationAccessesAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
@@ -57,7 +57,7 @@ const collectionFilterConfigColumns = {
 	"satisfaction-survey-results": satisfactionSurveyResultFilterConfigColumns,
 	"login-logs": loginLogFilterConfigColumns,
 	"gps-logs": gpsLogFilterConfigColumns,
-	"otp-logs": otpLogFilterConfigColumns,
+	"message-logs": messageLogFilterConfigColumns,
 	"recording-logs": recordingLogFilterConfigColumns
 } as Record<string, readonly MenuFilterConfigColumn[]>;
 const collectionColumnConfigColumns = {
@@ -75,7 +75,7 @@ const collectionColumnConfigColumns = {
 	"satisfaction-survey-results": satisfactionSurveyResultColumnConfigColumns,
 	"login-logs": loginLogColumnConfigColumns,
 	"gps-logs": gpsLogColumnConfigColumns,
-	"otp-logs": otpLogColumnConfigColumns,
+	"message-logs": messageLogColumnConfigColumns,
 	"recording-logs": recordingLogColumnConfigColumns
 } as Record<string, readonly MenuColumnConfigColumn[]>;
 const defaultAccessFilterRenderer = ({ collection }: { collection?: Access["collection"] } = {}) =>

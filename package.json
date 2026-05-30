@@ -22,7 +22,7 @@
 		"seed:recording-logs": "payload run ./scripts/seedRecordingLogs.ts",
 		"seed:login-logs": "payload run ./scripts/seedLoginLogs.ts",
 		"seed:gps-logs": "payload run ./scripts/seedGPSLogs.ts",
-		"seed:otp-logs": "payload run ./scripts/seedOTPLogs.ts",
+		"seed:message-logs": "payload run ./scripts/seedMessageLogs.ts",
 		"seed:all": "payload run ./scripts/seedAll.ts"
 	},
 	"packageManager": "pnpm@10.33.0",

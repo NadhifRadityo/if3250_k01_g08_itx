@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/radix/Skeleton";
 
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
-import { searchRelationOtpLogsAction } from "../relation-navigation.actions";
+import { searchRelationMessageLogsAction } from "../relation-navigation.actions";
 import { defaultRelationOfficerTaskRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
@@ -22,7 +22,7 @@ export const deliveryStatusSelectOptions = Object.freeze([
 	{ value: "pending", label: "Pending" }
 ] as const);
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOtpLogsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationMessageLogsAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] },
 	{ key: "content", label: "Content", type: "text" },
@@ -60,7 +60,7 @@ export const tableConfigColumns = Object.freeze([
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
-	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "otp-logs.officerTask" }) },
+	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "message-logs.officerTask" }) },
 	{ key: "content", type: "text" },
 	{ key: "email", type: "text" },
 	{ key: "whatsappNumber", type: "text" },
@@ -110,7 +110,7 @@ export function DetailsDrawer(
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
 ) {
 	const query = useQuery({
-		queryKey: ["otp-log", "details", row?.id ?? null],
+		queryKey: ["message-log", "details", row?.id ?? null],
 		enabled: open && row != null,
 		queryFn: async () => await getDetailsAction(row!.id),
 		refetchInterval: 10000,
@@ -129,13 +129,13 @@ export function DetailsDrawer(
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
-					<DrawerTitle>OTP Log Details</DrawerTitle>
-					<DrawerDescription>Review all available columns for this OTP log entry.</DrawerDescription>
+					<DrawerTitle>Message Log Details</DrawerTitle>
+					<DrawerDescription>Review all available columns for this message log entry.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
 					{row == null ? (
 						<p className="text-muted-foreground text-sm">
-							No OTP log selected.
+							No message log selected.
 						</p>
 					) : query.isPending ? (
 						<div className="space-y-2">
@@ -150,7 +150,7 @@ export function DetailsDrawer(
 								{`${query.error?.name ?? "Error"}`}
 							</AlertTitle>
 							<AlertDescription>
-								{`${query.error?.message ?? "Unable to load OTP log details."}`}
+								{`${query.error?.message ?? "Unable to load message log details."}`}
 							</AlertDescription>
 						</Alert>
 					) : (

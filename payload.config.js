@@ -11,7 +11,7 @@ import { GenericRichtextUploads } from "./collections/GenericCollection";
 import { GpsLogs } from "./collections/GpsLogCollection";
 import { LoginLogs } from "./collections/LoginLogCollection";
 import { OfficerTasks, OfficerTasksSchemaHook } from "./collections/OfficerTaskCollection";
-import { OtpLogs } from "./collections/OtpLogCollection";
+import { MessageLogs } from "./collections/MessageLogCollection";
 import { RecordingLogs, RecordingLogAudioFiles, RecordingLogTranscriptions } from "./collections/RecordingLogCollection";
 import { Roles, RolesSchemaHook } from "./collections/RoleCollection";
 import { SatisfactionSurveys, SatisfactionSurveysSchemaHook } from "./collections/SatisfactionSurveyCollection";
@@ -65,7 +65,7 @@ export default buildConfig({
 		SatisfactionSurveyResults(),
 		LoginLogs(),
 		GpsLogs(),
-		OtpLogs(),
+		MessageLogs(),
 		RecordingLogs(),
 		RecordingLogAudioFiles(),
 		RecordingLogTranscriptions()

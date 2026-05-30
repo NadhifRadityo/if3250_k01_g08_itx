@@ -29,8 +29,8 @@ async function getOrCreateCreditApplicationId() {
 	return created.id;
 }
 
-async function seedOTPLogs() {
-	console.log("Seeding OTP logs...");
+async function seedMessageLogs() {
+	console.log("Seeding message logs...");
 
 	const applicationId = await getOrCreateCreditApplicationId();
 
@@ -78,7 +78,7 @@ async function seedOTPLogs() {
 		).toISOString();
 
 		await payload.create({
-			collection: "otp-logs",
+			collection: "message-logs",
 			overrideAccess: true,
 			data: {
 				requestDate: time,
@@ -99,8 +99,8 @@ async function seedOTPLogs() {
 
 	}
 
-	console.log("OTP logs seeded.");
+	console.log("Message logs seeded.");
 	process.exit(0);
 }
 
-await seedOTPLogs();
+await seedMessageLogs();

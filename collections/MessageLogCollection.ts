@@ -1,10 +1,10 @@
 import { APIError, type CollectionConfig } from "payload";
 
-export const OtpLogs = (): CollectionConfig => ({
-	slug: "otp-logs",
+export const MessageLogs = (): CollectionConfig => ({
+	slug: "message-logs",
 	labels: {
-		singular: "OTP Log",
-		plural: "OTP Logs"
+		singular: "Message Log",
+		plural: "Message Logs"
 	},
 	timestamps: false,
 	admin: {
@@ -15,7 +15,7 @@ export const OtpLogs = (): CollectionConfig => ({
 		beforeChange: [
 			({ operation }) => {
 				if(operation != "create")
-					throw new APIError("OTP logs are append only");
+					throw new APIError("Message logs are append only");
 			}
 		]
 	},

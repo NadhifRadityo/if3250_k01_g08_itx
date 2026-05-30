@@ -6,7 +6,7 @@ import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
-import { OtpLog } from "@/payload-types";
+import { MessageLog } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationOfficerTasks } from "../relation-navigation.actions";
@@ -17,7 +17,7 @@ export type RelationValues = Partial<Record<`officer-tasks:${string}`, RelationO
 
 async function resolveRelations(
 	{ payload, docs }:
-	{ payload?: Payload, docs: OtpLog[] }
+	{ payload?: Payload, docs: MessageLog[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const officerTaskIds = new Set<string>();
@@ -42,7 +42,7 @@ async function queryAction(
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "otp-logs",
+		collection: "message-logs",
 		depth: 0,
 		page: pageIndex,
 		limit: PAGE_LIMIT,
@@ -89,7 +89,7 @@ export async function getDetailsAction(id: string) {
 	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
-		collection: "otp-logs",
+		collection: "message-logs",
 		id: id,
 		depth: 0,
 		select: {

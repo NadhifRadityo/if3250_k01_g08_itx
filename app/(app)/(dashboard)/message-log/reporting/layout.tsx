@@ -6,7 +6,7 @@ import { getDashboardContextAction } from "../../layout.actions";
 export default async function Layout({ children }: { children: ReactNode }) {
 	const dashboardContext = await getDashboardContextAction();
 	if(dashboardContext == null) return redirect("/login");
-	const thisMenu = dashboardContext.menus.find(menu => menu.key == "otp-log");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "message-log");
 	if(thisMenu == null) return redirect("/");
 	const thisMode = thisMenu.modes["reporting"];
 	if(thisMode == null) return redirect(thisMenu.modes[thisMenu.defaultMode].href);

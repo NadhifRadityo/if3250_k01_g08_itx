@@ -1218,7 +1218,7 @@ export async function searchRelationGpsLogsAction(keyword: string, selectedIds: 
 	}));
 }
 
-export async function searchRelationOtpLogsAction(keyword: string, selectedIds: string[] = []) {
+export async function searchRelationMessageLogsAction(keyword: string, selectedIds: string[] = []) {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1227,7 +1227,7 @@ export async function searchRelationOtpLogsAction(keyword: string, selectedIds: 
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
-		collection: "otp-logs",
+		collection: "message-logs",
 		pagination: false,
 		depth: 0,
 		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
