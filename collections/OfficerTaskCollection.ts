@@ -115,25 +115,11 @@ export const OfficerTasks = (): CollectionConfig => ({
 			unique: true
 		},
 		{
-			name: "survey",
-			label: "Survey",
-			type: "relationship",
-			relationTo: "surveys",
-			required: true
-		},
-		{
 			name: "surveyResult",
 			label: "Survey Result",
 			type: "relationship",
 			relationTo: "survey-results",
 			unique: true
-		},
-		{
-			name: "satisfactionSurvey",
-			label: "Satisfaction Survey",
-			type: "relationship",
-			relationTo: "satisfaction-surveys",
-			required: true
 		},
 		{
 			name: "satisfactionSurveyResult",

@@ -13,9 +13,7 @@ import { filterConfigColumns as creditApplicationAssignmentFilterConfigColumns }
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationSurveyRenderer, defaultRelationSatisfactionSurveyRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
-import { filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
 import { filterConfigColumns as satisfactionSurveyResultFilterConfigColumns } from "../satisfaction-survey-result/layout.components";
-import { filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
 import { filterConfigColumns as surveyResultFilterConfigColumns } from "../survey-result/layout.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
@@ -30,9 +28,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", type: "date" },
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment", type: "relation", relationFilterConfigColumn: () => ["Credit Application Assignment", creditApplicationAssignmentFilterConfigColumns] },
-	{ key: "survey", label: "Survey", type: "relation", relationFilterConfigColumn: () => ["Survey", surveyFilterConfigColumns] },
 	{ key: "surveyResult", label: "Survey Result", type: "relation", relationFilterConfigColumn: () => ["Survey Result", surveyResultFilterConfigColumns] },
-	{ key: "satisfactionSurvey", label: "Satisfaction Survey", type: "relation", relationFilterConfigColumn: () => ["Satisfaction Survey", satisfactionSurveyFilterConfigColumns] },
 	{ key: "satisfactionSurveyResult", label: "Satisfaction Survey Result", type: "relation", relationFilterConfigColumn: () => ["Satisfaction Survey Result", satisfactionSurveyResultFilterConfigColumns] }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
@@ -44,9 +40,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At" },
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment" },
-	{ key: "survey", label: "Survey" },
 	{ key: "surveyResult", label: "Survey Result" },
-	{ key: "satisfactionSurvey", label: "Satisfaction Survey" },
 	{ key: "satisfactionSurveyResult", label: "Satisfaction Survey Result" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
@@ -58,9 +52,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedAt", label: "Deleted At", sortable: true },
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment", sortable: false },
-	{ key: "survey", label: "Survey", sortable: false },
 	{ key: "surveyResult", label: "Survey Result", sortable: false },
-	{ key: "satisfactionSurvey", label: "Satisfaction Survey", sortable: false },
 	{ key: "satisfactionSurveyResult", label: "Satisfaction Survey Result", sortable: false }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
@@ -72,9 +64,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedAt", type: "date" },
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "officer-tasks.deletedBy" }) },
 	{ key: "creditApplicationAssignment", type: "relation", render: defaultRelationCreditApplicationAssignmentRenderer({ description: "Credit Application Assignment", relationSource: "officer-tasks.creditApplicationAssignment" }) },
-	{ key: "survey", type: "relation", render: defaultRelationSurveyRenderer({ description: "Survey", relationSource: "officer-tasks.survey" }) },
 	{ key: "surveyResult", type: "relation", render: defaultRelationSurveyRenderer({ description: "Survey Result", relationSource: "officer-tasks.surveyResult" }) },
-	{ key: "satisfactionSurvey", type: "relation", render: defaultRelationSatisfactionSurveyRenderer({ description: "Satisfaction Survey", relationSource: "officer-tasks.satisfactionSurvey" }) },
 	{ key: "satisfactionSurveyResult", type: "relation", render: defaultRelationSatisfactionSurveyRenderer({ description: "Satisfaction Survey Result", relationSource: "officer-tasks.satisfactionSurveyResult" }) }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
@@ -90,9 +80,7 @@ export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 export const defaultColumnOrder = Object.freeze([
 	"id",
 	"creditApplicationAssignment",
-	"survey",
 	"surveyResult",
-	"satisfactionSurvey",
 	"satisfactionSurveyResult",
 	"createdBy",
 	"updatedBy",

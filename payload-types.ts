@@ -282,6 +282,7 @@ export interface Role {
     | 'satisfaction-survey-management#approver'
     | 'satisfaction-survey-result#monitoring'
     | 'satisfaction-survey-result#reporting'
+    | 'officer-task#viewer'
     | 'officer-task#monitoring'
     | 'officer-task#reporting'
     | 'officer-tracking#monitoring'
@@ -295,6 +296,22 @@ export interface Role {
     | 'recording-log#monitoring'
     | 'recording-log#reporting'
   )[];
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -333,6 +350,22 @@ export interface StagedUser {
   name: string;
   employeeId: string;
   supervisor?: (string | null) | User;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -368,6 +401,22 @@ export interface Team {
   name: string;
   supervisor: string | User;
   members: (string | User)[];
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -454,9 +503,11 @@ export interface Access {
     | 'credit-applications'
     | 'credit-application-imports'
     | 'credit-application-assignments'
+    | 'officer-tasks'
     | 'surveys'
     | 'survey-results'
     | 'satisfaction-surveys'
+    | 'satisfaction-survey-results'
     | 'login-logs'
     | 'gps-logs'
     | 'otp-logs'
@@ -479,6 +530,22 @@ export interface Access {
     | number
     | boolean
     | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -587,6 +654,22 @@ export interface CreditApplication {
     | number
     | boolean
     | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -681,11 +764,38 @@ export interface CreditApplicationAssignment {
   deletedBy?: (string | null) | User;
   creditApplication: string | CreditApplication;
   officer: string | User;
+  survey: string | Survey;
+  satisfactionSurvey: string | SatisfactionSurvey;
   assignedDate?: string | null;
   surveyDate?: string | null;
   approvalDate?: string | null;
   dueDate?: string | null;
   rescheduleCount?: number | null;
+  geofenceRegions?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -704,25 +814,6 @@ export interface CreditApplicationAssignment {
     };
     [k: string]: unknown;
   } | null;
-  _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "officer-tasks".
- */
-export interface OfficerTask {
-  id: string;
-  createdAt: string;
-  createdBy?: (string | null) | User;
-  updatedAt: string;
-  updatedBy?: (string | null) | User;
-  deletedAt?: string | null;
-  deletedBy?: (string | null) | User;
-  creditApplicationAssignment: string | CreditApplicationAssignment;
-  survey: string | Survey;
-  surveyResult?: (string | null) | SurveyResult;
-  satisfactionSurvey: string | SatisfactionSurvey;
-  satisfactionSurveyResult?: (string | null) | SatisfactionSurveyResult;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -762,6 +853,22 @@ export interface Survey {
     | number
     | boolean
     | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -780,31 +887,6 @@ export interface Survey {
     };
     [k: string]: unknown;
   } | null;
-  _status?: ('draft' | 'published') | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "survey-results".
- */
-export interface SurveyResult {
-  id: string;
-  createdAt: string;
-  createdBy?: (string | null) | User;
-  updatedAt: string;
-  updatedBy?: (string | null) | User;
-  deletedAt?: string | null;
-  deletedBy?: (string | null) | User;
-  survey: string | Survey;
-  surveyVersion: string;
-  answers:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -844,6 +926,22 @@ export interface SatisfactionSurvey {
     | number
     | boolean
     | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -862,6 +960,48 @@ export interface SatisfactionSurvey {
     };
     [k: string]: unknown;
   } | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "officer-tasks".
+ */
+export interface OfficerTask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  creditApplicationAssignment: string | CreditApplicationAssignment;
+  surveyResult?: (string | null) | SurveyResult;
+  satisfactionSurveyResult?: (string | null) | SatisfactionSurveyResult;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-results".
+ */
+export interface SurveyResult {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  survey: string | Survey;
+  surveyVersion: string;
+  answers:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -1364,6 +1504,8 @@ export interface StagedUsersSelect<T extends boolean = true> {
   name?: T;
   employeeId?: T;
   supervisor?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1384,6 +1526,8 @@ export interface RolesSelect<T extends boolean = true> {
   name?: T;
   level?: T;
   menus?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1404,6 +1548,8 @@ export interface TeamsSelect<T extends boolean = true> {
   name?: T;
   supervisor?: T;
   members?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1432,6 +1578,8 @@ export interface AccessesSelect<T extends boolean = true> {
   collection?: T;
   filters?: T;
   masks?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1475,6 +1623,8 @@ export interface CreditApplicationsSelect<T extends boolean = true> {
   otherDate1?: T;
   otherDate2?: T;
   others?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1521,11 +1671,16 @@ export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
   deletedBy?: T;
   creditApplication?: T;
   officer?: T;
+  survey?: T;
+  satisfactionSurvey?: T;
   assignedDate?: T;
   surveyDate?: T;
   approvalDate?: T;
   dueDate?: T;
   rescheduleCount?: T;
+  geofenceRegions?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1544,9 +1699,7 @@ export interface OfficerTasksSelect<T extends boolean = true> {
   deletedAt?: T;
   deletedBy?: T;
   creditApplicationAssignment?: T;
-  survey?: T;
   surveyResult?: T;
-  satisfactionSurvey?: T;
   satisfactionSurveyResult?: T;
   _status?: T;
 }
@@ -1564,6 +1717,8 @@ export interface SurveysSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   content?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1600,6 +1755,8 @@ export interface SatisfactionSurveysSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   content?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;

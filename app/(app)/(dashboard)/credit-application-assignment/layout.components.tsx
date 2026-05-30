@@ -6,6 +6,7 @@ import { SerializedEditorState } from "lexical";
 import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
 import { getRelationshipId } from "@/utils/payload";
+import { GeofenceRegionsEditorDialog } from "@/components/GeofenceRegionsEditorDialog";
 import { RichTextInput } from "@/components/RichText";
 import { SearchableSelect, SearchableMultiSelect } from "@/components/SearchableSelect";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -20,10 +21,17 @@ import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { changeRequestTypeSelectOptions } from "../layout.shared";
-import { searchRelationUsersByRoleLevelAction, searchAvailableRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
-import { defaultRelationUserRenderer, defaultRelationCreditApplicationRenderer } from "../relation-navigation.components";
+import { searchRelationSurveysAction, searchRelationUsersByRoleLevelAction, searchRelationSatisfactionSurveysAction, searchAvailableRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
+import { defaultRelationUserRenderer, defaultRelationSurveyRenderer, defaultRelationCreditApplicationRenderer, defaultRelationSatisfactionSurveyRenderer } from "../relation-navigation.components";
+import { filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
+import { filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
 import { userFilterConfigColumns, userByRoleFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+
+const defaultGeofenceRegionsRenderer = ({ buttonLabel, dialogTitle }: { buttonLabel: string, dialogTitle: string }) =>
+	(value: unknown) => (
+		<GeofenceRegionsEditorDialog buttonLabel={buttonLabel} dialogTitle={dialogTitle} disabled value={value as any ?? []} />
+	);
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -36,6 +44,8 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "creditApplication", label: "Credit Application", type: "relation", relationFilterConfigColumn: () => ["Credit Application", creditApplicationFilterConfigColumns] },
 	{ key: "officer", label: "Officer", type: "relation", relationFilterConfigColumn: () => ["User", userByRoleFilterConfigColumns("officer")] },
+	{ key: "survey", label: "Survey", type: "relation", relationFilterConfigColumn: () => ["Survey", surveyFilterConfigColumns] },
+	{ key: "satisfactionSurvey", label: "Satisfaction Survey", type: "relation", relationFilterConfigColumn: () => ["Satisfaction Survey", satisfactionSurveyFilterConfigColumns] },
 	{ key: "assignedDate", label: "Assigned Date", type: "date" },
 	{ key: "surveyDate", label: "Survey Date", type: "date" },
 	{ key: "approvalDate", label: "Approval Date", type: "date" },
@@ -56,6 +66,8 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By" },
 	{ key: "creditApplication", label: "Credit Application" },
 	{ key: "officer", label: "Officer" },
+	{ key: "survey", label: "Survey" },
+	{ key: "satisfactionSurvey", label: "Satisfaction Survey" },
 	{ key: "assignedDate", label: "Assigned Date" },
 	{ key: "surveyDate", label: "Survey Date" },
 	{ key: "approvalDate", label: "Approval Date" },
@@ -80,6 +92,8 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "deletedBy", label: "Deleted By", sortable: false },
 	{ key: "creditApplication", label: "Credit Application", sortable: false, className: "font-medium" },
 	{ key: "officer", label: "Officer", sortable: false },
+	{ key: "survey", label: "Survey", sortable: false },
+	{ key: "satisfactionSurvey", label: "Satisfaction Survey", sortable: false },
 	{ key: "assignedDate", label: "Assigned Date", sortable: true },
 	{ key: "surveyDate", label: "Survey Date", sortable: true },
 	{ key: "approvalDate", label: "Approval Date", sortable: true },
@@ -104,11 +118,14 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "deletedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Deleted By", relationSource: "credit-application-assignments.deletedBy" }) },
 	{ key: "creditApplication", type: "relation", render: defaultRelationCreditApplicationRenderer({ description: "Credit Application", relationSource: "credit-application-assignments.creditApplication" }) },
 	{ key: "officer", type: "relation", render: defaultRelationUserRenderer({ description: "Officer", relationSource: "credit-application-assignments.officer" }) },
+	{ key: "survey", type: "relation", render: defaultRelationSurveyRenderer({ description: "Survey", relationSource: "credit-application-assignments.survey" }) },
+	{ key: "satisfactionSurvey", type: "relation", render: defaultRelationSatisfactionSurveyRenderer({ description: "Satisfaction Survey", relationSource: "credit-application-assignments.satisfactionSurvey" }) },
 	{ key: "assignedDate", type: "date" },
 	{ key: "surveyDate", type: "date" },
 	{ key: "approvalDate", type: "date" },
 	{ key: "dueDate", type: "date" },
 	{ key: "rescheduleCount", type: "number" },
+	{ key: "geofenceRegions", type: "null", render: defaultGeofenceRegionsRenderer({ buttonLabel: "View content", dialogTitle: "Geofence Regions" }) },
 	{ key: "changeRequestType", type: "select", selectOptions: changeRequestTypeSelectOptions, render: defaultChangeRequestRenderer() },
 	{ key: "changeRequestComment", type: "richText" },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
@@ -149,6 +166,8 @@ export const defaultColumnOrder = Object.freeze([
 	"id",
 	"creditApplication",
 	"officer",
+	"survey",
+	"satisfactionSurvey",
 	"assignedDate",
 	"surveyDate",
 	"approvalDate",
@@ -172,6 +191,8 @@ export const defaultColumnOrder = Object.freeze([
 export const defaultColumnsShown = Object.freeze([
 	"creditApplication",
 	"officer",
+	"survey",
+	"satisfactionSurvey",
 	"assignedDate",
 	"surveyDate",
 	"approvalDate",
@@ -558,6 +579,8 @@ export type FormState = {
 	id?: string;
 	creditApplications?: string[];
 	officer?: string;
+	survey?: string;
+	satisfactionSurvey?: string;
 	assignedDate?: string;
 	surveyDate?: string;
 	approvalDate?: string;
@@ -572,6 +595,8 @@ export function toFormState(data: CreditApplicationAssignment) {
 		id: data.id,
 		creditApplications: creditApplication != null ? [creditApplication] : [],
 		officer: getRelationshipId(data.officer),
+		survey: getRelationshipId(data.survey),
+		satisfactionSurvey: getRelationshipId(data.satisfactionSurvey),
 		changeRequestComment: data.changeRequestComment
 	} as FormState;
 }
@@ -642,6 +667,52 @@ export function FormDrawer(
 								placeholder="Search officer"
 								searchPlaceholder="Search officer..."
 								allowClear
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Survey</label>
+							<SearchableSelect
+								value={formState.survey!}
+								onValueChange={value => onFormStateChange({ ...formState, survey: value })}
+								options={[]}
+								onSearch={(keyword, selectedValues) => searchRelationSurveysAction(keyword, selectedValues)
+									.then(surveys => surveys.map(survey => ({
+										value: survey.id,
+										label: survey.label
+									})))}
+								disabled={isMutating}
+								placeholder="Search survey"
+								searchPlaceholder="Search survey..."
+								allowClear
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<label className="text-sm font-medium">Satisfaction Survey</label>
+							<SearchableSelect
+								value={formState.satisfactionSurvey!}
+								onValueChange={value => onFormStateChange({ ...formState, satisfactionSurvey: value })}
+								options={[]}
+								onSearch={(keyword, selectedValues) => searchRelationSatisfactionSurveysAction(keyword, selectedValues)
+									.then(satisfactionSurveys => satisfactionSurveys.map(satisfactionSurvey => ({
+										value: satisfactionSurvey.id,
+										label: satisfactionSurvey.label
+									})))}
+								disabled={isMutating}
+								placeholder="Search satisfaction survey"
+								searchPlaceholder="Search satisfaction survey..."
+								allowClear
+							/>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<div className="flex items-center justify-between">
+								<label className="text-sm font-medium">Geofence Regions</label>
+							</div>
+							<GeofenceRegionsEditorDialog
+								buttonLabel="Open Geofence Regions Editor"
+								dialogTitle={title}
+								value={formState.geofenceRegions ?? []}
+								onValueChange={value => onFormStateChange({ ...formState, geofenceRegions: value })}
+								disabled={isMutating}
 							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">

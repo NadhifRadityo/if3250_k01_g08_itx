@@ -575,7 +575,6 @@ export function FormDrawer(
 								<Badge variant="outline">Required</Badge>
 							</div>
 							<SurveyContentEditorDialog
-								buttonClassName="w-full"
 								buttonLabel="Open form editor"
 								dialogTitle={title}
 								value={formState.content}

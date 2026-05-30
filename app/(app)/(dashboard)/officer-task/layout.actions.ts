@@ -9,15 +9,13 @@ import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { OfficerTask } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationUsers, resolveRelationSurveys, resolveRelationSurveyResults, resolveRelationSatisfactionSurveys, resolveRelationSatisfactionSurveyResults, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
-import { RelationUser, RelationSurvey, RelationSurveyResult, RelationSatisfactionSurvey, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "../relation-navigation.shared";
+import { resolveRelationUsers, resolveRelationSurveyResults, resolveRelationSatisfactionSurveyResults, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
+import { RelationUser, RelationSurveyResult, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
 	Partial<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> &
-	Partial<Record<`surveys:${string}`, RelationSurvey>> &
 	Partial<Record<`survey-results:${string}`, RelationSurveyResult>> &
-	Partial<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> &
 	Partial<Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult>>;
 
 async function resolveRelations(
@@ -27,9 +25,7 @@ async function resolveRelations(
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
 	const creditApplicationAssignmentIds = new Set<string>();
-	const surveyIds = new Set<string>();
 	const surveyResultIds = new Set<string>();
-	const satisfactionSurveyIds = new Set<string>();
 	const satisfactionSurveyResultIds = new Set<string>();
 	for(const doc of docs) {
 		const createdBy = getRelationshipId(doc.createdBy);
@@ -44,15 +40,9 @@ async function resolveRelations(
 		const creditApplicationAssignment = getRelationshipId(doc.creditApplicationAssignment);
 		if(creditApplicationAssignment != null)
 			creditApplicationAssignmentIds.add(creditApplicationAssignment);
-		const survey = getRelationshipId(doc.survey);
-		if(survey != null)
-			surveyIds.add(survey);
 		const surveyResult = getRelationshipId(doc.surveyResult);
 		if(surveyResult != null)
 			surveyResultIds.add(surveyResult);
-		const satisfactionSurvey = getRelationshipId(doc.satisfactionSurvey);
-		if(satisfactionSurvey != null)
-			satisfactionSurveyIds.add(satisfactionSurvey);
 		const satisfactionSurveyResult = getRelationshipId(doc.satisfactionSurveyResult);
 		if(satisfactionSurveyResult != null)
 			satisfactionSurveyResultIds.add(satisfactionSurveyResult);
@@ -60,9 +50,7 @@ async function resolveRelations(
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
 	Object.assign(relations, await resolveRelationCreditApplicationAssignments({ payload, ids: [...creditApplicationAssignmentIds] }));
-	Object.assign(relations, await resolveRelationSurveys({ payload, ids: [...surveyIds] }));
 	Object.assign(relations, await resolveRelationSurveyResults({ payload, ids: [...surveyResultIds] }));
-	Object.assign(relations, await resolveRelationSatisfactionSurveys({ payload, ids: [...satisfactionSurveyIds] }));
 	Object.assign(relations, await resolveRelationSatisfactionSurveyResults({ payload, ids: [...satisfactionSurveyResultIds] }));
 	return relations;
 }
@@ -94,8 +82,8 @@ async function queryAction(
 				{ "creditApplicationAssignment.creditApplication.email": { like: keyword } },
 				{ "creditApplicationAssignment.officer.name": { like: keyword } },
 				{ "creditApplicationAssignment.officer.email": { like: keyword } },
-				{ "survey.title": { like: keyword } },
-				{ "satisfactionSurvey.title": { like: keyword } }
+				{ "creditApplicationAssignment.survey.title": { like: keyword } },
+				{ "creditApplicationAssignment.satisfactionSurvey.title": { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }
@@ -131,9 +119,7 @@ export async function getDetailsAction(id: string) {
 			deletedAt: true,
 			deletedBy: true,
 			creditApplicationAssignment: true,
-			survey: true,
 			surveyResult: true,
-			satisfactionSurvey: true,
 			satisfactionSurveyResult: true
 		}
 	});

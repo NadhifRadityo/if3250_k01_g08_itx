@@ -308,6 +308,8 @@ export const collectionMaskFields = Object.freeze({
 		"deletedBy": "relation",
 		"creditApplication": "relation",
 		"officer": "relation",
+		"survey": "relation",
+		"satisfactionSurvey": "relation",
 		"assignedDate": "date",
 		"surveyDate": "date",
 		"approvalDate": "date",
@@ -329,9 +331,7 @@ export const collectionMaskFields = Object.freeze({
 		"deletedAt": "date",
 		"deletedBy": "relation",
 		"creditApplicationAssignment": "relation",
-		"survey": "relation",
 		"surveyResult": "relation",
-		"satisfactionSurvey": "relation",
 		"satisfactionSurveyResult": "relation"
 	},
 	"surveys": {
@@ -471,6 +471,8 @@ export const collectionRelationFields = Object.freeze({
 		"deletedBy": "staged-users",
 		"creditApplication": "credit-applications",
 		"officer": "staged-users",
+		"survey": "surveys",
+		"satisfactionSurvey": "satisfaction-surveys",
 		"reviewedBy": "staged-users"
 	},
 	"officer-tasks": {
@@ -478,9 +480,7 @@ export const collectionRelationFields = Object.freeze({
 		"updatedBy": "staged-users",
 		"deletedBy": "staged-users",
 		"creditApplicationAssignment": "credit-application-assignments",
-		"survey": "surveys",
 		"surveyResult": "survey-results",
-		"satisfactionSurvey": "satisfaction-surveys",
 		"satisfactionSurveyResult": "satisfaction-survey-results"
 	},
 	"surveys": {

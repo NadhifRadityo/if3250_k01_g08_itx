@@ -133,6 +133,20 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			filterOptions: { "role.level": { equals: "officer" } }
 		},
 		{
+			name: "survey",
+			label: "Survey",
+			type: "relationship",
+			relationTo: "surveys",
+			required: true
+		},
+		{
+			name: "satisfactionSurvey",
+			label: "Satisfaction Survey",
+			type: "relationship",
+			relationTo: "satisfaction-surveys",
+			required: true
+		},
+		{
 			name: "assignedDate",
 			label: "Assigned Date",
 			type: "date"

@@ -9,13 +9,15 @@ import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendP
 import type { CreditApplicationAssignment } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationUsers, resolveRelationCreditApplications } from "../relation-navigation.actions";
-import { RelationUser, RelationCreditApplication } from "../relation-navigation.shared";
+import { resolveRelationUsers, resolveRelationSurveys, resolveRelationCreditApplications, resolveRelationSatisfactionSurveys } from "../relation-navigation.actions";
+import { RelationUser, RelationSurvey, RelationCreditApplication, RelationSatisfactionSurvey } from "../relation-navigation.shared";
 import { FormState } from "./layout.components";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
-	Partial<Record<`credit-applications:${string}`, RelationCreditApplication>>;
+	Partial<Record<`credit-applications:${string}`, RelationCreditApplication>> &
+	Partial<Record<`surveys:${string}`, RelationSurvey>> &
+	Partial<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>>;
 
 async function resolveRelations(
 	{ payload, docs }:
@@ -24,6 +26,8 @@ async function resolveRelations(
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
 	const creditApplicationIds = new Set<string>();
+	const surveyIds = new Set<string>();
+	const satisfactionSurveyIds = new Set<string>();
 	for(const doc of docs) {
 		const createdBy = getRelationshipId(doc.createdBy);
 		if(createdBy != null)
@@ -40,6 +44,12 @@ async function resolveRelations(
 		const officer = getRelationshipId(doc.officer);
 		if(officer != null)
 			userIds.add(officer);
+		const survey = getRelationshipId(doc.survey);
+		if(survey != null)
+			surveyIds.add(survey);
+		const satisfactionSurvey = getRelationshipId(doc.satisfactionSurvey);
+		if(satisfactionSurvey != null)
+			satisfactionSurveyIds.add(satisfactionSurvey);
 		const reviewedBy = getRelationshipId(doc.reviewedBy);
 		if(reviewedBy != null)
 			userIds.add(reviewedBy);
@@ -47,6 +57,8 @@ async function resolveRelations(
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
 	Object.assign(relations, await resolveRelationCreditApplications({ payload, ids: [...creditApplicationIds] }));
+	Object.assign(relations, await resolveRelationSurveys({ payload, ids: [...surveyIds] }));
+	Object.assign(relations, await resolveRelationSatisfactionSurveys({ payload, ids: [...satisfactionSurveyIds] }));
 	return relations;
 }
 
@@ -81,7 +93,9 @@ async function queryAction(
 				{ "creditApplication.name": { like: keyword } },
 				{ "creditApplication.email": { like: keyword } },
 				{ "officer.name": { like: keyword } },
-				{ "officer.email": { like: keyword } }
+				{ "officer.email": { like: keyword } },
+				{ "survey.title": { like: keyword } },
+				{ "satisfactionSurvey.title": { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }
@@ -124,6 +138,8 @@ export async function getDetailsAction(id: string) {
 			deletedBy: true,
 			creditApplication: true,
 			officer: true,
+			survey: true,
+			satisfactionSurvey: true,
 			assignedDate: true,
 			surveyDate: true,
 			approvalDate: true,
@@ -169,6 +185,8 @@ export async function getDifferenceAction(id: string) {
 				deletedAt: true,
 				creditApplication: true,
 				officer: true,
+				survey: true,
+				satisfactionSurvey: true,
 				assignedDate: true,
 				surveyDate: true,
 				approvalDate: true,
@@ -204,6 +222,8 @@ export async function getDifferenceAction(id: string) {
 				deletedAt: true,
 				creditApplication: true,
 				officer: true,
+				survey: true,
+				satisfactionSurvey: true,
 				assignedDate: true,
 				surveyDate: true,
 				approvalDate: true,
@@ -253,6 +273,8 @@ export async function getHistoryAction(id: string) {
 				deletedBy: true,
 				creditApplication: true,
 				officer: true,
+				survey: true,
+				satisfactionSurvey: true,
 				assignedDate: true,
 				surveyDate: true,
 				approvalDate: true,
@@ -284,6 +306,10 @@ export async function requestUpsertAction(formState: FormState) {
 		throw new Error("Credit application is required.");
 	if(formState.officer == null || formState.officer.trim().length == 0)
 		throw new Error("Officer is required.");
+	if(formState.survey == null || formState.survey.trim().length == 0)
+		throw new Error("Survey is required.");
+	if(formState.satisfactionSurvey == null || formState.satisfactionSurvey.trim().length == 0)
+		throw new Error("Satisfaction survey is required.");
 	const officer = await payload.findByID({
 		user: user,
 		overrideAccess: false,
@@ -297,6 +323,32 @@ export async function requestUpsertAction(formState: FormState) {
 	const roleLevel = typeof officer.role == "object" && officer.role != null && "level" in officer.role ? officer.role.level : null;
 	if(roleLevel != "officer")
 		throw new Error("Selected user must have officer role.");
+	const survey = await payload.findByID({
+		user: user,
+		overrideAccess: false,
+		collection: "surveys",
+		id: formState.survey,
+		depth: 0,
+		select: {
+			_status: true,
+			deletedAt: true
+		}
+	});
+	if(survey._status != "published" || survey.deletedAt != null)
+		throw new Error("Selected survey must be an active published survey.");
+	const satisfactionSurvey = await payload.findByID({
+		user: user,
+		overrideAccess: false,
+		collection: "satisfaction-surveys",
+		id: formState.satisfactionSurvey,
+		depth: 0,
+		select: {
+			_status: true,
+			deletedAt: true
+		}
+	});
+	if(satisfactionSurvey._status != "published" || satisfactionSurvey.deletedAt != null)
+		throw new Error("Selected satisfaction survey must be an active published satisfaction survey.");
 	const creditApplications = (await payload.find({
 		user: user,
 		overrideAccess: false,
@@ -357,6 +409,8 @@ export async function requestUpsertAction(formState: FormState) {
 						deletedBy: null,
 						creditApplication: creditApplication,
 						officer: formState.officer,
+						survey: formState.survey,
+						satisfactionSurvey: formState.satisfactionSurvey,
 						assignedDate: formState.assignedDate,
 						surveyDate: formState.surveyDate,
 						approvalDate: formState.approvalDate,
@@ -387,6 +441,8 @@ export async function requestUpsertAction(formState: FormState) {
 					deletedBy: null,
 					creditApplication: creditApplication,
 					officer: formState.officer,
+					survey: formState.survey,
+					satisfactionSurvey: formState.satisfactionSurvey,
 					assignedDate: formState.assignedDate,
 					surveyDate: formState.surveyDate,
 					approvalDate: formState.approvalDate,
@@ -418,6 +474,8 @@ export async function requestUpsertAction(formState: FormState) {
 			deletedBy: null,
 			creditApplication: formState.creditApplications[0],
 			officer: formState.officer,
+			survey: formState.survey,
+			satisfactionSurvey: formState.satisfactionSurvey,
 			assignedDate: formState.assignedDate,
 			surveyDate: formState.surveyDate,
 			approvalDate: formState.approvalDate,
@@ -506,6 +564,8 @@ export async function cancelRequestAction(
 				deletedBy: true,
 				creditApplication: true,
 				officer: true,
+				survey: true,
+				satisfactionSurvey: true,
 				assignedDate: true,
 				surveyDate: true,
 				approvalDate: true,
@@ -553,6 +613,8 @@ export async function cancelRequestAction(
 			deletedBy: approvedVersion.deletedBy,
 			creditApplication: approvedVersion.creditApplication,
 			officer: approvedVersion.officer,
+			survey: approvedVersion.survey,
+			satisfactionSurvey: approvedVersion.satisfactionSurvey,
 			assignedDate: approvedVersion.assignedDate,
 			surveyDate: approvedVersion.surveyDate,
 			approvalDate: approvedVersion.approvalDate,
