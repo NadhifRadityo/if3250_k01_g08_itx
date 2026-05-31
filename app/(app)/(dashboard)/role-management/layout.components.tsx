@@ -557,7 +557,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Role Name</label>
 							<Input
-								value={formState.name}
+								value={formState.name ?? ""}
 								onChange={event => onFormStateChange({ ...formState, name: event.target.value })}
 								placeholder="Credit Approval Supervisor"
 							/>

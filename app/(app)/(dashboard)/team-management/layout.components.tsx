@@ -556,7 +556,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Team Name</label>
 							<Input
-								value={formState.name}
+								value={formState.name ?? ""}
 								onChange={event => onFormStateChange({ ...formState, name: event.target.value })}
 								placeholder="Field Operations Team"
 							/>
@@ -564,7 +564,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Supervisor</label>
 							<SearchableSelect
-								value={formState.supervisor!}
+								value={formState.supervisor ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, supervisor: value })}
 								options={[]}
 								onSearch={(keyword, selectedValues) => searchRelationUsersAction(keyword, selectedValues)

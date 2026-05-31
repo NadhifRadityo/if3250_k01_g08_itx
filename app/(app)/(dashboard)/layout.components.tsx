@@ -707,7 +707,7 @@ export function MenuFilterConfigCard(
 									(lastDraftedFilterColumn.type != "relation_hasMany" && lastDraftedFilterColumn.type != "select_hasMany" && lastDraftedFilterColumn.type != "date_hasMany" && lastDraftedFilterColumn.type != "text_hasMany" && lastDraftedFilterColumn.type != "number_hasMany" && lastDraftedFilterColumn.type != "boolean_hasMany")) ? (
 										lastDraftedFilterColumn.type == "relation" ? (
 											<SearchableSelect
-												value={draftedFilter.value}
+												value={draftedFilter.value ?? ""}
 												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
 												options={[]}
 												onSearch={(keyword, selectedValues) => lastDraftedFilterColumn.relationSearch!(keyword, selectedValues).then(vs => vs.map(v => ({ value: v.id, label: v.label })))}
@@ -717,7 +717,7 @@ export function MenuFilterConfigCard(
 										) : lastDraftedFilterColumn.type == "select" ? (
 											<MemoizedSelect
 												options={lastDraftedFilterColumn.selectOptions}
-												value={draftedFilter.value}
+												value={draftedFilter.value ?? ""}
 												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
 												placeholder="Select value"
 												disabled={disabled}
@@ -726,7 +726,7 @@ export function MenuFilterConfigCard(
 											<DatetimeInput
 												className="flex-1"
 												mode="datetime"
-												value={draftedFilter.value != null ? new Date(draftedFilter.value).toISOString() : undefined}
+												value={draftedFilter.value != null ? new Date(draftedFilter.value).toISOString() : ""}
 												onChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value }))}
 												disabled={disabled}
 												placeholder="Select date and time"
@@ -734,7 +734,7 @@ export function MenuFilterConfigCard(
 											/>
 										) : lastDraftedFilterColumn.type == "text" ? (
 											<Input
-												value={draftedFilter.value}
+												value={draftedFilter.value ?? ""}
 												onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: e.target.value }))}
 												disabled={disabled}
 												placeholder="Enter value"
@@ -742,7 +742,7 @@ export function MenuFilterConfigCard(
 										) : lastDraftedFilterColumn.type == "number" ? (
 											<Input
 												type="number"
-												value={draftedFilter.value}
+												value={draftedFilter.value ?? ""}
 												onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: e.target.valueAsNumber }))}
 												disabled={disabled}
 												placeholder="Enter value"
@@ -750,7 +750,7 @@ export function MenuFilterConfigCard(
 										) : lastDraftedFilterColumn.type == "boolean" ? (
 											<MemoizedSelect
 												options={[{ value: "true", label: "TRUE" }, { value: "false", label: "FALSE" }]}
-												value={draftedFilter.value != null ? draftedFilter.value != "false" ? "true" : "false" : undefined}
+												value={draftedFilter.value != null ? draftedFilter.value != "false" ? "true" : "false" : ""}
 												onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: value != "false" }))}
 												placeholder="Select value"
 												disabled={disabled}
@@ -788,7 +788,7 @@ export function MenuFilterConfigCard(
 																{lastDraftedFilterColumn.type == "select" ? (
 																	<MemoizedSelect
 																		options={lastDraftedFilterColumn.selectOptions}
-																		value={value}
+																		value={value ?? ""}
 																		onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) }))}
 																		placeholder="Select value"
 																		disabled={disabled}
@@ -797,7 +797,7 @@ export function MenuFilterConfigCard(
 																	<DatetimeInput
 																		className="flex-1"
 																		mode="datetime"
-																		value={value != null ? new Date(value).toISOString() : undefined}
+																		value={value != null ? new Date(value).toISOString() : ""}
 																		onChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, Date.parse(value)) }))}
 																		disabled={disabled}
 																		placeholder="Select date and time"
@@ -805,7 +805,7 @@ export function MenuFilterConfigCard(
 																	/>
 																) : lastDraftedFilterColumn.type == "text" ? (
 																	<Input
-																		value={value}
+																		value={value ?? ""}
 																		onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.value) }))}
 																		disabled={disabled}
 																		placeholder="Enter value"
@@ -813,7 +813,7 @@ export function MenuFilterConfigCard(
 																) : lastDraftedFilterColumn.type == "number" ? (
 																	<Input
 																		type="number"
-																		value={value}
+																		value={value ?? ""}
 																		onChange={e => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, e.target.valueAsNumber) }))}
 																		disabled={disabled}
 																		placeholder="Enter value"
@@ -821,7 +821,7 @@ export function MenuFilterConfigCard(
 																) : lastDraftedFilterColumn.type == "boolean" ? (
 																	<MemoizedSelect
 																		options={[{ value: "true", label: "TRUE" }, { value: "false", label: "FALSE" }]}
-																		value={value != null ? value != "false" ? "true" : "false" : undefined}
+																		value={value != null ? value != "false" ? "true" : "false" : ""}
 																		onValueChange={value => setDraftedFilters(draftedFilters.with(i, { ...draftedFilter, value: draftedFilter.value.with(valueIndex, value) }))}
 																		placeholder="Select value"
 																		disabled={disabled}

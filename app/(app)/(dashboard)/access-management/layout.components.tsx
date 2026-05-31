@@ -840,7 +840,7 @@ export function FormDrawer(
 											<label className="text-xs text-muted-foreground">{f.label}</label>
 											<MemoizedSelect
 												options={maskOptionsMap[collectionMaskFields[formState.collection!][f.key]]}
-												value={(formState.masks ?? {})[f.key]}
+												value={(formState.masks ?? {})[f.key] ?? ""}
 												onValueChange={value => onFormStateChange({ ...formState, masks: { ...formState.masks, [f.key]: value } })}
 												placeholder="Inherit"
 												disabled={isMutating}

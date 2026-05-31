@@ -615,7 +615,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Email</label>
 							<Input
-								value={formState.email}
+								value={formState.email ?? ""}
 								onChange={event => onFormStateChange({ ...formState, email: event.target.value })}
 								placeholder="user@example.com"
 							/>
@@ -623,7 +623,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Name</label>
 							<Input
-								value={formState.name}
+								value={formState.name ?? ""}
 								onChange={event => onFormStateChange({ ...formState, name: event.target.value })}
 								placeholder="Full name"
 							/>
@@ -631,7 +631,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Employee ID</label>
 							<Input
-								value={formState.employeeId}
+								value={formState.employeeId ?? ""}
 								onChange={event => onFormStateChange({ ...formState, employeeId: event.target.value })}
 								placeholder="EMP-0001"
 							/>
@@ -639,7 +639,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Role</label>
 							<SearchableSelect
-								value={formState.role!}
+								value={formState.role ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, role: value })}
 								options={[]}
 								onSearch={(keyword, selectedValues) => searchRelationRolesAction(keyword, selectedValues).then(roles => roles.map(role => ({
@@ -654,7 +654,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Supervisor</label>
 							<SearchableSelect
-								value={formState.supervisor!}
+								value={formState.supervisor ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, supervisor: value })}
 								options={[]}
 								onSearch={(keyword, selectedValues) => searchRelationUsersByRoleLevelAction("supervisor", keyword, selectedValues).then(users => users.map(user => ({
@@ -671,7 +671,7 @@ export function FormDrawer(
 							<label className="text-sm font-medium">Initial Password</label>
 							<Input
 								type="password"
-								value={formState.initialPassword}
+								value={formState.initialPassword ?? ""}
 								onChange={event => onFormStateChange({ ...formState, initialPassword: event.target.value })}
 								placeholder={formState.id == null ? "At least 8 characters" : "Leave blank to keep current password"}
 							/>

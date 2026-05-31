@@ -618,7 +618,7 @@ export function FormDrawer(
 							<div className="space-y-2 sm:col-span-2">
 								<label className="text-sm font-medium">Credit Application</label>
 								<SearchableSelect
-									value={formState.creditApplications![0]}
+									value={formState.creditApplications?.[0] ?? ""}
 									onValueChange={value => onFormStateChange({ ...formState, creditApplications: value.length > 0 ? [value] : [] })}
 									options={[]}
 									onSearch={(keyword, selectedValues) => searchAvailableRelationCreditApplicationsAction(keyword, selectedValues)
@@ -636,7 +636,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Officer</label>
 							<SearchableSelect
-								value={formState.officer!}
+								value={formState.officer ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, officer: value })}
 								options={[]}
 								onSearch={(keyword, selectedValues) => searchRelationUsersByRoleLevelAction("officer", keyword, selectedValues)
@@ -653,7 +653,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Survey</label>
 							<SearchableSelect
-								value={formState.survey!}
+								value={formState.survey ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, survey: value })}
 								options={[]}
 								onSearch={(keyword, selectedValues) => searchRelationSurveysAction(keyword, selectedValues)
@@ -670,7 +670,7 @@ export function FormDrawer(
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Satisfaction Survey</label>
 							<SearchableSelect
-								value={formState.satisfactionSurvey!}
+								value={formState.satisfactionSurvey ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, satisfactionSurvey: value })}
 								options={[]}
 								onSearch={(keyword, selectedValues) => searchRelationSatisfactionSurveysAction(keyword, selectedValues)
@@ -686,11 +686,11 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Assigned Date</label>
-							<DatetimeInput mode="datetime" value={formState.assignedDate} onChange={v => onFormStateChange({ ...formState, assignedDate: v })} disabled={isMutating} />
+							<DatetimeInput mode="datetime" value={formState.assignedDate ?? ""} onChange={v => onFormStateChange({ ...formState, assignedDate: v })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Due Date</label>
-							<DatetimeInput mode="datetime" value={formState.dueDate} onChange={v => onFormStateChange({ ...formState, dueDate: v })} disabled={isMutating} />
+							<DatetimeInput mode="datetime" value={formState.dueDate ?? ""} onChange={v => onFormStateChange({ ...formState, dueDate: v })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">

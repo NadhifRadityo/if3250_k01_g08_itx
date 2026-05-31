@@ -717,11 +717,11 @@ export function FormDrawer(
 					<div className="pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Applicant Name</label>
-							<Input value={formState.name} onChange={event => onFormStateChange({ ...formState, name: event.target.value })} disabled={isMutating} />
+							<Input value={formState.name ?? ""} onChange={event => onFormStateChange({ ...formState, name: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Email</label>
-							<Input value={formState.email} onChange={event => onFormStateChange({ ...formState, email: event.target.value })} disabled={isMutating} />
+							<Input value={formState.email ?? ""} onChange={event => onFormStateChange({ ...formState, email: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">
@@ -785,19 +785,19 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Whatsapp Number</label>
-							<Input value={formState.whatsappNumber} onChange={event => onFormStateChange({ ...formState, whatsappNumber: event.target.value })} disabled={isMutating} />
+							<Input value={formState.whatsappNumber ?? ""} onChange={event => onFormStateChange({ ...formState, whatsappNumber: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Sms Number</label>
-							<Input value={formState.smsNumber} onChange={event => onFormStateChange({ ...formState, smsNumber: event.target.value })} disabled={isMutating} />
+							<Input value={formState.smsNumber ?? ""} onChange={event => onFormStateChange({ ...formState, smsNumber: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Collateral Registry Name</label>
-							<Input value={formState.collateralRegistryName} onChange={event => onFormStateChange({ ...formState, collateralRegistryName: event.target.value })} disabled={isMutating} />
+							<Input value={formState.collateralRegistryName ?? ""} onChange={event => onFormStateChange({ ...formState, collateralRegistryName: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Collateral Name</label>
-							<Input value={formState.collateralName} onChange={event => onFormStateChange({ ...formState, collateralName: event.target.value })} disabled={isMutating} />
+							<Input value={formState.collateralName ?? ""} onChange={event => onFormStateChange({ ...formState, collateralName: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Collateral Description</label>
@@ -810,11 +810,11 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Asset Id</label>
-							<Input value={formState.assetId} onChange={event => onFormStateChange({ ...formState, assetId: event.target.value })} disabled={isMutating} />
+							<Input value={formState.assetId ?? ""} onChange={event => onFormStateChange({ ...formState, assetId: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Asset Name</label>
-							<Input value={formState.assetName} onChange={event => onFormStateChange({ ...formState, assetName: event.target.value })} disabled={isMutating} />
+							<Input value={formState.assetName ?? ""} onChange={event => onFormStateChange({ ...formState, assetName: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Asset Description</label>
@@ -827,23 +827,23 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Period</label>
-							<Input value={formState.period} onChange={event => onFormStateChange({ ...formState, period: event.target.valueAsNumber })} disabled={isMutating} />
+							<Input value={formState.period ?? ""} onChange={event => onFormStateChange({ ...formState, period: event.target.valueAsNumber })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Installment</label>
-							<Input value={formState.installment} onChange={event => onFormStateChange({ ...formState, installment: event.target.valueAsNumber })} disabled={isMutating} />
+							<Input value={formState.installment ?? ""} onChange={event => onFormStateChange({ ...formState, installment: event.target.valueAsNumber })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Down Payment</label>
-							<Input value={formState.downPayment} onChange={event => onFormStateChange({ ...formState, downPayment: event.target.valueAsNumber })} disabled={isMutating} />
+							<Input value={formState.downPayment ?? ""} onChange={event => onFormStateChange({ ...formState, downPayment: event.target.valueAsNumber })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Plafond</label>
-							<Input value={formState.plafond} onChange={event => onFormStateChange({ ...formState, plafond: event.target.valueAsNumber })} disabled={isMutating} />
+							<Input value={formState.plafond ?? ""} onChange={event => onFormStateChange({ ...formState, plafond: event.target.valueAsNumber })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Vendor</label>
-							<Input value={formState.vendor} onChange={event => onFormStateChange({ ...formState, vendor: event.target.value })} disabled={isMutating} />
+							<Input value={formState.vendor ?? ""} onChange={event => onFormStateChange({ ...formState, vendor: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Remarks</label>
@@ -856,32 +856,32 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Text 1</label>
-							<Input value={formState.otherText1} onChange={event => onFormStateChange({ ...formState, otherText1: event.target.value })} disabled={isMutating} />
+							<Input value={formState.otherText1 ?? ""} onChange={event => onFormStateChange({ ...formState, otherText1: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Text 2</label>
-							<Input value={formState.otherText2} onChange={event => onFormStateChange({ ...formState, otherText2: event.target.value })} disabled={isMutating} />
+							<Input value={formState.otherText2 ?? ""} onChange={event => onFormStateChange({ ...formState, otherText2: event.target.value })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Number 1</label>
-							<Input value={formState.otherNumber1} onChange={event => onFormStateChange({ ...formState, otherNumber1: event.target.valueAsNumber })} disabled={isMutating} />
+							<Input value={formState.otherNumber1 ?? ""} onChange={event => onFormStateChange({ ...formState, otherNumber1: event.target.valueAsNumber })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Number 2</label>
-							<Input value={formState.otherNumber2} onChange={event => onFormStateChange({ ...formState, otherNumber2: event.target.valueAsNumber })} disabled={isMutating} />
+							<Input value={formState.otherNumber2 ?? ""} onChange={event => onFormStateChange({ ...formState, otherNumber2: event.target.valueAsNumber })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Date 1</label>
-							<DatetimeInput mode="datetime" value={formState.otherDate1} onChange={v => onFormStateChange({ ...formState, otherDate1: v })} disabled={isMutating} />
+							<DatetimeInput mode="datetime" value={formState.otherDate1 ?? ""} onChange={v => onFormStateChange({ ...formState, otherDate1: v })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Date 2</label>
-							<DatetimeInput mode="datetime" value={formState.otherDate2} onChange={v => onFormStateChange({ ...formState, otherDate2: v })} disabled={isMutating} />
+							<DatetimeInput mode="datetime" value={formState.otherDate2 ?? ""} onChange={v => onFormStateChange({ ...formState, otherDate2: v })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Others</label>
 							<Textarea
-								value={formState.others}
+								value={formState.others ?? ""}
 								onChange={event => onFormStateChange({ ...formState, others: event.target.value })}
 								disabled={isMutating}
 								rows={6}
