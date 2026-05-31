@@ -12,7 +12,7 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 
 import { useDashboardContext } from "./layout.components";
 import { RelationSummary, getRelationSummaryAction } from "./relation-navigation.actions";
-import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationMessageLog, RelationSurvey, RelationLoginLog, RelationOfficerTask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
+import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationMessageLog, RelationSurvey, RelationLoginLog, RelationOfficerTask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
 type PendingRelationRedirectData = {
 	relationType: string;
@@ -1083,105 +1083,5 @@ export const defaultRelationRecordingLogsRenderer = ({ description, relationSour
 					{i != recordingLogIds.length - 1 ? ", " : ""}
 				</React.Fragment>
 			))(context?.relationValues?.[`recording-logs:${recordingLogId}`]))}
-		</RelationNavigationLink>
-	);
-export const defaultRelationRecordingLogAudioFileRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(audioFileId: string | null, row: { id: string }, context: { relationValues?: Record<`recording-log-audio-files:${string}`, RelationRecordingLogAudioFile> }) => audioFileId == null ? "-" : (audioFileRelation => (
-		<RelationNavigationLink
-			relationType="recording-log-audio-files"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={audioFileId}
-			fallback={{
-				title: audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{audioFileId}</span>) },
-					...(audioFileRelation != null ? [{ label: "File Name", value: audioFileRelation.filename }] : []),
-					...(audioFileRelation != null ? [{ label: "File Size", value: audioFileRelation.filesize }] : []),
-					...(audioFileRelation != null ? [{ label: "Mime Type", value: audioFileRelation.mimeType }] : [])
-				]
-			}}
-		>
-			{audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`recording-log-audio-files:${audioFileId}`]);
-export const defaultRelationRecordingLogAudioFilesRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(audioFileIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`recording-log-audio-files:${string}`, RelationRecordingLogAudioFile> }) => audioFileIds == null || audioFileIds.length == 0 ? "-" : (
-		<RelationNavigationLink
-			relationType="recording-log-audio-files"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			pickerTitle="Select recording log audio files"
-			pickerDescription={description}
-			relationChoices={audioFileIds.map(audioFileId => (audioFileRelation => ({
-				id: audioFileId,
-				name: audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>),
-				fallback: {
-					title: audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>),
-					description: description,
-					fields: [
-						{ label: "Id", value: (<span className="font-mono">{audioFileId}</span>) },
-						...(audioFileRelation != null ? [{ label: "File Name", value: audioFileRelation.filename }] : []),
-						...(audioFileRelation != null ? [{ label: "File Size", value: audioFileRelation.filesize }] : []),
-						...(audioFileRelation != null ? [{ label: "Mime Type", value: audioFileRelation.mimeType }] : [])
-					]
-				}
-			}))(context?.relationValues?.[`recording-log-audio-files:${audioFileId}`]))}
-		>
-			{audioFileIds.map((audioFileId, i) => (audioFileRelation => (
-				<React.Fragment key={audioFileId}>
-					{audioFileRelation?.filename ?? (<>Recording Log Audio File <span className="font-mono">{audioFileId}</span></>)}
-					{i != audioFileIds.length - 1 ? ", " : ""}
-				</React.Fragment>
-			))(context?.relationValues?.[`recording-log-audio-files:${audioFileId}`]))}
-		</RelationNavigationLink>
-	);
-export const defaultRelationRecordingLogTranscriptionRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(transcriptionId: string | null, row: { id: string }, context: { relationValues?: Record<`recording-log-transcriptions:${string}`, RelationRecordingLogTranscription> }) => transcriptionId == null ? "-" : (transcriptionRelation => (
-		<RelationNavigationLink
-			relationType="recording-log-transcriptions"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			relationId={transcriptionId}
-			fallback={{
-				title: transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>),
-				description: description,
-				fields: [
-					{ label: "Id", value: (<span className="font-mono">{transcriptionId}</span>) },
-					...(transcriptionRelation != null ? [{ label: "File Name", value: transcriptionRelation.filename }] : []),
-					...(transcriptionRelation != null ? [{ label: "File Size", value: transcriptionRelation.filesize }] : []),
-					...(transcriptionRelation != null ? [{ label: "Mime Type", value: transcriptionRelation.mimeType }] : [])
-				]
-			}}
-		>
-			{transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>)}
-		</RelationNavigationLink>
-	))(context?.relationValues?.[`recording-log-transcriptions:${transcriptionId}`]);
-export const defaultRelationRecordingLogTranscriptionsRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
-	(transcriptionIds: string[] | null, row: { id: string }, context: { relationValues?: Record<`recording-log-transcriptions:${string}`, RelationRecordingLogTranscription> }) => transcriptionIds == null || transcriptionIds.length == 0 ? "-" : (
-		<RelationNavigationLink
-			relationType="recording-log-transcriptions"
-			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			pickerTitle="Select recording log transcriptions"
-			pickerDescription={description}
-			relationChoices={transcriptionIds.map(transcriptionId => (transcriptionRelation => ({
-				id: transcriptionId,
-				name: transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>),
-				fallback: {
-					title: transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>),
-					description: description,
-					fields: [
-						{ label: "Id", value: (<span className="font-mono">{transcriptionId}</span>) },
-						...(transcriptionRelation != null ? [{ label: "File Name", value: transcriptionRelation.filename }] : []),
-						...(transcriptionRelation != null ? [{ label: "File Size", value: transcriptionRelation.filesize }] : []),
-						...(transcriptionRelation != null ? [{ label: "Mime Type", value: transcriptionRelation.mimeType }] : [])
-					]
-				}
-			}))(context?.relationValues?.[`recording-log-transcriptions:${transcriptionId}`]))}
-		>
-			{transcriptionIds.map((transcriptionId, i) => (transcriptionRelation => (
-				<React.Fragment key={transcriptionId}>
-					{transcriptionRelation?.filename ?? (<>Recording Log Transcription <span className="font-mono">{transcriptionId}</span></>)}
-					{i != transcriptionIds.length - 1 ? ", " : ""}
-				</React.Fragment>
-			))(context?.relationValues?.[`recording-log-transcriptions:${transcriptionId}`]))}
 		</RelationNavigationLink>
 	);

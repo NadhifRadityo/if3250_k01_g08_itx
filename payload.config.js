@@ -1,5 +1,6 @@
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { lexicalEditor } from "@payloadcms/richtext-lexical";
+import { s3Storage } from "@payloadcms/storage-s3";
 import { buildConfig, databaseKVAdapter } from "payload";
 import sharp from "sharp";
 
@@ -12,7 +13,7 @@ import { GpsLogs } from "./collections/GpsLogCollection";
 import { LoginLogs } from "./collections/LoginLogCollection";
 import { MessageLogs } from "./collections/MessageLogCollection";
 import { OfficerTasks, OfficerTasksSchemaHook, OfficerTasksClearActive } from "./collections/OfficerTaskCollection";
-import { RecordingLogs, RecordingLogAudioFiles, RecordingLogTranscriptions } from "./collections/RecordingLogCollection";
+import { RecordingLogs } from "./collections/RecordingLogCollection";
 import { Roles, RolesSchemaHook } from "./collections/RoleCollection";
 import { SatisfactionSurveys, SatisfactionSurveysSchemaHook } from "./collections/SatisfactionSurveyCollection";
 import { SatisfactionSurveyResults } from "./collections/SatisfactionSurveyResultCollection";
@@ -66,12 +67,37 @@ export default buildConfig({
 		LoginLogs(),
 		GpsLogs(),
 		MessageLogs(),
-		RecordingLogs(),
-		RecordingLogAudioFiles(),
-		RecordingLogTranscriptions()
+		RecordingLogs()
 	],
 	plugins: [
 		DatabaseLockingPlugin(),
+		s3Storage({
+			config: {
+				endpoint: process.env.PAYLOAD_S3_ENDPOINT,
+				region: process.env.PAYLOAD_S3_REGION,
+				credentials: {
+					accessKeyId: process.env.PAYLOAD_S3_ACCESS_KEY_ID,
+					secretAccessKey: process.env.PAYLOAD_S3_SECRET_ACCESS_KEY
+				},
+				forcePathStyle: process.env.PAYLOAD_S3_FORCE_PATH_STYLE != "false"
+			},
+			bucket: process.env.PAYLOAD_S3_BUCKET,
+			clientUploads: {
+				access: ({ req: { user } }) => user != null
+			},
+			signedDownloads: true,
+			useCompositePrefixes: true,
+			collections: {
+				"generic-richtext-uploads": {
+					prefix: "generic-richtext-uploads",
+					signedDownloads: true
+				},
+				"credit-application-imports": {
+					prefix: "credit-application-imports",
+					signedDownloads: true
+				}
+			}
+		}),
 		SearchPlugin({
 			collections: [
 				"users",

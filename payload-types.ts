@@ -85,8 +85,6 @@ export interface Config {
     'gps-logs': GpsLog;
     'message-logs': MessageLog;
     'recording-logs': RecordingLog;
-    'recording-log-audio-files': RecordingLogAudioFile;
-    'recording-log-transcriptions': RecordingLogTranscription;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSync;
     search: Search;
     'payload-kv': PayloadKv;
@@ -119,8 +117,6 @@ export interface Config {
     'gps-logs': GpsLogsSelect<false> | GpsLogsSelect<true>;
     'message-logs': MessageLogsSelect<false> | MessageLogsSelect<true>;
     'recording-logs': RecordingLogsSelect<false> | RecordingLogsSelect<true>;
-    'recording-log-audio-files': RecordingLogAudioFilesSelect<false> | RecordingLogAudioFilesSelect<true>;
-    'recording-log-transcriptions': RecordingLogTranscriptionsSelect<false> | RecordingLogTranscriptionsSelect<true>;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSyncsSelect<false> | DatabaseLockingPluginTransactionSyncsSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -181,6 +177,7 @@ export interface UserAuthOperations {
 export interface GenericRichtextUpload {
   id: string;
   altText?: string | null;
+  prefix?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -742,6 +739,7 @@ export interface CreditApplicationImport {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  prefix?: string | null;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -1115,44 +1113,8 @@ export interface RecordingLog {
   createdAt: string;
   officerTask?: (string | null) | OfficerTask;
   phoneNumber: string;
-  audioFile?: (string | null) | RecordingLogAudioFile;
-  transcription?: (string | null) | RecordingLogTranscription;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "recording-log-audio-files".
- */
-export interface RecordingLogAudioFile {
-  id: string;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "recording-log-transcriptions".
- */
-export interface RecordingLogTranscription {
-  id: string;
-  updatedAt: string;
-  createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
+  audioUrl?: string | null;
+  transcriptionUrl?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1413,14 +1375,6 @@ export interface PayloadLockedDocument {
         value: string | RecordingLog;
       } | null)
     | ({
-        relationTo: 'recording-log-audio-files';
-        value: string | RecordingLogAudioFile;
-      } | null)
-    | ({
-        relationTo: 'recording-log-transcriptions';
-        value: string | RecordingLogTranscription;
-      } | null)
-    | ({
         relationTo: 'database-locking-plugin-transaction-syncs';
         value: string | DatabaseLockingPluginTransactionSync;
       } | null)
@@ -1476,6 +1430,7 @@ export interface PayloadMigration {
  */
 export interface GenericRichtextUploadsSelect<T extends boolean = true> {
   altText?: T;
+  prefix?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -1684,6 +1639,7 @@ export interface CreditApplicationImportsSelect<T extends boolean = true> {
   reviewApproved?: T;
   reviewComment?: T;
   creditApplications?: T;
+  prefix?: T;
   url?: T;
   thumbnailURL?: T;
   filename?: T;
@@ -1867,42 +1823,8 @@ export interface RecordingLogsSelect<T extends boolean = true> {
   createdAt?: T;
   officerTask?: T;
   phoneNumber?: T;
-  audioFile?: T;
-  transcription?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "recording-log-audio-files_select".
- */
-export interface RecordingLogAudioFilesSelect<T extends boolean = true> {
-  updatedAt?: T;
-  createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "recording-log-transcriptions_select".
- */
-export interface RecordingLogTranscriptionsSelect<T extends boolean = true> {
-  updatedAt?: T;
-  createdAt?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
+  audioUrl?: T;
+  transcriptionUrl?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

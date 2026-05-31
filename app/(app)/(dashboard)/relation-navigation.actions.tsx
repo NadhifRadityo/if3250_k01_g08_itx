@@ -10,7 +10,7 @@ import { getRelationshipId } from "@/utils/payload";
 import payloadConfig from "@/payload.config";
 
 import { dashboardRoleLabels } from "./layout.shared";
-import { RelationRole, RelationUser, RelationSurvey, RelationOfficerTask, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationRecordingLogAudioFile, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationRecordingLogTranscription, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
+import { RelationRole, RelationUser, RelationSurvey, RelationOfficerTask, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
 export async function resolveRelationUsers(
 	{ payload, ids }:
@@ -197,44 +197,6 @@ export async function resolveRelationOfficerTasks(
 	});
 	return Object.fromEntries(result.docs.map(doc => [`officer-tasks:${doc.id}`, {
 		_: null
-	}]));
-}
-
-export async function resolveRelationRecordingLogAudioFiles(
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
-): Promise<Record<`recording-log-audio-files:${string}`, RelationRecordingLogAudioFile>> {
-	payload ??= await getPayload({ config: payloadConfig });
-	const result = await payload.find({
-		overrideAccess: true,
-		collection: "recording-log-audio-files",
-		pagination: false,
-		where: { id: { in: ids } },
-		select: { filename: true, filesize: true, mimeType: true }
-	});
-	return Object.fromEntries(result.docs.map(doc => [`recording-log-audio-files:${doc.id}`, {
-		filename: doc.filename!,
-		filesize: doc.filesize!,
-		mimeType: doc.mimeType!
-	}]));
-}
-
-export async function resolveRelationRecordingLogTranscriptions(
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
-): Promise<Record<`recording-log-transcriptions:${string}`, RelationRecordingLogTranscription>> {
-	payload ??= await getPayload({ config: payloadConfig });
-	const result = await payload.find({
-		overrideAccess: true,
-		collection: "recording-log-transcriptions",
-		pagination: false,
-		where: { id: { in: ids } },
-		select: { filename: true, filesize: true, mimeType: true }
-	});
-	return Object.fromEntries(result.docs.map(doc => [`recording-log-transcriptions:${doc.id}`, {
-		filename: doc.filename!,
-		filesize: doc.filesize!,
-		mimeType: doc.mimeType!
 	}]));
 }
 
@@ -604,58 +566,6 @@ export async function getRelationSummaryAction(
 			description: "Officer task entry",
 			fields: [
 				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
-			]
-		};
-	}
-	if(relationType == "recording-log-audio-files") {
-		const doc = await payload.findByID({
-			user: user,
-			overrideAccess: false,
-			collection: "recording-log-audio-files",
-			id: relationId,
-			depth: 0,
-			select: {
-				filename: true,
-				filesize: true,
-				mimeType: true
-			}
-		});
-		return {
-			relationType: relationType,
-			relationId: doc.id,
-			title: doc.filename ?? doc.id,
-			description: "Recording log audio file",
-			fields: [
-				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
-				{ label: "File Name", value: doc.filename ?? "-" },
-				{ label: "File Size", value: doc.filesize ?? "-" },
-				{ label: "Mime Type", value: doc.mimeType ?? "-" }
-			]
-		};
-	}
-	if(relationType == "recording-log-transcriptions") {
-		const doc = await payload.findByID({
-			user: user,
-			overrideAccess: false,
-			collection: "recording-log-transcriptions",
-			id: relationId,
-			depth: 0,
-			select: {
-				filename: true,
-				filesize: true,
-				mimeType: true
-			}
-		});
-		return {
-			relationType: relationType,
-			relationId: doc.id,
-			title: doc.filename ?? doc.id,
-			description: "Recording log transcription file",
-			fields: [
-				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
-				{ label: "File Name", value: doc.filename ?? "-" },
-				{ label: "File Size", value: doc.filesize ?? "-" },
-				{ label: "Mime Type", value: doc.mimeType ?? "-" }
 			]
 		};
 	}
@@ -1272,59 +1182,5 @@ export async function searchRelationRecordingLogsAction(keyword: string, selecte
 	return result.docs.map(doc => ({
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.phoneNumber}</>
-	}));
-}
-
-export async function searchRelationRecordingLogAudioFilesAction(keyword: string, selectedIds: string[] = []) {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	const result = await payload.find({
-		user: user,
-		overrideAccess: false,
-		collection: "recording-log-audio-files",
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
-		sort: "-createdAt",
-		where: { or: [
-			{ id: { in: selectedIds } },
-			{ id: { like: keyword } },
-			{ filename: { like: keyword } }
-		] },
-		select: { filename: true }
-	});
-	return result.docs.map(doc => ({
-		id: doc.id,
-		label: <>(<span className="font-mono">{doc.id}</span>) {doc.filename}</>
-	}));
-}
-
-export async function searchRelationRecordingLogTranscriptionsAction(keyword: string, selectedIds: string[] = []) {
-	const headers = await nextHeaders();
-	const payload = await getPayload({ config: payloadConfig });
-	const { user } = await payload.auth({ headers });
-	if(user == null) return unauthorized();
-
-	const result = await payload.find({
-		user: user,
-		overrideAccess: false,
-		collection: "recording-log-transcriptions",
-		pagination: false,
-		depth: 0,
-		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
-		sort: "-createdAt",
-		where: { or: [
-			{ id: { in: selectedIds } },
-			{ id: { like: keyword } },
-			{ filename: { like: keyword } }
-		] },
-		select: { filename: true }
-	});
-	return result.docs.map(doc => ({
-		id: doc.id,
-		label: <>(<span className="font-mono">{doc.id}</span>) {doc.filename}</>
 	}));
 }

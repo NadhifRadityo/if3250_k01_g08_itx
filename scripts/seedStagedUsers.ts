@@ -3,7 +3,7 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 
 type SeedUser = {
 	email: string;
@@ -35,7 +35,7 @@ const USER_SEEDS: SeedUser[] = [
 ];
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
@@ -198,17 +198,6 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 		draft: false
 	});
 
-	console.log(`[seedStagedUsers] Setting staged user '${userSeed.email}' back to draft...`);
-	await payload.update({
-		collection: "staged-users",
-		user: actingUser,
-		overrideAccess: true,
-		trash: true,
-		id: stagedUserId,
-		data: pendingData,
-		draft: true
-	});
-
 	// Link staged user to user record
 	console.log(`[seedStagedUsers] Linking staged user to user record '${userSeed.email}'...`);
 	const userId = userIdMap.get(userSeed.key)!;
@@ -222,4 +211,4 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 	});
 }
 
-console.log(`[seedStagedUsers] Done. Seeded ${USER_SEEDS.length} staged users and linked them to their user records.`);
+console.log(`[seedStagedUsers] Done. Seeded ${USER_SEEDS.length} staged users in approved state and linked them to their user records.`);

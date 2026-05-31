@@ -1,31 +1,5 @@
 import { APIError, CollectionConfig } from "payload";
 
-export const RecordingLogAudioFiles = (): CollectionConfig => ({
-	slug: "recording-log-audio-files",
-	labels: {
-		singular: "Recording Log Audio File",
-		plural: "Recording Log Audio Files"
-	},
-	upload: {
-		staticDir: "uploads/recording-log-audio-files",
-		mimeTypes: ["audio/mpeg", "audio/mp3", "audio/wav", "audio/webm", "audio/ogg"]
-	},
-	fields: []
-});
-
-export const RecordingLogTranscriptions = (): CollectionConfig => ({
-	slug: "recording-log-transcriptions",
-	labels: {
-		singular: "Recording Log Transcription",
-		plural: "Recording Log Transcriptions"
-	},
-	upload: {
-		staticDir: "uploads/recording-log-transcriptions",
-		mimeTypes: ["text/plain"]
-	},
-	fields: []
-});
-
 export const RecordingLogs = (): CollectionConfig => ({
 	slug: "recording-logs",
 	labels: {
@@ -35,7 +9,7 @@ export const RecordingLogs = (): CollectionConfig => ({
 	timestamps: false,
 	admin: {
 		useAsTitle: "officerTask",
-		defaultColumns: ["createdAt", "officerTask", "phoneNumber", "audioFile", "transcription"]
+		defaultColumns: ["createdAt", "officerTask", "phoneNumber", "audioUrl", "transcriptionUrl"]
 	},
 	hooks: {
 		beforeChange: [
@@ -71,14 +45,12 @@ export const RecordingLogs = (): CollectionConfig => ({
 			required: true
 		},
 		{
-			name: "audioFile",
-			type: "relationship",
-			relationTo: "recording-log-audio-files"
+			name: "audioUrl",
+			type: "text"
 		},
 		{
-			name: "transcription",
-			type: "relationship",
-			relationTo: "recording-log-transcriptions"
+			name: "transcriptionUrl",
+			type: "text"
 		}
 	]
 });

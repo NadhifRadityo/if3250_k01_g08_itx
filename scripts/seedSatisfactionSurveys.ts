@@ -3,7 +3,7 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 
 function createFormDefinition({
 	formId,
@@ -113,7 +113,7 @@ const SATISFACTION_SURVEY_SEEDS = [
 ];
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
@@ -226,17 +226,6 @@ for(const [index, seed] of SATISFACTION_SURVEY_SEEDS.entries()) {
 		data: publishedData,
 		draft: false
 	});
-
-	console.log(`[seedSatisfactionSurveys] Setting satisfaction survey '${seed.title}' back to draft...`);
-	await payload.update({
-		collection: "satisfaction-surveys",
-		user: actingUser,
-		overrideAccess: true,
-		trash: true,
-		id,
-		data: pendingData,
-		draft: true
-	});
 }
 
-console.log(`[seedSatisfactionSurveys] Done. Seeded ${SATISFACTION_SURVEY_SEEDS.length} satisfaction surveys with pending drafts.`);
+console.log(`[seedSatisfactionSurveys] Done. Seeded ${SATISFACTION_SURVEY_SEEDS.length} satisfaction surveys in approved state.`);

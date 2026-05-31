@@ -4,7 +4,7 @@ import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
 import type { Role } from "@/payload-types";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 
 const ALL_MENUS: Role["menus"] = [
 	"user-management#viewer",
@@ -19,6 +19,10 @@ const ALL_MENUS: Role["menus"] = [
 	"team-management#auditor",
 	"team-management#editor",
 	"team-management#approver",
+	"access-management#viewer",
+	"access-management#auditor",
+	"access-management#editor",
+	"access-management#approver",
 	"credit-application-management#viewer",
 	"credit-application-management#auditor",
 	"credit-application-management#editor",
@@ -146,7 +150,7 @@ const ROLE_SEEDS: SeedRole[] = [
 ];
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
@@ -242,16 +246,6 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		data: publishedData,
 		draft: false
 	});
-
-	console.log(`[seedRoles] Setting role '${roleSeed.name}' back to draft...`);
-	await payload.update({
-		collection: "roles",
-		overrideAccess: true,
-		trash: true,
-		id,
-		data: pendingData,
-		draft: true
-	});
 }
 
-console.log(`[seedRoles] Done. Seeded ${ROLE_SEEDS.length} roles with approved history and pending draft requests.`);
+console.log(`[seedRoles] Done. Seeded ${ROLE_SEEDS.length} roles in approved state.`);

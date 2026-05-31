@@ -9,13 +9,11 @@ import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { RecordingLog } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
-import { resolveRelationOfficerTasks, resolveRelationRecordingLogAudioFiles, resolveRelationRecordingLogTranscriptions } from "../relation-navigation.actions";
-import { RelationOfficerTask, RelationRecordingLogAudioFile, RelationRecordingLogTranscription } from "../relation-navigation.shared";
+import { resolveRelationOfficerTasks } from "../relation-navigation.actions";
+import { RelationOfficerTask } from "../relation-navigation.shared";
 
 const PAGE_LIMIT = 20;
-export type RelationValues = Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>> &
-	Partial<Record<`recording-log-audio-files:${string}`, RelationRecordingLogAudioFile>> &
-	Partial<Record<`recording-log-transcriptions:${string}`, RelationRecordingLogTranscription>>;
+export type RelationValues = Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
 	{ payload, docs }:
@@ -23,23 +21,13 @@ async function resolveRelations(
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const officerTaskIds = new Set<string>();
-	const audioFileIds = new Set<string>();
-	const transcriptionIds = new Set<string>();
 	for(const doc of docs) {
 		const officerTask = getRelationshipId(doc.officerTask);
 		if(officerTask != null)
 			officerTaskIds.add(officerTask);
-		const audioFile = getRelationshipId(doc.audioFile);
-		if(audioFile != null)
-			audioFileIds.add(audioFile);
-		const transcription = getRelationshipId(doc.transcription);
-		if(transcription != null)
-			transcriptionIds.add(transcription);
 	}
 	const relations = {} as RelationValues;
 	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: [...officerTaskIds] }));
-	Object.assign(relations, await resolveRelationRecordingLogAudioFiles({ payload, ids: [...audioFileIds] }));
-	Object.assign(relations, await resolveRelationRecordingLogTranscriptions({ payload, ids: [...transcriptionIds] }));
 	return relations;
 }
 
@@ -71,8 +59,8 @@ async function queryAction(
 				{ "officerTask.creditApplicationAssignment.officer.name": { like: keyword } },
 				{ "officerTask.creditApplicationAssignment.officer.email": { like: keyword } },
 				{ phoneNumber: { like: keyword } },
-				{ "audioFile.filename": { like: keyword } },
-				{ "transcription.filename": { like: keyword } }
+				{ audioUrl: { like: keyword } },
+				{ transcriptionUrl: { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }
@@ -104,8 +92,8 @@ export async function getDetailsAction(id: string) {
 			createdAt: true,
 			officerTask: true,
 			phoneNumber: true,
-			audioFile: true,
-			transcription: true
+			audioUrl: true,
+			transcriptionUrl: true
 		}
 	});
 	const relations = await resolveRelations({ payload, docs: [result] });

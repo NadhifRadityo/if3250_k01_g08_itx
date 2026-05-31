@@ -3,7 +3,7 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 
 type SeedSurvey = {
 	content: any;
@@ -120,7 +120,7 @@ const SURVEY_SEEDS: SeedSurvey[] = [
 ];
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
@@ -233,17 +233,6 @@ for(const [index, seed] of SURVEY_SEEDS.entries()) {
 		data: publishedData,
 		draft: false
 	});
-
-	console.log(`[seedSurveys] Setting survey '${seed.title}' back to draft...`);
-	await payload.update({
-		collection: "surveys",
-		user: actingUser,
-		overrideAccess: true,
-		trash: true,
-		id,
-		data: pendingData,
-		draft: true
-	});
 }
 
-console.log(`[seedSurveys] Done. Seeded ${SURVEY_SEEDS.length} surveys with pending drafts.`);
+console.log(`[seedSurveys] Done. Seeded ${SURVEY_SEEDS.length} surveys in approved state.`);

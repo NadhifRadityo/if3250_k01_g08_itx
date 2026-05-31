@@ -3,7 +3,7 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 
 type SeedTeam = {
 	key: string;
@@ -40,7 +40,7 @@ const TEAM_SEEDS: SeedTeam[] = [
 ];
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
@@ -173,17 +173,6 @@ for(const [index, teamSeed] of TEAM_SEEDS.entries()) {
 		data: publishedData,
 		draft: false
 	});
-
-	console.log(`[seedTeams] Setting team '${teamSeed.name}' back to draft...`);
-	await payload.update({
-		collection: "teams",
-		user: actingUser,
-		overrideAccess: true,
-		trash: true,
-		id,
-		data: pendingData,
-		draft: true
-	});
 }
 
-console.log(`[seedTeams] Done. Seeded ${TEAM_SEEDS.length} teams with pending requests.`);
+console.log(`[seedTeams] Done. Seeded ${TEAM_SEEDS.length} teams in approved state.`);

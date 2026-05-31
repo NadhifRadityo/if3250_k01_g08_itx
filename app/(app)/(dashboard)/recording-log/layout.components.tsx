@@ -11,8 +11,8 @@ import { Skeleton } from "@/components/radix/Skeleton";
 
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
-import { searchRelationRecordingLogsAction, searchRelationRecordingLogAudioFilesAction, searchRelationRecordingLogTranscriptionsAction } from "../relation-navigation.actions";
-import { defaultRelationOfficerTaskRenderer, defaultRelationRecordingLogAudioFileRenderer, defaultRelationRecordingLogTranscriptionRenderer } from "../relation-navigation.components";
+import { searchRelationRecordingLogsAction } from "../relation-navigation.actions";
+import { defaultRelationOfficerTaskRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
 export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
@@ -21,32 +21,32 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] },
 	{ key: "phoneNumber", label: "Phone Number", type: "text" },
-	{ key: "audioFile", label: "Audio File", type: "relation", relationSearch: searchRelationRecordingLogAudioFilesAction },
-	{ key: "transcription", label: "Transcription", type: "relation", relationSearch: searchRelationRecordingLogTranscriptionsAction }
+	{ key: "audioUrl", label: "Audio URL", type: "text" },
+	{ key: "transcriptionUrl", label: "Transcription URL", type: "text" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
 	{ key: "createdAt", label: "Created At" },
 	{ key: "officerTask", label: "Officer Task" },
 	{ key: "phoneNumber", label: "Phone Number" },
-	{ key: "audioFile", label: "Audio File" },
-	{ key: "transcription", label: "Transcription" }
+	{ key: "audioUrl", label: "Audio URL" },
+	{ key: "transcriptionUrl", label: "Transcription URL" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "officerTask", label: "Officer Task", sortable: false },
 	{ key: "phoneNumber", label: "Phone Number", sortable: true },
-	{ key: "audioFile", label: "Audio File", sortable: false },
-	{ key: "transcription", label: "Transcription", sortable: false }
+	{ key: "audioUrl", label: "Audio URL", sortable: true },
+	{ key: "transcriptionUrl", label: "Transcription URL", sortable: true }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
 	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "recording-logs.officerTask" }) },
 	{ key: "phoneNumber", type: "text" },
-	{ key: "audioFile", type: "relation", render: defaultRelationRecordingLogAudioFileRenderer({ description: "Audio File", relationSource: "recording-logs.audioFile" }) },
-	{ key: "transcription", type: "relation", render: defaultRelationRecordingLogTranscriptionRenderer({ description: "Transcription", relationSource: "recording-logs.transcription" }) }
+	{ key: "audioUrl", type: "text" },
+	{ key: "transcriptionUrl", type: "text" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;
@@ -62,15 +62,15 @@ export const defaultColumnOrder = Object.freeze([
 	"createdAt",
 	"officerTask",
 	"phoneNumber",
-	"audioFile",
-	"transcription"
+	"audioUrl",
+	"transcriptionUrl"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"createdAt",
 	"officerTask",
 	"phoneNumber",
-	"audioFile",
-	"transcription"
+	"audioUrl",
+	"transcriptionUrl"
 ]) as string[];
 export const defaultColumnsSort = Object.freeze([
 	["createdAt", false]

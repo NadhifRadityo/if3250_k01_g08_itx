@@ -425,8 +425,8 @@ export const collectionMaskFields = Object.freeze({
 		"createdAt": "date",
 		"officerTask": "relation",
 		"phoneNumber": "phoneNumber",
-		"audioFile": "relation",
-		"transcription": "relation"
+		"audioUrl": "text",
+		"transcriptionUrl": "text"
 	}
 } as Record<string, Record<string, keyof (typeof maskOptionsMap)>>);
 export const collectionRelationFields = Object.freeze({
@@ -525,6 +525,5 @@ export const collectionRelationFields = Object.freeze({
 	},
 	"recording-logs": {
 		"officerTask": "officer-tasks"
-		// we don't mask recording-log-audio-files nor recording-log-transcriptions
 	}
 } as Record<string, Record<string, string>>);

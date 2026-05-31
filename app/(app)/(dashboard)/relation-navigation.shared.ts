@@ -72,15 +72,3 @@ export type RelationMessageLog = {
 export type RelationRecordingLog = {
 	createdAt: string;
 };
-
-export type RelationRecordingLogAudioFile = {
-	filename: string;
-	filesize: number | null;
-	mimeType: string | null;
-};
-
-export type RelationRecordingLogTranscription = {
-	filename: string;
-	filesize: number | null;
-	mimeType: string | null;
-};

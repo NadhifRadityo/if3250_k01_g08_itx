@@ -3,7 +3,7 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
 
 type SeedCreditApplication = {
@@ -123,7 +123,7 @@ const CREDIT_APPLICATION_SEEDS: SeedCreditApplication[] = [
 ];
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
@@ -302,17 +302,6 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		data: publishedData,
 		draft: false
 	});
-
-	console.log(`[seedCreditApplications] Setting credit application '${seed.key}' back to draft...`);
-	await payload.update({
-		collection: "credit-applications",
-		user: actingUser,
-		overrideAccess: true,
-		trash: true,
-		id,
-		data: pendingData,
-		draft: true
-	});
 }
 
-console.log(`[seedCreditApplications] Done. Seeded ${CREDIT_APPLICATION_SEEDS.length} credit applications linked to a valid approved import workbook.`);
+console.log(`[seedCreditApplications] Done. Seeded ${CREDIT_APPLICATION_SEEDS.length} credit applications in approved state linked to a valid approved import workbook.`);

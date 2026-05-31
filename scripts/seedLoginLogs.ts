@@ -2,7 +2,7 @@ import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 
 type SeedLogIn = {
 	createdAt: string;
@@ -19,7 +19,7 @@ const USER_EMAILS = [
 ];
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }

@@ -3,7 +3,7 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { lexicalPlainText } from "@/utils/payload";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
 
 const USER_EMAILS: Record<string, string> = {
@@ -21,9 +21,17 @@ const CREDIT_APPLICATION_SEEDS = [
 ];
 
 const OFFICER_ROTATION = ["officer-bandung-1", "officer-jakarta-1", "officer-bandung-2"];
+const SURVEY_TITLE = "Field Visit Survey";
+const SATISFACTION_SURVEY_TITLE = "Post Service Satisfaction Survey";
+
+const GEOFENCE_REGION_SEEDS = [
+	[{ id: "seed-region-bandung", operation: "union", type: "circle", latitude: -6.9175, longitude: 107.6191, radius: 1500 }],
+	[{ id: "seed-region-jakarta", operation: "union", type: "circle", latitude: -6.2088, longitude: 106.8456, radius: 1500 }],
+	[{ id: "seed-region-bandung-alt", operation: "union", type: "circle", latitude: -6.9000, longitude: 107.6500, radius: 1500 }]
+];
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
@@ -106,10 +114,37 @@ for(const seed of CREDIT_APPLICATION_SEEDS) {
 	creditApplicationIdMap.set(seed.key, ca.id);
 }
 
+// Look up survey and satisfaction survey
+console.log("[seedCreditApplicationAssignments] Looking up survey and satisfaction survey...");
+const survey = (await payload.find({
+	collection: "surveys",
+	overrideAccess: true,
+	where: { title: { equals: SURVEY_TITLE } },
+	limit: 1,
+	sort: "-updatedAt",
+	draft: true,
+	trash: true,
+	depth: 0
+})).docs[0];
+if(survey == null) throw new Error(`Survey '${SURVEY_TITLE}' is missing. Run 'payload run ./scripts/seedSurveys.ts' first.`);
+
+const satisfactionSurvey = (await payload.find({
+	collection: "satisfaction-surveys",
+	overrideAccess: true,
+	where: { title: { equals: SATISFACTION_SURVEY_TITLE } },
+	limit: 1,
+	sort: "-updatedAt",
+	draft: true,
+	trash: true,
+	depth: 0
+})).docs[0];
+if(satisfactionSurvey == null) throw new Error(`Satisfaction survey '${SATISFACTION_SURVEY_TITLE}' is missing. Run 'payload run ./scripts/seedSatisfactionSurveys.ts' first.`);
+
 // Seed assignments
 for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 	const publishedAt = isoAt(600 + index * 6);
-	const pendingAt = isoAt(600 + index * 6 + 3);
+	const assignedDate = isoAt(600 + index * 6 + 60);
+	const dueDate = isoAt(600 + index * 6 + 60 * 24 * 7);
 
 	console.log(`[seedCreditApplicationAssignments] Checking existing assignment for '${seed.key}'...`);
 	const existing = (await payload.find({
@@ -125,9 +160,18 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		depth: 0
 	})).docs[0];
 
-	const publishedData = {
+	const baseData = {
 		creditApplication: creditApplicationIdMap.get(seed.key)!,
 		officer: userIdMap.get(OFFICER_ROTATION[index % OFFICER_ROTATION.length])!,
+		survey: survey.id,
+		satisfactionSurvey: satisfactionSurvey.id,
+		assignedDate: assignedDate,
+		dueDate: dueDate,
+		geofenceRegions: GEOFENCE_REGION_SEEDS[index % GEOFENCE_REGION_SEEDS.length]
+	};
+
+	const publishedData = {
+		...baseData,
 		createdAt: publishedAt,
 		updatedAt: publishedAt,
 		deletedAt: null,
@@ -141,15 +185,14 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		reviewComment: lexicalPlainText(`Seed approved baseline for assignment '${seed.key}'.`)
 	};
 
-	const pendingData = {
-		creditApplication: creditApplicationIdMap.get(seed.key)!,
-		officer: userIdMap.get(OFFICER_ROTATION[index % OFFICER_ROTATION.length])!,
+	const draftData = {
+		...baseData,
 		createdAt: publishedAt,
-		updatedAt: pendingAt,
+		updatedAt: publishedAt,
 		deletedAt: null,
 		deletedBy: null,
 		_status: "draft" as const,
-		changeRequestType: "update" as const,
+		changeRequestType: "create" as const,
 		changeRequestComment: null,
 		reviewedAt: null,
 		reviewedBy: null,
@@ -164,7 +207,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 			collection: "credit-application-assignments",
 			user: actingUser,
 			overrideAccess: true,
-			data: pendingData,
+			data: draftData,
 			draft: true
 		});
 		id = created.id;
@@ -177,7 +220,7 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 			overrideAccess: true,
 			trash: true,
 			id,
-			data: pendingData,
+			data: draftData,
 			draft: true
 		});
 	}
@@ -193,16 +236,58 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 		draft: false
 	});
 
-	console.log(`[seedCreditApplicationAssignments] Setting assignment for '${seed.key}' back to draft...`);
-	await payload.update({
+	// Auto-create chain head officer task (mirrors the approver action in production)
+	console.log(`[seedCreditApplicationAssignments] Looking up published version for officer task linkage of '${seed.key}'...`);
+	const versionId = (await payload.findVersions({
 		collection: "credit-application-assignments",
-		user: actingUser,
+		overrideAccess: true,
+		pagination: false,
+		limit: 1,
+		depth: 0,
+		sort: "-updatedAt",
+		where: { and: [
+			{ parent: { equals: id } },
+			{ "version._status": { equals: "published" } }
+		] },
+		select: {}
+	})).docs[0]?.id;
+	if(versionId == null) throw new Error(`Published version for assignment '${seed.key}' is missing.`);
+
+	const existingChainHead = (await payload.find({
+		collection: "officer-tasks",
 		overrideAccess: true,
 		trash: true,
-		id,
-		data: pendingData,
-		draft: true
-	});
+		pagination: false,
+		limit: 1,
+		depth: 0,
+		where: { and: [
+			{ creditApplicationAssignment: { equals: id } },
+			{ next: { exists: false } }
+		] },
+		select: {}
+	})).docs[0];
+	if(existingChainHead == null) {
+		console.log(`[seedCreditApplicationAssignments] Creating chain head officer task for '${seed.key}'...`);
+		await payload.create({
+			collection: "officer-tasks",
+			user: actingUser,
+			overrideAccess: true,
+			data: {
+				_status: "published",
+				creditApplicationAssignment: id,
+				creditApplicationAssignmentVersion: versionId,
+				next: null,
+				settledAt: null,
+				settlementStatus: null,
+				settlementComment: null,
+				evaluatedAt: null,
+				evaluatedBy: null,
+				evaluationApproved: null,
+				evaluationComment: null
+			}
+		});
+	} else
+		console.log(`[seedCreditApplicationAssignments] Chain head officer task for '${seed.key}' already exists (id: ${existingChainHead.id}).`);
 }
 
-console.log(`[seedCreditApplicationAssignments] Done. Seeded ${CREDIT_APPLICATION_SEEDS.length} credit application assignments with pending drafts.`);
+console.log(`[seedCreditApplicationAssignments] Done. Seeded ${CREDIT_APPLICATION_SEEDS.length} credit application assignments in approved state with chain head officer tasks.`);

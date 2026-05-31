@@ -1,8 +1,9 @@
+import { randomUUID } from "crypto";
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
 
 const USER_EMAILS: Record<string, string> = {
@@ -17,21 +18,29 @@ const CREDIT_APPLICATION_SEEDS = [
 	{ key: "CA-SEED-003", name: "Mila Kartika", email: "mila.kartika@seed.local" }
 ];
 
+// Officer rotation matches seedCreditApplicationAssignments.ts
 type SeedGps = {
 	createdAt: string;
-	creditApplicationKey: null | string;
 	latitude: number;
 	longitude: number;
 	accuracy: number;
 	officerKey: string;
 	sessionId: string;
+	creditApplicationKey: string;
 };
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
+
+// Simulate JWT sid values (one per officer session)
+const SESSION_IDS: Record<string, string> = {
+	"GPS-SESSION-001": randomUUID(),
+	"GPS-SESSION-002": randomUUID(),
+	"GPS-SESSION-003": randomUUID()
+};
 
 const GPS_LOG_SEEDS: SeedGps[] = [
 	{
@@ -99,9 +108,7 @@ console.log("[seedGPSLogs] Looking up approved import...");
 const approvedImport = (await payload.find({
 	collection: "credit-application-imports",
 	overrideAccess: true,
-	where: {
-		filename: { equals: APPROVED_IMPORT_FILENAME }
-	},
+	where: { filename: { equals: APPROVED_IMPORT_FILENAME } },
 	limit: 1,
 	sort: "-updatedAt",
 	draft: true,
@@ -134,6 +141,37 @@ for(const seed of CREDIT_APPLICATION_SEEDS) {
 	creditApplicationIdMap.set(seed.key, ca.id);
 }
 
+// Build officer task ID map (chain head for each assignment)
+console.log("[seedGPSLogs] Building officer task ID map...");
+const officerTaskIdMap = new Map<string, string>();
+for(const seed of CREDIT_APPLICATION_SEEDS) {
+	const assignment = (await payload.find({
+		collection: "credit-application-assignments",
+		overrideAccess: true,
+		where: { creditApplication: { equals: creditApplicationIdMap.get(seed.key) } },
+		limit: 1,
+		sort: "-updatedAt",
+		draft: true,
+		trash: true,
+		depth: 0
+	})).docs[0];
+	if(assignment == null) throw new Error(`Assignment for '${seed.key}' is missing. Run 'payload run ./scripts/seedCreditApplicationAssignments.ts' first.`);
+	const officerTask = (await payload.find({
+		collection: "officer-tasks",
+		overrideAccess: true,
+		where: {
+			and: [
+				{ creditApplicationAssignment: { equals: assignment.id } },
+				{ next: { exists: false } }
+			]
+		},
+		limit: 1,
+		depth: 0
+	})).docs[0];
+	if(officerTask == null) throw new Error(`Officer task for '${seed.key}' is missing. Run 'payload run ./scripts/seedCreditApplicationAssignments.ts' first.`);
+	officerTaskIdMap.set(seed.key, officerTask.id);
+}
+
 // Seed GPS logs
 for(const seed of GPS_LOG_SEEDS) {
 	console.log(`[seedGPSLogs] Checking existing GPS log (session: ${seed.sessionId}, lat: ${seed.latitude}, lng: ${seed.longitude})...`);
@@ -143,15 +181,12 @@ for(const seed of GPS_LOG_SEEDS) {
 		where: {
 			and: [
 				{ createdAt: { equals: seed.createdAt } },
-				{ sessionId: { equals: seed.sessionId } },
+				{ sessionId: { equals: SESSION_IDS[seed.sessionId] } },
 				{ latitude: { equals: seed.latitude } },
 				{ longitude: { equals: seed.longitude } }
 			]
 		},
 		limit: 1,
-		sort: "-updatedAt",
-		draft: false,
-		trash: true,
 		depth: 0
 	})).docs[0];
 
@@ -162,10 +197,9 @@ for(const seed of GPS_LOG_SEEDS) {
 			overrideAccess: true,
 			data: {
 				createdAt: seed.createdAt,
-				updatedAt: seed.createdAt,
-				officer: userIdMap.get(seed.officerKey)!,
-				sessionId: seed.sessionId,
-				creditApplication: seed.creditApplicationKey == null ? null : creditApplicationIdMap.get(seed.creditApplicationKey),
+				user: userIdMap.get(seed.officerKey)!,
+				sessionId: SESSION_IDS[seed.sessionId],
+				officerTask: officerTaskIdMap.get(seed.creditApplicationKey)!,
 				latitude: seed.latitude,
 				longitude: seed.longitude,
 				accuracy: seed.accuracy

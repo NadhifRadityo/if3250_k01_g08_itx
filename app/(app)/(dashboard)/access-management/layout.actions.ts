@@ -336,8 +336,7 @@ async function queryAction(
 			] : []),
 			...(keyword.length > 0 ? [{ or: [
 				{ id: { like: keyword } },
-				{ name: { like: keyword } },
-				{ collection: { like: keyword } }
+				{ name: { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }

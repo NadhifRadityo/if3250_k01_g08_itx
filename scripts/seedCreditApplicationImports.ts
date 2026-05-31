@@ -4,7 +4,7 @@ import payloadConfig from "@payload-config";
 import ExcelJS from "@/utils/exceljs";
 import { lexicalPlainText } from "@/utils/payload";
 
-const BASE_TIMESTAMP = new Date("2026-05-16T00:00:00.000Z");
+const TIMESTAMP_BASE = new Date(1778889600000);
 const XLSX_MIME_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const APPROVED_IMPORT_FILENAME = "seed-credit-applications-approved.xlsx";
 const PENDING_IMPORT_FILENAME = "seed-credit-applications-pending.xlsx";
@@ -154,7 +154,7 @@ const IMPORT_TEMPLATE_COLUMNS = [
 ] as const;
 
 function isoAt(minutesOffset: number): string {
-	const value = new Date(BASE_TIMESTAMP);
+	const value = new Date(TIMESTAMP_BASE);
 	value.setUTCMinutes(value.getUTCMinutes() + minutesOffset);
 	return value.toISOString();
 }
