@@ -1,4 +1,7 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { APIError, CollectionConfig } from "payload";
+import { check } from "drizzle-orm/pg-core";
 
 import { ReviewRichTextEditor } from "./shared";
 
@@ -236,7 +239,8 @@ export const Users = (): CollectionConfig => ({
 			name: "stagedUser",
 			label: "Staged User",
 			type: "relationship",
-			relationTo: "staged-users"
+			relationTo: "staged-users",
+			unique: true
 		}
 	]
 });
@@ -371,7 +375,10 @@ export const StagedUsers = (): CollectionConfig => ({
 		{
 			name: "initialPassword",
 			label: "Initial Password",
-			type: "text"
+			type: "text",
+			access: {
+				read: () => false
+			}
 		},
 		{
 			name: "name",
@@ -391,6 +398,24 @@ export const StagedUsers = (): CollectionConfig => ({
 			label: "Supervisor",
 			type: "relationship",
 			relationTo: "users"
+		},
+		{
+			name: "changeRequestType",
+			label: "Change Request Type",
+			type: "select",
+			required: true,
+			dbName: "enum_change_request_type",
+			options: [
+				{ value: "create", label: "Create" },
+				{ value: "update", label: "Update" },
+				{ value: "delete", label: "Delete" }
+			]
+		},
+		{
+			name: "changeRequestComment",
+			label: "Change Request Comment",
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		},
 		{
 			name: "reviewedAt",
@@ -416,3 +441,15 @@ export const StagedUsers = (): CollectionConfig => ({
 		}
 	]
 });
+export const StagedUsersSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["staged_users"],
+		extraConfig: () => ({
+			stagedUsersReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"staged_users_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};

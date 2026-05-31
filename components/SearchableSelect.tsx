@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useMemo, useState, useEffect, type ReactNode } from "react";
+import React, { useId, useRef, useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronsUpDownIcon } from "lucide-react";
 
@@ -19,9 +19,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "./radix/Popover";
 
 export type SearchableSelectOption = {
 	value: string;
-	label: string;
+	label: React.ReactNode;
 	keywords?: string;
-	renderLabel?: ReactNode;
 };
 
 type SearchableSelectSearchAction = (keyword: string, selectedValues: string[]) => Promise<SearchableSelectOption[]>;
@@ -83,13 +82,6 @@ function mergeOptions(...optionGroups: SearchableSelectOption[][]): SearchableSe
 	return [...byValue.values()];
 }
 
-function matchesSearchKeyword(option: SearchableSelectOption, keyword: string): boolean {
-	if(keyword.length == 0)
-		return true;
-	const haystack = `${option.label} ${option.keywords ?? ""}`.trim().toLowerCase();
-	return haystack.includes(keyword);
-}
-
 function prioritizeSelectedOptions(options: SearchableSelectOption[], selectedValueSet: Set<string>): SearchableSelectOption[] {
 	if(selectedValueSet.size == 0)
 		return options;
@@ -120,6 +112,8 @@ export function SearchableSelect({
 	searchRefetchInterval = 10000,
 	searchRefetchOnWindowFocus = true
 }: SearchableSelectProps) {
+	value ??= "";
+	options ??= [];
 	const [open, setOpen] = useState(false);
 	const [searchValue, setSearchValue] = useState("");
 	const queryId = useId();
@@ -148,7 +142,7 @@ export function SearchableSelect({
 	const filteredOptions = useMemo(() => {
 		if(onSearch == null)
 			return options;
-		return options.filter(option => matchesSearchKeyword(option, normalizedSearchValue));
+		return options.filter(option => `${option.value} ${option.keywords ?? ""}`.includes(normalizedSearchValue));
 	}, [normalizedSearchValue, onSearch, options]);
 
 	const asyncOptions = onSearch != null ? (searchOptionsQuery.data ?? []) : [];
@@ -186,7 +180,7 @@ export function SearchableSelect({
 					disabled={disabled}
 					className={cn("w-full min-w-0 justify-between font-normal", selectedOption == null && "text-muted-foreground", className)}
 				>
-					<span className="truncate text-left">{selectedOption != null ? (selectedOption.renderLabel ?? selectedOption.label) : placeholder}</span>
+					<span className="truncate text-left">{selectedOption != null ? selectedOption.label : placeholder}</span>
 					<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
 				</Button>
 			</PopoverTrigger>
@@ -212,14 +206,14 @@ export function SearchableSelect({
 								<CommandItem
 									key={option.value}
 									data-checked={option.value == value}
-									value={`${option.label} ${option.keywords ?? ""}`.trim()}
+									value={option.value}
 									onSelect={() => {
 										onValueChange(option.value);
 										setSearchValue("");
 										setOpen(false);
 									}}
 								>
-									<span className="truncate">{option.renderLabel ?? option.label}</span>
+									<span className="truncate">{option.label}</span>
 								</CommandItem>
 							))}
 						</CommandGroup>
@@ -244,6 +238,8 @@ export function SearchableMultiSelect({
 	searchRefetchInterval = 10000,
 	searchRefetchOnWindowFocus = true
 }: SearchableMultiSelectProps) {
+	values ??= [];
+	options ??= [];
 	const [open, setOpen] = useState(false);
 	const [searchValue, setSearchValue] = useState("");
 	const queryId = useId();
@@ -273,7 +269,7 @@ export function SearchableMultiSelect({
 	const filteredOptions = useMemo(() => {
 		if(onSearch == null)
 			return options;
-		return options.filter(option => matchesSearchKeyword(option, normalizedSearchValue));
+		return options.filter(option => `${option.value} ${option.keywords ?? ""}`.includes(normalizedSearchValue));
 	}, [normalizedSearchValue, onSearch, options]);
 
 	const asyncOptions = onSearch != null ? (searchOptionsQuery.data ?? []) : [];
@@ -288,9 +284,8 @@ export function SearchableMultiSelect({
 			knownOptionsRef.current.set(option.value, option);
 	}, [mergedOptions]);
 
-	const selectedLabels = useMemo(() => values
-		.map(value => mergedOptions.find(option => option.value == value)?.label ?? knownOptionsRef.current.get(value)?.label ?? value)
-		.filter(label => label.length > 0), [mergedOptions, values]);
+	const selectedLabels = useMemo(() => values.map(value => mergedOptions.find(option => option.value == value)?.label ??
+		knownOptionsRef.current.get(value)?.label ?? value), [mergedOptions, values]);
 
 	const handleOpenChange = (nextOpen: boolean) => {
 		setOpen(nextOpen);
@@ -321,7 +316,11 @@ export function SearchableMultiSelect({
 					className={cn("w-full min-w-0 justify-between font-normal", selectedLabels.length == 0 && "text-muted-foreground", className)}
 				>
 					<span className="truncate text-left">
-						{selectedLabels.length > 0 ? selectedLabels.join(", ") : placeholder}
+						{selectedLabels.length > 0 ? selectedLabels.map((label, i) => (
+							<span key={i} className="not-last:after:content-[',_']">
+								{label}
+							</span>
+						)) : placeholder}
 					</span>
 					<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
 				</Button>
@@ -332,19 +331,16 @@ export function SearchableMultiSelect({
 					<CommandList className="overflow-auto [scrollbar-width:auto]! [&::-webkit-scrollbar]:block!">
 						<CommandEmpty>{resolvedEmptyText}</CommandEmpty>
 						<CommandGroup>
-							{displayedOptions.map(option => {
-								const selected = valueSet.has(option.value);
-								return (
-									<CommandItem
-										key={option.value}
-										data-checked={selected}
-										value={`${option.label} ${option.keywords ?? ""}`.trim()}
-										onSelect={() => toggleValue(option.value)}
-									>
-										<span className="truncate">{option.renderLabel ?? option.label}</span>
-									</CommandItem>
-								);
-							})}
+							{displayedOptions.map(option => (
+								<CommandItem
+									key={option.value}
+									value={option.value}
+									data-checked={valueSet.has(option.value)}
+									onSelect={() => toggleValue(option.value)}
+								>
+									<span className="truncate">{option.label}</span>
+								</CommandItem>
+							))}
 						</CommandGroup>
 					</CommandList>
 				</Command>

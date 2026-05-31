@@ -1,264 +1,250 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
-import { createEmptyReviewComment, type ReviewCommentRichText } from "@/utils/reviewCommentRichText";
+import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
+import { Switch } from "@/components/radix/Switch";
 
-import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
-import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
-import * as roleActions from "../layout.actions";
-import { RoleActiveFiltersSummary } from "../layout.components";
-import { RoleColumnConfigCard } from "../layout.components";
-import { RoleRequestDetailsDrawer } from "../layout.components";
-import { RoleRequestChangePreviewDrawer } from "../layout.components";
-import { RoleRequestFilterCard } from "../layout.components";
-import { RoleRequestReviewDrawer } from "../layout.components";
-import { RoleRequestsTable } from "../layout.components";
-import { getEligibleDetailTriggerRoleColumnId } from "../layout.components";
-import { resolveActionError } from "../layout.components";
-import { useRoleCellRenderer } from "../layout.components";
-import { useRoleColumnPreferences } from "../layout.components";
-import { useRoleFilterColumnConfig } from "../layout.components";
-import { useRoleManagementQueryState } from "../layout.components";
-import { useRoleRequestFilters } from "../layout.components";
-import { useRoleRequestsQuery } from "../layout.components";
-import {
-	type ActionError,
-	type RoleTableRow,
-	type RoleRequestReviewDiff
-} from "../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
+import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { reviewAction, queryApproverAction } from "../layout.actions";
+import { ColumnData, ReviewDrawer, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
-export default function RoleManagementApproverPage() {
-	const [reviewError, setReviewError] = useState<ActionError | null>(null);
+const columnConfigColumnsWithActions = Object.freeze([
+	...columnConfigColumns,
+	{ key: "#actions", label: "Actions" }
+]);
+const tableConfigColumnsWithActions = Object.freeze([
+	...tableConfigColumns,
+	{ key: "#actions", label: "Actions", sortable: false, className: "flex flex-wrap gap-2" }
+]);
+const rowValueRendererConfigColumnsWithActions = Object.freeze([
+	...rowValueRendererConfigColumns,
+	{ key: "#actions", type: "null", render: (_, row, { isMutating, setReviewDrawerRow, setReviewDrawerOpen }) => (
+		<Button
+			type="button"
+			size="sm"
+			variant="default"
+			onClick={() => { setReviewDrawerRow!(row); setReviewDrawerOpen!(true); }}
+			disabled={row.reviewedAt != null || isMutating}
+		>
+			<CheckIcon />
+			Review
+		</Button>
+	) } satisfies (typeof rowValueRendererConfigColumns)[number]
+]);
+const defaultColumnOrderWithActions = Object.freeze([
+	...defaultColumnOrder,
+	"#actions"
+]) as string[];
+const defaultColumnsShownWithActions = Object.freeze([
+	...defaultColumnsShown,
+	"#actions"
+]) as string[];
+
+export default function Page() {
 	const queryClient = useQueryClient();
-
-	const [reviewDrawerState, setReviewDrawerState] = useState<{ row: RoleTableRow, diff: RoleRequestReviewDiff | null } | null>(null);
-	const [isReviewDiffLoading, setIsReviewDiffLoading] = useState(false);
-	const [reviewComment, setReviewComment] = useState<ReviewCommentRichText>(() => createEmptyReviewComment());
-	const [detailRow, setDetailRow] = useState<RoleTableRow | null>(null);
-	const [requestChangeRow, setRequestChangeRow] = useState<RoleTableRow | null>(null);
-	const [isMutating, startMutationTransition] = useTransition();
-	const relationNavigation = useDashboardRelationNavigation();
-	const columnPreferences = useRoleColumnPreferences();
-	const queryState = useRoleManagementQueryState();
-	const { getResolvedFilterColumnConfig } = useRoleFilterColumnConfig();
-	const filters = useRoleRequestFilters({ getResolvedFilterColumnConfig });
-
-	const {
-		pageIndex,
-		setPageIndex,
-		queryResult,
-		isLoading,
-		queryErrorMessage
-	} = useRoleRequestsQuery({
-		queryScope: "approver",
-		queryAction: roleActions.queryRolesApproverAction,
-		debouncedKeyword: queryState.debouncedKeyword,
-		sortTokens: queryState.sortTokens,
-		appliedFilters: filters.appliedFilters,
-		isFilterStateReady: filters.isFilterStateReady,
-		includeSoftDeleted: false
+	const { user } = useDashboardContext();
+	const [keyword, setKeyword] = useState("");
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "role-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "role-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
+	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "role-management.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "role-management.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "role-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [pageIndex, setPageIndex] = useState(1);
+	const query = useQuery({
+		queryKey: ["role-management", "approver", {
+			keyword,
+			filters,
+			columnsSort,
+			includeDeleted,
+			pageIndex
+		}],
+		queryFn: async () => await queryApproverAction({
+			keyword: keyword,
+			filters: filters,
+			columnsSort: columnsSort,
+			includeDeleted: includeDeleted,
+			pageIndex: pageIndex
+		})
 	});
-	const renderRoleCell = useRoleCellRenderer({
-		relations: queryResult.relations,
-		onOpenRequestChanges: setRequestChangeRow,
-		relationNavigation: {
-			getHrefBase: relationNavigation.getTargetHrefBase,
-			onRelationLinkClick: relationNavigation.onRelationLinkClick,
-			onOpenSummary: relationNavigation.openSummary
+	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
+	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+	const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+	const [changeRequestDrawerRow, setChangeRequestDrawerRow] = useState(null as ColumnData | null);
+	const [changeRequestDrawerOpen, setChangeRequestDrawerOpen] = useState(false);
+	const [reviewDrawerRow, setReviewDrawerRow] = useState(null as ColumnData | null);
+	const [reviewDrawerOpen, setReviewDrawerOpen] = useState(false);
+	const [reviewComment, setReviewComment] = useState(lexicalPlainText(""));
+	const [isMutating, startMutationTransition] = useTransition();
+	const [reviewMutationError, setReviewMutationError] = useState(null as any);
+	const rowValueRendererContext = {
+		relationValues: query.data?.relations,
+		isMutating: isMutating,
+		setChangeRequestDrawerRow: setChangeRequestDrawerRow,
+		setChangeRequestDrawerOpen: setChangeRequestDrawerOpen,
+		setReviewDrawerRow: setReviewDrawerRow,
+		setReviewDrawerOpen: setReviewDrawerOpen
+	};
+	const renderCell = useMenuRowValueRenderer({
+		columns: rowValueRendererConfigColumnsWithActions,
+		context: {
+			...rowValueRendererContext,
+			richTextCard: false,
+			richTextClamp: true
+		},
+		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
+			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
+		onOpenDetails: row => {
+			setDetailsDrawerOpen(true);
+			setDetailsDrawerRow(row);
 		}
 	});
-	const displayError = queryErrorMessage != null ? {
-		title: "Error",
-		message: queryErrorMessage
-	} : null;
-	const detailTriggerColumnId = getEligibleDetailTriggerRoleColumnId(columnPreferences.visibleColumns);
-
-	const runMutation = (action: () => Promise<void>) => {
-		startMutationTransition(() => {
-			void (async () => {
-				setReviewError(null);
-				try {
-					await action();
-					await queryClient.invalidateQueries({ queryKey: ["role-management"] });
-				} catch(error) {
-					setReviewError(resolveActionError(error, "Failed to submit review."));
-				}
-			})();
-		});
-	};
-
-	const openReviewDrawer = (row: RoleTableRow) => {
-		setReviewComment(createEmptyReviewComment());
-		setReviewError(null);
-		setReviewDrawerState({ row, diff: null });
-		setIsReviewDiffLoading(true);
-		void (async () => {
-			try {
-				const diff = await roleActions.getRoleRequestReviewDiffAction(row.id);
-				setReviewDrawerState(previous => previous != null && previous.row.id == row.id ? { ...previous, diff } : previous);
-			} catch(error) {
-				setReviewDrawerState(null);
-				setReviewError(resolveActionError(error, "Failed to load request diff."));
-			} finally {
-				setIsReviewDiffLoading(false);
-			}
-		})();
-	};
-
-	const submitReview = (decision: "approve" | "reject") => {
-		if(reviewDrawerState == null)
-			return;
-		runMutation(async () => {
-			await roleActions.reviewRoleRequestAction({
-				roleId: reviewDrawerState.row.id,
-				decision,
-				reviewComment
-			});
-			setReviewDrawerState(null);
-			setReviewComment(createEmptyReviewComment());
-		});
-	};
-
-	const renderRoleActions = (row: RoleTableRow) => {
-		const isPending = row.reviewedAt == null;
-		return (
-			<Button
-				type="button"
-				size="sm"
-				variant="default"
-				onClick={() => openReviewDrawer(row)}
-				disabled={!isPending || isMutating || isReviewDiffLoading}
-			>
-				<CheckIcon />
-				Review
-			</Button>
-		);
-	};
 
 	return (
-		<>
-			<DashboardManagementPageFrame
-				title="Role Management"
-				description="Review pending role requests before publication."
-			>
-				<DashboardManagementToolbar
-					keyword={queryState.keyword}
-					onKeywordChange={queryState.setKeyword}
+		<MenuPage
+			title="Role Management"
+			description="Review pending role requests before publication."
+		>
+			<RelationNavigationProvider>
+				<MenuToolbar
+					keyword={keyword}
+					onKeywordChange={setKeyword}
 					searchPlaceholder="Search roles by name, level, or menu"
-					filterCount={filters.appliedFilters.length}
-					onToggleFilter={filters.toggleFilterPanel}
-					onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
-					isLoading={isLoading}
-					isMutating={isMutating}
+					filterCount={filters.length}
+					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
+					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
+					isLoading={query.isLoading}
+					rightSlot={user.roleMenus.includes("role-management#auditor") ? (
+						<div className="flex items-center gap-2">
+							<label htmlFor="user-management-approver-show-deleted" className="text-sm">
+								Show Deleted
+							</label>
+							<Switch
+								id="user-management-approver-show-deleted"
+								checked={includeDeleted}
+								onCheckedChange={setIncludeDeleted}
+								disabled={query.isLoading || isMutating}
+							/>
+						</div>
+					) : null}
 				/>
-
-				<RoleRequestFilterCard
-					isLoading={isLoading}
-					isMutating={isMutating}
+				<MenuFilterConfigCard
+					open={filterConfigCardOpen}
+					onOpenChange={setFilterConfigCardOpen}
+					columns={filterConfigColumns}
 					filters={filters}
-					getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
+					onFiltersChange={setFilters}
+					disabled={query.isLoading}
 				/>
-
-				<RoleColumnConfigCard
-					isOpen={columnPreferences.isColumnOpen}
-					onOpenChange={columnPreferences.setIsColumnOpen}
-					orderedColumns={columnPreferences.orderedColumns}
-					hiddenColumnIds={columnPreferences.hiddenColumnIds}
-					visibleColumnCount={columnPreferences.visibleColumns.length}
-					onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
-					onReset={columnPreferences.resetColumnPreferences}
-					onColumnDragStart={columnPreferences.handleColumnDragStart}
-					onColumnDragOver={columnPreferences.handleColumnDragOver}
-					onColumnDragEnd={columnPreferences.handleColumnDragEnd}
+				<MenuColumnConfigCard
+					open={columnConfigCardOpen}
+					onOpenChange={setColumnConfigCardOpen}
+					columns={columnConfigColumnsWithActions}
+					columnOrder={columnOrder}
+					onColumnOrderChange={setColumnOrder}
+					columnsShown={columnsShown}
+					onColumnsShownChange={setColumnsShown}
+					defaultColumnOrder={defaultColumnOrderWithActions}
+					defaultColumnsShown={defaultColumnsShownWithActions}
 				/>
-
-				<RoleActiveFiltersSummary items={filters.filterSummaryItems} />
-
-				{displayError != null ? (
+				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
+				{query.error != null ? (
 					<Alert variant="destructive">
 						<CircleAlertIcon />
-						<AlertTitle>{displayError.title}</AlertTitle>
-						<AlertDescription>{displayError.message}</AlertDescription>
+						<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
 					</Alert>
 				) : null}
-
-				<RoleRequestsTable
-					queryResult={queryResult}
-					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
-					detailTriggerColumnId={detailTriggerColumnId}
-					isLoading={isLoading}
-					isMutating={isMutating}
-					getSortDirection={queryState.getSortDirection}
-					onToggleSortField={queryState.toggleSortField}
-					onOpenDetails={setDetailRow}
-					renderRoleCell={renderRoleCell}
-					renderActions={renderRoleActions}
+				<DashboardMenuTable
+					columns={tableConfigColumnsWithActions}
+					columnsSort={columnsSort}
+					onColumnsSortChange={setColumnsSort}
+					columnOrder={columnOrder}
+					columnsShown={columnsShown}
+					rows={query.data?.docs ?? []}
+					renderCell={renderCell}
+					isLoading={query.isLoading}
 				/>
-
-				<DashboardManagementPagination
+				<MenuPagination
 					pageIndex={pageIndex}
-					totalRequests={queryResult.totalDocs}
-					hasPreviousPage={queryResult.hasPreviousPage}
-					hasNextPage={queryResult.hasNextPage}
-					isLoading={isLoading}
-					isMutating={isMutating}
+					totalRequests={query.data?.totalDocs ?? 0}
+					hasPreviousPage={query.data?.hasPrevPage ?? false}
+					hasNextPage={query.data?.hasNextPage ?? false}
+					isLoading={query.isLoading}
+					isMutating={false}
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
-			</DashboardManagementPageFrame>
-
-			<RoleRequestDetailsDrawer
-				open={detailRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setDetailRow(null);
-				}}
-				row={detailRow}
-				renderActions={renderRoleActions}
-				onOpenRequestChanges={setRequestChangeRow}
-				relationNavigation={{
-					getHrefBase: relationNavigation.getTargetHrefBase,
-					onRelationLinkClick: relationNavigation.onRelationLinkClick,
-					onOpenSummary: relationNavigation.openSummary
-				}}
-			/>
-
-			<RoleRequestReviewDrawer
-				open={reviewDrawerState != null}
-				onOpenChange={open => {
-					if(!open) {
-						setReviewDrawerState(null);
-						setReviewError(null);
-						setReviewComment(createEmptyReviewComment());
-					}
-				}}
-				reviewDrawerState={reviewDrawerState}
-				reviewError={reviewError}
-				isReviewDiffLoading={isReviewDiffLoading}
-				reviewComment={reviewComment}
-				onReviewCommentChange={setReviewComment}
-				onApprove={() => submitReview("approve")}
-				onReject={() => submitReview("reject")}
-				isMutating={isMutating}
-				onOpenRequestChanges={setRequestChangeRow}
-			/>
-
-			<RoleRequestChangePreviewDrawer
-				open={requestChangeRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setRequestChangeRow(null);
-				}}
-				row={requestChangeRow}
-			/>
-
-			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
-		</>
+				<DetailsDrawer
+					open={detailsDrawerOpen}
+					onOpenChange={setDetailsDrawerOpen}
+					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+					renderActions={r => renderCell(r, "#actions")}
+					onOpenHistory={() => setHistoryDrawerOpen(true)}
+				/>
+				<HistoryDrawer
+					open={historyDrawerOpen}
+					onOpenChange={setHistoryDrawerOpen}
+					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+				/>
+				<ChangeRequestDrawer
+					open={changeRequestDrawerOpen}
+					onOpenChange={setChangeRequestDrawerOpen}
+					row={changeRequestDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+				/>
+				<ReviewDrawer
+					open={reviewDrawerOpen}
+					onOpenChange={setReviewDrawerOpen}
+					row={reviewDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+					reviewComment={reviewComment}
+					onReviewCommentChange={setReviewComment}
+					mutationError={reviewMutationError}
+					isMutating={isMutating}
+					onApprove={() => startMutationTransition(async () => {
+						setReviewMutationError(null);
+						try {
+							await reviewAction({
+								id: reviewDrawerRow!.id,
+								decision: "approve",
+								reviewComment: reviewComment
+							});
+							setReviewDrawerOpen(false);
+							setReviewComment(lexicalPlainText(""));
+						} catch(error) {
+							setReviewMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["role-management"] });
+						}
+					})}
+					onReject={() => startMutationTransition(async () => {
+						setReviewMutationError(null);
+						try {
+							await reviewAction({
+								id: reviewDrawerRow!.id,
+								decision: "reject",
+								reviewComment: reviewComment
+							});
+							setReviewDrawerOpen(false);
+							setReviewComment(lexicalPlainText(""));
+						} catch(error) {
+							setReviewMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["role-management"] });
+						}
+					})}
+				/>
+			</RelationNavigationProvider>
+		</MenuPage>
 	);
 }

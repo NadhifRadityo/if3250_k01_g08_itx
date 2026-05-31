@@ -497,6 +497,7 @@ export type FormSubmitPayload = {
 };
 
 export type FormProps = {
+	autoFocus?: boolean;
 	className?: string;
 	form: JsonFormDefinition;
 	initialValues?: Record<string, unknown>;
@@ -1998,6 +1999,7 @@ function FieldWrapper({
 }
 
 function renderSimpleInput({
+	autoFocus,
 	block,
 	control,
 	context,
@@ -2005,6 +2007,7 @@ function renderSimpleInput({
 	fieldType,
 	inputType
 }: {
+	autoFocus: boolean;
 	block: JsonEmailFieldBlock | JsonPasswordFieldBlock | JsonTelephoneFieldBlock | JsonTextFieldBlock | JsonUrlFieldBlock;
 	control: Control<Record<string, unknown>>;
 	context: ResolutionContext;
@@ -2057,8 +2060,8 @@ function renderSimpleInput({
 								{...field}
 								{...elementAttrs}
 								aria-invalid={fieldState.invalid}
-								autoFocus={block.autofocus}
-								data-form-autofocus={block.autofocus ? "true" : undefined}
+								autoFocus={autoFocus && !!block.autofocus}
+								data-form-autofocus={autoFocus && block.autofocus ? "true" : undefined}
 								disabled={block.disabled}
 								id={block.id ?? `${block.name}-control`}
 								maxLength={block.maxlength}
@@ -2075,9 +2078,9 @@ function renderSimpleInput({
 								{...field}
 								{...elementAttrs}
 								aria-invalid={fieldState.invalid}
-								autoFocus={block.autofocus}
+								autoFocus={autoFocus && !!block.autofocus}
 								className="min-h-32 px-4 py-3 text-base sm:text-lg"
-								data-form-autofocus={block.autofocus ? "true" : undefined}
+								data-form-autofocus={autoFocus && block.autofocus ? "true" : undefined}
 								disabled={block.disabled}
 								id={block.id ?? `${block.name}-control`}
 								maxLength={block.maxlength}
@@ -2091,9 +2094,9 @@ function renderSimpleInput({
 							{...field}
 							{...elementAttrs}
 							aria-invalid={fieldState.invalid}
-							autoFocus={block.autofocus}
+							autoFocus={autoFocus && !!block.autofocus}
 							className={cn("bg-background", roundedClass)}
-							data-form-autofocus={block.autofocus ? "true" : undefined}
+							data-form-autofocus={autoFocus && block.autofocus ? "true" : undefined}
 							disabled={block.disabled}
 							id={block.id ?? `${block.name}-control`}
 							maxLength={block.maxlength}
@@ -2475,11 +2478,13 @@ function OpinionScaleField({
 }
 
 function NumberField({
+	autoFocus,
 	block,
 	control,
 	context,
 	options
 }: {
+	autoFocus: boolean;
 	block: JsonNumberFieldBlock;
 	control: Control<Record<string, unknown>>;
 	context: ResolutionContext;
@@ -2506,9 +2511,9 @@ function NumberField({
 						) : null}
 						<InputGroupInput
 							aria-invalid={fieldState.invalid}
-							autoFocus={block.autofocus}
+							autoFocus={autoFocus && !!block.autofocus}
 							className={getControlSizeClass(block.fieldSize, options.rounded)}
-							data-form-autofocus={block.autofocus ? "true" : undefined}
+							data-form-autofocus={autoFocus && block.autofocus ? "true" : undefined}
 							disabled={block.disabled}
 							id={block.id ?? `${block.name}-control`}
 							max={block.max}
@@ -2532,12 +2537,14 @@ function NumberField({
 }
 
 function DateLikeField({
+	autoFocus,
 	block,
 	control,
 	context,
 	options,
 	mode
 }: {
+	autoFocus: boolean;
 	block: JsonDateFieldBlock | JsonDatetimeFieldBlock | JsonTimeFieldBlock;
 	control: Control<Record<string, unknown>>;
 	context: ResolutionContext;
@@ -2558,9 +2565,9 @@ function DateLikeField({
 				<FieldWrapper block={block} context={context} error={fieldState.error} rounded={options.rounded}>
 					<DatetimeInput
 						aria-invalid={fieldState.invalid}
-						autoFocus={block.autofocus}
+						autoFocus={autoFocus && !!block.autofocus}
 						className={cn("bg-background", getControlSizeClass(block.fieldSize, options.rounded))}
-						data-form-autofocus={block.autofocus ? "true" : undefined}
+						data-form-autofocus={autoFocus && block.autofocus ? "true" : undefined}
 						disabled={block.disabled}
 						id={block.id ?? `${block.name}-control`}
 						max={block.max}
@@ -2661,11 +2668,13 @@ function FileField({
 }
 
 function renderFieldBlock({
+	autoFocus,
 	block,
 	control,
 	context,
 	options
 }: {
+	autoFocus: boolean;
 	block: JsonFieldBlock;
 	control: Control<Record<string, unknown>>;
 	context: ResolutionContext;
@@ -2677,17 +2686,17 @@ function renderFieldBlock({
 
 	switch(fieldType) {
 		case "email":
-			return renderSimpleInput({ block: block as JsonEmailFieldBlock, context, control, fieldType, inputType: "email", options });
+			return renderSimpleInput({ autoFocus, block: block as JsonEmailFieldBlock, context, control, fieldType, inputType: "email", options });
 		case "password":
-			return renderSimpleInput({ block: block as JsonPasswordFieldBlock, context, control, fieldType, inputType: "password", options });
+			return renderSimpleInput({ autoFocus, block: block as JsonPasswordFieldBlock, context, control, fieldType, inputType: "password", options });
 		case "tel":
-			return renderSimpleInput({ block: block as JsonTelephoneFieldBlock, context, control, fieldType, inputType: "tel", options });
+			return renderSimpleInput({ autoFocus, block: block as JsonTelephoneFieldBlock, context, control, fieldType, inputType: "tel", options });
 		case "text":
-			return renderSimpleInput({ block: block as JsonTextFieldBlock, context, control, fieldType, inputType: "text", options });
+			return renderSimpleInput({ autoFocus, block: block as JsonTextFieldBlock, context, control, fieldType, inputType: "text", options });
 		case "url":
-			return renderSimpleInput({ block: block as JsonUrlFieldBlock, context, control, fieldType, inputType: "url", options });
+			return renderSimpleInput({ autoFocus, block: block as JsonUrlFieldBlock, context, control, fieldType, inputType: "url", options });
 		case "number":
-			return <NumberField block={block as JsonNumberFieldBlock} context={context} control={control} options={options} />;
+			return <NumberField autoFocus={autoFocus} block={block as JsonNumberFieldBlock} context={context} control={control} options={options} />;
 		case "select":
 			return <SelectField block={block as JsonSelectFieldBlock} context={context} control={control} options={options} />;
 		case "choice":
@@ -2699,11 +2708,11 @@ function renderFieldBlock({
 		case "opinionScale":
 			return <OpinionScaleField block={block as JsonOpinionScaleFieldBlock} context={context} control={control} options={options} />;
 		case "datetime":
-			return <DateLikeField block={block as JsonDatetimeFieldBlock} context={context} control={control} options={options} mode="datetime" />;
+			return <DateLikeField autoFocus={autoFocus} block={block as JsonDatetimeFieldBlock} context={context} control={control} options={options} mode="datetime" />;
 		case "date":
-			return <DateLikeField block={block as JsonDateFieldBlock} context={context} control={control} options={options} mode="date" />;
+			return <DateLikeField autoFocus={autoFocus} block={block as JsonDateFieldBlock} context={context} control={control} options={options} mode="date" />;
 		case "time":
-			return <DateLikeField block={block as JsonTimeFieldBlock} context={context} control={control} options={options} mode="time" />;
+			return <DateLikeField autoFocus={autoFocus} block={block as JsonTimeFieldBlock} context={context} control={control} options={options} mode="time" />;
 		case "file":
 			return <FileField block={block as JsonFileFieldBlock} context={context} control={control} options={options} />;
 		default:
@@ -2818,11 +2827,13 @@ function renderContentBlock(block: JsonContentBlock, context: ResolutionContext,
 }
 
 function SlideBlocks({
+	autoFocus,
 	blocks,
 	control,
 	context,
 	options
 }: {
+	autoFocus: boolean;
 	blocks: JsonFormBlock[];
 	control: Control<Record<string, unknown>>;
 	context: ResolutionContext;
@@ -2837,7 +2848,7 @@ function SlideBlocks({
 				return (
 					<div key={key} style={animationStyle} className="animate-in fill-mode-[backwards] fade-in-0 slide-in-from-bottom-2 duration-300">
 						{isFieldBlock(block) ?
-							renderFieldBlock({ block, context, control, options }) :
+							renderFieldBlock({ autoFocus, block, context, control, options }) :
 							renderContentBlock(block, context, options)}
 					</div>
 				);
@@ -2847,11 +2858,13 @@ function SlideBlocks({
 }
 
 function SlideChrome({
+	autoFocus,
 	currentSlide,
 	context,
 	control,
 	options
 }: {
+	autoFocus: boolean;
 	currentSlide: InternalSlide;
 	context: ResolutionContext;
 	control: Control<Record<string, unknown>>;
@@ -2878,7 +2891,7 @@ function SlideChrome({
 					) : null}
 				</div>
 			) : null}
-			<SlideBlocks blocks={currentSlide.blocks} context={context} control={control} options={options} />
+			<SlideBlocks autoFocus={autoFocus} blocks={currentSlide.blocks} context={context} control={control} options={options} />
 		</div>
 	);
 }
@@ -2907,6 +2920,7 @@ function BrandingFooter({
 }
 
 export function Form({
+	autoFocus = true,
 	className,
 	form,
 	initialValues = {},
@@ -3032,7 +3046,7 @@ export function Form({
 	}, [activeSlideId, formApi, hasSubmitted, options.saveState, storageKey, values]);
 
 	React.useEffect(() => {
-		if(!currentSlide || !slideViewportRef.current)
+		if(!autoFocus || !currentSlide || !slideViewportRef.current)
 			return;
 
 		const frame = window.requestAnimationFrame(() => {
@@ -3043,7 +3057,7 @@ export function Form({
 		});
 
 		return () => window.cancelAnimationFrame(frame);
-	}, [currentSlide?.id]);
+	}, [autoFocus, currentSlide?.id]);
 
 	const resolutionContext = React.useMemo<ResolutionContext>(() => ({
 		form,
@@ -3302,6 +3316,7 @@ export function Form({
 								) : null}
 								{currentSlide ? (
 									<SlideChrome
+										autoFocus={autoFocus}
 										context={resolutionContext}
 										control={formApi.control}
 										currentSlide={currentSlide}

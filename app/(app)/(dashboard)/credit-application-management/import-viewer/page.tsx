@@ -1,159 +1,146 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { Switch } from "@/components/radix/Switch";
 
-import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
-import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
-import * as importActions from "../import.actions";
-import {
-	CreditApplicationImportRequestsTable,
-	useCreditApplicationImportCellRenderer,
-	CreditApplicationImportColumnConfigCard,
-	useCreditApplicationImportRequestsQuery,
-	CreditApplicationImportRequestFilterCard,
-	useCreditApplicationImportRequestFilters,
-	CreditApplicationImportActiveFiltersSummary,
-	CreditApplicationImportRequestDetailsDrawer,
-	useCreditApplicationImportColumnPreferences,
-	useCreditApplicationImportFilterColumnConfig,
-	useCreditApplicationImportManagementQueryState,
-	getEligibleDetailTriggerCreditApplicationImportColumnId,
-	type CreditApplicationImportTableRow
-} from "../import.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
+import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { queryViewerAction } from "../import.actions";
+import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../import.components";
 
-export default function CreditApplicationImportViewerPage() {
-	const [detailRow, setDetailRow] = useState<CreditApplicationImportTableRow | null>(null);
-	const relationNavigation = useDashboardRelationNavigation();
-	const columnPreferences = useCreditApplicationImportColumnPreferences();
-	const queryState = useCreditApplicationImportManagementQueryState();
-	const { getResolvedFilterColumnConfig } = useCreditApplicationImportFilterColumnConfig();
-	const filters = useCreditApplicationImportRequestFilters({ getResolvedFilterColumnConfig });
-
-	const {
-		pageIndex,
-		setPageIndex,
-		queryResult,
-		isLoading,
-		queryErrorMessage
-	} = useCreditApplicationImportRequestsQuery({
-		queryScope: "import-viewer",
-		queryAction: importActions.queryCreditApplicationImportViewerAction,
-		debouncedKeyword: queryState.debouncedKeyword,
-		sortTokens: queryState.sortTokens,
-		appliedFilters: filters.appliedFilters,
-		isFilterStateReady: filters.isFilterStateReady,
-		includeSoftDeleted: false
+export default function Page() {
+	const { user } = useDashboardContext();
+	const [keyword, setKeyword] = useState("");
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management-import.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management-import.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "credit-application-management-import.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "credit-application-management-import.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "credit-application-management-import.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [pageIndex, setPageIndex] = useState(1);
+	const query = useQuery({
+		queryKey: ["credit-application-management-import", "viewer", {
+			keyword,
+			filters,
+			columnsSort,
+			includeDeleted,
+			pageIndex
+		}],
+		queryFn: async () => await queryViewerAction({
+			keyword: keyword,
+			filters: filters,
+			columnsSort: columnsSort,
+			includeDeleted: includeDeleted,
+			pageIndex: pageIndex
+		})
 	});
-
-	const renderCreditApplicationImportCell = useCreditApplicationImportCellRenderer({
-		relations: queryResult.relations,
-		relationNavigation: {
-			getHrefBase: relationNavigation.getTargetHrefBase,
-			onRelationLinkClick: relationNavigation.onRelationLinkClick,
-			onOpenSummary: relationNavigation.openSummary
+	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
+	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+	const rowValueRendererContext = {
+		relationValues: query.data?.relations
+	};
+	const renderCell = useMenuRowValueRenderer({
+		columns: rowValueRendererConfigColumns,
+		context: {
+			...rowValueRendererContext,
+			richTextCard: false,
+			richTextClamp: true
+		},
+		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
+			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
+		onOpenDetails: row => {
+			setDetailsDrawerOpen(true);
+			setDetailsDrawerRow(row);
 		}
 	});
 
-	const detailTriggerColumnId = getEligibleDetailTriggerCreditApplicationImportColumnId(columnPreferences.visibleColumns);
-	const displayError = queryErrorMessage != null ? {
-		title: "Error",
-		message: queryErrorMessage
-	} : null;
-	const renderCreditApplicationImportActions = () => null;
-
 	return (
-		<>
-			<DashboardManagementPageFrame
-				title="Credit Application Import"
-				description="Read-only access for uploaded import files and review outcomes."
-			>
-				<DashboardManagementToolbar
-					keyword={queryState.keyword}
-					onKeywordChange={queryState.setKeyword}
-					searchPlaceholder="Search imports by filename, id, or MIME type"
-					filterCount={filters.appliedFilters.length}
-					onToggleFilter={filters.toggleFilterPanel}
-					onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
-					isLoading={isLoading}
-					isMutating={false}
+		<MenuPage
+			title="Credit Application Import"
+			description="View spreadsheet import requests and their review results."
+		>
+			<RelationNavigationProvider>
+				<MenuToolbar
+					keyword={keyword}
+					onKeywordChange={setKeyword}
+					searchPlaceholder="Search imports by id, filename, or MIME type"
+					filterCount={filters.length}
+					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
+					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
+					isLoading={query.isLoading}
+					rightSlot={user.roleMenus.includes("credit-application-management#auditor") ? (
+						<div className="flex items-center gap-2">
+							<label htmlFor="credit-application-management-import-viewer-show-deleted" className="text-sm">
+								Show Deleted
+							</label>
+							<Switch
+								id="credit-application-management-import-viewer-show-deleted"
+								checked={includeDeleted}
+								onCheckedChange={setIncludeDeleted}
+								disabled={query.isLoading}
+							/>
+						</div>
+					) : null}
 				/>
-
-				<CreditApplicationImportRequestFilterCard
-					isLoading={isLoading}
-					isMutating={false}
+				<MenuFilterConfigCard
+					open={filterConfigCardOpen}
+					onOpenChange={setFilterConfigCardOpen}
+					columns={filterConfigColumns}
 					filters={filters}
-					getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
+					onFiltersChange={setFilters}
+					disabled={query.isLoading}
 				/>
-
-				<CreditApplicationImportColumnConfigCard
-					isOpen={columnPreferences.isColumnOpen}
-					onOpenChange={columnPreferences.setIsColumnOpen}
-					orderedColumns={columnPreferences.orderedColumns}
-					hiddenColumnIds={columnPreferences.hiddenColumnIds}
-					visibleColumnCount={columnPreferences.visibleColumns.length}
-					onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
-					onReset={columnPreferences.resetColumnPreferences}
-					onColumnDragStart={columnPreferences.handleColumnDragStart}
-					onColumnDragOver={columnPreferences.handleColumnDragOver}
-					onColumnDragEnd={columnPreferences.handleColumnDragEnd}
+				<MenuColumnConfigCard
+					open={columnConfigCardOpen}
+					onOpenChange={setColumnConfigCardOpen}
+					columns={columnConfigColumns}
+					columnOrder={columnOrder}
+					onColumnOrderChange={setColumnOrder}
+					columnsShown={columnsShown}
+					onColumnsShownChange={setColumnsShown}
+					defaultColumnOrder={defaultColumnOrder}
+					defaultColumnsShown={defaultColumnsShown}
 				/>
-
-				<CreditApplicationImportActiveFiltersSummary items={filters.filterSummaryItems} />
-
-				{displayError != null ? (
+				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
+				{query.error != null ? (
 					<Alert variant="destructive">
 						<CircleAlertIcon />
-						<AlertTitle>{displayError.title}</AlertTitle>
-						<AlertDescription>{displayError.message}</AlertDescription>
+						<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
 					</Alert>
 				) : null}
-
-				<CreditApplicationImportRequestsTable
-					queryResult={queryResult}
-					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length}
-					includeActions={false}
-					detailTriggerColumnId={detailTriggerColumnId}
-					isLoading={isLoading}
-					isMutating={false}
-					getSortDirection={queryState.getSortDirection}
-					onToggleSortField={queryState.toggleSortField}
-					onOpenDetails={setDetailRow}
-					renderCreditApplicationImportCell={renderCreditApplicationImportCell}
-					renderActions={renderCreditApplicationImportActions}
+				<DashboardMenuTable
+					columns={tableConfigColumns}
+					columnsSort={columnsSort}
+					onColumnsSortChange={setColumnsSort}
+					columnOrder={columnOrder}
+					columnsShown={columnsShown}
+					rows={query.data?.docs ?? []}
+					renderCell={renderCell}
+					isLoading={query.isLoading}
 				/>
-
-				<DashboardManagementPagination
+				<MenuPagination
 					pageIndex={pageIndex}
-					totalRequests={queryResult.totalDocs}
-					hasPreviousPage={queryResult.hasPreviousPage}
-					hasNextPage={queryResult.hasNextPage}
-					isLoading={isLoading}
+					totalRequests={query.data?.totalDocs ?? 0}
+					hasPreviousPage={query.data?.hasPrevPage ?? false}
+					hasNextPage={query.data?.hasNextPage ?? false}
+					isLoading={query.isLoading}
 					isMutating={false}
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
-			</DashboardManagementPageFrame>
-
-			<CreditApplicationImportRequestDetailsDrawer
-				open={detailRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setDetailRow(null);
-				}}
-				row={detailRow}
-				renderActions={renderCreditApplicationImportActions}
-				relationNavigation={{
-					getHrefBase: relationNavigation.getTargetHrefBase,
-					onRelationLinkClick: relationNavigation.onRelationLinkClick,
-					onOpenSummary: relationNavigation.openSummary
-				}}
-			/>
-
-			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
-		</>
+				<DetailsDrawer
+					open={detailsDrawerOpen}
+					onOpenChange={setDetailsDrawerOpen}
+					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+				/>
+			</RelationNavigationProvider>
+		</MenuPage>
 	);
 }

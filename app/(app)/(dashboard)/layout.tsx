@@ -1,11 +1,11 @@
 import React, { Suspense } from "react";
-import { redirect, RedirectType } from "next/navigation";
+import { redirect } from "next/navigation";
 import { connection as nextConnection } from "next/server";
 
 import Comment from "@/components/Comment";
 import Root, { generateRootMetadata, generateRootViewport } from "@/app/root";
 
-import { getDashboardShellContext } from "./layout.actions";
+import { getDashboardContextAction } from "./layout.actions";
 import { DashboardShell } from "./layout.components";
 import "./layout.css";
 
@@ -18,12 +18,12 @@ export async function generateViewport() {
 
 async function SuspensedLayout({ children }: { children: React.ReactNode }) {
 	await nextConnection();
-	const context = await getDashboardShellContext();
+	const context = await getDashboardContextAction();
 	if(context == null)
-		return redirect("/login", RedirectType.push);
+		return redirect("/login");
 
 	return (
-		<DashboardShell user={context.user} managementNavigation={context.managementNavigation}>
+		<DashboardShell initialContext={context}>
 			{children}
 		</DashboardShell>
 	);

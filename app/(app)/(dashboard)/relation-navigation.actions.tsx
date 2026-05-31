@@ -1,0 +1,1186 @@
+"use server";
+
+import type { ReactNode } from "react";
+import React from "react";
+import { headers as nextHeaders } from "next/headers";
+import { unauthorized } from "next/navigation";
+import { Payload, getPayload } from "payload";
+
+import { getRelationshipId } from "@/utils/payload";
+import payloadConfig from "@/payload.config";
+
+import { dashboardRoleLabels } from "./layout.shared";
+import { RelationRole, RelationUser, RelationSurvey, RelationOfficerTask, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
+
+export async function resolveRelationUsers(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`users:${string}`, RelationUser>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "users",
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { name: true, email: true, stagedUser: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`users:${doc.id}`, {
+		name: doc.name,
+		email: doc.email,
+		stagedUserId: getRelationshipId(doc.stagedUser)
+	}]));
+}
+
+export async function resolveRelationRoles(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`roles:${string}`, RelationRole>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "roles",
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { name: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`roles:${doc.id}`, {
+		name: doc.name
+	}]));
+}
+
+export async function resolveRelationSurveys(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`surveys:${string}`, RelationSurvey>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "surveys",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { title: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`surveys:${doc.id}`, {
+		title: doc.title
+	}]));
+}
+
+export async function resolveRelationSurveyResults(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`survey-results:${string}`, RelationSurveyResult>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "survey-results",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: {}
+	});
+	return Object.fromEntries(result.docs.map(doc => [`survey-results:${doc.id}`, {
+		_: null
+	}]));
+}
+
+export async function resolveRelationSatisfactionSurveys(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "satisfaction-surveys",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { title: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`satisfaction-surveys:${doc.id}`, {
+		title: doc.title
+	}]));
+}
+
+export async function resolveRelationSatisfactionSurveyResults(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "satisfaction-survey-results",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: {}
+	});
+	return Object.fromEntries(result.docs.map(doc => [`satisfaction-survey-results:${doc.id}`, {
+		_: null
+	}]));
+}
+
+export async function resolveRelationCreditApplications(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`credit-applications:${string}`, RelationCreditApplication>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "credit-applications",
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { name: true, email: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`credit-applications:${doc.id}`, {
+		name: doc.name,
+		email: doc.email
+	}]));
+}
+
+export async function resolveRelationCreditApplicationImports(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`credit-application-imports:${string}`, RelationCreditApplicationImport>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "credit-application-imports",
+		pagination: false,
+		where: { id: { in: ids } },
+		select: { filename: true, filesize: true, mimeType: true }
+	});
+	return Object.fromEntries(result.docs.map(doc => [`credit-application-imports:${doc.id}`, {
+		filename: doc.filename!,
+		filesize: doc.filesize!,
+		mimeType: doc.mimeType!
+	}]));
+}
+
+export async function resolveRelationCreditApplicationAssignments(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "credit-application-assignments",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: {}
+	});
+	return Object.fromEntries(result.docs.map(doc => [`credit-application-assignments:${doc.id}`, {
+		_: null
+	}]));
+}
+
+export async function resolveRelationOfficerTasks(
+	{ payload, ids }:
+	{ payload?: Payload, ids: string[] }
+): Promise<Record<`officer-tasks:${string}`, RelationOfficerTask>> {
+	payload ??= await getPayload({ config: payloadConfig });
+	const result = await payload.find({
+		overrideAccess: true,
+		collection: "officer-tasks",
+		draft: true,
+		trash: true,
+		pagination: false,
+		where: { id: { in: ids } },
+		select: {}
+	});
+	return Object.fromEntries(result.docs.map(doc => [`officer-tasks:${doc.id}`, {
+		_: null
+	}]));
+}
+
+export type RelationSummary = Awaited<ReturnType<typeof getRelationSummaryAction>>;
+export type RelationSummaryResult = {
+	relationType: string;
+	relationId: string;
+	title: React.ReactNode;
+	description: React.ReactNode;
+	fields: { label: React.ReactNode, value: React.ReactNode }[];
+};
+export async function getRelationSummaryAction(
+	{ relationType, relationId }:
+	{ relationType: string, relationId: string }
+): Promise<RelationSummaryResult | null> {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return null;
+	if(relationType == "users") {
+		const doc = await payload.findByID({
+			collection: "users",
+			id: relationId,
+			user,
+			overrideAccess: false,
+			depth: 0,
+			select: {
+				name: true,
+				email: true,
+				employeeId: true,
+				role: true,
+				supervisor: true,
+				deletedAt: true
+			}
+		});
+		const roleId = getRelationshipId(doc.role);
+		const roleName = roleId != null ? (await payload.findByID({
+			collection: "roles",
+			id: roleId,
+			user,
+			overrideAccess: true,
+			trash: true,
+			depth: 0,
+			select: { name: true }
+		})).name : "-";
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.name,
+			description: doc.email,
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "Employee ID", value: doc.employeeId },
+				{ label: "Role", value: roleName },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
+			]
+		};
+	}
+	if(relationType == "staged-users") {
+		const doc = await payload.findByID({
+			collection: "staged-users",
+			id: relationId,
+			user,
+			overrideAccess: false,
+			depth: 0,
+			select: {
+				name: true,
+				email: true,
+				employeeId: true,
+				role: true,
+				supervisor: true,
+				deletedAt: true
+			}
+		});
+		const roleId = getRelationshipId(doc.role);
+		const roleName = roleId != null ? (await payload.findByID({
+			collection: "roles",
+			id: roleId,
+			user,
+			overrideAccess: true,
+			trash: true,
+			depth: 0,
+			select: { name: true }
+		})).name : "-";
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.name,
+			description: doc.email,
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "Employee ID", value: doc.employeeId },
+				{ label: "Role", value: roleName },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
+			]
+		};
+	}
+	if(relationType == "roles") {
+		const doc = await payload.findByID({
+			collection: "roles",
+			id: relationId,
+			user,
+			overrideAccess: true,
+			trash: true,
+			depth: 0,
+			select: {
+				name: true,
+				level: true,
+				menus: true,
+				deletedAt: true
+			}
+		});
+		const menuLabels = doc.menus.map(menu => dashboardRoleLabels[menu]);
+		const levelLabel = {
+			"admin": "Admin",
+			"manager": "Manager",
+			"supervisor": "Supervisor",
+			"officer": "Officer"
+		}[doc.level];
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.name,
+			description: `${levelLabel} role`,
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "Level", value: levelLabel },
+				{ label: "Menus", value: menuLabels.length > 0 ? menuLabels.join(", ") : "-" },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
+			]
+		};
+	}
+	if(relationType == "teams") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "teams",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+				name: true,
+				supervisor: true,
+				members: true,
+				deletedAt: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.name,
+			description: "Team entry",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : null }
+			]
+		};
+	}
+	if(relationType == "accesses") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "accesses",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+				name: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.name,
+			description: "Team entry",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
+	if(relationType == "surveys") {
+		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
+			collection: "surveys",
+			id: relationId,
+			draft: true,
+			trash: true,
+			depth: 0,
+			select: {
+				title: true,
+				deletedAt: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.title,
+			description: "Survey",
+			fields: [
+				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "Title", value: doc.title },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
+			]
+		};
+	}
+	if(relationType == "survey-results") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "survey-results",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.id,
+			description: "Survey result",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
+	if(relationType == "satisfaction-surveys") {
+		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
+			collection: "satisfaction-surveys",
+			id: relationId,
+			draft: true,
+			trash: true,
+			depth: 0,
+			select: {
+				title: true,
+				deletedAt: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.title,
+			description: "Satisfaction Survey",
+			fields: [
+				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "Title", value: doc.title },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
+			]
+		};
+	}
+	if(relationType == "satisfaction-survey-results") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "satisfaction-survey-results",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.id,
+			description: "Satisfaction survey result",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
+	if(relationType == "credit-applications") {
+		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
+			collection: "credit-applications",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+				name: true,
+				email: true,
+				deletedAt: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.name,
+			description: doc.email ?? "",
+			fields: [
+				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "Name", value: doc.name },
+				{ label: "Email", value: doc.email ?? "-" },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
+			]
+		};
+	}
+	if(relationType == "credit-application-imports") {
+		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
+			collection: "credit-application-imports",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+				filename: true,
+				filesize: true,
+				mimeType: true,
+				deletedAt: true
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.filename,
+			description: "",
+			fields: [
+				{ label: "Id", value: (<span className="text-xs font-mono">{doc.id}</span>) },
+				{ label: "File Name", value: doc.filename },
+				{ label: "File Size", value: doc.filesize },
+				{ label: "Mime Type", value: doc.mimeType },
+				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
+			]
+		};
+	}
+	if(relationType == "credit-application-assignments") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "credit-application-assignments",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.id,
+			description: "Credit application assignment entry",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
+	if(relationType == "officer-tasks") {
+		const doc = await payload.findByID({
+			user,
+			overrideAccess: true,
+			collection: "officer-tasks",
+			id: relationId,
+			trash: true,
+			depth: 0,
+			select: {
+			}
+		});
+		return {
+			relationType: relationType,
+			relationId: doc.id,
+			title: doc.id,
+			description: "Officer task entry",
+			fields: [
+				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) }
+			]
+		};
+	}
+	return null;
+}
+
+const RELATION_SEARCH_LIMIT = 20;
+
+export async function searchRelationUsersAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "users",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } }
+		] },
+		select: { name: true, email: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: (<>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>)
+	}));
+}
+
+export async function searchRelationUsersByRoleLevelAction(roleLevel: "admin" | "manager" | "supervisor" | "officer", keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "users",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { and: [
+			{ "role.level": { equals: roleLevel } },
+			{ or: [
+				{ id: { in: selectedIds } },
+				{ id: { like: keyword } },
+				{ name: { like: keyword } }
+			] }
+		] },
+		select: { name: true, email: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: (<>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>)
+	}));
+}
+
+export async function searchRelationStagedUsersAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "staged-users",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } },
+			{ email: { like: keyword } },
+			{ employeeId: { like: keyword } }
+		] },
+		select: { name: true, email: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>
+	}));
+}
+
+export async function searchRelationRolesAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "roles",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } }
+		] },
+		select: { name: true, level: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
+	}));
+}
+
+export async function searchRelationTeamsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "teams",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } }
+		] },
+		select: { name: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
+	}));
+}
+
+export async function searchRelationAccessesAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user,
+		overrideAccess: false,
+		collection: "accesses",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } }
+		] },
+		select: { name: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
+	}));
+}
+
+export async function searchRelationCreditApplicationsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "credit-applications",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ name: { like: keyword } },
+			{ email: { like: keyword } }
+		] },
+		select: { name: true, email: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email ?? ""}`}</>
+	}));
+}
+
+export async function searchAvailableRelationCreditApplicationsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "credit-applications",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT * 5 + selectedIds.length,
+		sort: "-updatedAt",
+		where: { and: [
+			{ _status: { equals: "published" } },
+			{ deletedAt: { exists: false } },
+			{ or: [
+				{ id: { in: selectedIds } },
+				{ id: { like: keyword } },
+				{ name: { like: keyword } },
+				{ email: { like: keyword } }
+			] }
+		] },
+		select: { name: true, email: true }
+	});
+	const selectedCreditApplications = await (async () => {
+		if(selectedIds.length == 0)
+			return new Map<string, RelationCreditApplication>();
+		const creditApplications = await payload.find({
+			user: user,
+			overrideAccess: false,
+			collection: "credit-applications",
+			pagination: false,
+			depth: 0,
+			limit: selectedIds.length,
+			where: { and: [
+				{ id: { in: selectedIds } },
+				{ _status: { equals: "published" } },
+				{ deletedAt: { exists: false } }
+			] },
+			select: { name: true, email: true }
+		});
+		return new Map(creditApplications.docs.map(doc => [doc.id, {
+			name: doc.name,
+			email: doc.email
+		}] as const));
+	})();
+	const assignmentsByCreditApplication = await (async () => {
+		if(result.docs.length == 0)
+			return new Map<string, { id: string, deletedAt: string | null }>();
+		const creditApplicationAssignments = await payload.find({
+			user: user,
+			overrideAccess: false,
+			collection: "credit-application-assignments",
+			draft: true,
+			trash: true,
+			pagination: false,
+			depth: 0,
+			limit: result.docs.length,
+			where: { creditApplication: { in: result.docs.map(doc => doc.id) } },
+			select: { creditApplication: true, deletedAt: true }
+		});
+		return new Map(creditApplicationAssignments.docs.flatMap(doc => {
+			const creditApplication = getRelationshipId(doc.creditApplication);
+			return creditApplication != null ? [[creditApplication, {
+				id: doc.id,
+				deletedAt: doc.deletedAt
+			}] as const] : [];
+		}));
+	})();
+	const selectedIdSet = new Set(selectedIds);
+	const optionsById = new Map<string, { id: string, label: ReactNode }>();
+	for(const doc of result.docs) {
+		const creditApplication = doc.id;
+		const assignment = assignmentsByCreditApplication.get(creditApplication);
+		if(!selectedIdSet.has(creditApplication) && assignment != null && assignment.deletedAt == null)
+			continue;
+		optionsById.set(creditApplication, {
+			id: creditApplication,
+			label: <>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email ?? ""}`}</>
+		});
+	}
+	for(const selectedId of selectedIds) {
+		if(optionsById.has(selectedId))
+			continue;
+		const selectedCreditApplication = selectedCreditApplications.get(selectedId);
+		if(selectedCreditApplication == null)
+			continue;
+		optionsById.set(selectedId, {
+			id: selectedId,
+			label: <>(<span className="font-mono">{selectedId}</span>) {`${selectedCreditApplication.name} ${selectedCreditApplication.email}`}</>
+		});
+	}
+	return [...optionsById.values()].slice(0, RELATION_SEARCH_LIMIT + selectedIds.length);
+}
+
+export async function searchRelationCreditApplicationImportsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "credit-application-imports",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ filename: { like: keyword } }
+		] },
+		select: { filename: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.filename}</>
+	}));
+}
+
+export async function searchRelationCreditApplicationAssignmentsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "credit-application-assignments",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } }
+		] },
+		select: {}
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <span className="font-mono">{doc.id}</span>
+	}));
+}
+
+export async function searchRelationOfficerTasksAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "officer-tasks",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } }
+		] },
+		select: {}
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <span className="font-mono">{doc.id}</span>
+	}));
+}
+
+export async function searchRelationSurveysAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "surveys",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ title: { like: keyword } }
+		] },
+		select: { title: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.title}</>
+	}));
+}
+
+export async function searchRelationSurveyResultsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "survey-results",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-createdAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } }
+		] },
+		select: { createdAt: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
+	}));
+}
+
+export async function searchRelationSatisfactionSurveysAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "satisfaction-surveys",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-updatedAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ title: { like: keyword } }
+		] },
+		select: { title: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.title}</>
+	}));
+}
+
+export async function searchRelationSatisfactionSurveyResultsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "satisfaction-survey-results",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-createdAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } }
+		] },
+		select: { createdAt: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
+	}));
+}
+
+export async function searchRelationLoginLogsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "login-logs",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-createdAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } }
+		] },
+		select: { createdAt: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
+	}));
+}
+
+export async function searchRelationGpsLogsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "gps-logs",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-createdAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ sessionId: { like: keyword } }
+		] },
+		select: { createdAt: true, sessionId: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.sessionId}</>
+	}));
+}
+
+export async function searchRelationMessageLogsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "message-logs",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-createdAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ content: { like: keyword } },
+			{ email: { like: keyword } },
+			{ whatsappNumber: { like: keyword } },
+			{ smsNumber: { like: keyword } }
+		] },
+		select: { createdAt: true, email: true, whatsappNumber: true, smsNumber: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.email ?? doc.whatsappNumber ?? doc.smsNumber ?? doc.createdAt}</>
+	}));
+}
+
+export async function searchRelationRecordingLogsAction(keyword: string, selectedIds: string[] = []) {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const result = await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "recording-logs",
+		pagination: false,
+		depth: 0,
+		limit: RELATION_SEARCH_LIMIT + selectedIds.length,
+		sort: "-createdAt",
+		where: { or: [
+			{ id: { in: selectedIds } },
+			{ id: { like: keyword } },
+			{ phoneNumber: { like: keyword } }
+		] },
+		select: { createdAt: true, phoneNumber: true }
+	});
+	return result.docs.map(doc => ({
+		id: doc.id,
+		label: <>(<span className="font-mono">{doc.id}</span>) {doc.phoneNumber}</>
+	}));
+}

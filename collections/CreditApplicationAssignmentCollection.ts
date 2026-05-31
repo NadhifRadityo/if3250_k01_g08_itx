@@ -1,4 +1,9 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { APIError, CollectionConfig } from "payload";
+import { check } from "drizzle-orm/pg-core";
+
+import { getRelationshipId } from "@/utils/payload";
 
 import { ReviewRichTextEditor } from "./shared";
 
@@ -26,7 +31,7 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 	},
 	hooks: {
 		beforeChange: [
-			({ req, operation, data }) => {
+			({ req, operation, data, originalDoc }) => {
 				if(req.user == null)
 					return data;
 				if(data.deletedAt != null)
@@ -35,6 +40,43 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
 				if(operation == "update")
 					data = { updatedBy: req.user.id, ...data };
+				if(operation == "update" && originalDoc != null && data.creditApplication != null) {
+					const previousCreditApplicationId = getRelationshipId(originalDoc.creditApplication);
+					const nextCreditApplicationId = getRelationshipId(data.creditApplication);
+					if(previousCreditApplicationId != null && nextCreditApplicationId != null && previousCreditApplicationId != nextCreditApplicationId)
+						throw new APIError("Credit application cannot be modified after the assignment is created", 400, undefined, true);
+				}
+				return data;
+			},
+			async ({ req, req: { payload }, operation, data, originalDoc }) => {
+				const isActive = data.deletedAt == null && (
+					operation == "create" ||
+					(operation == "update" && (data.deletedAt != undefined ? data.deletedAt == null : originalDoc?.deletedAt == null))
+				);
+				if(!isActive)
+					return data;
+				const creditApplicationId = getRelationshipId(data.creditApplication ?? originalDoc?.creditApplication);
+				if(creditApplicationId == null)
+					return data;
+				const conflictWhere: any = { and: [
+					{ creditApplication: { equals: creditApplicationId } },
+					{ deletedAt: { exists: false } }
+				] };
+				if(operation == "update" && originalDoc?.id != null)
+					conflictWhere.and.push({ id: { not_equals: originalDoc.id } });
+				const conflict = await payload.find({
+					req: req,
+					overrideAccess: true,
+					collection: "credit-application-assignments",
+					trash: true,
+					pagination: false,
+					depth: 0,
+					limit: 1,
+					where: conflictWhere,
+					select: {}
+				});
+				if(conflict.docs.length > 0)
+					throw new APIError("Another active credit application assignment already exists for this credit application", 400, undefined, true);
 				return data;
 			}
 		],
@@ -44,6 +86,12 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			}
 		]
 	},
+	indexes: [
+		{
+			fields: ["creditApplication", "officer"],
+			unique: true
+		}
+	],
 	fields: [
 		// timestamps: createdAt
 		// timestamps: updatedAt
@@ -120,7 +168,6 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			type: "relationship",
 			relationTo: "credit-applications",
 			required: true,
-			unique: true,
 			index: true
 		},
 		{
@@ -131,6 +178,53 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 			required: true,
 			index: true,
 			filterOptions: { "role.level": { equals: "officer" } }
+		},
+		{
+			name: "survey",
+			label: "Survey",
+			type: "relationship",
+			relationTo: "surveys",
+			required: true
+		},
+		{
+			name: "satisfactionSurvey",
+			label: "Satisfaction Survey",
+			type: "relationship",
+			relationTo: "satisfaction-surveys",
+			required: true
+		},
+		{
+			name: "assignedDate",
+			label: "Assigned Date",
+			type: "date"
+		},
+		{
+			name: "dueDate",
+			label: "Due Date",
+			type: "date"
+		},
+		{
+			name: "geofenceRegions",
+			label: "Geofence Regions",
+			type: "json"
+		},
+		{
+			name: "changeRequestType",
+			label: "Change Request Type",
+			type: "select",
+			required: true,
+			dbName: "enum_change_request_type",
+			options: [
+				{ value: "create", label: "Create" },
+				{ value: "update", label: "Update" },
+				{ value: "delete", label: "Delete" }
+			]
+		},
+		{
+			name: "changeRequestComment",
+			label: "Change Request Comment",
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		},
 		{
 			name: "reviewedAt",
@@ -156,3 +250,15 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 		}
 	]
 });
+export const CreditApplicationAssignmentsSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["credit_application_assignments"],
+		extraConfig: () => ({
+			creditApplicationAssignmentsReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"credit_application_assignments_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};

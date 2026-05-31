@@ -1,4 +1,7 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { APIError, CollectionConfig } from "payload";
+import { check } from "drizzle-orm/pg-core";
 
 import { ReviewRichTextEditor } from "./shared";
 
@@ -21,8 +24,8 @@ export const Teams = (): CollectionConfig => ({
 	},
 	admin: {
 		useAsTitle: "name",
-		listSearchableFields: ["name", "supervisor.email", "supervisor.name", "officers.email", "officers.name", "reviewComment"],
-		defaultColumns: ["name", "supervisor", "officers", "updatedAt", "reviewedBy", "reviewComment"]
+		listSearchableFields: ["name", "supervisor.email", "supervisor.name", "members.email", "members.name", "reviewComment"],
+		defaultColumns: ["name", "supervisor", "members", "updatedAt", "reviewedBy", "reviewComment"]
 	},
 	hooks: {
 		beforeChange: [
@@ -124,17 +127,33 @@ export const Teams = (): CollectionConfig => ({
 			label: "Supervisor",
 			type: "relationship",
 			relationTo: "users",
-			required: true,
-			filterOptions: { "role.level": { equals: "supervisor" } }
+			required: true
 		},
 		{
-			name: "officers",
-			label: "Officers",
+			name: "members",
+			label: "Members",
 			type: "relationship",
 			relationTo: "users",
 			required: true,
-			hasMany: true,
-			filterOptions: { "role.level": { equals: "officer" } }
+			hasMany: true
+		},
+		{
+			name: "changeRequestType",
+			label: "Change Request Type",
+			type: "select",
+			required: true,
+			dbName: "enum_change_request_type",
+			options: [
+				{ value: "create", label: "Create" },
+				{ value: "update", label: "Update" },
+				{ value: "delete", label: "Delete" }
+			]
+		},
+		{
+			name: "changeRequestComment",
+			label: "Change Request Comment",
+			type: "richText",
+			editor: ReviewRichTextEditor()
 		},
 		{
 			name: "reviewedAt",
@@ -160,3 +179,15 @@ export const Teams = (): CollectionConfig => ({
 		}
 	]
 });
+export const TeamsSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["teams"],
+		extraConfig: () => ({
+			teamsReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"teams_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};

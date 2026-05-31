@@ -1,5 +1,8 @@
+import { sql } from "@payloadcms/db-postgres";
+import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
 import { lexicalEditor, UploadFeature } from "@payloadcms/richtext-lexical";
 import { CollectionConfig } from "payload";
+import { check } from "drizzle-orm/pg-core";
 
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
 
@@ -14,7 +17,7 @@ const SatisfactionSurveyRichTextEditor = () => lexicalEditor({
 });
 
 export const SatisfactionSurveys = (): CollectionConfig => ({
-	slug: "satsifaction-surveys",
+	slug: "satisfaction-surveys",
 	labels: {
 		singular: "Satisfaction Survey",
 		plural: "Satisfaction Surveys"
@@ -124,6 +127,24 @@ export const SatisfactionSurveys = (): CollectionConfig => ({
 			required: true
 		},
 		{
+			name: "changeRequestType",
+			label: "Change Request Type",
+			type: "select",
+			required: true,
+			dbName: "enum_change_request_type",
+			options: [
+				{ value: "create", label: "Create" },
+				{ value: "update", label: "Update" },
+				{ value: "delete", label: "Delete" }
+			]
+		},
+		{
+			name: "changeRequestComment",
+			label: "Change Request Comment",
+			type: "richText",
+			editor: ReviewRichTextEditor()
+		},
+		{
 			name: "reviewedAt",
 			label: "Reviewed At",
 			type: "date"
@@ -147,3 +168,15 @@ export const SatisfactionSurveys = (): CollectionConfig => ({
 		}
 	]
 });
+export const SatisfactionSurveysSchemaHook = (): PostgresSchemaHook => ({ schema, extendTable }) => {
+	extendTable({
+		table: schema.tables["satisfaction_surveys"],
+		extraConfig: () => ({
+			satisfactionSurveysReviewedAtNotNullImpliesReviewApprovedNotNull: check(
+				"satisfaction_surveys_reviewed_at_not_null_implies_review_approved_not_null",
+				sql`"reviewed_at" IS NULL OR "review_approved" IS NOT NULL`
+			)
+		})
+	});
+	return schema;
+};

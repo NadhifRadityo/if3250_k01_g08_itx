@@ -23,7 +23,7 @@ export const GenericRichtextUploads = (): CollectionConfig => ({
 					for(const field of ["filename", "filesize", "mimeType", "url"]) {
 						if(!(field in data))
 							continue;
-						const nextValue = (data as Record<string, unknown>)[field];
+						const nextValue = (data)[field];
 						const previousValue = (originalDoc as Record<string, unknown>)[field];
 						if(JSON.stringify(nextValue) != JSON.stringify(previousValue))
 							throw new APIError(`Cannot modify '${field}' after upload. Create a new upload instead.`, 400, undefined, true);

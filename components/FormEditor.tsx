@@ -50,8 +50,7 @@ import {
 	CardTitle,
 	CardAction,
 	CardHeader,
-	CardContent,
-	CardDescription
+	CardContent
 } from "./radix/Card";
 import { Collapsible, CollapsibleContent } from "./radix/Collapsible";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./radix/HoverCard";
@@ -69,8 +68,9 @@ import { Textarea } from "./radix/Textarea";
 export type FormEditorProps = {
 	className?: string;
 	defaultValue?: JsonFormDefinition;
-	mode?: "edit" | "readonly";
+	disabled?: boolean;
 	onChange?: (value: JsonFormDefinition) => void;
+	previewAutoFocus?: FormProps["autoFocus"];
 	onPreviewPartialSubmit?: (payload: FormSubmitPayload) => Promise<void> | void;
 	onPreviewSubmit?: (payload: FormSubmitPayload) => Promise<void> | void;
 	previewClassName?: string;
@@ -1136,16 +1136,18 @@ function ActionButton({
 
 function ToggleField({
 	checked,
+	disabled = false,
 	label,
 	onCheckedChange
 }: {
 	checked: boolean;
+	disabled?: boolean;
 	label: string;
 	onCheckedChange: (value: boolean) => void;
 }) {
 	return (
-		<label className="flex items-center gap-2 text-sm cursor-pointer">
-			<Switch checked={checked} onCheckedChange={onCheckedChange} />
+		<label className={cn("flex items-center gap-2 text-sm", disabled ? "cursor-not-allowed" : "cursor-pointer")}>
+			<Switch checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
 			<span className="text-muted-foreground">{label}</span>
 		</label>
 	);
@@ -1177,6 +1179,7 @@ function FieldWrapper({
 
 function SimpleSelectField<TValue extends string>({
 	className,
+	disabled = false,
 	items,
 	label,
 	onValueChange,
@@ -1184,6 +1187,7 @@ function SimpleSelectField<TValue extends string>({
 	value
 }: {
 	className?: string;
+	disabled?: boolean;
 	items: Array<AddItem<TValue>>;
 	label: string;
 	onValueChange: (value: TValue) => void;
@@ -1192,7 +1196,7 @@ function SimpleSelectField<TValue extends string>({
 }) {
 	return (
 		<FieldWrapper className={className} label={label}>
-			<Select onValueChange={nextValue => onValueChange(nextValue as TValue)} value={value}>
+			<Select disabled={disabled} onValueChange={nextValue => onValueChange(nextValue as TValue)} value={value}>
 				<SelectTrigger className="w-full">
 					<SelectValue placeholder={placeholder} />
 				</SelectTrigger>
@@ -1210,12 +1214,14 @@ function SimpleSelectField<TValue extends string>({
 
 function AddInsertControl<TValue extends string>({
 	canPaste,
+	disabled = false,
 	items,
 	label,
 	onAdd,
 	onPaste
 }: {
 	canPaste?: boolean;
+	disabled?: boolean;
 	items: Array<AddItem<TValue>>;
 	label: string;
 	onAdd: (value: TValue) => void;
@@ -1226,55 +1232,63 @@ function AddInsertControl<TValue extends string>({
 	return (
 		<div className="relative h-6 flex items-center justify-center group">
 			<div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-border transition-opacity" />
-			<HoverCard closeDelay={50} onOpenChange={setOpen} open={open} openDelay={50}>
+			<HoverCard
+				closeDelay={50}
+				onOpenChange={nextOpen => {
+					if(!disabled)
+						setOpen(nextOpen);
+				}}
+				open={disabled ? false : open}
+				openDelay={50}
+			>
 				<HoverCardTrigger asChild>
 					<button
 						className={cn(
-							"relative z-10 bg-background text-muted-foreground hover:text-foreground hover:border-primary flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs transition-all",
-							"group-hover:opacity-100 group-hover:scale-100",
-							open ? "opacity-100 scale-100 text-foreground border-primary" : "opacity-0 scale-95"
+							"relative z-10 bg-background text-muted-foreground flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs transition-all",
+							!disabled ? "hover:text-foreground hover:border-primary group-hover:opacity-100 group-hover:scale-100" : null,
+							!disabled && open ? "opacity-100 scale-100 text-foreground border-primary" : "opacity-0 scale-95"
 						)}
+						disabled={disabled}
 						type="button"
 					>
 						<PlusIcon className="size-3" />
 						<span>{label}</span>
 					</button>
 				</HoverCardTrigger>
-				<HoverCardContent align="center" className="w-56 p-1.5">
-					<div className="space-y-1">
-						{items.map(item => (
-							<Button
-								className="w-full justify-start text-left h-auto py-2"
-								key={item.value}
-								onClick={() => onAdd(item.value)}
-								size="sm"
-								type="button"
-								variant="ghost"
-							>
-								<div className="space-y-0.5">
-									<div className="text-sm">{item.label}</div>
-									{item.description ? (
-										<div className="text-muted-foreground text-xs leading-relaxed">
-											{item.description}
-										</div>
-									) : null}
-								</div>
-							</Button>
-						))}
-						{onPaste ? (
-							<Button
-								className="w-full justify-start"
-								disabled={!canPaste}
-								onClick={event => onPaste(!event.altKey)}
-								size="sm"
-								type="button"
-								variant="ghost"
-							>
-								<ClipboardPasteIcon className="size-3 mr-2" />
-								Paste
-							</Button>
-						) : null}
-					</div>
+				<HoverCardContent align="center" className="w-64 max-h-128 overflow-auto overflow-x-hidden p-1.5">
+					{items.map(item => (
+						<Button
+							className="w-full justify-start text-left h-auto py-1"
+							disabled={disabled}
+							key={item.value}
+							onClick={() => onAdd(item.value)}
+							size="sm"
+							type="button"
+							variant="ghost"
+						>
+							<div className="space-y-0.5">
+								<div className="text-sm">{item.label}</div>
+								{item.description ? (
+									<div className="text-muted-foreground text-xs leading-relaxed">
+										{item.description}
+									</div>
+								) : null}
+							</div>
+						</Button>
+					))}
+					{onPaste ? (
+						<Button
+							className="w-full justify-start"
+							disabled={disabled || !canPaste}
+							onClick={event => onPaste(!event.altKey)}
+							size="sm"
+							type="button"
+							variant="ghost"
+						>
+							<ClipboardPasteIcon className="size-3 mr-2" />
+							Paste
+						</Button>
+					) : null}
 				</HoverCardContent>
 			</HoverCard>
 		</div>
@@ -1283,6 +1297,7 @@ function AddInsertControl<TValue extends string>({
 
 function BlockActions({
 	canPaste,
+	disabled = false,
 	disabledDown,
 	disabledUp,
 	isCollapsed,
@@ -1294,6 +1309,7 @@ function BlockActions({
 	onToggleCollapse
 }: {
 	canPaste: boolean;
+	disabled?: boolean;
 	disabledDown: boolean;
 	disabledUp: boolean;
 	isCollapsed: boolean;
@@ -1309,19 +1325,19 @@ function BlockActions({
 			<ActionButton onClick={onToggleCollapse} title={isCollapsed ? "Expand" : "Collapse"}>
 				{isCollapsed ? <ChevronRightIcon className="size-3.5" /> : <ChevronDownIcon className="size-3.5" />}
 			</ActionButton>
-			<ActionButton disabled={disabledUp} onClick={onMoveUp} title="Move up">
+			<ActionButton disabled={disabled || disabledUp} onClick={onMoveUp} title="Move up">
 				<ArrowUpIcon className="size-3.5" />
 			</ActionButton>
-			<ActionButton disabled={disabledDown} onClick={onMoveDown} title="Move down">
+			<ActionButton disabled={disabled || disabledDown} onClick={onMoveDown} title="Move down">
 				<ArrowDownIcon className="size-3.5" />
 			</ActionButton>
 			<ActionButton onClick={onCopy} title="Copy">
 				<CopyIcon className="size-3.5" />
 			</ActionButton>
-			<ActionButton disabled={!canPaste} onClick={event => onPaste(!event.altKey)} title="Paste">
+			<ActionButton disabled={disabled || !canPaste} onClick={event => onPaste(!event.altKey)} title="Paste">
 				<ClipboardPasteIcon className="size-3.5" />
 			</ActionButton>
-			<ActionButton onClick={onDelete} title="Delete" variant="destructive">
+			<ActionButton disabled={disabled} onClick={onDelete} title="Delete" variant="destructive">
 				<Trash2Icon className="size-3.5" />
 			</ActionButton>
 		</div>
@@ -1330,12 +1346,14 @@ function BlockActions({
 
 function ConditionEditor({
 	availableFields,
+	disabled = false,
 	description,
 	label,
 	onChange,
 	value
 }: {
 	availableFields: FieldReference[];
+	disabled?: boolean;
 	description: string;
 	label: string;
 	onChange: (value: JsonConditionConfig | undefined) => void;
@@ -1367,74 +1385,79 @@ function ConditionEditor({
 
 	return (
 		<div className="rounded-xl border bg-muted/20 p-3 space-y-3">
-			<div className="space-y-1">
-				<div className="text-sm font-medium">{label}</div>
-				<p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
-				{parsedCondition.hasUnsupportedCondition ? (
-					<p className="text-muted-foreground text-xs">
-						This item already has a saved rule. Editing here will replace it.
-					</p>
-				) : null}
-			</div>
-			<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_minmax(0,1fr)]">
-				<FieldWrapper label="Question">
-					<Select
-						onValueChange={nextValue => {
-							applyDraft({
-								...draft,
-								field: nextValue == EMPTY_SELECT_VALUE ? "" : nextValue
-							});
-						}}
-						value={draft.field || EMPTY_SELECT_VALUE}
-					>
-						<SelectTrigger className="w-full">
-							<SelectValue placeholder="Always show" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value={EMPTY_SELECT_VALUE}>Always show</SelectItem>
-							{fieldItems.map(item => (
-								<SelectItem key={item.name} value={item.name}>
-									{item.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</FieldWrapper>
-				<FieldWrapper label="Rule">
-					<Select
-						onValueChange={nextValue => {
-							applyDraft({
-								...draft,
-								operator: nextValue as SimpleConditionOperator
-							});
-						}}
-						value={draft.operator}
-					>
-						<SelectTrigger className="w-full">
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							{CONDITION_OPERATOR_ITEMS.map(item => (
-								<SelectItem key={item.value} value={item.value}>
-									{item.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
-				</FieldWrapper>
-				<FieldWrapper label="Value">
-					<Input
-						onChange={event => {
-							applyDraft({
-								...draft,
-								value: event.target.value
-							});
-						}}
-						placeholder={draft.operator == "matches" ? "Pattern" : "Expected value"}
-						value={draft.value}
-					/>
-				</FieldWrapper>
-			</div>
+			<fieldset className="contents" disabled={disabled}>
+				<div className="space-y-1">
+					<div className="text-sm font-medium">{label}</div>
+					<p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
+					{parsedCondition.hasUnsupportedCondition ? (
+						<p className="text-muted-foreground text-xs">
+							This item already has a saved rule. Editing here will replace it.
+						</p>
+					) : null}
+				</div>
+				<div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_minmax(0,1fr)]">
+					<FieldWrapper label="Question">
+						<Select
+							disabled={disabled}
+							onValueChange={nextValue => {
+								applyDraft({
+									...draft,
+									field: nextValue == EMPTY_SELECT_VALUE ? "" : nextValue
+								});
+							}}
+							value={draft.field || EMPTY_SELECT_VALUE}
+						>
+							<SelectTrigger className="w-full">
+								<SelectValue placeholder="Always show" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value={EMPTY_SELECT_VALUE}>Always show</SelectItem>
+								{fieldItems.map(item => (
+									<SelectItem key={item.name} value={item.name}>
+										{item.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</FieldWrapper>
+					<FieldWrapper label="Rule">
+						<Select
+							disabled={disabled}
+							onValueChange={nextValue => {
+								applyDraft({
+									...draft,
+									operator: nextValue as SimpleConditionOperator
+								});
+							}}
+							value={draft.operator}
+						>
+							<SelectTrigger className="w-full">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{CONDITION_OPERATOR_ITEMS.map(item => (
+									<SelectItem key={item.value} value={item.value}>
+										{item.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</FieldWrapper>
+					<FieldWrapper label="Value">
+						<Input
+							disabled={disabled}
+							onChange={event => {
+								applyDraft({
+									...draft,
+									value: event.target.value
+								});
+							}}
+							placeholder={draft.operator == "matches" ? "Pattern" : "Expected value"}
+							value={draft.value}
+						/>
+					</FieldWrapper>
+				</div>
+			</fieldset>
 		</div>
 	);
 }
@@ -1442,10 +1465,12 @@ function ConditionEditor({
 function BlockContentEditor({
 	availableFields,
 	block,
+	disabled = false,
 	onChange
 }: {
 	availableFields: FieldReference[];
 	block: EditorBlock;
+	disabled?: boolean;
 	onChange: (block: EditorBlock) => void;
 }) {
 	const fieldType = getEditorFieldType(block);
@@ -1455,482 +1480,493 @@ function BlockContentEditor({
 		const multipleChoice = ("multiple" in fieldBlock ? fieldBlock.multiple : false) ?? false;
 
 		return (
-			<div className="space-y-4 px-3 pb-3">
-				<div className="grid gap-4 md:grid-cols-2">
-					<FieldWrapper className="md:col-span-2" label="Question">
-						<Textarea
-							className="min-h-20"
-							onChange={event => onChange(withOptionalString(fieldBlock, "question", event.target.value))}
-							placeholder="Ask your question here"
-							value={getPlainRenderableText(fieldBlock.question)}
-						/>
-					</FieldWrapper>
-					<FieldWrapper className="md:col-span-2" label="Supporting text">
-						<Textarea
-							className="min-h-20"
-							onChange={event => onChange(withOptionalString(fieldBlock, "description", event.target.value))}
-							placeholder="Add extra detail or guidance"
-							value={getPlainRenderableText(fieldBlock.description)}
-						/>
-					</FieldWrapper>
-					{"placeholder" in fieldBlock ? (
-						<FieldWrapper className="md:col-span-2" label="Placeholder">
-							<Input
-								onChange={event => onChange(withOptionalString(fieldBlock, "placeholder", event.target.value))}
-								placeholder="Example answer"
-								value={getPlainRenderableText(fieldBlock.placeholder)}
+			<fieldset className="contents" disabled={disabled}>
+				<div className="space-y-4 px-3 pb-3">
+					<div className="grid gap-4 md:grid-cols-2">
+						<FieldWrapper className="md:col-span-2" label="Question">
+							<Textarea
+								className="min-h-20"
+								onChange={event => onChange(withOptionalString(fieldBlock, "question", event.target.value))}
+								placeholder="Ask your question here"
+								value={getPlainRenderableText(fieldBlock.question)}
 							/>
 						</FieldWrapper>
-					) : null}
-				</div>
-				<div className="flex flex-wrap gap-4 rounded-xl border bg-muted/20 px-3 py-2">
-					<ToggleField checked={fieldBlock.required ?? false} label="Required" onCheckedChange={nextValue => onChange({ ...fieldBlock, required: nextValue })} />
-					<ToggleField checked={fieldBlock.disabled ?? false} label="Disabled" onCheckedChange={nextValue => onChange({ ...fieldBlock, disabled: nextValue })} />
-					<ToggleField checked={fieldBlock.hidden ?? false} label="Hidden" onCheckedChange={nextValue => onChange({ ...fieldBlock, hidden: nextValue })} />
-					{fieldType == "text" ? (
-						<ToggleField checked={("multiline" in fieldBlock ? fieldBlock.multiline : false) ?? false} label="Use multiple lines" onCheckedChange={nextValue => onChange({ ...fieldBlock, multiline: nextValue } as EditorBlock)} />
-					) : null}
-					{fieldType == "choice" ? (
-						<>
-							<ToggleField checked={("multiple" in fieldBlock ? fieldBlock.multiple : false) ?? false} label="Allow multiple answers" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonChoiceFieldBlock), multiple: nextValue } as EditorBlock)} />
-							<ToggleField checked={("horizontal" in fieldBlock ? fieldBlock.horizontal : false) ?? false} label="Arrange side by side" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonChoiceFieldBlock), horizontal: nextValue } as EditorBlock)} />
-							<ToggleField checked={("hideFormText" in fieldBlock ? fieldBlock.hideFormText : false) ?? false} label="Hide helper text" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonChoiceFieldBlock), hideFormText: nextValue } as EditorBlock)} />
-						</>
-					) : null}
-					{fieldType == "pictureChoice" ? (
-						<>
-							<ToggleField checked={("multiple" in fieldBlock ? fieldBlock.multiple : false) ?? false} label="Allow multiple answers" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonPictureChoiceFieldBlock), multiple: nextValue } as EditorBlock)} />
-							<ToggleField checked={("hideLabels" in fieldBlock ? fieldBlock.hideLabels : false) ?? false} label="Hide labels" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonPictureChoiceFieldBlock), hideLabels: nextValue } as EditorBlock)} />
-							<ToggleField checked={("hideFormText" in fieldBlock ? fieldBlock.hideFormText : false) ?? false} label="Hide helper text" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonPictureChoiceFieldBlock), hideFormText: nextValue } as EditorBlock)} />
-							<ToggleField checked={("supersize" in fieldBlock ? fieldBlock.supersize : false) ?? false} label="Use larger cards" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonPictureChoiceFieldBlock), supersize: nextValue } as EditorBlock)} />
-						</>
-					) : null}
-					{fieldType == "file" ? (
-						<ToggleField checked={("imageOnly" in fieldBlock ? fieldBlock.imageOnly : false) ?? false} label="Images only" onCheckedChange={nextValue => onChange({ ...fieldBlock, imageOnly: nextValue } as EditorBlock)} />
-					) : null}
-					{fieldType == "opinionScale" ? (
-						<>
-							<ToggleField checked={("hideLabelStart" in fieldBlock ? fieldBlock.hideLabelStart : false) ?? false} label="Hide left label" onCheckedChange={nextValue => onChange({ ...fieldBlock, hideLabelStart: nextValue } as EditorBlock)} />
-							<ToggleField checked={("hideLabelEnd" in fieldBlock ? fieldBlock.hideLabelEnd : false) ?? false} label="Hide right label" onCheckedChange={nextValue => onChange({ ...fieldBlock, hideLabelEnd: nextValue } as EditorBlock)} />
-						</>
-					) : null}
-				</div>
-				<div className="grid gap-4 md:grid-cols-2">
-					{("maxlength" in fieldBlock) ? (
-						<FieldWrapper label="Maximum characters">
-							<Input
-								onChange={event => onChange(withOptionalNumber(fieldBlock, "maxlength", event.target.value))}
-								type="number"
-								value={String(fieldBlock.maxlength ?? "")}
+						<FieldWrapper className="md:col-span-2" label="Supporting text">
+							<Textarea
+								className="min-h-20"
+								onChange={event => onChange(withOptionalString(fieldBlock, "description", event.target.value))}
+								placeholder="Add extra detail or guidance"
+								value={getPlainRenderableText(fieldBlock.description)}
 							/>
 						</FieldWrapper>
-					) : null}
-					{("pattern" in fieldBlock) ? (
-						<FieldWrapper label="Validation pattern">
-							<Input
-								onChange={event => onChange(withOptionalString(fieldBlock, "pattern", event.target.value))}
-								placeholder="e.g. ^[A-Z].*$"
-								value={fieldBlock.pattern ?? ""}
-							/>
-						</FieldWrapper>
-					) : null}
-					{fieldType == "number" ? (
-						<>
-							<FieldWrapper label="Minimum">
+						{"placeholder" in fieldBlock ? (
+							<FieldWrapper className="md:col-span-2" label="Placeholder">
 								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "min", event.target.value))}
+									onChange={event => onChange(withOptionalString(fieldBlock, "placeholder", event.target.value))}
+									placeholder="Example answer"
+									value={getPlainRenderableText(fieldBlock.placeholder)}
+								/>
+							</FieldWrapper>
+						) : null}
+					</div>
+					<div className="flex flex-wrap gap-4 rounded-xl border bg-muted/20 px-3 py-2">
+						<ToggleField checked={fieldBlock.required ?? false} disabled={disabled} label="Required" onCheckedChange={nextValue => onChange({ ...fieldBlock, required: nextValue })} />
+						<ToggleField checked={fieldBlock.disabled ?? false} disabled={disabled} label="Disabled" onCheckedChange={nextValue => onChange({ ...fieldBlock, disabled: nextValue })} />
+						<ToggleField checked={fieldBlock.hidden ?? false} disabled={disabled} label="Hidden" onCheckedChange={nextValue => onChange({ ...fieldBlock, hidden: nextValue })} />
+						{fieldType == "text" ? (
+							<ToggleField checked={("multiline" in fieldBlock ? fieldBlock.multiline : false) ?? false} disabled={disabled} label="Use multiple lines" onCheckedChange={nextValue => onChange({ ...fieldBlock, multiline: nextValue } as EditorBlock)} />
+						) : null}
+						{fieldType == "choice" ? (
+							<>
+								<ToggleField checked={("multiple" in fieldBlock ? fieldBlock.multiple : false) ?? false} disabled={disabled} label="Allow multiple answers" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonChoiceFieldBlock), multiple: nextValue } as EditorBlock)} />
+								<ToggleField checked={("horizontal" in fieldBlock ? fieldBlock.horizontal : false) ?? false} disabled={disabled} label="Arrange side by side" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonChoiceFieldBlock), horizontal: nextValue } as EditorBlock)} />
+								<ToggleField checked={("hideFormText" in fieldBlock ? fieldBlock.hideFormText : false) ?? false} disabled={disabled} label="Hide helper text" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonChoiceFieldBlock), hideFormText: nextValue } as EditorBlock)} />
+							</>
+						) : null}
+						{fieldType == "pictureChoice" ? (
+							<>
+								<ToggleField checked={("multiple" in fieldBlock ? fieldBlock.multiple : false) ?? false} disabled={disabled} label="Allow multiple answers" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonPictureChoiceFieldBlock), multiple: nextValue } as EditorBlock)} />
+								<ToggleField checked={("hideLabels" in fieldBlock ? fieldBlock.hideLabels : false) ?? false} disabled={disabled} label="Hide labels" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonPictureChoiceFieldBlock), hideLabels: nextValue } as EditorBlock)} />
+								<ToggleField checked={("hideFormText" in fieldBlock ? fieldBlock.hideFormText : false) ?? false} disabled={disabled} label="Hide helper text" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonPictureChoiceFieldBlock), hideFormText: nextValue } as EditorBlock)} />
+								<ToggleField checked={("supersize" in fieldBlock ? fieldBlock.supersize : false) ?? false} disabled={disabled} label="Use larger cards" onCheckedChange={nextValue => onChange({ ...(fieldBlock as JsonPictureChoiceFieldBlock), supersize: nextValue } as EditorBlock)} />
+							</>
+						) : null}
+						{fieldType == "file" ? (
+							<ToggleField checked={("imageOnly" in fieldBlock ? fieldBlock.imageOnly : false) ?? false} disabled={disabled} label="Images only" onCheckedChange={nextValue => onChange({ ...fieldBlock, imageOnly: nextValue } as EditorBlock)} />
+						) : null}
+						{fieldType == "opinionScale" ? (
+							<>
+								<ToggleField checked={("hideLabelStart" in fieldBlock ? fieldBlock.hideLabelStart : false) ?? false} disabled={disabled} label="Hide left label" onCheckedChange={nextValue => onChange({ ...fieldBlock, hideLabelStart: nextValue } as EditorBlock)} />
+								<ToggleField checked={("hideLabelEnd" in fieldBlock ? fieldBlock.hideLabelEnd : false) ?? false} disabled={disabled} label="Hide right label" onCheckedChange={nextValue => onChange({ ...fieldBlock, hideLabelEnd: nextValue } as EditorBlock)} />
+							</>
+						) : null}
+					</div>
+					<div className="grid gap-4 md:grid-cols-2">
+						{("maxlength" in fieldBlock) ? (
+							<FieldWrapper label="Maximum characters">
+								<Input
+									onChange={event => onChange(withOptionalNumber(fieldBlock, "maxlength", event.target.value))}
 									type="number"
-									value={String(("min" in fieldBlock ? fieldBlock.min : "") ?? "")}
+									value={String(fieldBlock.maxlength ?? "")}
 								/>
 							</FieldWrapper>
-							<FieldWrapper label="Maximum">
+						) : null}
+						{("pattern" in fieldBlock) ? (
+							<FieldWrapper label="Validation pattern">
 								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "max", event.target.value))}
-									type="number"
-									value={String(("max" in fieldBlock ? fieldBlock.max : "") ?? "")}
+									onChange={event => onChange(withOptionalString(fieldBlock, "pattern", event.target.value))}
+									placeholder="e.g. ^[A-Z].*$"
+									value={fieldBlock.pattern ?? ""}
 								/>
 							</FieldWrapper>
-							<FieldWrapper label="Step">
-								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "step", event.target.value))}
-									type="number"
-									value={String(("step" in fieldBlock ? fieldBlock.step : "") ?? "")}
+						) : null}
+						{fieldType == "number" ? (
+							<>
+								<FieldWrapper label="Minimum">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "min", event.target.value))}
+										type="number"
+										value={String(("min" in fieldBlock ? fieldBlock.min : "") ?? "")}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Maximum">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "max", event.target.value))}
+										type="number"
+										value={String(("max" in fieldBlock ? fieldBlock.max : "") ?? "")}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Step">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "step", event.target.value))}
+										type="number"
+										value={String(("step" in fieldBlock ? fieldBlock.step : "") ?? "")}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Unit before answer">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "unit", event.target.value))}
+										placeholder="USD"
+										value={getPlainRenderableText("unit" in fieldBlock ? fieldBlock.unit : undefined)}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Unit after answer">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "unitEnd", event.target.value))}
+										placeholder="minutes"
+										value={getPlainRenderableText("unitEnd" in fieldBlock ? fieldBlock.unitEnd : undefined)}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+						{fieldType == "select" ? (
+							<>
+								<FieldWrapper className="md:col-span-2" description="Use one option per line. Add `Label | saved value` if you want a different stored value." label="Dropdown options">
+									<Textarea
+										className="min-h-28 font-mono text-xs"
+										onChange={event => onChange({
+											...fieldBlock,
+											options: parseOptionsText(event.target.value)
+										} as EditorBlock)}
+										spellCheck={false}
+										value={serializeOptionsText(("options" in fieldBlock ? fieldBlock.options : []))}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Default selected value">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "selected", event.target.value))}
+										placeholder="Leave blank for none"
+										value={("selected" in fieldBlock ? fieldBlock.selected : "") ?? ""}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+						{fieldType == "choice" ? (
+							<>
+								<FieldWrapper className="md:col-span-2" description="Use one option per line. Add `Label | saved value` if you want a different stored value." label="Choices">
+									<Textarea
+										className="min-h-28 font-mono text-xs"
+										onChange={event => onChange({
+											...(fieldBlock as JsonChoiceFieldBlock),
+											choices: parseOptionsText(event.target.value)
+										} as EditorBlock)}
+										spellCheck={false}
+										value={serializeOptionsText(("choices" in fieldBlock ? fieldBlock.choices : []))}
+									/>
+								</FieldWrapper>
+								<FieldWrapper className="md:col-span-2" description={multipleChoice ? "Use commas to preselect several answers." : "Enter one saved value to preselect an answer."} label="Default selected value">
+									<Input
+										onChange={event => onChange({
+											...(fieldBlock as JsonChoiceFieldBlock),
+											checked: parseCheckedValue(event.target.value, multipleChoice)
+										} as EditorBlock)}
+										placeholder={multipleChoice ? "value_a, value_b" : "value_a"}
+										value={serializeCheckedValue(("checked" in fieldBlock ? fieldBlock.checked : undefined))}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+						{fieldType == "pictureChoice" ? (
+							<>
+								<FieldWrapper className="md:col-span-2" description="Use one choice per line in the format `Label | saved value | image URL`." label="Picture choices">
+									<Textarea
+										className="min-h-32 font-mono text-xs"
+										onChange={event => onChange({
+											...(fieldBlock as JsonPictureChoiceFieldBlock),
+											choices: parsePictureChoicesText(event.target.value)
+										} as EditorBlock)}
+										spellCheck={false}
+										value={serializePictureChoicesText(("choices" in fieldBlock ? fieldBlock.choices : []) as JsonPictureChoiceFieldBlock["choices"])}
+									/>
+								</FieldWrapper>
+								<FieldWrapper className="md:col-span-2" description={multipleChoice ? "Use commas to preselect several answers." : "Enter one saved value to preselect an answer."} label="Default selected value">
+									<Input
+										onChange={event => onChange({
+											...(fieldBlock as JsonPictureChoiceFieldBlock),
+											checked: parseCheckedValue(event.target.value, multipleChoice)
+										} as EditorBlock)}
+										placeholder={multipleChoice ? "desktop, mobile" : "desktop"}
+										value={serializeCheckedValue(("checked" in fieldBlock ? fieldBlock.checked : undefined))}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+						{fieldType == "rating" ? (
+							<>
+								<FieldWrapper label="Number of icons">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "outOf", event.target.value))}
+										type="number"
+										value={String(("outOf" in fieldBlock ? fieldBlock.outOf : "") ?? "")}
+									/>
+								</FieldWrapper>
+								<SimpleSelectField
+									disabled={disabled}
+									items={[
+										{ label: "Stars", value: "star" },
+										{ label: "Hearts", value: "heart" }
+									]}
+									label="Icon style"
+									onValueChange={nextValue => onChange({ ...fieldBlock, icon: nextValue } as EditorBlock)}
+									value={(("icon" in fieldBlock ? fieldBlock.icon : "star") ?? "star")}
 								/>
-							</FieldWrapper>
-							<FieldWrapper label="Unit before answer">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "unit", event.target.value))}
-									placeholder="USD"
-									value={getPlainRenderableText("unit" in fieldBlock ? fieldBlock.unit : undefined)}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Unit after answer">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "unitEnd", event.target.value))}
-									placeholder="minutes"
-									value={getPlainRenderableText("unitEnd" in fieldBlock ? fieldBlock.unitEnd : undefined)}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
-					{fieldType == "select" ? (
-						<>
-							<FieldWrapper className="md:col-span-2" description="Use one option per line. Add `Label | saved value` if you want a different stored value." label="Dropdown options">
-								<Textarea
-									className="min-h-28 font-mono text-xs"
-									onChange={event => onChange({
-										...fieldBlock,
-										options: parseOptionsText(event.target.value)
-									} as EditorBlock)}
-									spellCheck={false}
-									value={serializeOptionsText(("options" in fieldBlock ? fieldBlock.options : []))}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Default selected value">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "selected", event.target.value))}
-									placeholder="Leave blank for none"
-									value={("selected" in fieldBlock ? fieldBlock.selected : "") ?? ""}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
-					{fieldType == "choice" ? (
-						<>
-							<FieldWrapper className="md:col-span-2" description="Use one option per line. Add `Label | saved value` if you want a different stored value." label="Choices">
-								<Textarea
-									className="min-h-28 font-mono text-xs"
-									onChange={event => onChange({
-										...(fieldBlock as JsonChoiceFieldBlock),
-										choices: parseOptionsText(event.target.value)
-									} as EditorBlock)}
-									spellCheck={false}
-									value={serializeOptionsText(("choices" in fieldBlock ? fieldBlock.choices : []))}
-								/>
-							</FieldWrapper>
-							<FieldWrapper className="md:col-span-2" description={multipleChoice ? "Use commas to preselect several answers." : "Enter one saved value to preselect an answer."} label="Default selected value">
-								<Input
-									onChange={event => onChange({
-										...(fieldBlock as JsonChoiceFieldBlock),
-										checked: parseCheckedValue(event.target.value, multipleChoice)
-									} as EditorBlock)}
-									placeholder={multipleChoice ? "value_a, value_b" : "value_a"}
-									value={serializeCheckedValue(("checked" in fieldBlock ? fieldBlock.checked : undefined))}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
-					{fieldType == "pictureChoice" ? (
-						<>
-							<FieldWrapper className="md:col-span-2" description="Use one choice per line in the format `Label | saved value | image URL`." label="Picture choices">
-								<Textarea
-									className="min-h-32 font-mono text-xs"
-									onChange={event => onChange({
-										...(fieldBlock as JsonPictureChoiceFieldBlock),
-										choices: parsePictureChoicesText(event.target.value)
-									} as EditorBlock)}
-									spellCheck={false}
-									value={serializePictureChoicesText(("choices" in fieldBlock ? fieldBlock.choices : []) as JsonPictureChoiceFieldBlock["choices"])}
-								/>
-							</FieldWrapper>
-							<FieldWrapper className="md:col-span-2" description={multipleChoice ? "Use commas to preselect several answers." : "Enter one saved value to preselect an answer."} label="Default selected value">
-								<Input
-									onChange={event => onChange({
-										...(fieldBlock as JsonPictureChoiceFieldBlock),
-										checked: parseCheckedValue(event.target.value, multipleChoice)
-									} as EditorBlock)}
-									placeholder={multipleChoice ? "desktop, mobile" : "desktop"}
-									value={serializeCheckedValue(("checked" in fieldBlock ? fieldBlock.checked : undefined))}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
-					{fieldType == "rating" ? (
-						<>
-							<FieldWrapper label="Number of icons">
-								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "outOf", event.target.value))}
-									type="number"
-									value={String(("outOf" in fieldBlock ? fieldBlock.outOf : "") ?? "")}
-								/>
-							</FieldWrapper>
-							<SimpleSelectField
-								items={[
-									{ label: "Stars", value: "star" },
-									{ label: "Hearts", value: "heart" }
-								]}
-								label="Icon style"
-								onValueChange={nextValue => onChange({ ...fieldBlock, icon: nextValue } as EditorBlock)}
-								value={(("icon" in fieldBlock ? fieldBlock.icon : "star") ?? "star")}
-							/>
-							<FieldWrapper label="Default rating">
-								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "value", event.target.value))}
-									type="number"
-									value={String(("value" in fieldBlock ? fieldBlock.value : "") ?? "")}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
-					{fieldType == "opinionScale" ? (
-						<>
-							<FieldWrapper label="Starts at">
-								<Select
-									onValueChange={nextValue => onChange({ ...fieldBlock, startAt: Number(nextValue) as 0 | 1 } as EditorBlock)}
-									value={String(("startAt" in fieldBlock ? fieldBlock.startAt : 0) ?? 0)}
-								>
-									<SelectTrigger className="w-full">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="0">0</SelectItem>
-										<SelectItem value="1">1</SelectItem>
-									</SelectContent>
-								</Select>
-							</FieldWrapper>
-							<FieldWrapper label="Ends at">
-								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "outOf", event.target.value))}
-									type="number"
-									value={String(("outOf" in fieldBlock ? fieldBlock.outOf : "") ?? "")}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Left label">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "labelStart", event.target.value))}
-									value={getPlainRenderableText("labelStart" in fieldBlock ? fieldBlock.labelStart : undefined)}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Right label">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "labelEnd", event.target.value))}
-									value={getPlainRenderableText("labelEnd" in fieldBlock ? fieldBlock.labelEnd : undefined)}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Default score">
-								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "value", event.target.value))}
-									type="number"
-									value={String(("value" in fieldBlock ? fieldBlock.value : "") ?? "")}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
-					{(fieldType == "datetime" || fieldType == "date" || fieldType == "time") ? (
-						<>
-							<FieldWrapper label="Earliest allowed">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "min", event.target.value))}
-									value={("min" in fieldBlock ? fieldBlock.min : "") ?? ""}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Latest allowed">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "max", event.target.value))}
-									value={("max" in fieldBlock ? fieldBlock.max : "") ?? ""}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Step">
-								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "step", event.target.value))}
-									type="number"
-									value={String(("step" in fieldBlock ? fieldBlock.step : "") ?? "")}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Default value">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "value", event.target.value))}
-									value={("value" in fieldBlock ? String(fieldBlock.value ?? "") : "")}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
-					{fieldType == "tel" ? (
-						<>
-							<FieldWrapper label="Default country">
-								<Input
-									onChange={event => onChange(withOptionalString(fieldBlock, "country", event.target.value.toUpperCase()))}
-									placeholder="ID"
-									value={("country" in fieldBlock ? fieldBlock.country : "") ?? ""}
-								/>
-							</FieldWrapper>
-							<FieldWrapper label="Available countries">
-								<Input
-									onChange={event => onChange({
-										...fieldBlock,
-										availableCountries: parseStringList(event.target.value).map(item => item.toUpperCase())
-									} as EditorBlock)}
-									placeholder="ID, SG, US"
-									value={serializeStringList(("availableCountries" in fieldBlock ? fieldBlock.availableCountries : undefined))}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
-					{fieldType == "file" ? (
-						<>
-							<FieldWrapper label="Maximum file size (MB)">
-								<Input
-									onChange={event => onChange(withOptionalNumber(fieldBlock, "sizeLimit", event.target.value))}
-									type="number"
-									value={String(("sizeLimit" in fieldBlock ? fieldBlock.sizeLimit : "") ?? "")}
-								/>
-							</FieldWrapper>
-						</>
-					) : null}
+								<FieldWrapper label="Default rating">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "value", event.target.value))}
+										type="number"
+										value={String(("value" in fieldBlock ? fieldBlock.value : "") ?? "")}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+						{fieldType == "opinionScale" ? (
+							<>
+								<FieldWrapper label="Starts at">
+									<Select
+										disabled={disabled}
+										onValueChange={nextValue => onChange({ ...fieldBlock, startAt: Number(nextValue) as 0 | 1 } as EditorBlock)}
+										value={String(("startAt" in fieldBlock ? fieldBlock.startAt : 0) ?? 0)}
+									>
+										<SelectTrigger className="w-full">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="0">0</SelectItem>
+											<SelectItem value="1">1</SelectItem>
+										</SelectContent>
+									</Select>
+								</FieldWrapper>
+								<FieldWrapper label="Ends at">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "outOf", event.target.value))}
+										type="number"
+										value={String(("outOf" in fieldBlock ? fieldBlock.outOf : "") ?? "")}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Left label">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "labelStart", event.target.value))}
+										value={getPlainRenderableText("labelStart" in fieldBlock ? fieldBlock.labelStart : undefined)}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Right label">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "labelEnd", event.target.value))}
+										value={getPlainRenderableText("labelEnd" in fieldBlock ? fieldBlock.labelEnd : undefined)}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Default score">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "value", event.target.value))}
+										type="number"
+										value={String(("value" in fieldBlock ? fieldBlock.value : "") ?? "")}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+						{(fieldType == "datetime" || fieldType == "date" || fieldType == "time") ? (
+							<>
+								<FieldWrapper label="Earliest allowed">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "min", event.target.value))}
+										value={("min" in fieldBlock ? fieldBlock.min : "") ?? ""}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Latest allowed">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "max", event.target.value))}
+										value={("max" in fieldBlock ? fieldBlock.max : "") ?? ""}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Step">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "step", event.target.value))}
+										type="number"
+										value={String(("step" in fieldBlock ? fieldBlock.step : "") ?? "")}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Default value">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "value", event.target.value))}
+										value={("value" in fieldBlock ? String(fieldBlock.value ?? "") : "")}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+						{fieldType == "tel" ? (
+							<>
+								<FieldWrapper label="Default country">
+									<Input
+										onChange={event => onChange(withOptionalString(fieldBlock, "country", event.target.value.toUpperCase()))}
+										placeholder="ID"
+										value={("country" in fieldBlock ? fieldBlock.country : "") ?? ""}
+									/>
+								</FieldWrapper>
+								<FieldWrapper label="Available countries">
+									<Input
+										onChange={event => onChange({
+											...fieldBlock,
+											availableCountries: parseStringList(event.target.value).map(item => item.toUpperCase())
+										} as EditorBlock)}
+										placeholder="ID, SG, US"
+										value={serializeStringList(("availableCountries" in fieldBlock ? fieldBlock.availableCountries : undefined))}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+						{fieldType == "file" ? (
+							<>
+								<FieldWrapper label="Maximum file size (MB)">
+									<Input
+										onChange={event => onChange(withOptionalNumber(fieldBlock, "sizeLimit", event.target.value))}
+										type="number"
+										value={String(("sizeLimit" in fieldBlock ? fieldBlock.sizeLimit : "") ?? "")}
+									/>
+								</FieldWrapper>
+							</>
+						) : null}
+					</div>
+					<ConditionEditor
+						availableFields={availableFields.filter(item => item.name != fieldBlock.name)}
+						disabled={disabled}
+						description="Leave this blank if the question should always appear."
+						label="Show this question only when"
+						onChange={nextValue => onChange({
+							...fieldBlock,
+							displayCondition: nextValue
+						})}
+						value={fieldBlock.displayCondition}
+					/>
 				</div>
-				<ConditionEditor
-					availableFields={availableFields.filter(item => item.name != fieldBlock.name)}
-					description="Leave this blank if the question should always appear."
-					label="Show this question only when"
-					onChange={nextValue => onChange({
-						...fieldBlock,
-						displayCondition: nextValue
-					})}
-					value={fieldBlock.displayCondition}
-				/>
-			</div>
+			</fieldset>
 		);
 	}
 
 	const contentBlock = block as JsonContentBlock & EditorBlock;
 
 	return (
-		<div className="space-y-4 px-3 pb-3">
-			<div className="grid gap-4 md:grid-cols-2">
-				{contentBlock.type == "heading" ? (
-					<>
-						<FieldWrapper className="md:col-span-2" label="Heading text">
+		<fieldset className="contents" disabled={disabled}>
+			<div className="space-y-4 px-3 pb-3">
+				<div className="grid gap-4 md:grid-cols-2">
+					{contentBlock.type == "heading" ? (
+						<>
+							<FieldWrapper className="md:col-span-2" label="Heading text">
+								<Textarea
+									className="min-h-20"
+									onChange={event => onChange(withOptionalString(contentBlock, "text", event.target.value))}
+									placeholder="Write your heading"
+									value={getPlainRenderableText(contentBlock.text)}
+								/>
+							</FieldWrapper>
+							<FieldWrapper label="Heading size">
+								<Select
+									onValueChange={nextValue => onChange({ ...contentBlock, level: Number(nextValue) as 1 | 2 | 3 })}
+									value={String(contentBlock.level ?? 2)}
+								>
+									<SelectTrigger className="w-full">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="1">Large</SelectItem>
+										<SelectItem value="2">Medium</SelectItem>
+										<SelectItem value="3">Small</SelectItem>
+									</SelectContent>
+								</Select>
+							</FieldWrapper>
+						</>
+					) : null}
+					{(contentBlock.type == "copy" || contentBlock.type == "text" || contentBlock.type == "description" || contentBlock.type == "helper") ? (
+						<FieldWrapper className="md:col-span-2" label="Text">
 							<Textarea
-								className="min-h-20"
-								onChange={event => onChange(withOptionalString(contentBlock, "text", event.target.value))}
-								placeholder="Write your heading"
-								value={getPlainRenderableText(contentBlock.text)}
+								className="min-h-24"
+								onChange={event => {
+									if("content" in contentBlock)
+										onChange(withOptionalString(contentBlock, "content", event.target.value));
+									else
+										onChange(withOptionalString(contentBlock, "text", event.target.value));
+								}}
+								placeholder="Write your content"
+								value={getPlainRenderableText(contentBlock.text ?? contentBlock.content)}
 							/>
 						</FieldWrapper>
-						<FieldWrapper label="Heading size">
-							<Select
-								onValueChange={nextValue => onChange({ ...contentBlock, level: Number(nextValue) as 1 | 2 | 3 })}
-								value={String(contentBlock.level ?? 2)}
-							>
-								<SelectTrigger className="w-full">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="1">Large</SelectItem>
-									<SelectItem value="2">Medium</SelectItem>
-									<SelectItem value="3">Small</SelectItem>
-								</SelectContent>
-							</Select>
-						</FieldWrapper>
-					</>
-				) : null}
-				{(contentBlock.type == "copy" || contentBlock.type == "text" || contentBlock.type == "description" || contentBlock.type == "helper") ? (
-					<FieldWrapper className="md:col-span-2" label="Text">
-						<Textarea
-							className="min-h-24"
-							onChange={event => {
-								if("content" in contentBlock)
-									onChange(withOptionalString(contentBlock, "content", event.target.value));
-								else
-									onChange(withOptionalString(contentBlock, "text", event.target.value));
-							}}
-							placeholder="Write your content"
-							value={getPlainRenderableText(contentBlock.text ?? contentBlock.content)}
-						/>
-					</FieldWrapper>
-				) : null}
-				{contentBlock.type == "divider" ? (
-					<FieldWrapper className="md:col-span-2" label="Label">
-						<Input
-							onChange={event => onChange(withOptionalString(contentBlock, "label", event.target.value))}
-							placeholder="Optional section label"
-							value={getPlainRenderableText(contentBlock.label)}
-						/>
-					</FieldWrapper>
-				) : null}
-				{contentBlock.type == "media" ? (
-					<>
-						<FieldWrapper className="md:col-span-2" label="Media URL">
+					) : null}
+					{contentBlock.type == "divider" ? (
+						<FieldWrapper className="md:col-span-2" label="Label">
 							<Input
-								onChange={event => onChange(withOptionalString(contentBlock, "src", event.target.value))}
-								placeholder="https://..."
-								value={getPlainRenderableText(contentBlock.src)}
+								onChange={event => onChange(withOptionalString(contentBlock, "label", event.target.value))}
+								placeholder="Optional section label"
+								value={getPlainRenderableText(contentBlock.label)}
 							/>
 						</FieldWrapper>
-						<SimpleSelectField
-							items={[
-								{ label: "Image", value: "image" },
-								{ label: "Video", value: "video" }
-							]}
-							label="Media type"
-							onValueChange={nextValue => onChange({ ...contentBlock, mediaType: nextValue })}
-							value={(contentBlock.mediaType ?? "image")}
-						/>
-						<SimpleSelectField
-							items={[
-								{ label: "Cover", value: "cover" },
-								{ label: "Contain", value: "contain" }
-							]}
-							label="Fit"
-							onValueChange={nextValue => onChange({ ...contentBlock, fit: nextValue })}
-							value={(contentBlock.fit ?? "cover")}
-						/>
-						<FieldWrapper label="Aspect ratio">
-							<Input
-								onChange={event => onChange(withOptionalNumber(contentBlock, "aspectRatio", event.target.value))}
-								type="number"
-								value={String(contentBlock.aspectRatio ?? "")}
+					) : null}
+					{contentBlock.type == "media" ? (
+						<>
+							<FieldWrapper className="md:col-span-2" label="Media URL">
+								<Input
+									onChange={event => onChange(withOptionalString(contentBlock, "src", event.target.value))}
+									placeholder="https://..."
+									value={getPlainRenderableText(contentBlock.src)}
+								/>
+							</FieldWrapper>
+							<SimpleSelectField
+								disabled={disabled}
+								items={[
+									{ label: "Image", value: "image" },
+									{ label: "Video", value: "video" }
+								]}
+								label="Media type"
+								onValueChange={nextValue => onChange({ ...contentBlock, mediaType: nextValue })}
+								value={(contentBlock.mediaType ?? "image")}
 							/>
-						</FieldWrapper>
-						<FieldWrapper label="Alt text">
-							<Input
-								onChange={event => onChange(withOptionalString(contentBlock, "alt", event.target.value))}
-								value={getPlainRenderableText(contentBlock.alt)}
+							<SimpleSelectField
+								disabled={disabled}
+								items={[
+									{ label: "Cover", value: "cover" },
+									{ label: "Contain", value: "contain" }
+								]}
+								label="Fit"
+								onValueChange={nextValue => onChange({ ...contentBlock, fit: nextValue })}
+								value={(contentBlock.fit ?? "cover")}
 							/>
-						</FieldWrapper>
-						<FieldWrapper className="md:col-span-2" label="Caption">
-							<Textarea
-								className="min-h-20"
-								onChange={event => onChange(withOptionalString(contentBlock, "caption", event.target.value))}
-								value={getPlainRenderableText(contentBlock.caption)}
-							/>
-						</FieldWrapper>
-						<FieldWrapper className="md:col-span-2" label="Poster image">
-							<Input
-								onChange={event => onChange(withOptionalString(contentBlock, "poster", event.target.value))}
-								placeholder="Optional poster image URL"
-								value={getPlainRenderableText(contentBlock.poster)}
-							/>
-						</FieldWrapper>
-					</>
-				) : null}
-				<SimpleSelectField
-					className={contentBlock.type == "media" ? "" : "md:col-span-2"}
-					items={[
-						{ label: "Left", value: "start" },
-						{ label: "Center", value: "center" },
-						{ label: "Right", value: "end" }
-					]}
-					label="Alignment"
-					onValueChange={nextValue => onChange({ ...contentBlock, align: nextValue })}
-					value={(contentBlock.align ?? "start")}
+							<FieldWrapper label="Aspect ratio">
+								<Input
+									onChange={event => onChange(withOptionalNumber(contentBlock, "aspectRatio", event.target.value))}
+									type="number"
+									value={String(contentBlock.aspectRatio ?? "")}
+								/>
+							</FieldWrapper>
+							<FieldWrapper label="Alt text">
+								<Input
+									onChange={event => onChange(withOptionalString(contentBlock, "alt", event.target.value))}
+									value={getPlainRenderableText(contentBlock.alt)}
+								/>
+							</FieldWrapper>
+							<FieldWrapper className="md:col-span-2" label="Caption">
+								<Textarea
+									className="min-h-20"
+									onChange={event => onChange(withOptionalString(contentBlock, "caption", event.target.value))}
+									value={getPlainRenderableText(contentBlock.caption)}
+								/>
+							</FieldWrapper>
+							<FieldWrapper className="md:col-span-2" label="Poster image">
+								<Input
+									onChange={event => onChange(withOptionalString(contentBlock, "poster", event.target.value))}
+									placeholder="Optional poster image URL"
+									value={getPlainRenderableText(contentBlock.poster)}
+								/>
+							</FieldWrapper>
+						</>
+					) : null}
+					<SimpleSelectField
+						disabled={disabled}
+						className={contentBlock.type == "media" ? "" : "md:col-span-2"}
+						items={[
+							{ label: "Left", value: "start" },
+							{ label: "Center", value: "center" },
+							{ label: "Right", value: "end" }
+						]}
+						label="Alignment"
+						onValueChange={nextValue => onChange({ ...contentBlock, align: nextValue })}
+						value={(contentBlock.align ?? "start")}
+					/>
+				</div>
+				<div className="flex flex-wrap gap-4 rounded-xl border bg-muted/20 px-3 py-2">
+					<ToggleField checked={contentBlock.hidden ?? false} disabled={disabled} label="Hidden" onCheckedChange={nextValue => onChange({ ...contentBlock, hidden: nextValue })} />
+					<ToggleField checked={contentBlock.disabled ?? false} disabled={disabled} label="Disabled" onCheckedChange={nextValue => onChange({ ...contentBlock, disabled: nextValue })} />
+				</div>
+				<ConditionEditor
+					availableFields={availableFields}
+					disabled={disabled}
+					description="Leave this blank if the content should always appear."
+					label="Show this content only when"
+					onChange={nextValue => onChange({
+						...contentBlock,
+						displayCondition: nextValue
+					})}
+					value={contentBlock.displayCondition}
 				/>
 			</div>
-			<div className="flex flex-wrap gap-4 rounded-xl border bg-muted/20 px-3 py-2">
-				<ToggleField checked={contentBlock.hidden ?? false} label="Hidden" onCheckedChange={nextValue => onChange({ ...contentBlock, hidden: nextValue })} />
-				<ToggleField checked={contentBlock.disabled ?? false} label="Disabled" onCheckedChange={nextValue => onChange({ ...contentBlock, disabled: nextValue })} />
-			</div>
-			<ConditionEditor
-				availableFields={availableFields}
-				description="Leave this blank if the content should always appear."
-				label="Show this content only when"
-				onChange={nextValue => onChange({
-					...contentBlock,
-					displayCondition: nextValue
-				})}
-				value={contentBlock.displayCondition}
-			/>
-		</div>
+		</fieldset>
 	);
 }
 
@@ -1938,6 +1974,7 @@ function BlockCard({
 	availableFields,
 	block,
 	canPaste,
+	disabled = false,
 	index,
 	isCollapsed,
 	onChange,
@@ -1954,6 +1991,7 @@ function BlockCard({
 	availableFields: FieldReference[];
 	block: EditorBlock;
 	canPaste: boolean;
+	disabled?: boolean;
 	index: number;
 	isCollapsed: boolean;
 	onChange: (block: EditorBlock) => void;
@@ -1972,10 +2010,14 @@ function BlockCard({
 			<div className="flex items-center gap-2 px-3 py-2">
 				<button
 					aria-label="Drag block"
-					className="text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing"
-					draggable
-					onDragEnd={onDragEnd}
-					onDragStart={onDragStart}
+					className={cn(
+						"text-muted-foreground/50",
+						disabled ? "cursor-not-allowed" : "hover:text-muted-foreground cursor-grab active:cursor-grabbing"
+					)}
+					disabled={disabled}
+					draggable={!disabled}
+					onDragEnd={disabled ? undefined : onDragEnd}
+					onDragStart={disabled ? undefined : onDragStart}
 					type="button"
 				>
 					<GripVerticalIcon className="size-4" />
@@ -1986,6 +2028,7 @@ function BlockCard({
 				</div>
 				<BlockActions
 					canPaste={canPaste}
+					disabled={disabled}
 					disabledDown={index == total - 1}
 					disabledUp={index == 0}
 					isCollapsed={isCollapsed}
@@ -1999,7 +2042,7 @@ function BlockCard({
 			</div>
 			<Collapsible open={!isCollapsed}>
 				<CollapsibleContent>
-					<BlockContentEditor availableFields={availableFields} block={block} onChange={onChange} />
+					<BlockContentEditor availableFields={availableFields} block={block} disabled={disabled} onChange={onChange} />
 				</CollapsibleContent>
 			</Collapsible>
 		</div>
@@ -2008,96 +2051,103 @@ function BlockCard({
 
 function SlideSettingsPanel({
 	availableFields,
+	disabled = false,
 	slide,
 	onChange
 }: {
 	availableFields: FieldReference[];
+	disabled?: boolean;
 	onChange: (slide: EditorSlide) => void;
 	slide: EditorSlide;
 }) {
 	return (
-		<div className="space-y-4 px-3 pb-3">
-			<div className="grid gap-4 md:grid-cols-2">
-				<FieldWrapper className="md:col-span-2" label="Screen title">
-					<Input
-						onChange={event => onChange(withOptionalString(slide, "title", event.target.value))}
-						placeholder="Give this screen a title"
-						value={getPlainRenderableText(slide.title)}
-					/>
-				</FieldWrapper>
-				<FieldWrapper className="md:col-span-2" label="Supporting text">
-					<Textarea
-						className="min-h-20"
-						onChange={event => onChange(withOptionalString(slide, "description", event.target.value))}
-						placeholder="Explain this screen or add context"
-						value={getPlainRenderableText(slide.description)}
-					/>
-				</FieldWrapper>
-				<SimpleSelectField
-					items={SLIDE_KIND_ITEMS}
-					label="Screen type"
-					onValueChange={nextValue => onChange({ ...slide, kind: nextValue })}
-					value={getSlideKind(slide)}
-				/>
-				<FieldWrapper label="Continue button text">
-					<Input
-						onChange={event => onChange(withOptionalString(slide, "buttonText", event.target.value))}
-						placeholder={getSlideKind(slide) == "end" ? "Continue" : "Next"}
-						value={getPlainRenderableText(slide.buttonText)}
-					/>
-				</FieldWrapper>
-				{getSlideKind(slide) == "slide" ? (
-					<SimpleSelectField
-						items={SLIDE_POST_ITEMS}
-						label="Auto-save"
-						onValueChange={nextValue => {
-							if(nextValue == "none") {
-								const nextSlide = { ...slide };
-								delete nextSlide.post;
-								onChange(nextSlide);
-								return;
-							}
-
-							onChange({
-								...slide,
-								post: nextValue
-							});
-						}}
-						value={(slide.post ?? "none")}
-					/>
-				) : null}
-				<FieldWrapper label="Progress label">
-					<Input
-						onChange={event => onChange(withOptionalString(slide, "pageProgress", event.target.value))}
-						placeholder="Optional custom progress label"
-						value={getPlainRenderableText(slide.pageProgress)}
-					/>
-				</FieldWrapper>
-				{getSlideKind(slide) == "end" ? (
-					<FieldWrapper className="md:col-span-2" label="Continue to URL">
+		<fieldset className="contents" disabled={disabled}>
+			<div className="space-y-4 px-3 pb-3">
+				<div className="grid gap-4 md:grid-cols-2">
+					<FieldWrapper className="md:col-span-2" label="Screen title">
 						<Input
-							onChange={event => onChange(withOptionalString(slide, "redirectUrl", event.target.value))}
-							placeholder="https://example.com/next-step"
-							value={getPlainRenderableText(slide.redirectUrl)}
+							onChange={event => onChange(withOptionalString(slide, "title", event.target.value))}
+							placeholder="Give this screen a title"
+							value={getPlainRenderableText(slide.title)}
 						/>
 					</FieldWrapper>
-				) : null}
+					<FieldWrapper className="md:col-span-2" label="Supporting text">
+						<Textarea
+							className="min-h-20"
+							onChange={event => onChange(withOptionalString(slide, "description", event.target.value))}
+							placeholder="Explain this screen or add context"
+							value={getPlainRenderableText(slide.description)}
+						/>
+					</FieldWrapper>
+					<SimpleSelectField
+						disabled={disabled}
+						items={SLIDE_KIND_ITEMS}
+						label="Screen type"
+						onValueChange={nextValue => onChange({ ...slide, kind: nextValue })}
+						value={getSlideKind(slide)}
+					/>
+					<FieldWrapper label="Continue button text">
+						<Input
+							onChange={event => onChange(withOptionalString(slide, "buttonText", event.target.value))}
+							placeholder={getSlideKind(slide) == "end" ? "Continue" : "Next"}
+							value={getPlainRenderableText(slide.buttonText)}
+						/>
+					</FieldWrapper>
+					{getSlideKind(slide) == "slide" ? (
+						<SimpleSelectField
+							disabled={disabled}
+							items={SLIDE_POST_ITEMS}
+							label="Auto-save"
+							onValueChange={nextValue => {
+								if(nextValue == "none") {
+									const nextSlide = { ...slide };
+									delete nextSlide.post;
+									onChange(nextSlide);
+									return;
+								}
+
+								onChange({
+									...slide,
+									post: nextValue
+								});
+							}}
+							value={(slide.post ?? "none")}
+						/>
+					) : null}
+					<FieldWrapper label="Progress label">
+						<Input
+							onChange={event => onChange(withOptionalString(slide, "pageProgress", event.target.value))}
+							placeholder="Optional custom progress label"
+							value={getPlainRenderableText(slide.pageProgress)}
+						/>
+					</FieldWrapper>
+					{getSlideKind(slide) == "end" ? (
+						<FieldWrapper className="md:col-span-2" label="Continue to URL">
+							<Input
+								onChange={event => onChange(withOptionalString(slide, "redirectUrl", event.target.value))}
+								placeholder="https://example.com/next-step"
+								value={getPlainRenderableText(slide.redirectUrl)}
+							/>
+						</FieldWrapper>
+					) : null}
+				</div>
+				<div className="flex flex-wrap gap-4 rounded-xl border bg-muted/20 px-3 py-2">
+					<ToggleField checked={!slide.disablePrevious} disabled={disabled} label="Allow going back" onCheckedChange={nextValue => onChange({ ...slide, disablePrevious: !nextValue })} />
+					<ToggleField checked={slide.hidden ?? false} disabled={disabled} label="Hidden" onCheckedChange={nextValue => onChange({ ...slide, hidden: nextValue })} />
+				</div>
+				<ConditionEditor
+					availableFields={availableFields}
+					disabled={disabled}
+					description="Leave this blank if the screen should always appear."
+					label="Show this screen only when"
+					onChange={nextValue => onChange({
+						...slide,
+						jumpCondition: nextValue
+					})}
+					value={slide.jumpCondition}
+				/>
 			</div>
-			<div className="flex flex-wrap gap-4 rounded-xl border bg-muted/20 px-3 py-2">
-				<ToggleField checked={!slide.disablePrevious} label="Allow going back" onCheckedChange={nextValue => onChange({ ...slide, disablePrevious: !nextValue })} />
-				<ToggleField checked={slide.hidden ?? false} label="Hidden" onCheckedChange={nextValue => onChange({ ...slide, hidden: nextValue })} />
-			</div>
-			<ConditionEditor
-				availableFields={availableFields}
-				description="Leave this blank if the screen should always appear."
-				label="Show this screen only when"
-				onChange={nextValue => onChange({
-					...slide,
-					jumpCondition: nextValue
-				})}
-				value={slide.jumpCondition}
-			/>
-		</div>
+		</fieldset>
 	);
 }
 
@@ -2107,6 +2157,7 @@ function SlideCard({
 	canPasteSlide,
 	blockCollapsedMap,
 	blockDragTargetId,
+	disabled = false,
 	onBlockDragEnd,
 	onBlockDragStart,
 	onBlockDrop,
@@ -2134,6 +2185,7 @@ function SlideCard({
 	canPasteSlide: boolean;
 	blockCollapsedMap: Record<string, boolean>;
 	blockDragTargetId: string | null;
+	disabled?: boolean;
 	isCollapsed: boolean;
 	onBlockDragEnd: () => void;
 	onBlockDragStart: (event: React.DragEvent<HTMLButtonElement>, blockId: string) => void;
@@ -2161,10 +2213,14 @@ function SlideCard({
 			<div className="flex items-center gap-2 px-3 py-2">
 				<button
 					aria-label="Drag screen"
-					className="text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing"
-					draggable
-					onDragEnd={onDragEnd}
-					onDragStart={onDragStart}
+					className={cn(
+						"text-muted-foreground/50",
+						disabled ? "cursor-not-allowed" : "hover:text-muted-foreground cursor-grab active:cursor-grabbing"
+					)}
+					disabled={disabled}
+					draggable={!disabled}
+					onDragEnd={disabled ? undefined : onDragEnd}
+					onDragStart={disabled ? undefined : onDragStart}
 					type="button"
 				>
 					<GripVerticalIcon className="size-4" />
@@ -2178,6 +2234,7 @@ function SlideCard({
 				</div>
 				<BlockActions
 					canPaste={canPasteSlide}
+					disabled={disabled}
 					disabledDown={slideIndex == slideTotal - 1}
 					disabledUp={slideIndex == 0}
 					isCollapsed={isCollapsed}
@@ -2191,12 +2248,13 @@ function SlideCard({
 			</div>
 			<Collapsible open={!isCollapsed}>
 				<CollapsibleContent>
-					<SlideSettingsPanel availableFields={availableFields} onChange={onChange} slide={slide} />
+					<SlideSettingsPanel availableFields={availableFields} disabled={disabled} onChange={onChange} slide={slide} />
 					<div className="px-3 pb-3">
 						<div className="rounded-xl border bg-muted/10 p-3 space-y-2">
 							<div className="text-sm font-medium">Blocks</div>
 							<AddInsertControl
 								canPaste={canPasteBlock}
+								disabled={disabled}
 								items={BLOCK_TYPE_ITEMS}
 								label="Add block"
 								onAdd={type => onInsertBlock(0, type)}
@@ -2208,6 +2266,7 @@ function SlideCard({
 										{blockIndex > 0 ? (
 											<AddInsertControl
 												canPaste={canPasteBlock}
+												disabled={disabled}
 												items={BLOCK_TYPE_ITEMS}
 												label="Insert block"
 												onAdd={type => onInsertBlock(blockIndex, type)}
@@ -2217,17 +2276,18 @@ function SlideCard({
 										<div
 											className={cn(
 												"transition-shadow ring-2 ring-transparent ring-offset-2 rounded-xl",
-												blockDragTargetId == block.editorId && "ring-primary"
+												!disabled && blockDragTargetId == block.editorId && "ring-primary"
 											)}
-											onDragOver={event => onBlockHover(event, block.editorId)}
-											onDrop={() => onBlockDrop(block.editorId)}
+											onDragOver={disabled ? undefined : event => onBlockHover(event, block.editorId)}
+											onDrop={disabled ? undefined : () => onBlockDrop(block.editorId)}
 										>
-												<BlockCard
-													availableFields={availableFields}
-													block={block}
-													canPaste={canPasteBlock}
-													index={blockIndex}
-													isCollapsed={blockCollapsedMap[block.editorId] ?? true}
+											<BlockCard
+												availableFields={availableFields}
+												block={block}
+												canPaste={canPasteBlock}
+												disabled={disabled}
+												index={blockIndex}
+												isCollapsed={blockCollapsedMap[block.editorId] ?? true}
 												onChange={nextBlock => {
 													onChange({
 														...slide,
@@ -2272,6 +2332,7 @@ function SlideCard({
 							) : (
 								<AddInsertControl
 									canPaste={canPasteBlock}
+									disabled={disabled}
 									items={BLOCK_TYPE_ITEMS}
 									label="Add block"
 									onAdd={type => onInsertBlock(slide.blocks.length, type)}
@@ -2287,151 +2348,162 @@ function SlideCard({
 }
 
 function OverviewPanel({
+	disabled = false,
 	form,
 	onChange
 }: {
+	disabled?: boolean;
 	form: EditorForm;
 	onChange: (form: EditorForm) => void;
 }) {
 	const settings = form.settings ?? {};
 
 	return (
-		<Card className="rounded-3xl">
+		<Card className="rounded-none">
 			<CardHeader className="border-b">
 				<CardTitle>Form Details</CardTitle>
-				<CardDescription>
+				{/* <CardDescription>
 					Set the overall look and feel here, then build the screens below.
-				</CardDescription>
+				</CardDescription> */}
 			</CardHeader>
-			<CardContent className="space-y-4 py-4">
-				<div className="grid gap-4 md:grid-cols-2">
-					<FieldWrapper className="md:col-span-2" label="Form title">
-						<Input
-							onChange={event => onChange(withOptionalString(form, "title", event.target.value))}
-							placeholder="Untitled form"
-							value={getPlainRenderableText(form.title)}
-						/>
-					</FieldWrapper>
-					<FieldWrapper className="md:col-span-2" label="Form description">
-						<Textarea
-							className="min-h-24"
-							onChange={event => onChange(withOptionalString(form, "description", event.target.value))}
-							placeholder="Describe what this form is about"
-							value={getPlainRenderableText(form.description)}
-						/>
-					</FieldWrapper>
-					<SimpleSelectField
-						items={LANG_ITEMS}
-						label="Language"
-						onValueChange={nextValue => onChange({
-							...form,
-							settings: {
-								...(form.settings ?? {}),
-								localization: nextValue as JsonFormSettings["localization"]
-							}
-						})}
-						value={getLocalizationCode(settings.localization)}
-					/>
-					<SimpleSelectField
-						items={COLOR_SCHEME_ITEMS}
-						label="Color scheme"
-						onValueChange={nextValue => onChange({
-							...form,
-							settings: {
-								...(form.settings ?? {}),
-								colorScheme: nextValue
-							}
-						})}
-						value={(settings.colorScheme ?? "light")}
-					/>
-					<SimpleSelectField
-						items={PAGE_MODE_ITEMS}
-						label="Layout"
-						onValueChange={nextValue => onChange({
-							...form,
-							settings: {
-								...(form.settings ?? {}),
-								page: nextValue
-							}
-						})}
-						value={(settings.page ?? "form-slides")}
-					/>
-					<SimpleSelectField
-						items={PAGE_PROGRESS_ITEMS}
-						label="Progress display"
-						onValueChange={nextValue => onChange({
-							...form,
-							settings: {
-								...(form.settings ?? {}),
-								pageProgress: nextValue
-							}
-						})}
-						value={(settings.pageProgress ?? "show")}
-					/>
-					<SimpleSelectField
-						items={BUTTON_ALIGNMENT_ITEMS}
-						label="Button alignment"
-						onValueChange={nextValue => onChange({
-							...form,
-							settings: {
-								...(form.settings ?? {}),
-								buttonAlignment: nextValue
-							}
-						})}
-						value={(settings.buttonAlignment ?? "start")}
-					/>
-					<SimpleSelectField
-						items={ROUNDED_ITEMS}
-						label="Corner style"
-						onValueChange={nextValue => onChange({
-							...form,
-							settings: {
-								...(form.settings ?? {}),
-								rounded: nextValue
-							}
-						})}
-						value={(settings.rounded ?? "default")}
-					/>
-					<SimpleSelectField
-						items={VERTICAL_ALIGNMENT_ITEMS}
-						label="Vertical alignment"
-						onValueChange={nextValue => onChange({
-							...form,
-							settings: {
-								...(form.settings ?? {}),
-								verticalAlignment: nextValue
-							}
-						})}
-						value={(settings.verticalAlignment ?? "start")}
-					/>
-					<FieldWrapper label="Footer note">
-						<Input
-							onChange={event => onChange({
+			<CardContent className="space-y-4">
+				<fieldset className="contents" disabled={disabled}>
+					<div className="grid gap-4 md:grid-cols-2">
+						<FieldWrapper className="md:col-span-2" label="Form title">
+							<Input
+								onChange={event => onChange(withOptionalString(form, "title", event.target.value))}
+								placeholder="Untitled form"
+								value={getPlainRenderableText(form.title)}
+							/>
+						</FieldWrapper>
+						<FieldWrapper className="md:col-span-2" label="Form description">
+							<Textarea
+								className="min-h-24"
+								onChange={event => onChange(withOptionalString(form, "description", event.target.value))}
+								placeholder="Describe what this form is about"
+								value={getPlainRenderableText(form.description)}
+							/>
+						</FieldWrapper>
+						<SimpleSelectField
+							disabled={disabled}
+							items={LANG_ITEMS}
+							label="Language"
+							onValueChange={nextValue => onChange({
 								...form,
-								settings: withOptionalString(settings as Record<string, unknown>, "footer", event.target.value)
+								settings: {
+									...(form.settings ?? {}),
+									localization: nextValue as JsonFormSettings["localization"]
+								}
 							})}
-							placeholder="Optional footer note"
-							value={getPlainRenderableText(settings.footer)}
+							value={getLocalizationCode(settings.localization)}
 						/>
-					</FieldWrapper>
-					<FieldWrapper label="Submit button text">
-						<Input
-							onChange={event => onChange({
+						<SimpleSelectField
+							disabled={disabled}
+							items={COLOR_SCHEME_ITEMS}
+							label="Color scheme"
+							onValueChange={nextValue => onChange({
 								...form,
-								settings: withOptionalString(settings as Record<string, unknown>, "submitButtonText", event.target.value)
+								settings: {
+									...(form.settings ?? {}),
+									colorScheme: nextValue
+								}
 							})}
-							placeholder="Submit"
-							value={getPlainRenderableText(settings.submitButtonText)}
+							value={(settings.colorScheme ?? "light")}
 						/>
-					</FieldWrapper>
-				</div>
-				<div className="flex flex-wrap gap-4 rounded-xl border bg-muted/20 px-3 py-3">
-					<ToggleField checked={settings.isFullPage ?? false} label="Use full-page layout" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), isFullPage: nextValue } })} />
-					<ToggleField checked={(settings.placeholders ?? "show") == "show"} label="Show placeholders" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), placeholders: nextValue ? "show" : "hide" } })} />
-					<ToggleField checked={(settings.slideControls ?? "show") == "show"} label="Show back button" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), slideControls: nextValue ? "show" : "hide" } })} />
-					<ToggleField checked={(settings.restartButton ?? "show") == "show"} label="Show restart button" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), restartButton: nextValue ? "show" : "hide" } })} />
-					<ToggleField checked={settings.saveState ?? false} label="Remember progress" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), saveState: nextValue } })} />
-				</div>
+						<SimpleSelectField
+							disabled={disabled}
+							items={PAGE_MODE_ITEMS}
+							label="Layout"
+							onValueChange={nextValue => onChange({
+								...form,
+								settings: {
+									...(form.settings ?? {}),
+									page: nextValue
+								}
+							})}
+							value={(settings.page ?? "form-slides")}
+						/>
+						<SimpleSelectField
+							disabled={disabled}
+							items={PAGE_PROGRESS_ITEMS}
+							label="Progress display"
+							onValueChange={nextValue => onChange({
+								...form,
+								settings: {
+									...(form.settings ?? {}),
+									pageProgress: nextValue
+								}
+							})}
+							value={(settings.pageProgress ?? "show")}
+						/>
+						<SimpleSelectField
+							disabled={disabled}
+							items={BUTTON_ALIGNMENT_ITEMS}
+							label="Button alignment"
+							onValueChange={nextValue => onChange({
+								...form,
+								settings: {
+									...(form.settings ?? {}),
+									buttonAlignment: nextValue
+								}
+							})}
+							value={(settings.buttonAlignment ?? "start")}
+						/>
+						<SimpleSelectField
+							disabled={disabled}
+							items={ROUNDED_ITEMS}
+							label="Corner style"
+							onValueChange={nextValue => onChange({
+								...form,
+								settings: {
+									...(form.settings ?? {}),
+									rounded: nextValue
+								}
+							})}
+							value={(settings.rounded ?? "default")}
+						/>
+						<SimpleSelectField
+							disabled={disabled}
+							items={VERTICAL_ALIGNMENT_ITEMS}
+							label="Vertical alignment"
+							onValueChange={nextValue => onChange({
+								...form,
+								settings: {
+									...(form.settings ?? {}),
+									verticalAlignment: nextValue
+								}
+							})}
+							value={(settings.verticalAlignment ?? "start")}
+						/>
+						<FieldWrapper label="Footer note">
+							<Input
+								onChange={event => onChange({
+									...form,
+									settings: withOptionalString(settings as Record<string, unknown>, "footer", event.target.value)
+								})}
+								placeholder="Optional footer note"
+								value={getPlainRenderableText(settings.footer)}
+							/>
+						</FieldWrapper>
+						<FieldWrapper label="Submit button text">
+							<Input
+								onChange={event => onChange({
+									...form,
+									settings: withOptionalString(settings as Record<string, unknown>, "submitButtonText", event.target.value)
+								})}
+								placeholder="Submit"
+								value={getPlainRenderableText(settings.submitButtonText)}
+							/>
+						</FieldWrapper>
+					</div>
+					<div className="mt-4 flex flex-wrap gap-4 rounded-xl border bg-muted/20 px-3 py-3">
+						<ToggleField checked={settings.isFullPage ?? false} disabled={disabled} label="Use full-page layout" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), isFullPage: nextValue } })} />
+						<ToggleField checked={(settings.placeholders ?? "show") == "show"} disabled={disabled} label="Show placeholders" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), placeholders: nextValue ? "show" : "hide" } })} />
+						<ToggleField checked={(settings.slideControls ?? "show") == "show"} disabled={disabled} label="Show back button" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), slideControls: nextValue ? "show" : "hide" } })} />
+						<ToggleField checked={(settings.restartButton ?? "show") == "show"} disabled={disabled} label="Show restart button" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), restartButton: nextValue ? "show" : "hide" } })} />
+						<ToggleField checked={settings.saveState ?? false} disabled={disabled} label="Remember progress" onCheckedChange={nextValue => onChange({ ...form, settings: { ...(form.settings ?? {}), saveState: nextValue } })} />
+					</div>
+				</fieldset>
 			</CardContent>
 		</Card>
 	);
@@ -2440,15 +2512,16 @@ function OverviewPanel({
 export function FormEditor({
 	className,
 	defaultValue,
-	mode = "edit",
+	disabled = false,
 	onChange,
 	onPreviewPartialSubmit,
 	onPreviewSubmit,
+	previewAutoFocus = false,
 	previewClassName,
 	previewInitialValues,
 	value
 }: FormEditorProps) {
-	const isReadonly = mode == "readonly";
+	const isDisabled = disabled;
 	const initialRawForm = React.useMemo(() => value ?? defaultValue ?? createDefaultForm(), [defaultValue, value]);
 	const [editorForm, setEditorForm] = React.useState<EditorForm>(() => normalizeForm(initialRawForm));
 	const [collapsedMap, setCollapsedMap] = React.useState<Record<string, boolean>>({});
@@ -2457,7 +2530,7 @@ export function FormEditor({
 	const [dragTargetId, setDragTargetId] = React.useState<string | null>(null);
 	const [focusedSlideId, setFocusedSlideId] = React.useState<string | null>(null);
 	const [previewNonce, setPreviewNonce] = React.useState(0);
-	const updateTimeoutRef = React.useRef<NodeJS.Timeout>();
+	const updateTimeoutRef = React.useRef<NodeJS.Timeout>(null);
 	const lastExternalSignatureRef = React.useRef<string | null>(null);
 
 	const serializedForm = React.useMemo(() => serializeForm(editorForm), [editorForm]);
@@ -2624,20 +2697,21 @@ export function FormEditor({
 
 	return (
 		<div
-			aria-disabled={isReadonly}
-			className={cn("grid gap-4 md:h-full md:grid-cols-[minmax(380px,560px)_minmax(0,1fr)]", isReadonly && "pointer-events-none select-none opacity-75", className)}
+			aria-disabled={isDisabled}
+			className={cn("grid gap-4 md:h-full md:grid-cols-[minmax(380px,560px)_minmax(0,1fr)]", className)}
 		>
-			<Card className="flex h-full flex-col overflow-hidden rounded-3xl">
+			<Card className="flex h-full flex-col overflow-hidden rounded-3xl gap-0 pb-0">
 				<CardHeader className="border-b">
 					<CardTitle className="flex items-center gap-2">
 						<LayoutTemplateIcon className="size-4" />
 						Form Builder
 					</CardTitle>
-					<CardDescription>
+					{/* <CardDescription>
 						Arrange screens, add content blocks, and shape each question directly in place.
-					</CardDescription>
+					</CardDescription> */}
 					<CardAction className="flex items-center gap-2">
 						<Button
+							disabled={isDisabled}
 							onClick={() => {
 								setEditorForm(normalizeForm(createDefaultForm()));
 								setCollapsedMap({});
@@ -2654,179 +2728,181 @@ export function FormEditor({
 					</CardAction>
 				</CardHeader>
 				<CardContent className="min-h-0 flex-1 overflow-auto p-0">
-					<div className="space-y-4 p-4">
-						<OverviewPanel form={editorForm} onChange={setEditorForm} />
-						<Card className="rounded-3xl">
-							<CardHeader className="border-b">
-								<CardTitle>Screens</CardTitle>
-								<CardDescription>
+					<OverviewPanel disabled={isDisabled} form={editorForm} onChange={setEditorForm} />
+					<Card className="rounded-none gap-2 pt-4 pb-0">
+						<CardHeader className="border-b">
+							<CardTitle>Screens</CardTitle>
+							{/* <CardDescription>
 									Build the flow of the form from intro to finish.
-								</CardDescription>
-							</CardHeader>
-							<CardContent className="space-y-2 py-4">
+								</CardDescription> */}
+						</CardHeader>
+						<CardContent className="space-y-2">
+							<AddInsertControl
+								canPaste={clipboard?.scope == "slide"}
+								disabled={isDisabled}
+								items={SLIDE_KIND_ITEMS}
+								label="Add screen"
+								onAdd={kind => insertSlide(0, kind)}
+								onPaste={clear => {
+									pasteSlide(0);
+									if(clear)
+										setClipboard(null);
+								}}
+							/>
+							<div className="space-y-2">
+								{editorForm.slides.map((slide, slideIndex) => (
+									<React.Fragment key={slide.editorId}>
+										{slideIndex > 0 ? (
+											<AddInsertControl
+												canPaste={clipboard?.scope == "slide"}
+												disabled={isDisabled}
+												items={SLIDE_KIND_ITEMS}
+												label="Insert screen"
+												onAdd={kind => insertSlide(slideIndex, kind)}
+												onPaste={clear => {
+													pasteSlide(slideIndex);
+													if(clear)
+														setClipboard(null);
+												}}
+											/>
+										) : null}
+										<div
+											className={cn(
+												"transition-shadow ring-2 ring-transparent ring-offset-2 rounded-2xl",
+												!isDisabled && dragTargetId == slide.editorId && "ring-primary"
+											)}
+											onFocusCapture={() => setFocusedSlideId(slide.editorId)}
+											onDragOver={isDisabled ? undefined : event => {
+												if(dragState?.scope != "slide")
+													return;
+
+												event.preventDefault();
+												setDragTargetId(slide.editorId);
+											}}
+											onDrop={isDisabled ? undefined : () => handleSlideDrop(slide.editorId)}
+										>
+											<SlideCard
+												availableFields={fieldReferences}
+												canPasteBlock={clipboard?.scope == "block"}
+												canPasteSlide={clipboard?.scope == "slide"}
+												blockCollapsedMap={collapsedMap}
+												blockDragTargetId={dragTargetId}
+												disabled={isDisabled}
+												isCollapsed={collapsedMap[slide.editorId] ?? true}
+												onBlockDragEnd={() => {
+													setDragState(null);
+													setDragTargetId(null);
+												}}
+												onBlockDragStart={(event, blockId) => {
+													event.dataTransfer.effectAllowed = "move";
+													setDragState({
+														draggedId: blockId,
+														scope: "block",
+														slideId: slide.editorId
+													});
+												}}
+												onBlockDrop={targetBlockId => handleBlockDrop(slide.editorId, targetBlockId)}
+												onBlockHover={(event, targetBlockId) => {
+													if(dragState?.scope != "block" || dragState.slideId != slide.editorId)
+														return;
+
+													event.preventDefault();
+													setDragTargetId(targetBlockId);
+												}}
+												onChange={nextSlide => updateSlide(slide.editorId, () => nextSlide)}
+												onCopyBlock={block => setClipboard({ block: cloneEditorBlock(block), scope: "block" })}
+												onCopy={() => setClipboard({ scope: "slide", slide: cloneEditorSlide(slide) })}
+												onDelete={() => {
+													updateForm(currentForm => ({
+														...currentForm,
+														slides: currentForm.slides.filter(currentSlide => currentSlide.editorId != slide.editorId)
+													}));
+												}}
+												onDragEnd={() => {
+													setDragState(null);
+													setDragTargetId(null);
+												}}
+												onDragStart={event => {
+													event.dataTransfer.effectAllowed = "move";
+													setDragState({
+														draggedId: slide.editorId,
+														scope: "slide"
+													});
+												}}
+												onInsertBlock={(index, type) => insertBlock(slide.editorId, index, type)}
+												onMoveDown={() => {
+													updateForm(currentForm => ({
+														...currentForm,
+														slides: moveItem(currentForm.slides, slideIndex, slideIndex + 1)
+													}));
+												}}
+												onMoveUp={() => {
+													updateForm(currentForm => ({
+														...currentForm,
+														slides: moveItem(currentForm.slides, slideIndex, slideIndex - 1)
+													}));
+												}}
+												onPasteBlock={(index, clear) => {
+													pasteBlock(slide.editorId, index);
+													if(clear)
+														setClipboard(null);
+												}}
+												onPasteSlide={clear => {
+													pasteSlide(slideIndex + 1);
+													if(clear)
+														setClipboard(null);
+												}}
+												onToggleBlockCollapse={(blockId, nextValue) => {
+													setCollapsedMap(currentMap => ({
+														...currentMap,
+														[blockId]: nextValue
+													}));
+												}}
+												onToggleCollapse={() => {
+													setCollapsedMap(currentMap => ({
+														...currentMap,
+														[slide.editorId]: !(currentMap[slide.editorId] ?? true)
+													}));
+												}}
+												slide={slide}
+												slideIndex={slideIndex}
+												slideTotal={editorForm.slides.length}
+											/>
+										</div>
+									</React.Fragment>
+								))}
+							</div>
+							{editorForm.slides.length == 0 ? (
+								<div className="text-center py-8 text-sm text-muted-foreground">
+									No screens yet. Add one above to start building the flow.
+								</div>
+							) : (
 								<AddInsertControl
 									canPaste={clipboard?.scope == "slide"}
+									disabled={isDisabled}
 									items={SLIDE_KIND_ITEMS}
 									label="Add screen"
-									onAdd={kind => insertSlide(0, kind)}
+									onAdd={kind => insertSlide(editorForm.slides.length, kind)}
 									onPaste={clear => {
-										pasteSlide(0);
+										pasteSlide(editorForm.slides.length);
 										if(clear)
 											setClipboard(null);
 									}}
 								/>
-								<div className="space-y-2">
-									{editorForm.slides.map((slide, slideIndex) => (
-										<React.Fragment key={slide.editorId}>
-											{slideIndex > 0 ? (
-												<AddInsertControl
-													canPaste={clipboard?.scope == "slide"}
-													items={SLIDE_KIND_ITEMS}
-													label="Insert screen"
-													onAdd={kind => insertSlide(slideIndex, kind)}
-													onPaste={clear => {
-														pasteSlide(slideIndex);
-														if(clear)
-															setClipboard(null);
-													}}
-												/>
-											) : null}
-											<div
-													className={cn(
-														"transition-shadow ring-2 ring-transparent ring-offset-2 rounded-2xl",
-														dragTargetId == slide.editorId && "ring-primary"
-													)}
-													onFocusCapture={() => setFocusedSlideId(slide.editorId)}
-													onDragOver={event => {
-														if(dragState?.scope != "slide")
-															return;
-
-													event.preventDefault();
-													setDragTargetId(slide.editorId);
-												}}
-												onDrop={() => handleSlideDrop(slide.editorId)}
-											>
-													<SlideCard
-														availableFields={fieldReferences}
-														canPasteBlock={clipboard?.scope == "block"}
-														canPasteSlide={clipboard?.scope == "slide"}
-														blockCollapsedMap={collapsedMap}
-														blockDragTargetId={dragTargetId}
-														isCollapsed={collapsedMap[slide.editorId] ?? true}
-														onBlockDragEnd={() => {
-															setDragState(null);
-															setDragTargetId(null);
-													}}
-													onBlockDragStart={(event, blockId) => {
-														event.dataTransfer.effectAllowed = "move";
-														setDragState({
-															draggedId: blockId,
-															scope: "block",
-															slideId: slide.editorId
-														});
-													}}
-													onBlockDrop={targetBlockId => handleBlockDrop(slide.editorId, targetBlockId)}
-													onBlockHover={(event, targetBlockId) => {
-														if(dragState?.scope != "block" || dragState.slideId != slide.editorId)
-															return;
-
-														event.preventDefault();
-														setDragTargetId(targetBlockId);
-													}}
-													onChange={nextSlide => updateSlide(slide.editorId, () => nextSlide)}
-													onCopyBlock={block => setClipboard({ block: cloneEditorBlock(block), scope: "block" })}
-													onCopy={() => setClipboard({ scope: "slide", slide: cloneEditorSlide(slide) })}
-													onDelete={() => {
-														updateForm(currentForm => ({
-															...currentForm,
-															slides: currentForm.slides.filter(currentSlide => currentSlide.editorId != slide.editorId)
-														}));
-													}}
-													onDragEnd={() => {
-														setDragState(null);
-														setDragTargetId(null);
-													}}
-													onDragStart={event => {
-														event.dataTransfer.effectAllowed = "move";
-														setDragState({
-															draggedId: slide.editorId,
-															scope: "slide"
-														});
-													}}
-													onInsertBlock={(index, type) => insertBlock(slide.editorId, index, type)}
-													onMoveDown={() => {
-														updateForm(currentForm => ({
-															...currentForm,
-															slides: moveItem(currentForm.slides, slideIndex, slideIndex + 1)
-														}));
-													}}
-													onMoveUp={() => {
-														updateForm(currentForm => ({
-															...currentForm,
-															slides: moveItem(currentForm.slides, slideIndex, slideIndex - 1)
-														}));
-													}}
-													onPasteBlock={(index, clear) => {
-														pasteBlock(slide.editorId, index);
-														if(clear)
-															setClipboard(null);
-													}}
-														onPasteSlide={clear => {
-															pasteSlide(slideIndex + 1);
-															if(clear)
-																setClipboard(null);
-														}}
-													onToggleBlockCollapse={(blockId, nextValue) => {
-														setCollapsedMap(currentMap => ({
-															...currentMap,
-															[blockId]: nextValue
-														}));
-													}}
-														onToggleCollapse={() => {
-															setCollapsedMap(currentMap => ({
-																...currentMap,
-																[slide.editorId]: !(currentMap[slide.editorId] ?? true)
-															}));
-														}}
-													slide={slide}
-													slideIndex={slideIndex}
-													slideTotal={editorForm.slides.length}
-												/>
-											</div>
-										</React.Fragment>
-									))}
-								</div>
-								{editorForm.slides.length == 0 ? (
-									<div className="text-center py-8 text-sm text-muted-foreground">
-										No screens yet. Add one above to start building the flow.
-									</div>
-								) : (
-									<AddInsertControl
-										canPaste={clipboard?.scope == "slide"}
-										items={SLIDE_KIND_ITEMS}
-										label="Add screen"
-										onAdd={kind => insertSlide(editorForm.slides.length, kind)}
-										onPaste={clear => {
-											pasteSlide(editorForm.slides.length);
-											if(clear)
-												setClipboard(null);
-										}}
-									/>
-								)}
-							</CardContent>
-						</Card>
-					</div>
+							)}
+						</CardContent>
+					</Card>
 				</CardContent>
 			</Card>
-			<Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl">
+			<Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-3xl gap-0">
 				<CardHeader className="border-b">
 					<CardTitle className="flex items-center gap-2">
 						<EyeIcon className="size-4" />
 						Live Preview
 					</CardTitle>
-					<CardDescription>
+					{/* <CardDescription>
 						The preview updates as you edit. Reset it if you want to replay the form flow from the beginning.
-					</CardDescription>
+					</CardDescription> */}
 					<CardAction className="flex items-center gap-2">
 						<Button
 							onClick={() => {
@@ -2842,16 +2918,17 @@ export function FormEditor({
 						</Button>
 					</CardAction>
 				</CardHeader>
-					<CardContent className="min-h-0 flex-1 overflow-auto p-0">
-						<div className={cn("bg-muted/20 min-h-full p-4", previewClassName)}>
-							<Form
-								className="rounded-3xl"
-								form={previewForm}
-								initialValues={previewInitialValues}
-								key={`${previewSignature}:${previewNonce}`}
-								onPartialSubmit={onPreviewPartialSubmit}
-								onSubmit={onPreviewSubmit}
-							/>
+				<CardContent className="min-h-0 flex-1 overflow-auto p-0">
+					<div className={cn("bg-muted/20 min-h-full", previewClassName)}>
+						<Form
+							autoFocus={previewAutoFocus}
+							className="rounded-3xl"
+							form={previewForm}
+							initialValues={previewInitialValues}
+							key={`${previewSignature}:${previewNonce}`}
+							onPartialSubmit={onPreviewPartialSubmit}
+							onSubmit={onPreviewSubmit}
+						/>
 					</div>
 				</CardContent>
 			</Card>

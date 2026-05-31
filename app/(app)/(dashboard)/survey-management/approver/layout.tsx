@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
-import { resolveManagementModeRedirectHrefAction } from "../../layout.actions";
+import { getDashboardContextAction } from "../../layout.actions";
 
 export default async function Layout({ children }: { children: ReactNode }) {
-	const redirectHref = await resolveManagementModeRedirectHrefAction("survey-management", "approver");
-	if(redirectHref != null)
-		redirect(redirectHref);
-
+	const dashboardContext = await getDashboardContextAction();
+	if(dashboardContext == null) return redirect("/login");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "survey-management");
+	if(thisMenu == null) return redirect("/");
+	const thisMode = thisMenu.modes["approver"];
+	if(thisMode == null) return redirect(thisMenu.modes[thisMenu.defaultMode].href);
 	return children;
 }

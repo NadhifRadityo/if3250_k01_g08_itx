@@ -1,463 +1,409 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useState, useTransition } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { XIcon, PlusIcon, PencilIcon, Trash2Icon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Switch } from "@/components/radix/Switch";
 
-import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
-import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
-import { createEmptyReviewComment } from "@/utils/reviewCommentRichText";
-import * as creditApplicationActions from "../layout.actions";
-import { CreditApplicationActiveFiltersSummary } from "../layout.components";
-import { CreditApplicationColumnConfigCard } from "../layout.components";
-import { CreditApplicationRequestCancelDialog } from "../layout.components";
-import { CreditApplicationRequestDeleteDialog } from "../layout.components";
-import { CreditApplicationRequestDetailsDrawer } from "../layout.components";
-import { CreditApplicationRequestChangePreviewDrawer } from "../layout.components";
-import { CreditApplicationRequestFilterCard } from "../layout.components";
-import { CreditApplicationRequestFormDrawer } from "../layout.components";
-import { CreditApplicationRequestsTable } from "../layout.components";
-import { getEligibleDetailTriggerCreditApplicationColumnId } from "../layout.components";
-import { resolveActionError } from "../layout.components";
-import { useCreditApplicationCellRenderer } from "../layout.components";
-import { useCreditApplicationColumnPreferences } from "../layout.components";
-import { useCreditApplicationFilterColumnConfig } from "../layout.components";
-import { useCreditApplicationManagementQueryState } from "../layout.components";
-import { useCreditApplicationRequestFilters } from "../layout.components";
-import { useCreditApplicationRequestsQuery } from "../layout.components";
-import {
-	defaultFormState,
-	type FormState,
-	type ActionError,
-	type CreditApplicationTableRow
-} from "../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
+import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { queryEditorAction, cancelRequestAction, requestDeleteAction, requestUpsertAction, requestRestoreAction } from "../layout.actions";
+import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, RevertApprovedDialog, RestoreDeletionDialog, CancelPendingRequestDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../layout.components";
 
-export default function CreditApplicationManagementEditorPage() {
-	const parseOptionalNumber = (value: string, label: string): number | null => {
-		const trimmed = value.trim();
-		if(trimmed.length == 0)
-			return null;
-		const parsed = Number(trimmed);
-		if(Number.isNaN(parsed))
-			throw new Error(`${label} must be a valid number.`);
-		return parsed;
-	};
-
-	const toDateInputValue = (value: string | null): string => {
-		if(value == null)
-			return "";
-		const date = new Date(value);
-		if(Number.isNaN(date.getTime()))
-			return "";
-		return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-	};
-
-	const [showSoftDeleted, setShowSoftDeleted] = useState(false);
-	const [errorMessage, setErrorMessage] = useState<ActionError | null>(null);
-	const queryClient = useQueryClient();
-
-	const [isFormOpen, setIsFormOpen] = useState(false);
-	const [formState, setFormState] = useState<FormState>(defaultFormState);
-	const [formError, setFormError] = useState<ActionError | null>(null);
-	const [detailRow, setDetailRow] = useState<CreditApplicationTableRow | null>(null);
-	const [requestChangeRow, setRequestChangeRow] = useState<CreditApplicationTableRow | null>(null);
-	const [deleteTarget, setDeleteTarget] = useState<CreditApplicationTableRow | null>(null);
-	const [cancelTarget, setCancelTarget] = useState<CreditApplicationTableRow | null>(null);
-	const [isMutating, startMutationTransition] = useTransition();
-	const relationNavigation = useDashboardRelationNavigation();
-	const columnPreferences = useCreditApplicationColumnPreferences();
-	const queryState = useCreditApplicationManagementQueryState();
-	const { getResolvedFilterColumnConfig } = useCreditApplicationFilterColumnConfig();
-	const filters = useCreditApplicationRequestFilters({ getResolvedFilterColumnConfig });
-
-	const includeSoftDeleted = showSoftDeleted;
-
-	const {
-		pageIndex,
-		setPageIndex,
-		queryResult,
-		isLoading,
-		queryErrorMessage
-	} = useCreditApplicationRequestsQuery({
-		queryScope: "editor",
-		queryAction: creditApplicationActions.queryCreditApplicationsEditorAction,
-		debouncedKeyword: queryState.debouncedKeyword,
-		sortTokens: queryState.sortTokens,
-		appliedFilters: filters.appliedFilters,
-		isFilterStateReady: filters.isFilterStateReady,
-		includeSoftDeleted
-	});
-	const renderCreditApplicationCell = useCreditApplicationCellRenderer({
-		relations: queryResult.relations,
-		onOpenRequestChanges: setRequestChangeRow,
-		relationNavigation: {
-			getHrefBase: relationNavigation.getTargetHrefBase,
-			onRelationLinkClick: relationNavigation.onRelationLinkClick,
-			onOpenSummary: relationNavigation.openSummary
-		}
-	});
-	const displayError = errorMessage ?? (queryErrorMessage != null ? {
-		title: "Error",
-		message: queryErrorMessage
-	} : null);
-	const detailTriggerColumnId = useMemo(() => getEligibleDetailTriggerCreditApplicationColumnId(columnPreferences.visibleColumns), [columnPreferences.visibleColumns]);
-
-	const runMutation = (
-		action: () => Promise<void>,
-		options?: {
-			onError?: (error: ActionError) => void;
-			fallbackMessage?: string;
-			clearPageError?: boolean;
-		}
-	) => {
-		startMutationTransition(() => {
-			void (async () => {
-				if(options?.clearPageError ?? true)
-					setErrorMessage(null);
-				try {
-					await action();
-					await queryClient.invalidateQueries({ queryKey: ["credit-application-management"] });
-				} catch(error) {
-					const actionError = resolveActionError(error, options?.fallbackMessage ?? "Operation failed.");
-					if(options?.onError != null) {
-						options.onError(actionError);
-						return;
-					}
-					setErrorMessage(actionError);
-				}
-			})();
-		});
-	};
-
-	const openCreateDialog = () => {
-		setFormError(null);
-		setFormState(defaultFormState);
-		setIsFormOpen(true);
-	};
-
-	const openEditDialog = (row: CreditApplicationTableRow) => {
-		setFormError(null);
-		setFormState({
-			creditApplicationId: row.id,
-			name: row.name,
-			email: row.email,
-			addresses: row.addresses,
-			phoneNumbers: row.phoneNumbers,
-			whatsappNumber: row.whatsappNumber,
-			smsNumber: row.smsNumber,
-			collateralRegistryName: row.collateralRegistryName,
-			collateralName: row.collateralName,
-			collateralDescription: row.collateralDescription ?? createEmptyReviewComment(),
-			assetId: row.assetId,
-			assetName: row.assetName,
-			assetDescription: row.assetDescription ?? createEmptyReviewComment(),
-			period: row.period == null ? "" : String(row.period),
-			installment: row.installment == null ? "" : String(row.installment),
-			downPayment: row.downPayment == null ? "" : String(row.downPayment),
-			plafond: row.plafond == null ? "" : String(row.plafond),
-			vendor: row.vendor,
-			remarks: row.remarks ?? createEmptyReviewComment(),
-			otherText1: row.otherText1,
-			otherText2: row.otherText2,
-			otherNumber1: row.otherNumber1 == null ? "" : String(row.otherNumber1),
-			otherNumber2: row.otherNumber2 == null ? "" : String(row.otherNumber2),
-			otherDate1: toDateInputValue(row.otherDate1),
-			otherDate2: toDateInputValue(row.otherDate2),
-			others: row.others
-		});
-		setIsFormOpen(true);
-	};
-
-	const submitForm = () => {
-		setFormError(null);
-		const addresses = formState.addresses
-			.map(address => address.trim())
-			.filter(address => address.length > 0);
-		const phoneNumbers = formState.phoneNumbers
-			.map(phoneNumber => phoneNumber.trim())
-			.filter(phoneNumber => phoneNumber.length > 0);
-		if(formState.name.trim().length == 0)
-			return setFormError({ title: "ValidationError", message: "Applicant name is required." });
-		if(addresses.length == 0)
-			return setFormError({ title: "ValidationError", message: "At least one address is required." });
-		if(phoneNumbers.length == 0)
-			return setFormError({ title: "ValidationError", message: "At least one phone number is required." });
-		if(formState.whatsappNumber.trim().length == 0)
-			return setFormError({ title: "ValidationError", message: "Whatsapp number is required." });
-
-		let period: number | null;
-		let installment: number | null;
-		let downPayment: number | null;
-		let plafond: number | null;
-		let otherNumber1: number | null;
-		let otherNumber2: number | null;
-		try {
-			period = parseOptionalNumber(formState.period, "Period");
-			installment = parseOptionalNumber(formState.installment, "Installment");
-			downPayment = parseOptionalNumber(formState.downPayment, "Down Payment");
-			plafond = parseOptionalNumber(formState.plafond, "Plafond");
-			otherNumber1 = parseOptionalNumber(formState.otherNumber1, "Other Number 1");
-			otherNumber2 = parseOptionalNumber(formState.otherNumber2, "Other Number 2");
-		} catch(error) {
-			const message = error instanceof Error ? error.message : "Invalid numeric value.";
-			return setFormError({ title: "ValidationError", message });
-		}
-
-		runMutation(async () => {
-			await creditApplicationActions.upsertCreditApplicationRequestAction({
-				creditApplicationId: formState.creditApplicationId,
-				name: formState.name,
-				email: formState.email,
-				addresses,
-				phoneNumbers,
-				whatsappNumber: formState.whatsappNumber,
-				smsNumber: formState.smsNumber,
-				collateralRegistryName: formState.collateralRegistryName,
-				collateralName: formState.collateralName,
-				collateralDescription: formState.collateralDescription,
-				assetId: formState.assetId,
-				assetName: formState.assetName,
-				assetDescription: formState.assetDescription,
-				period,
-				installment,
-				downPayment,
-				plafond,
-				vendor: formState.vendor,
-				remarks: formState.remarks,
-				otherText1: formState.otherText1,
-				otherText2: formState.otherText2,
-				otherNumber1,
-				otherNumber2,
-				otherDate1: formState.otherDate1.trim().length > 0 ? formState.otherDate1 : null,
-				otherDate2: formState.otherDate2.trim().length > 0 ? formState.otherDate2 : null,
-				others: formState.others
-			});
-			setIsFormOpen(false);
-		}, {
-			onError: setFormError,
-			fallbackMessage: "Failed to save request.",
-			clearPageError: false
-		});
-	};
-
-	const requestDelete = (row: CreditApplicationTableRow) => {
-		runMutation(async () => {
-			await creditApplicationActions.requestDeleteCreditApplicationAction(row.id);
-			setDeleteTarget(null);
-		});
-	};
-
-	const cancelRequest = (row: CreditApplicationTableRow) => {
-		runMutation(async () => {
-			await creditApplicationActions.cancelCreditApplicationRequestAction(row.id);
-		});
-	};
-
-	const requestRestore = (row: CreditApplicationTableRow) => {
-		runMutation(async () => {
-			await creditApplicationActions.requestRestoreCreditApplicationAction(row.id);
-		});
-	};
-
-	const rendercreditApplicationActions = (row: CreditApplicationTableRow) => {
-		const isPending = row.reviewedAt == null;
-		const isRejected = row.reviewedAt != null && row.reviewApproved == false;
-
-		return (
-			<>
-				<Button type="button" size="sm" variant="outline" onClick={() => openEditDialog(row)} disabled={isMutating || row.isSoftDeleted}>
-					<PencilIcon />
-					Edit
-				</Button>
-				{row.isSoftDeleted ? (
-					<Button type="button" size="sm" variant="outline" onClick={() => requestRestore(row)} disabled={isMutating}>
-						<PlusIcon />
-						Restore
+const columnConfigColumnsWithActions = Object.freeze([
+	...columnConfigColumns,
+	{ key: "#actions", label: "Actions" }
+]);
+const tableConfigColumnsWithActions = Object.freeze([
+	...tableConfigColumns,
+	{ key: "#actions", label: "Actions", sortable: false, className: "flex flex-wrap gap-2" }
+]);
+const rowValueRendererConfigColumnsWithActions = Object.freeze([
+	...rowValueRendererConfigColumns,
+	{ key: "#actions", type: "null", render: (_, row, { isMutating, setEditFormDrawerState, setEditFormDrawerOpen, setDeleteTargetRow, setCancelPendingRequestTargetRow, setRevertApprovedTargetRow, setRestoreDeletionTargetRow }) => (
+		<>
+			{row.deletedAt == null ? (
+				<>
+					<Button
+						type="button"
+						size="sm"
+						variant="outline"
+						onClick={() => { setEditFormDrawerState!(toFormState(row)); setEditFormDrawerOpen!(true); }}
+						disabled={isMutating}
+					>
+						<PencilIcon />
+						Edit
 					</Button>
-				) : row.deletedAt == null ? (
-					<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTarget(row)} disabled={isMutating}>
+					<Button type="button" size="sm" variant="destructive" onClick={() => setDeleteTargetRow!(row)} disabled={isMutating}>
 						<Trash2Icon />
 						Delete
 					</Button>
-				) : null}
-				{isPending && !row.isSoftDeleted ? (
-					<Button type="button" size="sm" variant="secondary" onClick={() => setCancelTarget(row)} disabled={isMutating}>
-						<XIcon />
-						Cancel
-					</Button>
-				) : null}
-				{isRejected && !row.isSoftDeleted ? (
-					<Button type="button" size="sm" variant="secondary" onClick={() => cancelRequest(row)} disabled={isMutating}>
-						<HistoryIcon />
-						Restore Approved
-					</Button>
-				) : null}
-			</>
-		);
+				</>
+			) : null}
+			{row.deletedAt == null && row.reviewedAt == null ? (
+				<Button type="button" size="sm" variant="secondary" onClick={() => setCancelPendingRequestTargetRow!(row)} disabled={isMutating}>
+					<XIcon />
+					Cancel
+				</Button>
+			) : null}
+			{row.deletedAt == null && row.reviewedAt != null && row.reviewApproved == false ? (
+				<Button type="button" size="sm" variant="secondary" onClick={() => setRevertApprovedTargetRow!(row)} disabled={isMutating}>
+					<HistoryIcon />
+					Revert Approved
+				</Button>
+			) : null}
+			{row.deletedAt != null ? (
+				<Button type="button" size="sm" variant="outline" onClick={() => setRestoreDeletionTargetRow!(row)} disabled={isMutating}>
+					<PlusIcon />
+					Restore
+				</Button>
+			) : null}
+		</>
+	) } satisfies (typeof rowValueRendererConfigColumns)[number]
+]);
+const defaultColumnOrderWithActions = Object.freeze([
+	...defaultColumnOrder,
+	"#actions"
+]) as string[];
+const defaultColumnsShownWithActions = Object.freeze([
+	...defaultColumnsShown,
+	"#actions"
+]) as string[];
+
+export default function Page() {
+	const queryClient = useQueryClient();
+	const { user } = useDashboardContext();
+	const [keyword, setKeyword] = useState("");
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "credit-application-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "credit-application-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
+	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "credit-application-management.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "credit-application-management.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "credit-application-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [pageIndex, setPageIndex] = useState(1);
+	const query = useQuery({
+		queryKey: ["credit-application-management", "editor", {
+			keyword,
+			filters,
+			columnsSort,
+			includeDeleted,
+			pageIndex
+		}],
+		queryFn: async () => await queryEditorAction({
+			keyword: keyword,
+			filters: filters,
+			columnsSort: columnsSort,
+			includeDeleted: includeDeleted,
+			pageIndex: pageIndex
+		})
+	});
+	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
+	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+	const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+	const [changeRequestDrawerRow, setChangeRequestDrawerRow] = useState(null as ColumnData | null);
+	const [changeRequestDrawerOpen, setChangeRequestDrawerOpen] = useState(false);
+	const [editFormDrawerState, setEditFormDrawerState] = useState({} as FormState);
+	const [editFormDrawerOpen, setEditFormDrawerOpen] = useState(false);
+	const [addFormDrawerState, setAddFormDrawerState] = useState({} as FormState);
+	const [addFormDrawerOpen, setAddFormDrawerOpen] = useState(false);
+	const [isMutating, startMutationTransition] = useTransition();
+	const [genericMutationError, setGenericMutationError] = useState(null as any);
+	const [editFormMutationError, setEditFormMutationError] = useState(null as any);
+	const [addFormMutationError, setAddFormMutationError] = useState(null as any);
+	const [deleteTargetRow, setDeleteTargetRow] = useState(null as ColumnData | null);
+	const [cancelPendingRequestTargetRow, setCancelPendingRequestTargetRow] = useState(null as ColumnData | null);
+	const [revertApprovedTargetRow, setRevertApprovedTargetRow] = useState(null as ColumnData | null);
+	const [restoreDeletionTargetRow, setRestoreDeletionTargetRow] = useState(null as ColumnData | null);
+	const [deleteChangeRequestComment, setDeleteChangeRequestComment] = useState(lexicalPlainText(""));
+	const [restoreDeletionChangeRequestComment, setRestoreDeletionChangeRequestComment] = useState(lexicalPlainText(""));
+	const rowValueRendererContext = {
+		relationValues: query.data?.relations,
+		isMutating: isMutating,
+		setChangeRequestDrawerRow: setChangeRequestDrawerRow,
+		setChangeRequestDrawerOpen: setChangeRequestDrawerOpen,
+		setEditFormDrawerState: setEditFormDrawerState,
+		setEditFormDrawerOpen: setEditFormDrawerOpen,
+		setDeleteTargetRow: setDeleteTargetRow,
+		setCancelPendingRequestTargetRow: setCancelPendingRequestTargetRow,
+		setRevertApprovedTargetRow: setRevertApprovedTargetRow,
+		setRestoreDeletionTargetRow: setRestoreDeletionTargetRow
 	};
+	const renderCell = useMenuRowValueRenderer({
+		columns: rowValueRendererConfigColumnsWithActions,
+		context: {
+			...rowValueRendererContext,
+			richTextCard: false,
+			richTextClamp: true
+		},
+		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
+			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
+		onOpenDetails: row => {
+			setDetailsDrawerOpen(true);
+			setDetailsDrawerRow(row);
+		}
+	});
 
 	return (
-		<>
-			<DashboardManagementPageFrame
-				title="Credit Application Management"
-				description="Manage credit application requests with full applicant, collateral, asset, and financial data updates."
-			>
-				<DashboardManagementToolbar
-					keyword={queryState.keyword}
-					onKeywordChange={queryState.setKeyword}
-					searchPlaceholder="Search credit applications by applicant, contact, collateral, asset, or vendor"
-					filterCount={filters.appliedFilters.length}
-					onToggleFilter={filters.toggleFilterPanel}
-					onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
-					isLoading={isLoading}
-					isMutating={isMutating}
+		<MenuPage
+			title="Credit Application Management"
+			description="Manage credit application requests with editor workflows for create, update, delete, and restore changes."
+		>
+			<RelationNavigationProvider>
+				<MenuToolbar
+					keyword={keyword}
+					onKeywordChange={setKeyword}
+					searchPlaceholder="Search credit applications by name, email, or address"
+					filterCount={filters.length}
+					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
+					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
+					isLoading={query.isLoading}
 					rightSlot={(
 						<>
-							<div className="flex items-center gap-2">
-								<label htmlFor="credit-application-show-deleted" className="text-sm">Show Deleted</label>
-								<Switch
-									id="credit-application-show-deleted"
-									checked={showSoftDeleted}
-									onCheckedChange={checked => setShowSoftDeleted(checked)}
-									disabled={isLoading || isMutating}
-								/>
-							</div>
-							<Button type="button" onClick={openCreateDialog} disabled={isLoading || isMutating}>
+							{user.roleMenus.includes("credit-application-management#auditor") ? (
+								<div className="flex items-center gap-2">
+									<label htmlFor="credit-application-management-editor-show-deleted" className="text-sm">
+										Show Deleted
+									</label>
+									<Switch
+										id="credit-application-management-editor-show-deleted"
+										checked={includeDeleted}
+										onCheckedChange={setIncludeDeleted}
+										disabled={query.isLoading || isMutating}
+									/>
+								</div>
+							) : null}
+							<Button
+								type="button"
+								onClick={() => setAddFormDrawerOpen(true)}
+								disabled={query.isLoading || isMutating}
+							>
 								<PlusIcon />
 								Add
 							</Button>
 						</>
 					)}
 				/>
-
-				<CreditApplicationRequestFilterCard
-					isLoading={isLoading}
-					isMutating={isMutating}
+				<MenuFilterConfigCard
+					open={filterConfigCardOpen}
+					onOpenChange={setFilterConfigCardOpen}
+					columns={filterConfigColumns}
 					filters={filters}
-					getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
+					onFiltersChange={setFilters}
+					disabled={query.isLoading}
 				/>
-
-				<CreditApplicationColumnConfigCard
-					isOpen={columnPreferences.isColumnOpen}
-					onOpenChange={columnPreferences.setIsColumnOpen}
-					orderedColumns={columnPreferences.orderedColumns}
-					hiddenColumnIds={columnPreferences.hiddenColumnIds}
-					visibleColumnCount={columnPreferences.visibleColumns.length}
-					onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
-					onReset={columnPreferences.resetColumnPreferences}
-					onColumnDragStart={columnPreferences.handleColumnDragStart}
-					onColumnDragOver={columnPreferences.handleColumnDragOver}
-					onColumnDragEnd={columnPreferences.handleColumnDragEnd}
+				<MenuColumnConfigCard
+					open={columnConfigCardOpen}
+					onOpenChange={setColumnConfigCardOpen}
+					columns={columnConfigColumnsWithActions}
+					columnOrder={columnOrder}
+					onColumnOrderChange={setColumnOrder}
+					columnsShown={columnsShown}
+					onColumnsShownChange={setColumnsShown}
+					defaultColumnOrder={defaultColumnOrderWithActions}
+					defaultColumnsShown={defaultColumnsShownWithActions}
 				/>
-
-				<CreditApplicationActiveFiltersSummary items={filters.filterSummaryItems} />
-
-				{displayError != null ? (
+				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
+				{query.error != null ? (
 					<Alert variant="destructive">
 						<CircleAlertIcon />
-						<AlertTitle>{displayError.title}</AlertTitle>
-						<AlertDescription>{displayError.message}</AlertDescription>
+						<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
 					</Alert>
 				) : null}
-
-				<CreditApplicationRequestsTable
-					queryResult={queryResult}
-					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length + 1}
-					detailTriggerColumnId={detailTriggerColumnId}
-					isLoading={isLoading}
-					isMutating={isMutating}
-					getSortDirection={queryState.getSortDirection}
-					onToggleSortField={queryState.toggleSortField}
-					onOpenDetails={setDetailRow}
-					renderCreditApplicationCell={renderCreditApplicationCell}
-					renderActions={rendercreditApplicationActions}
+				{genericMutationError != null ? (
+					<Alert variant="destructive">
+						<CircleAlertIcon />
+						<AlertTitle>{`${genericMutationError?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${genericMutationError?.message ?? "An error occured while querying data."}`}</AlertDescription>
+					</Alert>
+				) : null}
+				<DashboardMenuTable
+					columns={tableConfigColumnsWithActions}
+					columnsSort={columnsSort}
+					onColumnsSortChange={setColumnsSort}
+					columnOrder={columnOrder}
+					columnsShown={columnsShown}
+					rows={query.data?.docs ?? []}
+					renderCell={renderCell}
+					isLoading={query.isLoading}
 				/>
-
-				<DashboardManagementPagination
+				<MenuPagination
 					pageIndex={pageIndex}
-					totalRequests={queryResult.totalDocs}
-					hasPreviousPage={queryResult.hasPreviousPage}
-					hasNextPage={queryResult.hasNextPage}
-					isLoading={isLoading}
-					isMutating={isMutating}
+					totalRequests={query.data?.totalDocs ?? 0}
+					hasPreviousPage={query.data?.hasPrevPage ?? false}
+					hasNextPage={query.data?.hasNextPage ?? false}
+					isLoading={query.isLoading}
+					isMutating={false}
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
-			</DashboardManagementPageFrame>
-
-			<CreditApplicationRequestDetailsDrawer
-				open={detailRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setDetailRow(null);
-				}}
-				row={detailRow}
-				renderActions={rendercreditApplicationActions}
-				onOpenRequestChanges={setRequestChangeRow}
-				relationNavigation={{
-					getHrefBase: relationNavigation.getTargetHrefBase,
-					onRelationLinkClick: relationNavigation.onRelationLinkClick,
-					onOpenSummary: relationNavigation.openSummary
-				}}
-			/>
-
-			<CreditApplicationRequestChangePreviewDrawer
-				open={requestChangeRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setRequestChangeRow(null);
-				}}
-				row={requestChangeRow}
-			/>
-
-			<CreditApplicationRequestFormDrawer
-				open={isFormOpen}
-				onOpenChange={open => {
-					setIsFormOpen(open);
-					if(!open)
-						setFormError(null);
-				}}
-				formState={formState}
-				formError={formError}
-				isMutating={isMutating}
-				onFormStateChange={setFormState}
-				onSubmit={submitForm}
-			/>
-
-			<CreditApplicationRequestDeleteDialog
-				open={deleteTarget != null}
-				onOpenChange={open => {
-					if(!open)
-						setDeleteTarget(null);
-				}}
-				onConfirm={() => {
-					if(deleteTarget != null)
-						requestDelete(deleteTarget);
-				}}
-				isMutating={isMutating}
-			/>
-
-			<CreditApplicationRequestCancelDialog
-				open={cancelTarget != null}
-				onOpenChange={open => {
-					if(!open)
-						setCancelTarget(null);
-				}}
-				onConfirm={() => {
-					if(cancelTarget != null) {
-						cancelRequest(cancelTarget);
-						setCancelTarget(null);
-					}
-				}}
-				isMutating={isMutating}
-			/>
-
-			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
-		</>
+				<DetailsDrawer
+					open={detailsDrawerOpen}
+					onOpenChange={setDetailsDrawerOpen}
+					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+					renderActions={r => renderCell(r, "#actions")}
+					onOpenHistory={() => setHistoryDrawerOpen(true)}
+				/>
+				<HistoryDrawer
+					open={historyDrawerOpen}
+					onOpenChange={setHistoryDrawerOpen}
+					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+				/>
+				<ChangeRequestDrawer
+					open={changeRequestDrawerOpen}
+					onOpenChange={setChangeRequestDrawerOpen}
+					row={changeRequestDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+				/>
+				<FormDrawer
+					open={editFormDrawerOpen}
+					onOpenChange={setEditFormDrawerOpen}
+					title="Edit Credit Application"
+					formState={editFormDrawerState}
+					onFormStateChange={setEditFormDrawerState}
+					isMutating={isMutating}
+					mutationError={editFormMutationError}
+					onSubmit={() => startMutationTransition(async () => {
+						editFormDrawerState.addresses ??= [];
+						editFormDrawerState.phoneNumbers ??= [];
+						if(editFormDrawerState.name == null || editFormDrawerState.name.trim().length == 0)
+							return setEditFormMutationError({ name: "ValidationError", message: "Applicant name is required." });
+						if(editFormDrawerState.addresses.filter(value => value.trim().length > 0).length == 0)
+							return setEditFormMutationError({ name: "ValidationError", message: "At least one address is required." });
+						if(editFormDrawerState.phoneNumbers.filter(value => value.trim().length > 0).length == 0)
+							return setEditFormMutationError({ name: "ValidationError", message: "At least one phone number is required." });
+						if(editFormDrawerState.whatsappNumber == null || editFormDrawerState.whatsappNumber.trim().length == 0)
+							return setEditFormMutationError({ name: "ValidationError", message: "Whatsapp number is required." });
+						setEditFormMutationError(null);
+						try {
+							await requestUpsertAction(editFormDrawerState);
+							setEditFormDrawerOpen(false);
+						} catch(error) {
+							setEditFormMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-management"] });
+						}
+					})}
+				/>
+				<FormDrawer
+					open={addFormDrawerOpen}
+					onOpenChange={setAddFormDrawerOpen}
+					title="Add Credit Application"
+					formState={addFormDrawerState}
+					onFormStateChange={setAddFormDrawerState}
+					isMutating={isMutating}
+					mutationError={addFormMutationError}
+					onSubmit={() => startMutationTransition(async () => {
+						addFormDrawerState.addresses ??= [];
+						addFormDrawerState.phoneNumbers ??= [];
+						if(addFormDrawerState.name == null || addFormDrawerState.name.trim().length == 0)
+							return setAddFormMutationError({ name: "ValidationError", message: "Applicant name is required." });
+						if(addFormDrawerState.addresses.filter(value => value.trim().length > 0).length == 0)
+							return setAddFormMutationError({ name: "ValidationError", message: "At least one address is required." });
+						if(addFormDrawerState.phoneNumbers.filter(value => value.trim().length > 0).length == 0)
+							return setAddFormMutationError({ name: "ValidationError", message: "At least one phone number is required." });
+						if(addFormDrawerState.whatsappNumber == null || addFormDrawerState.whatsappNumber.trim().length == 0)
+							return setAddFormMutationError({ name: "ValidationError", message: "Whatsapp number is required." });
+						setAddFormMutationError(null);
+						try {
+							await requestUpsertAction(addFormDrawerState);
+							setAddFormDrawerOpen(false);
+							setAddFormDrawerState({});
+						} catch(error) {
+							setAddFormMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-management"] });
+						}
+					})}
+				/>
+				<DeleteDialog
+					open={deleteTargetRow != null}
+					onOpenChange={open => !open ? setDeleteTargetRow(null) : undefined}
+					changeRequestComment={deleteChangeRequestComment}
+					onChangeRequestCommentChange={setDeleteChangeRequestComment}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await requestDeleteAction({
+								id: deleteTargetRow!.id,
+								changeRequestComment: deleteChangeRequestComment
+							});
+							setDeleteTargetRow(null);
+							setDeleteChangeRequestComment(lexicalPlainText(""));
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-management"] });
+						}
+					})}
+				/>
+				<CancelPendingRequestDialog
+					open={cancelPendingRequestTargetRow != null}
+					onOpenChange={open => !open ? setCancelPendingRequestTargetRow(null) : undefined}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await cancelRequestAction({
+								id: cancelPendingRequestTargetRow!.id
+							});
+							setCancelPendingRequestTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-management"] });
+						}
+					})}
+				/>
+				<RevertApprovedDialog
+					open={revertApprovedTargetRow != null}
+					onOpenChange={open => !open ? setRevertApprovedTargetRow(null) : undefined}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await cancelRequestAction({
+								id: revertApprovedTargetRow!.id
+							});
+							setRevertApprovedTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-management"] });
+						}
+					})}
+				/>
+				<RestoreDeletionDialog
+					open={restoreDeletionTargetRow != null}
+					onOpenChange={open => !open ? setRestoreDeletionTargetRow(null) : undefined}
+					changeRequestComment={restoreDeletionChangeRequestComment}
+					onChangeRequestCommentChange={setRestoreDeletionChangeRequestComment}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await requestRestoreAction({
+								id: restoreDeletionTargetRow!.id,
+								changeRequestComment: restoreDeletionChangeRequestComment
+							});
+							setRestoreDeletionTargetRow(null);
+							setRestoreDeletionChangeRequestComment(lexicalPlainText(""));
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["credit-application-management"] });
+						}
+					})}
+				/>
+			</RelationNavigationProvider>
+		</MenuPage>
 	);
 }

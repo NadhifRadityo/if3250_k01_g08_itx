@@ -1,173 +1,164 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { Switch } from "@/components/radix/Switch";
 
-import { DashboardManagementToolbar, DashboardManagementPageFrame, DashboardManagementPagination } from "../../layout.components";
-import { EntrySummaryDrawer, useDashboardRelationNavigation } from "../../relation-navigation.components";
-import * as userActions from "../layout.actions";
-import { UserActiveFiltersSummary } from "../layout.components";
-import { UserColumnConfigCard } from "../layout.components";
-import { UserRequestChangePreviewDrawer } from "../layout.components";
-import { UserRequestDetailsDrawer } from "../layout.components";
-import { UserRequestFilterCard } from "../layout.components";
-import { UserRequestsTable } from "../layout.components";
-import { getEligibleDetailTriggerUserColumnId } from "../layout.components";
-import { useUserCellRenderer } from "../layout.components";
-import { useUserColumnPreferences } from "../layout.components";
-import { useUserFilterColumnConfig } from "../layout.components";
-import { useUserManagementQueryState } from "../layout.components";
-import { useUserRequestFilters } from "../layout.components";
-import { useUserRequestsQuery } from "../layout.components";
-import { type StagedUserTableRow } from "../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
+import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { queryViewerAction } from "../layout.actions";
+import { ColumnData, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
-export default function UserManagementViewerPage() {
-	const [detailRow, setDetailRow] = useState<StagedUserTableRow | null>(null);
-	const [requestChangeRow, setRequestChangeRow] = useState<StagedUserTableRow | null>(null);
-	const relationNavigation = useDashboardRelationNavigation();
-	const columnPreferences = useUserColumnPreferences();
-	const queryState = useUserManagementQueryState();
-	const { getResolvedFilterColumnConfig } = useUserFilterColumnConfig();
-	const filters = useUserRequestFilters({ getResolvedFilterColumnConfig });
-
-	const {
-		pageIndex,
-		setPageIndex,
-		queryResult,
-		isLoading,
-		queryErrorMessage
-	} = useUserRequestsQuery({
-		queryScope: "viewer",
-		queryAction: userActions.queryStagedUsersViewerAction,
-		debouncedKeyword: queryState.debouncedKeyword,
-		sortTokens: queryState.sortTokens,
-		appliedFilters: filters.appliedFilters,
-		isFilterStateReady: filters.isFilterStateReady,
-		includeSoftDeleted: false
+export default function Page() {
+	const { user } = useDashboardContext();
+	const [keyword, setKeyword] = useState("");
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "user-management.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "user-management.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "user-management.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
+	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "user-management.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
+	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "user-management.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
+	const [pageIndex, setPageIndex] = useState(1);
+	const query = useQuery({
+		queryKey: ["user-management", "viewer", {
+			keyword,
+			filters,
+			columnsSort,
+			includeDeleted,
+			pageIndex
+		}],
+		queryFn: async () => await queryViewerAction({
+			keyword: keyword,
+			filters: filters,
+			columnsSort: columnsSort,
+			includeDeleted: includeDeleted,
+			pageIndex: pageIndex
+		})
 	});
-	const renderUserCell = useUserCellRenderer({
-		relations: queryResult.relations,
-		onOpenRequestChanges: setRequestChangeRow,
-		relationNavigation: {
-			getHrefBase: relationNavigation.getTargetHrefBase,
-			onRelationLinkClick: relationNavigation.onRelationLinkClick,
-			onOpenSummary: relationNavigation.openSummary
+	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
+	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+	const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
+	const [changeRequestDrawerRow, setChangeRequestDrawerRow] = useState(null as ColumnData | null);
+	const [changeRequestDrawerOpen, setChangeRequestDrawerOpen] = useState(false);
+	const rowValueRendererContext = {
+		relationValues: query.data?.relations,
+		setChangeRequestDrawerRow: setChangeRequestDrawerRow,
+		setChangeRequestDrawerOpen: setChangeRequestDrawerOpen
+	};
+	const renderCell = useMenuRowValueRenderer({
+		columns: rowValueRendererConfigColumns,
+		context: {
+			...rowValueRendererContext,
+			richTextCard: false,
+			richTextClamp: true
+		},
+		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
+			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
+		onOpenDetails: row => {
+			setDetailsDrawerOpen(true);
+			setDetailsDrawerRow(row);
 		}
 	});
-	const displayError = queryErrorMessage != null ? {
-		title: "Error",
-		message: queryErrorMessage
-	} : null;
-	const detailTriggerColumnId = getEligibleDetailTriggerUserColumnId(columnPreferences.visibleColumns);
-	const renderUserActions = () => null;
 
 	return (
-		<>
-			<DashboardManagementPageFrame
-				title="User Management"
-				description="View staged user requests without edit or review actions."
-			>
-				<DashboardManagementToolbar
-					keyword={queryState.keyword}
-					onKeywordChange={queryState.setKeyword}
-					searchPlaceholder="Search staged users by name, email, or employee ID"
-					filterCount={filters.appliedFilters.length}
-					onToggleFilter={filters.toggleFilterPanel}
-					onToggleColumns={() => columnPreferences.setIsColumnOpen(previous => !previous)}
-					isLoading={isLoading}
-					isMutating={false}
+		<MenuPage
+			title="User Management"
+			description="View staged user requests across draft, approved, rejected, and deleted states."
+		>
+			<RelationNavigationProvider>
+				<MenuToolbar
+					keyword={keyword}
+					onKeywordChange={setKeyword}
+					searchPlaceholder="Search staged users by name, email, employee ID, role, supervisor, or ID"
+					filterCount={filters.length}
+					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
+					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
+					isLoading={query.isLoading}
+					rightSlot={user.roleMenus.includes("user-management#auditor") ? (
+						<div className="flex items-center gap-2">
+							<label htmlFor="user-management-viewer-show-deleted" className="text-sm">
+								Show Deleted
+							</label>
+							<Switch
+								id="user-management-viewer-show-deleted"
+								checked={includeDeleted}
+								onCheckedChange={setIncludeDeleted}
+								disabled={query.isLoading}
+							/>
+						</div>
+					) : null}
 				/>
-
-				<UserRequestFilterCard
-					isLoading={isLoading}
-					isMutating={false}
+				<MenuFilterConfigCard
+					open={filterConfigCardOpen}
+					onOpenChange={setFilterConfigCardOpen}
+					columns={filterConfigColumns}
 					filters={filters}
-					getResolvedFilterColumnConfig={getResolvedFilterColumnConfig}
+					onFiltersChange={setFilters}
+					disabled={query.isLoading}
 				/>
-
-				<UserColumnConfigCard
-					isOpen={columnPreferences.isColumnOpen}
-					onOpenChange={columnPreferences.setIsColumnOpen}
-					orderedColumns={columnPreferences.orderedColumns}
-					hiddenColumnIds={columnPreferences.hiddenColumnIds}
-					visibleColumnCount={columnPreferences.visibleColumns.length}
-					onToggleColumnVisibility={columnPreferences.toggleColumnVisibility}
-					onReset={columnPreferences.resetColumnPreferences}
-					onColumnDragStart={columnPreferences.handleColumnDragStart}
-					onColumnDragOver={columnPreferences.handleColumnDragOver}
-					onColumnDragEnd={columnPreferences.handleColumnDragEnd}
+				<MenuColumnConfigCard
+					open={columnConfigCardOpen}
+					onOpenChange={setColumnConfigCardOpen}
+					columns={columnConfigColumns}
+					columnOrder={columnOrder}
+					onColumnOrderChange={setColumnOrder}
+					columnsShown={columnsShown}
+					onColumnsShownChange={setColumnsShown}
+					defaultColumnOrder={defaultColumnOrder}
+					defaultColumnsShown={defaultColumnsShown}
 				/>
-
-				<UserActiveFiltersSummary items={filters.filterSummaryItems} />
-
-				{displayError != null ? (
+				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
+				{query.error != null ? (
 					<Alert variant="destructive">
 						<CircleAlertIcon />
-						<AlertTitle>{displayError.title}</AlertTitle>
-						<AlertDescription>{displayError.message}</AlertDescription>
+						<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
 					</Alert>
 				) : null}
-
-				<UserRequestsTable
-					queryResult={queryResult}
-					visibleColumns={columnPreferences.visibleColumns}
-					visibleColumnCount={columnPreferences.visibleColumns.length}
-					includeActions={false}
-					detailTriggerColumnId={detailTriggerColumnId}
-					isLoading={isLoading}
-					isMutating={false}
-					getSortDirection={queryState.getSortDirection}
-					onToggleSortField={queryState.toggleSortField}
-					onOpenDetails={setDetailRow}
-					renderUserCell={renderUserCell}
-					renderActions={renderUserActions}
+				<DashboardMenuTable
+					columns={tableConfigColumns}
+					columnsSort={columnsSort}
+					onColumnsSortChange={setColumnsSort}
+					columnOrder={columnOrder}
+					columnsShown={columnsShown}
+					rows={query.data?.docs ?? []}
+					renderCell={renderCell}
+					isLoading={query.isLoading}
 				/>
-
-				<DashboardManagementPagination
+				<MenuPagination
 					pageIndex={pageIndex}
-					totalRequests={queryResult.totalDocs}
-					hasPreviousPage={queryResult.hasPreviousPage}
-					hasNextPage={queryResult.hasNextPage}
-					isLoading={isLoading}
+					totalRequests={query.data?.totalDocs ?? 0}
+					hasPreviousPage={query.data?.hasPrevPage ?? false}
+					hasNextPage={query.data?.hasNextPage ?? false}
+					isLoading={query.isLoading}
 					isMutating={false}
 					onPrevious={() => setPageIndex(previous => Math.max(previous - 1, 1))}
 					onNext={() => setPageIndex(previous => previous + 1)}
 				/>
-			</DashboardManagementPageFrame>
-
-			<UserRequestDetailsDrawer
-				open={detailRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setDetailRow(null);
-				}}
-				row={detailRow}
-				renderActions={renderUserActions}
-				onOpenRequestChanges={setRequestChangeRow}
-				relationNavigation={{
-					getHrefBase: relationNavigation.getTargetHrefBase,
-					onRelationLinkClick: relationNavigation.onRelationLinkClick,
-					onOpenSummary: relationNavigation.openSummary
-				}}
-			/>
-
-			<UserRequestChangePreviewDrawer
-				open={requestChangeRow != null}
-				onOpenChange={open => {
-					if(!open)
-						setRequestChangeRow(null);
-				}}
-				row={requestChangeRow}
-				relationNavigation={{
-					getHrefBase: relationNavigation.getTargetHrefBase,
-					onRelationLinkClick: relationNavigation.onRelationLinkClick,
-					onOpenSummary: relationNavigation.openSummary
-				}}
-			/>
-
-			<EntrySummaryDrawer {...relationNavigation.summaryDrawerProps} />
-		</>
+				<DetailsDrawer
+					open={detailsDrawerOpen}
+					onOpenChange={setDetailsDrawerOpen}
+					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+					onOpenHistory={() => setHistoryDrawerOpen(true)}
+				/>
+				<HistoryDrawer
+					open={historyDrawerOpen}
+					onOpenChange={setHistoryDrawerOpen}
+					row={detailsDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+				/>
+				<ChangeRequestDrawer
+					open={changeRequestDrawerOpen}
+					onOpenChange={setChangeRequestDrawerOpen}
+					row={changeRequestDrawerRow}
+					rowValueRendererContext={rowValueRendererContext}
+				/>
+			</RelationNavigationProvider>
+		</MenuPage>
 	);
 }

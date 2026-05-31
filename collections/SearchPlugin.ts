@@ -1,7 +1,7 @@
 import { searchPlugin } from "@payloadcms/plugin-search";
 import { SearchPluginConfig } from "@payloadcms/plugin-search/types";
 import { convertLexicalToPlaintext } from "@payloadcms/richtext-lexical/plaintext";
-import { Field, Where, Config, executeAccess, PayloadRequest, SanitizedConfig, CollectionConfig } from "payload";
+import { Field, Where, Config, executeAccess, PayloadRequest, SanitizedConfig } from "payload";
 
 declare module "payload" {
 	export interface RequestContext {
@@ -116,7 +116,7 @@ export const SearchPlugin = (
 ) => (config: Config) => {
 	// Intercept hooks to edit req.context.syncedDocsSet to allow multiple search plugins
 	const overrideCollections = config?.collections?.map(collection => {
-		if(!enabledCollections.includes(collection.slug as any)) return collection;
+		if(!enabledCollections.includes(collection.slug)) return collection;
 		const changeCurrentSyncedDocsSet = ({ req: { context } }: { req: PayloadRequest }) => {
 			const collectionSlug = searchOverrides?.slug ?? "search";
 			const syncedDocsSetMap = context.searchPluginSyncedDocsSetMap ??= new Map() as (typeof context["searchPluginSyncedDocsSetMap"]) & object;
@@ -140,7 +140,7 @@ export const SearchPlugin = (
 					changeCurrentSyncedDocsSet
 				]
 			}
-		} as CollectionConfig;
+		};
 	});
 	config = {
 		...config,

@@ -72,12 +72,19 @@ export interface Config {
     'staged-users': StagedUser;
     roles: Role;
     teams: Team;
-    'credit-application-assignments': CreditApplicationAssignment;
-    'credit-application-imports': CreditApplicationImport;
+    accesses: Access;
     'credit-applications': CreditApplication;
-    'credit-application-field-masks': CreditApplicationFieldMask;
+    'credit-application-imports': CreditApplicationImport;
+    'credit-application-assignments': CreditApplicationAssignment;
+    'officer-tasks': OfficerTask;
     surveys: Survey;
-    'satsifaction-surveys': SatsifactionSurvey;
+    'survey-results': SurveyResult;
+    'satisfaction-surveys': SatisfactionSurvey;
+    'satisfaction-survey-results': SatisfactionSurveyResult;
+    'login-logs': LoginLog;
+    'gps-logs': GpsLog;
+    'message-logs': MessageLog;
+    'recording-logs': RecordingLog;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSync;
     search: Search;
     'payload-kv': PayloadKv;
@@ -97,12 +104,19 @@ export interface Config {
     'staged-users': StagedUsersSelect<false> | StagedUsersSelect<true>;
     roles: RolesSelect<false> | RolesSelect<true>;
     teams: TeamsSelect<false> | TeamsSelect<true>;
-    'credit-application-assignments': CreditApplicationAssignmentsSelect<false> | CreditApplicationAssignmentsSelect<true>;
-    'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
+    accesses: AccessesSelect<false> | AccessesSelect<true>;
     'credit-applications': CreditApplicationsSelect<false> | CreditApplicationsSelect<true>;
-    'credit-application-field-masks': CreditApplicationFieldMasksSelect<false> | CreditApplicationFieldMasksSelect<true>;
+    'credit-application-imports': CreditApplicationImportsSelect<false> | CreditApplicationImportsSelect<true>;
+    'credit-application-assignments': CreditApplicationAssignmentsSelect<false> | CreditApplicationAssignmentsSelect<true>;
+    'officer-tasks': OfficerTasksSelect<false> | OfficerTasksSelect<true>;
     surveys: SurveysSelect<false> | SurveysSelect<true>;
-    'satsifaction-surveys': SatsifactionSurveysSelect<false> | SatsifactionSurveysSelect<true>;
+    'survey-results': SurveyResultsSelect<false> | SurveyResultsSelect<true>;
+    'satisfaction-surveys': SatisfactionSurveysSelect<false> | SatisfactionSurveysSelect<true>;
+    'satisfaction-survey-results': SatisfactionSurveyResultsSelect<false> | SatisfactionSurveyResultsSelect<true>;
+    'login-logs': LoginLogsSelect<false> | LoginLogsSelect<true>;
+    'gps-logs': GpsLogsSelect<false> | GpsLogsSelect<true>;
+    'message-logs': MessageLogsSelect<false> | MessageLogsSelect<true>;
+    'recording-logs': RecordingLogsSelect<false> | RecordingLogsSelect<true>;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSyncsSelect<false> | DatabaseLockingPluginTransactionSyncsSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
@@ -116,11 +130,9 @@ export interface Config {
   };
   fallbackLocale: null;
   globals: {
-    'credit-application-default-field-mask': CreditApplicationDefaultFieldMask;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
-    'credit-application-default-field-mask': CreditApplicationDefaultFieldMaskSelect<false> | CreditApplicationDefaultFieldMaskSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
@@ -130,6 +142,7 @@ export interface Config {
   user: User;
   jobs: {
     tasks: {
+      OfficerTasksClearActive: TaskOfficerTasksClearActive;
       DatabaseLockingPluginTransactionSyncPrune: TaskDatabaseLockingPluginTransactionSyncPrune;
       inline: {
         input: unknown;
@@ -164,6 +177,7 @@ export interface UserAuthOperations {
 export interface GenericRichtextUpload {
   id: string;
   altText?: string | null;
+  prefix?: string | null;
   updatedAt: string;
   createdAt: string;
   deletedAt?: string | null;
@@ -227,38 +241,76 @@ export interface Role {
   name: string;
   level: 'admin' | 'manager' | 'supervisor' | 'officer';
   menus: (
-    | 'user-management-viewer'
-    | 'user-management-auditor'
-    | 'user-management-editor'
-    | 'user-management-approver'
-    | 'role-management-viewer'
-    | 'role-management-auditor'
-    | 'role-management-editor'
-    | 'role-management-approver'
-    | 'team-management-viewer'
-    | 'team-management-auditor'
-    | 'team-management-editor'
-    | 'team-management-approver'
-    | 'credit-application-management-viewer'
-    | 'credit-application-management-auditor'
-    | 'credit-application-management-editor'
-    | 'credit-application-management-approver'
-    | 'credit-application-management-import-viewer'
-    | 'credit-application-management-import-editor'
-    | 'credit-application-management-import-approver'
-    | 'credit-application-assignment-viewer'
-    | 'credit-application-assignment-auditor'
-    | 'credit-application-assignment-editor'
-    | 'credit-application-assignment-approver'
-    | 'survey-management-viewer'
-    | 'survey-management-auditor'
-    | 'survey-management-editor'
-    | 'survey-management-approver'
-    | 'satisfaction-survey-management-viewer'
-    | 'satisfaction-survey-management-auditor'
-    | 'satisfaction-survey-management-editor'
-    | 'satisfaction-survey-management-approver'
+    | 'user-management#viewer'
+    | 'user-management#auditor'
+    | 'user-management#editor'
+    | 'user-management#approver'
+    | 'role-management#viewer'
+    | 'role-management#auditor'
+    | 'role-management#editor'
+    | 'role-management#approver'
+    | 'team-management#viewer'
+    | 'team-management#auditor'
+    | 'team-management#editor'
+    | 'team-management#approver'
+    | 'access-management#viewer'
+    | 'access-management#auditor'
+    | 'access-management#editor'
+    | 'access-management#approver'
+    | 'credit-application-management#viewer'
+    | 'credit-application-management#auditor'
+    | 'credit-application-management#editor'
+    | 'credit-application-management#approver'
+    | 'credit-application-management#import-viewer'
+    | 'credit-application-management#import-editor'
+    | 'credit-application-management#import-approver'
+    | 'credit-application-assignment#viewer'
+    | 'credit-application-assignment#auditor'
+    | 'credit-application-assignment#editor'
+    | 'credit-application-assignment#approver'
+    | 'survey-management#viewer'
+    | 'survey-management#auditor'
+    | 'survey-management#editor'
+    | 'survey-management#approver'
+    | 'survey-result#monitoring'
+    | 'survey-result#reporting'
+    | 'satisfaction-survey-management#viewer'
+    | 'satisfaction-survey-management#auditor'
+    | 'satisfaction-survey-management#editor'
+    | 'satisfaction-survey-management#approver'
+    | 'satisfaction-survey-result#monitoring'
+    | 'satisfaction-survey-result#reporting'
+    | 'officer-task#monitoring'
+    | 'officer-task#reporting'
+    | 'officer-task#executor'
+    | 'officer-task#evaluator'
+    | 'officer-tracking#monitoring'
+    | 'officer-tracking#reporting'
+    | 'login-log#monitoring'
+    | 'login-log#reporting'
+    | 'message-log#monitoring'
+    | 'message-log#reporting'
+    | 'gps-log#monitoring'
+    | 'gps-log#reporting'
+    | 'recording-log#monitoring'
+    | 'recording-log#reporting'
   )[];
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -297,6 +349,22 @@ export interface StagedUser {
   name: string;
   employeeId: string;
   supervisor?: (string | null) | User;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -331,7 +399,23 @@ export interface Team {
   deletedBy?: (string | null) | User;
   name: string;
   supervisor: string | User;
-  officers: (string | User)[];
+  members: (string | User)[];
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -354,9 +438,9 @@ export interface Team {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-assignments".
+ * via the `definition` "accesses".
  */
-export interface CreditApplicationAssignment {
+export interface Access {
   id: string;
   createdAt: string;
   createdBy?: (string | null) | User;
@@ -364,8 +448,103 @@ export interface CreditApplicationAssignment {
   updatedBy?: (string | null) | User;
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
-  creditApplication: string | CreditApplication;
-  officer: string | User;
+  name: string;
+  description?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  enabled: boolean;
+  priority: number;
+  operation: 'union' | 'difference' | 'intersect' | 'exclusion';
+  subjectUserFilters?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  subjectTeamFilters?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  subjectRoleFilters?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  collection:
+    | 'staged-users'
+    | 'roles'
+    | 'teams'
+    | 'accesses'
+    | 'credit-applications'
+    | 'credit-application-imports'
+    | 'credit-application-assignments'
+    | 'officer-tasks'
+    | 'surveys'
+    | 'survey-results'
+    | 'satisfaction-surveys'
+    | 'satisfaction-survey-results'
+    | 'login-logs'
+    | 'gps-logs'
+    | 'message-logs'
+    | 'recording-logs';
+  filters:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  masks:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -398,7 +577,7 @@ export interface CreditApplication {
   updatedBy?: (string | null) | User;
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
-  import: string | CreditApplicationImport;
+  import?: (string | null) | CreditApplicationImport;
   name: string;
   email?: string | null;
   addresses: string[];
@@ -474,6 +653,22 @@ export interface CreditApplication {
     | number
     | boolean
     | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -544,6 +739,7 @@ export interface CreditApplicationImport {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  prefix?: string | null;
   url?: string | null;
   thumbnailURL?: string | null;
   filename?: string | null;
@@ -556,9 +752,9 @@ export interface CreditApplicationImport {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-field-masks".
+ * via the `definition` "credit-application-assignments".
  */
-export interface CreditApplicationFieldMask {
+export interface CreditApplicationAssignment {
   id: string;
   createdAt: string;
   createdBy?: (string | null) | User;
@@ -567,19 +763,54 @@ export interface CreditApplicationFieldMask {
   deletedAt?: string | null;
   deletedBy?: (string | null) | User;
   creditApplication: string | CreditApplication;
-  maskName?: boolean | null;
-  maskEmail?: boolean | null;
-  maskAddresses?: boolean | null;
-  maskPhoneNumbers?: boolean | null;
-  maskWhatsappNumber?: boolean | null;
-  maskSmsNumber?: boolean | null;
-  maskRemarks?: boolean | null;
-  maskOtherText1?: boolean | null;
-  maskOtherText2?: boolean | null;
-  maskOtherNumber1?: boolean | null;
-  maskOtherNumber2?: boolean | null;
-  maskOtherDate1?: boolean | null;
-  maskOtherDate2?: boolean | null;
+  officer: string | User;
+  survey: string | Survey;
+  satisfactionSurvey: string | SatisfactionSurvey;
+  assignedDate?: string | null;
+  dueDate?: string | null;
+  geofenceRegions?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  reviewedAt?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewApproved?: boolean | null;
+  reviewComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -619,6 +850,22 @@ export interface Survey {
     | number
     | boolean
     | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -641,9 +888,9 @@ export interface Survey {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "satsifaction-surveys".
+ * via the `definition` "satisfaction-surveys".
  */
-export interface SatsifactionSurvey {
+export interface SatisfactionSurvey {
   id: string;
   createdAt: string;
   createdBy?: (string | null) | User;
@@ -676,6 +923,22 @@ export interface SatsifactionSurvey {
     | number
     | boolean
     | null;
+  changeRequestType: 'create' | 'update' | 'delete';
+  changeRequestComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
   reviewedAt?: string | null;
   reviewedBy?: (string | null) | User;
   reviewApproved?: boolean | null;
@@ -695,6 +958,163 @@ export interface SatsifactionSurvey {
     [k: string]: unknown;
   } | null;
   _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "officer-tasks".
+ */
+export interface OfficerTask {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  creditApplicationAssignment: string | CreditApplicationAssignment;
+  creditApplicationAssignmentVersion: string;
+  next?: (string | null) | OfficerTask;
+  settledAt?: string | null;
+  settlementStatus?: ('finished' | 'cancelled') | null;
+  settlementComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  evaluatedAt?: string | null;
+  evaluatedBy?: (string | null) | User;
+  evaluationApproved?: boolean | null;
+  evaluationComment?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  deletedAt?: string | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "survey-results".
+ */
+export interface SurveyResult {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  survey: string | Survey;
+  surveyVersion: string;
+  officerTask?: (string | null) | OfficerTask;
+  answers:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satisfaction-survey-results".
+ */
+export interface SatisfactionSurveyResult {
+  id: string;
+  createdAt: string;
+  createdBy?: (string | null) | User;
+  updatedAt: string;
+  updatedBy?: (string | null) | User;
+  deletedAt?: string | null;
+  deletedBy?: (string | null) | User;
+  satisfactionSurvey: string | SatisfactionSurvey;
+  satisfactionSurveyVersion: string;
+  officerTask?: (string | null) | OfficerTask;
+  answers:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs".
+ */
+export interface LoginLog {
+  id: string;
+  createdAt: string;
+  ipAddress: string;
+  user?: (string | null) | User;
+  event: 'login' | 'logout';
+  outcome?: ('success' | 'failure') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gps-logs".
+ */
+export interface GpsLog {
+  id: string;
+  createdAt: string;
+  user: string | User;
+  sessionId: string;
+  officerTask?: (string | null) | OfficerTask;
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "message-logs".
+ */
+export interface MessageLog {
+  id: string;
+  createdAt: string;
+  officerTask?: (string | null) | OfficerTask;
+  content: string;
+  email?: string | null;
+  whatsappNumber?: string | null;
+  smsNumber?: string | null;
+  emailDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
+  whatsappDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
+  smsDeliveryStatus?: ('sent' | 'failed' | 'pending') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "recording-logs".
+ */
+export interface RecordingLog {
+  id: string;
+  createdAt: string;
+  officerTask?: (string | null) | OfficerTask;
+  phoneNumber: string;
+  audioUrl?: string | null;
+  transcriptionUrl?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -826,7 +1246,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'DatabaseLockingPluginTransactionSyncPrune';
+        taskSlug: 'inline' | 'OfficerTasksClearActive' | 'DatabaseLockingPluginTransactionSyncPrune';
         taskID: string;
         input?:
           | {
@@ -859,7 +1279,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'DatabaseLockingPluginTransactionSyncPrune') | null;
+  taskSlug?: ('inline' | 'OfficerTasksClearActive' | 'DatabaseLockingPluginTransactionSyncPrune') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -903,28 +1323,56 @@ export interface PayloadLockedDocument {
         value: string | Team;
       } | null)
     | ({
-        relationTo: 'credit-application-assignments';
-        value: string | CreditApplicationAssignment;
-      } | null)
-    | ({
-        relationTo: 'credit-application-imports';
-        value: string | CreditApplicationImport;
+        relationTo: 'accesses';
+        value: string | Access;
       } | null)
     | ({
         relationTo: 'credit-applications';
         value: string | CreditApplication;
       } | null)
     | ({
-        relationTo: 'credit-application-field-masks';
-        value: string | CreditApplicationFieldMask;
+        relationTo: 'credit-application-imports';
+        value: string | CreditApplicationImport;
+      } | null)
+    | ({
+        relationTo: 'credit-application-assignments';
+        value: string | CreditApplicationAssignment;
+      } | null)
+    | ({
+        relationTo: 'officer-tasks';
+        value: string | OfficerTask;
       } | null)
     | ({
         relationTo: 'surveys';
         value: string | Survey;
       } | null)
     | ({
-        relationTo: 'satsifaction-surveys';
-        value: string | SatsifactionSurvey;
+        relationTo: 'survey-results';
+        value: string | SurveyResult;
+      } | null)
+    | ({
+        relationTo: 'satisfaction-surveys';
+        value: string | SatisfactionSurvey;
+      } | null)
+    | ({
+        relationTo: 'satisfaction-survey-results';
+        value: string | SatisfactionSurveyResult;
+      } | null)
+    | ({
+        relationTo: 'login-logs';
+        value: string | LoginLog;
+      } | null)
+    | ({
+        relationTo: 'gps-logs';
+        value: string | GpsLog;
+      } | null)
+    | ({
+        relationTo: 'message-logs';
+        value: string | MessageLog;
+      } | null)
+    | ({
+        relationTo: 'recording-logs';
+        value: string | RecordingLog;
       } | null)
     | ({
         relationTo: 'database-locking-plugin-transaction-syncs';
@@ -982,6 +1430,7 @@ export interface PayloadMigration {
  */
 export interface GenericRichtextUploadsSelect<T extends boolean = true> {
   altText?: T;
+  prefix?: T;
   updatedAt?: T;
   createdAt?: T;
   deletedAt?: T;
@@ -1046,6 +1495,8 @@ export interface StagedUsersSelect<T extends boolean = true> {
   name?: T;
   employeeId?: T;
   supervisor?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1066,6 +1517,8 @@ export interface RolesSelect<T extends boolean = true> {
   name?: T;
   level?: T;
   menus?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1085,7 +1538,9 @@ export interface TeamsSelect<T extends boolean = true> {
   deletedBy?: T;
   name?: T;
   supervisor?: T;
-  officers?: T;
+  members?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1094,49 +1549,33 @@ export interface TeamsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-assignments_select".
+ * via the `definition` "accesses_select".
  */
-export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
+export interface AccessesSelect<T extends boolean = true> {
   createdAt?: T;
   createdBy?: T;
   updatedAt?: T;
   updatedBy?: T;
   deletedAt?: T;
   deletedBy?: T;
-  creditApplication?: T;
-  officer?: T;
-  reviewedAt?: T;
-  reviewedBy?: T;
-  reviewApproved?: T;
-  reviewComment?: T;
-  _status?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-imports_select".
- */
-export interface CreditApplicationImportsSelect<T extends boolean = true> {
-  createdAt?: T;
-  createdBy?: T;
-  updatedAt?: T;
-  updatedBy?: T;
-  deletedAt?: T;
-  deletedBy?: T;
+  name?: T;
   description?: T;
+  enabled?: T;
+  priority?: T;
+  operation?: T;
+  subjectUserFilters?: T;
+  subjectTeamFilters?: T;
+  subjectRoleFilters?: T;
+  collection?: T;
+  filters?: T;
+  masks?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
   reviewComment?: T;
-  creditApplications?: T;
-  url?: T;
-  thumbnailURL?: T;
-  filename?: T;
-  mimeType?: T;
-  filesize?: T;
-  width?: T;
-  height?: T;
-  focalX?: T;
-  focalY?: T;
+  _status?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1175,6 +1614,8 @@ export interface CreditApplicationsSelect<T extends boolean = true> {
   otherDate1?: T;
   otherDate2?: T;
   others?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1183,9 +1624,37 @@ export interface CreditApplicationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-field-masks_select".
+ * via the `definition` "credit-application-imports_select".
  */
-export interface CreditApplicationFieldMasksSelect<T extends boolean = true> {
+export interface CreditApplicationImportsSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  description?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  creditApplications?: T;
+  prefix?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "credit-application-assignments_select".
+ */
+export interface CreditApplicationAssignmentsSelect<T extends boolean = true> {
   createdAt?: T;
   createdBy?: T;
   updatedAt?: T;
@@ -1193,19 +1662,40 @@ export interface CreditApplicationFieldMasksSelect<T extends boolean = true> {
   deletedAt?: T;
   deletedBy?: T;
   creditApplication?: T;
-  maskName?: T;
-  maskEmail?: T;
-  maskAddresses?: T;
-  maskPhoneNumbers?: T;
-  maskWhatsappNumber?: T;
-  maskSmsNumber?: T;
-  maskRemarks?: T;
-  maskOtherText1?: T;
-  maskOtherText2?: T;
-  maskOtherNumber1?: T;
-  maskOtherNumber2?: T;
-  maskOtherDate1?: T;
-  maskOtherDate2?: T;
+  officer?: T;
+  survey?: T;
+  satisfactionSurvey?: T;
+  assignedDate?: T;
+  dueDate?: T;
+  geofenceRegions?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
+  reviewedAt?: T;
+  reviewedBy?: T;
+  reviewApproved?: T;
+  reviewComment?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "officer-tasks_select".
+ */
+export interface OfficerTasksSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  creditApplicationAssignment?: T;
+  creditApplicationAssignmentVersion?: T;
+  next?: T;
+  settledAt?: T;
+  settlementStatus?: T;
+  settlementComment?: T;
+  evaluatedAt?: T;
+  evaluatedBy?: T;
+  evaluationApproved?: T;
+  evaluationComment?: T;
+  deletedAt?: T;
   _status?: T;
 }
 /**
@@ -1222,6 +1712,8 @@ export interface SurveysSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   content?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
@@ -1230,9 +1722,26 @@ export interface SurveysSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "satsifaction-surveys_select".
+ * via the `definition` "survey-results_select".
  */
-export interface SatsifactionSurveysSelect<T extends boolean = true> {
+export interface SurveyResultsSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  survey?: T;
+  surveyVersion?: T;
+  officerTask?: T;
+  answers?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satisfaction-surveys_select".
+ */
+export interface SatisfactionSurveysSelect<T extends boolean = true> {
   createdAt?: T;
   createdBy?: T;
   updatedAt?: T;
@@ -1242,11 +1751,80 @@ export interface SatsifactionSurveysSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   content?: T;
+  changeRequestType?: T;
+  changeRequestComment?: T;
   reviewedAt?: T;
   reviewedBy?: T;
   reviewApproved?: T;
   reviewComment?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "satisfaction-survey-results_select".
+ */
+export interface SatisfactionSurveyResultsSelect<T extends boolean = true> {
+  createdAt?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  updatedBy?: T;
+  deletedAt?: T;
+  deletedBy?: T;
+  satisfactionSurvey?: T;
+  satisfactionSurveyVersion?: T;
+  officerTask?: T;
+  answers?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-logs_select".
+ */
+export interface LoginLogsSelect<T extends boolean = true> {
+  createdAt?: T;
+  ipAddress?: T;
+  user?: T;
+  event?: T;
+  outcome?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gps-logs_select".
+ */
+export interface GpsLogsSelect<T extends boolean = true> {
+  createdAt?: T;
+  user?: T;
+  sessionId?: T;
+  officerTask?: T;
+  latitude?: T;
+  longitude?: T;
+  accuracy?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "message-logs_select".
+ */
+export interface MessageLogsSelect<T extends boolean = true> {
+  createdAt?: T;
+  officerTask?: T;
+  content?: T;
+  email?: T;
+  whatsappNumber?: T;
+  smsNumber?: T;
+  emailDeliveryStatus?: T;
+  whatsappDeliveryStatus?: T;
+  smsDeliveryStatus?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "recording-logs_select".
+ */
+export interface RecordingLogsSelect<T extends boolean = true> {
+  createdAt?: T;
+  officerTask?: T;
+  phoneNumber?: T;
+  audioUrl?: T;
+  transcriptionUrl?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1351,30 +1929,6 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-default-field-mask".
- */
-export interface CreditApplicationDefaultFieldMask {
-  id: string;
-  updatedAt: string;
-  updatedBy?: (string | null) | User;
-  maskName: boolean;
-  maskEmail: boolean;
-  maskAddresses: boolean;
-  maskPhoneNumbers: boolean;
-  maskWhatsappNumber: boolean;
-  maskSmsNumber: boolean;
-  maskRemarks: boolean;
-  maskOtherText1: boolean;
-  maskOtherText2: boolean;
-  maskOtherNumber1: boolean;
-  maskOtherNumber2: boolean;
-  maskOtherDate1: boolean;
-  maskOtherDate2: boolean;
-  _status?: ('draft' | 'published') | null;
-  createdAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -1390,30 +1944,6 @@ export interface PayloadJobsStat {
     | null;
   updatedAt?: string | null;
   createdAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "credit-application-default-field-mask_select".
- */
-export interface CreditApplicationDefaultFieldMaskSelect<T extends boolean = true> {
-  updatedAt?: T;
-  updatedBy?: T;
-  maskName?: T;
-  maskEmail?: T;
-  maskAddresses?: T;
-  maskPhoneNumbers?: T;
-  maskWhatsappNumber?: T;
-  maskSmsNumber?: T;
-  maskRemarks?: T;
-  maskOtherText1?: T;
-  maskOtherText2?: T;
-  maskOtherNumber1?: T;
-  maskOtherNumber2?: T;
-  maskOtherDate1?: T;
-  maskOtherDate2?: T;
-  _status?: T;
-  createdAt?: T;
-  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1434,6 +1964,14 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskOfficerTasksClearActive".
+ */
+export interface TaskOfficerTasksClearActive {
+  input?: unknown;
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
