@@ -3,10 +3,12 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
-import { CircleAlertIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, CircleAlertIcon } from "lucide-react";
 
+import { getRelationshipId } from "@/utils/payload";
 import { RichTextInput } from "@/components/RichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
@@ -17,9 +19,18 @@ import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, 
 import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { queryEvaluatorAction } from "./evaluator.actions";
-import { RelationValues, getDetailsAction } from "./layout.actions";
-import { settlementStatusSelectOptions } from "./layout.shared";
+import { RelationValues, getDetailsAction, queryEvaluatorAction } from "./evaluator.actions";
+import { officerTaskStatusLabels, computeOfficerTaskStatus, settlementStatusSelectOptions } from "./layout.shared";
+
+export const defaultStatusRenderer = () =>
+	(_: unknown, row: ColumnData, ctx: RowValueRendererContext) => {
+		const status = computeOfficerTaskStatus({
+			row: row,
+			isActive: ctx.activeIds?.includes(row.id) ?? false,
+			dueDate: row.creditApplicationAssignmentDueDate ?? null
+		});
+		return (<Badge variant={status == "approved" ? "default" : status == "rejected" || status == "cancelled" || status == "stale" ? "destructive" : status == "active" ? "default" : "secondary"}>{officerTaskStatusLabels[status]}</Badge>);
+	};
 
 export type ColumnData = Awaited<ReturnType<typeof queryEvaluatorAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -30,7 +41,6 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "updatedBy", label: "Updated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment", type: "relation", relationFilterConfigColumn: () => ["Credit Application Assignment", creditApplicationAssignmentFilterConfigColumns] },
 	{ key: "creditApplicationAssignmentVersion", label: "Credit Application Assignment Version", type: "text" },
-	{ key: "next", label: "Next", type: "relation", relationSearch: searchRelationOfficerTasksAction },
 	{ key: "settledAt", label: "Settled At", type: "date" },
 	{ key: "settlementStatus", label: "Settlement Status", type: "select", selectOptions: settlementStatusSelectOptions },
 	{ key: "evaluatedAt", label: "Evaluated At", type: "date" },
@@ -49,6 +59,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "settledAt", label: "Settled At" },
 	{ key: "settlementStatus", label: "Settlement Status" },
 	{ key: "settlementComment", label: "Settlement Comment" },
+	{ key: "#status", label: "Status" },
 	{ key: "evaluatedAt", label: "Evaluated At" },
 	{ key: "evaluatedBy", label: "Evaluated By" },
 	{ key: "evaluationApproved", label: "Evaluation Approved" },
@@ -66,6 +77,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "settledAt", label: "Settled At", sortable: true },
 	{ key: "settlementStatus", label: "Settlement Status", sortable: true },
 	{ key: "settlementComment", label: "Settlement Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ key: "#status", label: "Status", sortable: false },
 	{ key: "evaluatedAt", label: "Evaluated At", sortable: true },
 	{ key: "evaluatedBy", label: "Evaluated By", sortable: false },
 	{ key: "evaluationApproved", label: "Evaluation Approved", sortable: true },
@@ -83,6 +95,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "settledAt", type: "date" },
 	{ key: "settlementStatus", type: "select", selectOptions: settlementStatusSelectOptions },
 	{ key: "settlementComment", type: "richText" },
+	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "evaluatedAt", type: "date" },
 	{ key: "evaluatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Evaluated By", relationSource: "officer-tasks.evaluatedBy" }) },
 	{ key: "evaluationApproved", type: "boolean" },
@@ -90,6 +103,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;
+	activeIds?: string[];
 	isMutating?: boolean;
 	setEvaluateDrawerRow?: (v: ColumnData | null) => void;
 	setEvaluateDrawerOpen?: (v: boolean) => void;
@@ -101,6 +115,7 @@ export const eligibleDetailsTriggerColumns = Object.freeze([
 	"creditApplicationAssignmentVersion",
 	"settledAt",
 	"settlementStatus",
+	"#status",
 	"evaluatedAt",
 	"evaluationApproved"
 ]);
@@ -113,6 +128,7 @@ export const defaultColumnOrder = Object.freeze([
 	"settledAt",
 	"settlementStatus",
 	"settlementComment",
+	"#status",
 	"evaluatedAt",
 	"evaluatedBy",
 	"evaluationApproved",
@@ -128,6 +144,7 @@ export const defaultColumnsShown = Object.freeze([
 	"creditApplicationAssignmentVersion",
 	"settledAt",
 	"settlementStatus",
+	"#status",
 	"evaluatedAt",
 	"evaluationApproved",
 	"updatedAt"
@@ -137,8 +154,8 @@ export const defaultColumnsSort = Object.freeze([
 ]) as [string, boolean][];
 
 export function DetailsDrawer(
-	{ open, onOpenChange, row, rowValueRendererContext, renderActions }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode }
+	{ open, onOpenChange, row, rowValueRendererContext, renderActions, onChainNavigate }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode, onChainNavigate?: (id: string) => void }
 ) {
 	const query = useQuery({
 		queryKey: ["officer-task", "details", row?.id ?? null],
@@ -151,11 +168,14 @@ export function DetailsDrawer(
 		columns: drawerValueRendererConfigColumns,
 		context: {
 			...rowValueRendererContext,
-			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations },
+			activeIds: query.data?.activeIds ?? rowValueRendererContext.activeIds
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
 		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+	const previousId = query.data?.row.previous ?? null;
+	const nextId = getRelationshipId(query.data?.row.next);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -164,6 +184,28 @@ export function DetailsDrawer(
 					<DrawerDescription>Review all available columns for this officer task entry.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+					{onChainNavigate != null ? (
+						<div className="flex items-center gap-2">
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								disabled={previousId == null || query.isFetching}
+								onClick={() => { if(previousId != null) onChainNavigate(previousId); }}
+							>
+								<ArrowLeftIcon />Previous
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								disabled={nextId == null || query.isFetching}
+								onClick={() => { if(nextId != null) onChainNavigate(nextId); }}
+							>
+								<ArrowRightIcon />Next
+							</Button>
+						</div>
+					) : null}
 					{row == null ? (
 						<p className="text-muted-foreground text-sm">
 							No officer task selected.
@@ -177,12 +219,8 @@ export function DetailsDrawer(
 					) : query.isError || query.data == null ? (
 						<Alert variant="destructive">
 							<CircleAlertIcon />
-							<AlertTitle>
-								{`${query.error?.name ?? "Error"}`}
-							</AlertTitle>
-							<AlertDescription>
-								{`${query.error?.message ?? "Unable to load officer task details."}`}
-							</AlertDescription>
+							<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+							<AlertDescription>{`${query.error?.message ?? "Unable to load officer task details."}`}</AlertDescription>
 						</Alert>
 					) : (
 						drawerValueRendererConfigColumns.map(column => (
@@ -199,14 +237,13 @@ export function DetailsDrawer(
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
 						Close
 					</Button>
-					{row != null && renderActions != null ? (
-						renderActions(row)
-					) : null}
+					{row != null && renderActions != null ? renderActions(row) : null}
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
 	);
 }
+
 export function EvaluateDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext, evaluationComment, onEvaluationCommentChange, onApprove, onReject, mutationError, isMutating = false }:
 	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, evaluationComment: SerializedEditorState, onEvaluationCommentChange: (v: SerializedEditorState) => void, onApprove: () => void, onReject: () => void, mutationError?: any, isMutating?: boolean }
@@ -222,7 +259,8 @@ export function EvaluateDrawer(
 		columns: drawerValueRendererConfigColumns,
 		context: {
 			...rowValueRendererContext,
-			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations },
+			activeIds: query.data?.activeIds ?? rowValueRendererContext.activeIds
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
@@ -232,7 +270,7 @@ export function EvaluateDrawer(
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
 				<DrawerHeader>
 					<DrawerTitle>Evaluate</DrawerTitle>
-					<DrawerDescription>Review the officer task details before making an evaluation decision.</DrawerDescription>
+					<DrawerDescription>Review the officer task details before making an evaluation decision. The evaluation acts on the latest officer task in the chain (where next is null).</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 space-y-4 overflow-y-auto px-4 pb-4">
 					{row == null ? (
@@ -282,8 +320,8 @@ export function EvaluateDrawer(
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
-					<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || query.data == null}>Approve</Button>
-					<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || query.data == null}>Reject</Button>
+					<Button type="button" variant="default" onClick={onApprove} disabled={isMutating || query.data == null || query.data?.row.evaluationApproved == true || query.data?.row.evaluationApproved == false}>Approve</Button>
+					<Button type="button" variant="destructive" onClick={onReject} disabled={isMutating || query.data == null || query.data?.row.evaluationApproved == false}>Reject</Button>
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>

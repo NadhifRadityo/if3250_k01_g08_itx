@@ -146,6 +146,7 @@ export interface Config {
   user: User;
   jobs: {
     tasks: {
+      OfficerTasksClearActive: TaskOfficerTasksClearActive;
       DatabaseLockingPluginTransactionSyncPrune: TaskDatabaseLockingPluginTransactionSyncPrune;
       inline: {
         input: unknown;
@@ -1283,7 +1284,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'DatabaseLockingPluginTransactionSyncPrune';
+        taskSlug: 'inline' | 'OfficerTasksClearActive' | 'DatabaseLockingPluginTransactionSyncPrune';
         taskID: string;
         input?:
           | {
@@ -1316,7 +1317,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'DatabaseLockingPluginTransactionSyncPrune') | null;
+  taskSlug?: ('inline' | 'OfficerTasksClearActive' | 'DatabaseLockingPluginTransactionSyncPrune') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -2041,6 +2042,14 @@ export interface CollectionsWidget {
     [k: string]: unknown;
   };
   width: 'full';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskOfficerTasksClearActive".
+ */
+export interface TaskOfficerTasksClearActive {
+  input?: unknown;
+  output?: unknown;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -2,17 +2,71 @@
 
 import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { XIcon, PlusIcon, PencilIcon, HistoryIcon, CircleAlertIcon } from "lucide-react";
+import {
+	XIcon,
+	FlagIcon,
+	PlayIcon,
+	SendIcon,
+	UndoIcon,
+	KeyRoundIcon,
+	StopCircleIcon,
+	CircleAlertIcon,
+	ExternalLinkIcon
+} from "lucide-react";
 
+import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
-import { Switch } from "@/components/radix/Switch";
 
-import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
+import {
+	MenuPage,
+	MenuToolbar,
+	MenuPagination,
+	MenuFilterState,
+	useConfigStorage,
+	MenuFilterSummary,
+	DashboardMenuTable,
+	MenuColumnConfigCard,
+	MenuFilterConfigCard,
+	useMenuRowValueRenderer
+} from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
-import { cancelAction, upsertAction, restoreAction, queryExecutorAction } from "../executor.actions";
-import { type FormState } from "../executor.actions";
-import { ColumnData, FormDrawer, toFormState, CancelDialog, DetailsDrawer, RestoreDialog, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../executor.components";
+import {
+	cancelAction,
+	finishAction,
+	activateAction,
+	inputOtpAction,
+	getActiveAction,
+	getDetailsAction,
+	undoFinishAction,
+	clearActiveAction,
+	queryExecutorAction,
+	sendOtpMessageAction,
+	sendSatisfactionSurveyMessageAction
+} from "../executor.actions";
+import {
+	ColumnData,
+	CancelDialog,
+	FinishDialog,
+	DetailsDrawer,
+	SendOtpDialog,
+	ActivateDialog,
+	InputOtpDialog,
+	UndoFinishDialog,
+	ClearActiveDialog,
+	defaultColumnOrder,
+	defaultColumnsSort,
+	tableConfigColumns,
+	columnConfigColumns,
+	defaultColumnsShown,
+	filterConfigColumns,
+	GeofenceWarningDialog,
+	ActivateLocationButton,
+	SendSatisfactionSurveyDialog,
+	eligibleDetailsTriggerColumns,
+	rowValueRendererConfigColumns
+} from "../executor.components";
+import { computeOfficerTaskStatus } from "../layout.shared";
 
 const columnConfigColumnsWithActions = Object.freeze([
 	...columnConfigColumns,
@@ -24,34 +78,66 @@ const tableConfigColumnsWithActions = Object.freeze([
 ]);
 const rowValueRendererConfigColumnsWithActions = Object.freeze([
 	...rowValueRendererConfigColumns,
-	{ key: "#actions", type: "null", render: (_, row, { isMutating, setEditFormDrawerState, setEditFormDrawerOpen, setCancelTargetRow, setRestoreTargetRow }) => (
-		<>
-			{row.deletedAt == null && row.evaluatedAt == null ? (
-				<Button
-					type="button"
-					size="sm"
-					variant="outline"
-					onClick={() => { setEditFormDrawerState!(toFormState(row)); setEditFormDrawerOpen!(true); }}
-					disabled={isMutating}
-				>
-					<PencilIcon />
-					Edit
-				</Button>
-			) : null}
-			{row.deletedAt == null && row.evaluatedAt == null && row.settledAt == null ? (
-				<Button type="button" size="sm" variant="destructive" onClick={() => setCancelTargetRow!(row)} disabled={isMutating}>
-					<XIcon />
-					Cancel
-				</Button>
-			) : null}
-			{row.deletedAt == null && row.evaluatedAt == null && row.settlementStatus == "cancelled" ? (
-				<Button type="button" size="sm" variant="secondary" onClick={() => setRestoreTargetRow!(row)} disabled={isMutating}>
-					<HistoryIcon />
-					Restore
-				</Button>
-			) : null}
-		</>
-	) } satisfies (typeof rowValueRendererConfigColumns)[number]
+	{ key: "#actions", type: "null", render: (_, row, { activeOfficerTask, isMutating, onActivate, onClearActive, onSendOtp, onInputOtp, onFillSurvey, onFinish, onUndoFinish, onCancel, onSendSatisfactionSurvey }) => {
+		const isActive = activeOfficerTask?.id == row.id;
+		const otpEntered = isActive && (activeOfficerTask?.otpEntered ?? false);
+		const status = computeOfficerTaskStatus({
+			row: row,
+			isActive: isActive,
+			dueDate: row.creditApplicationAssignmentDueDate ?? null
+		});
+		const isPending = status == "pending" || status == "stale" || status == "active";
+		const isSettledFinished = row.settlementStatus == "finished" && row.evaluatedAt == null;
+		return (
+			<>
+				{isPending && !isActive ? (
+					<Button type="button" size="sm" variant="default" onClick={() => onActivate?.(row)} disabled={isMutating}>
+						<PlayIcon />Activate
+					</Button>
+				) : null}
+				{isActive ? (
+					<Button type="button" size="sm" variant="outline" onClick={() => onClearActive?.(row)} disabled={isMutating}>
+						<StopCircleIcon />Clear Active
+					</Button>
+				) : null}
+				{isActive && !otpEntered ? (
+					<>
+						<Button type="button" size="sm" variant="outline" onClick={() => onSendOtp?.(row)} disabled={isMutating}>
+							<SendIcon />Send OTP
+						</Button>
+						<Button type="button" size="sm" variant="outline" onClick={() => onInputOtp?.(row)} disabled={isMutating}>
+							<KeyRoundIcon />Input OTP
+						</Button>
+					</>
+				) : null}
+				{isActive && otpEntered && !row.hasSurveyResult ? (
+					<Button type="button" size="sm" variant="outline" onClick={() => onFillSurvey?.(row)} disabled={isMutating}>
+						<ExternalLinkIcon />Fill Survey
+					</Button>
+				) : null}
+				{row.hasSurveyResult && row.settledAt == null ? (
+					<Button type="button" size="sm" variant="default" onClick={() => onFinish?.(row)} disabled={isMutating}>
+						<FlagIcon />Finish
+					</Button>
+				) : null}
+				{isSettledFinished ? (
+					<Button type="button" size="sm" variant="outline" onClick={() => onUndoFinish?.(row)} disabled={isMutating}>
+						<UndoIcon />Undo Finish
+					</Button>
+				) : null}
+				{isPending ? (
+					<Button type="button" size="sm" variant="destructive" onClick={() => onCancel?.(row)} disabled={isMutating}>
+						<XIcon />Cancel
+					</Button>
+				) : null}
+				{row.settlementStatus == "finished" && !row.hasSatisfactionSurveyResult ? (
+					<Button type="button" size="sm" variant="outline" onClick={() => onSendSatisfactionSurvey?.(row)} disabled={isMutating}>
+						<SendIcon />Send Satisfaction Survey
+					</Button>
+				) : null}
+			</>
+		);
+	} } satisfies (typeof rowValueRendererConfigColumns)[number]
 ]);
 const defaultColumnOrderWithActions = Object.freeze([
 	...defaultColumnOrder,
@@ -64,71 +150,74 @@ const defaultColumnsShownWithActions = Object.freeze([
 
 export default function Page() {
 	const queryClient = useQueryClient();
-	const { user } = useDashboardContext();
 	const [keyword, setKeyword] = useState("");
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "officer-task.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "officer-task.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
 	const [filters, setFilters] = useConfigStorage({ localStorageKey: "officer-task.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
-	const [includeDeleted, setIncludeDeleted] = useConfigStorage({ localStorageKey: "officer-task.include-deleted", updateIfThisSearhParamExists: "includeDeleted", defaultValue: false });
 	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-task.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["officer-task", "executor", {
-			keyword,
-			filters,
-			columnsSort,
-			includeDeleted,
-			pageIndex
-		}],
+		queryKey: ["officer-task", "executor", { keyword, filters, columnsSort, pageIndex }],
 		queryFn: async () => await queryExecutorAction({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
-			includeDeleted: includeDeleted,
 			pageIndex: pageIndex
 		})
 	});
+	const activeQuery = useQuery({
+		queryKey: ["officer-task", "active"],
+		queryFn: async () => await getActiveAction(),
+		refetchInterval: 30000,
+		refetchOnWindowFocus: true
+	});
 	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
 	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
-	const [editFormDrawerState, setEditFormDrawerState] = useState({} as FormState);
-	const [editFormDrawerOpen, setEditFormDrawerOpen] = useState(false);
-	const [addFormDrawerState, setAddFormDrawerState] = useState({} as FormState);
-	const [addFormDrawerOpen, setAddFormDrawerOpen] = useState(false);
-	const [isMutating, startMutationTransition] = useTransition();
-	const [genericMutationError, setGenericMutationError] = useState(null as any);
-	const [editFormMutationError, setEditFormMutationError] = useState(null as any);
-	const [addFormMutationError, setAddFormMutationError] = useState(null as any);
+	const [activateTargetRow, setActivateTargetRow] = useState(null as ColumnData | null);
+	const [clearActiveTargetRow, setClearActiveTargetRow] = useState(null as ColumnData | null);
+	const [sendOtpTargetRow, setSendOtpTargetRow] = useState(null as ColumnData | null);
+	const [inputOtpTargetRow, setInputOtpTargetRow] = useState(null as ColumnData | null);
+	const [inputOtpValue, setInputOtpValue] = useState("");
+	const [finishTargetRow, setFinishTargetRow] = useState(null as ColumnData | null);
+	const [finishSettlementComment, setFinishSettlementComment] = useState(lexicalPlainText(""));
+	const [undoFinishTargetRow, setUndoFinishTargetRow] = useState(null as ColumnData | null);
 	const [cancelTargetRow, setCancelTargetRow] = useState(null as ColumnData | null);
-	const [restoreTargetRow, setRestoreTargetRow] = useState(null as ColumnData | null);
+	const [cancelSettlementComment, setCancelSettlementComment] = useState(lexicalPlainText(""));
+	const [sendSatisfactionSurveyTargetRow, setSendSatisfactionSurveyTargetRow] = useState(null as ColumnData | null);
+	const [geofenceWarningOpen, setGeofenceWarningOpen] = useState(false);
+	const [genericMutationError, setGenericMutationError] = useState(null as any);
+	const [inputOtpMutationError, setInputOtpMutationError] = useState(null as any);
+	const [finishMutationError, setFinishMutationError] = useState(null as any);
+	const [cancelMutationError, setCancelMutationError] = useState(null as any);
+	const [isMutating, startMutationTransition] = useTransition();
 	const rowValueRendererContext = {
 		relationValues: query.data?.relations,
+		activeOfficerTask: activeQuery.data,
 		isMutating: isMutating,
-		setEditFormDrawerState: setEditFormDrawerState,
-		setEditFormDrawerOpen: setEditFormDrawerOpen,
-		setCancelTargetRow: setCancelTargetRow,
-		setRestoreTargetRow: setRestoreTargetRow
+		onActivate: setActivateTargetRow,
+		onClearActive: setClearActiveTargetRow,
+		onSendOtp: setSendOtpTargetRow,
+		onInputOtp: (row: ColumnData) => { setInputOtpTargetRow(row); setInputOtpValue(""); setInputOtpMutationError(null); },
+		onFillSurvey: (row: ColumnData) => { window.open(`/fill-survey/${row.id}`, "_blank"); },
+		onFinish: (row: ColumnData) => { setFinishTargetRow(row); setFinishSettlementComment(lexicalPlainText("")); setFinishMutationError(null); },
+		onUndoFinish: setUndoFinishTargetRow,
+		onCancel: (row: ColumnData) => { setCancelTargetRow(row); setCancelSettlementComment(lexicalPlainText("")); setCancelMutationError(null); },
+		onSendSatisfactionSurvey: setSendSatisfactionSurveyTargetRow
 	};
 	const renderCell = useMenuRowValueRenderer({
 		columns: rowValueRendererConfigColumnsWithActions,
-		context: {
-			...rowValueRendererContext,
-			richTextCard: false,
-			richTextClamp: true
-		},
+		context: { ...rowValueRendererContext, richTextCard: false, richTextClamp: true },
 		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
 			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
-		onOpenDetails: row => {
-			setDetailsDrawerOpen(true);
-			setDetailsDrawerRow(row);
-		}
+		onOpenDetails: row => { setDetailsDrawerOpen(true); setDetailsDrawerRow(row); }
 	});
 
 	return (
 		<MenuPage
 			title="Officer Task"
-			description="Manage officer tasks with executor workflows, including cancellation and restoration."
+			description="Execute your assigned officer tasks: activate, send OTP, fill surveys, and finish or cancel as needed."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar
@@ -139,31 +228,7 @@ export default function Page() {
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
-					rightSlot={(
-						<>
-							{user.roleMenus.includes("officer-task#monitoring") ? (
-								<div className="flex items-center gap-2">
-									<label htmlFor="officer-task-executor-show-deleted" className="text-sm">
-										Show Deleted
-									</label>
-									<Switch
-										id="officer-task-executor-show-deleted"
-										checked={includeDeleted}
-										onCheckedChange={setIncludeDeleted}
-										disabled={query.isLoading || isMutating}
-									/>
-								</div>
-							) : null}
-							<Button
-								type="button"
-								onClick={() => setAddFormDrawerOpen(true)}
-								disabled={query.isLoading || isMutating}
-							>
-								<PlusIcon />
-								Add
-							</Button>
-						</>
-					)}
+					rightSlot={(<ActivateLocationButton disabled={query.isLoading || isMutating} />)}
 				/>
 				<MenuFilterConfigCard
 					open={filterConfigCardOpen}
@@ -196,7 +261,7 @@ export default function Page() {
 					<Alert variant="destructive">
 						<CircleAlertIcon />
 						<AlertTitle>{`${genericMutationError?.name ?? "Error"}`}</AlertTitle>
-						<AlertDescription>{`${genericMutationError?.message ?? "An error occured while querying data."}`}</AlertDescription>
+						<AlertDescription>{`${genericMutationError?.message ?? "An error occured while mutating data."}`}</AlertDescription>
 					</Alert>
 				) : null}
 				<DashboardMenuTable
@@ -224,55 +289,119 @@ export default function Page() {
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
+					renderActions={r => renderCell(r, "#actions")}
+					onChainNavigate={async id => {
+						const result = await getDetailsAction(id);
+						setDetailsDrawerRow(result.row);
+					}}
 				/>
-				<FormDrawer
-					open={editFormDrawerOpen}
-					onOpenChange={setEditFormDrawerOpen}
-					title="Edit Officer Task"
-					formState={editFormDrawerState}
-					onFormStateChange={setEditFormDrawerState}
+				<ActivateDialog
+					open={activateTargetRow != null}
+					onOpenChange={v => { if(!v) setActivateTargetRow(null); }}
 					isMutating={isMutating}
-					mutationError={editFormMutationError}
-					onSubmit={() => startMutationTransition(async () => {
-						if(editFormDrawerState.creditApplicationAssignment == null || editFormDrawerState.creditApplicationAssignment.trim().length == 0)
-							return setEditFormMutationError({ name: "ValidationError", message: "Credit application assignment is required." });
-						setEditFormMutationError(null);
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
 						try {
-							await upsertAction({
-								id: editFormDrawerState.id,
-								creditApplicationAssignment: editFormDrawerState.creditApplicationAssignment,
-								next: editFormDrawerState.next
-							});
-							setEditFormDrawerOpen(false);
-							setEditFormDrawerState({});
+							if(activateTargetRow != null)
+								await activateAction({ id: activateTargetRow.id });
+							setActivateTargetRow(null);
 						} catch(error) {
-							setEditFormMutationError(error);
+							setGenericMutationError(error);
 						} finally {
 							await queryClient.invalidateQueries({ queryKey: ["officer-task"] });
 						}
 					})}
 				/>
-				<FormDrawer
-					open={addFormDrawerOpen}
-					onOpenChange={setAddFormDrawerOpen}
-					title="Add Officer Task"
-					formState={addFormDrawerState}
-					onFormStateChange={setAddFormDrawerState}
+				<ClearActiveDialog
+					open={clearActiveTargetRow != null}
+					onOpenChange={v => { if(!v) setClearActiveTargetRow(null); }}
 					isMutating={isMutating}
-					mutationError={addFormMutationError}
-					onSubmit={() => startMutationTransition(async () => {
-						if(addFormDrawerState.creditApplicationAssignment == null || addFormDrawerState.creditApplicationAssignment.trim().length == 0)
-							return setAddFormMutationError({ name: "ValidationError", message: "Credit application assignment is required." });
-						setAddFormMutationError(null);
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
 						try {
-							await upsertAction({
-								creditApplicationAssignment: addFormDrawerState.creditApplicationAssignment,
-								next: addFormDrawerState.next
-							});
-							setAddFormDrawerOpen(false);
-							setAddFormDrawerState({});
+							await clearActiveAction();
+							setClearActiveTargetRow(null);
 						} catch(error) {
-							setAddFormMutationError(error);
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["officer-task"] });
+						}
+					})}
+				/>
+				<SendOtpDialog
+					open={sendOtpTargetRow != null}
+					onOpenChange={v => { if(!v) setSendOtpTargetRow(null); }}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							if(sendOtpTargetRow != null)
+								await sendOtpMessageAction({ id: sendOtpTargetRow.id });
+							setSendOtpTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["officer-task"] });
+						}
+					})}
+				/>
+				<InputOtpDialog
+					open={inputOtpTargetRow != null}
+					onOpenChange={v => { if(!v) setInputOtpTargetRow(null); }}
+					otp={inputOtpValue}
+					onOtpChange={setInputOtpValue}
+					mutationError={inputOtpMutationError}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setInputOtpMutationError(null);
+						try {
+							if(inputOtpTargetRow != null)
+								await inputOtpAction({ id: inputOtpTargetRow.id, otp: inputOtpValue });
+							setInputOtpTargetRow(null);
+							setInputOtpValue("");
+						} catch(error) {
+							const message = (error as Error | null | undefined)?.message ?? "";
+							if(typeof message == "string" && message.includes("geofence"))
+								setGeofenceWarningOpen(true);
+							setInputOtpMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["officer-task"] });
+						}
+					})}
+				/>
+				<FinishDialog
+					open={finishTargetRow != null}
+					onOpenChange={v => { if(!v) setFinishTargetRow(null); }}
+					settlementComment={finishSettlementComment}
+					onSettlementCommentChange={setFinishSettlementComment}
+					mutationError={finishMutationError}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setFinishMutationError(null);
+						try {
+							if(finishTargetRow != null)
+								await finishAction({ id: finishTargetRow.id, settlementComment: finishSettlementComment });
+							setFinishTargetRow(null);
+							setFinishSettlementComment(lexicalPlainText(""));
+						} catch(error) {
+							setFinishMutationError(error);
+						} finally {
+							await queryClient.invalidateQueries({ queryKey: ["officer-task"] });
+						}
+					})}
+				/>
+				<UndoFinishDialog
+					open={undoFinishTargetRow != null}
+					onOpenChange={v => { if(!v) setUndoFinishTargetRow(null); }}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							if(undoFinishTargetRow != null)
+								await undoFinishAction({ id: undoFinishTargetRow.id });
+							setUndoFinishTargetRow(null);
+						} catch(error) {
+							setGenericMutationError(error);
 						} finally {
 							await queryClient.invalidateQueries({ queryKey: ["officer-task"] });
 						}
@@ -280,40 +409,43 @@ export default function Page() {
 				/>
 				<CancelDialog
 					open={cancelTargetRow != null}
-					onOpenChange={v => { if(v) return; setCancelTargetRow(null); }}
+					onOpenChange={v => { if(!v) setCancelTargetRow(null); }}
+					settlementComment={cancelSettlementComment}
+					onSettlementCommentChange={setCancelSettlementComment}
+					mutationError={cancelMutationError}
 					isMutating={isMutating}
 					onConfirm={() => startMutationTransition(async () => {
-						setGenericMutationError(null);
+						setCancelMutationError(null);
 						try {
-							await cancelAction({
-								id: cancelTargetRow!.id
-							});
-						} catch(error) {
-							setGenericMutationError(error);
-						} finally {
+							if(cancelTargetRow != null)
+								await cancelAction({ id: cancelTargetRow.id, settlementComment: cancelSettlementComment });
 							setCancelTargetRow(null);
+							setCancelSettlementComment(lexicalPlainText(""));
+						} catch(error) {
+							setCancelMutationError(error);
+						} finally {
 							await queryClient.invalidateQueries({ queryKey: ["officer-task"] });
 						}
 					})}
 				/>
-				<RestoreDialog
-					open={restoreTargetRow != null}
-					onOpenChange={v => { if(v) return; setRestoreTargetRow(null); }}
+				<SendSatisfactionSurveyDialog
+					open={sendSatisfactionSurveyTargetRow != null}
+					onOpenChange={v => { if(!v) setSendSatisfactionSurveyTargetRow(null); }}
 					isMutating={isMutating}
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await restoreAction({
-								id: restoreTargetRow!.id
-							});
+							if(sendSatisfactionSurveyTargetRow != null)
+								await sendSatisfactionSurveyMessageAction({ id: sendSatisfactionSurveyTargetRow.id });
+							setSendSatisfactionSurveyTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
 						} finally {
-							setRestoreTargetRow(null);
 							await queryClient.invalidateQueries({ queryKey: ["officer-task"] });
 						}
 					})}
 				/>
+				<GeofenceWarningDialog open={geofenceWarningOpen} onOpenChange={setGeofenceWarningOpen} />
 			</RelationNavigationProvider>
 		</MenuPage>
 	);

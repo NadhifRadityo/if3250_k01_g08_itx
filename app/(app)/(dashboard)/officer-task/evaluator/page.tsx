@@ -10,7 +10,7 @@ import { Button } from "@/components/radix/Button";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
-import { evaluateAction, queryEvaluatorAction } from "../evaluator.actions";
+import { evaluateAction, getDetailsAction, queryEvaluatorAction } from "../evaluator.actions";
 import { ColumnData, DetailsDrawer, EvaluateDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../evaluator.components";
 
 const columnConfigColumnsWithActions = Object.freeze([
@@ -29,7 +29,7 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 			size="sm"
 			variant="default"
 			onClick={() => { setEvaluateDrawerRow!(row); setEvaluateDrawerOpen!(true); }}
-			disabled={row.evaluatedAt != null || row.settledAt != null || isMutating}
+			disabled={row.evaluationApproved == true || isMutating}
 		>
 			<CheckIcon />
 			Evaluate
@@ -56,12 +56,7 @@ export default function Page() {
 	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-task.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["officer-task", "evaluator", {
-			keyword,
-			filters,
-			columnsSort,
-			pageIndex
-		}],
+		queryKey: ["officer-task", "evaluator", { keyword, filters, columnsSort, pageIndex }],
 		queryFn: async () => await queryEvaluatorAction({
 			keyword: keyword,
 			filters: filters,
@@ -78,29 +73,23 @@ export default function Page() {
 	const [evaluateMutationError, setEvaluateMutationError] = useState(null as any);
 	const rowValueRendererContext = {
 		relationValues: query.data?.relations,
+		activeIds: query.data?.activeIds,
 		isMutating: isMutating,
 		setEvaluateDrawerRow: setEvaluateDrawerRow,
 		setEvaluateDrawerOpen: setEvaluateDrawerOpen
 	};
 	const renderCell = useMenuRowValueRenderer({
 		columns: rowValueRendererConfigColumnsWithActions,
-		context: {
-			...rowValueRendererContext,
-			richTextCard: false,
-			richTextClamp: true
-		},
+		context: { ...rowValueRendererContext, richTextCard: false, richTextClamp: true },
 		detailsTriggerColumnKey: columnOrder.filter(columnKey => columnsShown.includes(columnKey))
 			.find(columnKey => eligibleDetailsTriggerColumns.includes(columnKey)),
-		onOpenDetails: row => {
-			setDetailsDrawerOpen(true);
-			setDetailsDrawerRow(row);
-		}
+		onOpenDetails: row => { setDetailsDrawerOpen(true); setDetailsDrawerRow(row); }
 	});
 
 	return (
 		<MenuPage
 			title="Officer Task"
-			description="Evaluate pending officer tasks before they are settled."
+			description="Evaluate officer tasks before they are settled."
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar
@@ -164,6 +153,10 @@ export default function Page() {
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
+					onChainNavigate={async id => {
+						const result = await getDetailsAction(id);
+						setDetailsDrawerRow(result.row);
+					}}
 				/>
 				<EvaluateDrawer
 					open={evaluateDrawerOpen}

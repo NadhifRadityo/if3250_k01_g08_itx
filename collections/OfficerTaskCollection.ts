@@ -1,11 +1,13 @@
 import { sql } from "@payloadcms/db-postgres";
 import { PostgresSchemaHook } from "@payloadcms/drizzle/postgres";
-import { APIError, CollectionConfig } from "payload";
+import { APIError, TaskConfig, CollectionConfig } from "payload";
 import { check, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { getRelationshipId } from "@/utils/payload";
 
 import { ReviewRichTextEditor } from "./shared";
+
+const ACTIVE_OFFICER_TASK_KV_TTL_MS = 12 * 60 * 60 * 1000;
 
 export const OfficerTasks = (): CollectionConfig => ({
 	slug: "officer-tasks",
@@ -201,7 +203,7 @@ export const OfficerTasksSchemaHook = (): PostgresSchemaHook => ({ schema, exten
 		extraConfig: t => ({
 			officerTaskTailUniqueIdx: uniqueIndex("officer_tasks_credit_application_assignment_tail_idx")
 				.on(t.creditApplicationAssignment)
-				.where(sql`"next_id" IS NULL`),
+				.where(sql`"next_id" IS NULL AND "settled_at" IS NULL`),
 			officerTasksSettledAtNullImpliesNextIdNull: check(
 				"officer_tasks_settled_at_null_implies_next_id_null",
 				sql`"settled_at" IS NOT NULL OR "next_id" IS NULL`
@@ -226,3 +228,54 @@ export const OfficerTasksSchemaHook = (): PostgresSchemaHook => ({ schema, exten
 	});
 	return schema;
 };
+
+export const OfficerTasksClearActive = (): TaskConfig<"OfficerTasksClearActive"> => ({
+	slug: "OfficerTasksClearActive",
+	schedule: [
+		{ cron: "0 */5 * * * *", queue: "every-minute" }
+	],
+	handler: async ({ req: { payload } }) => {
+		const entries = (await payload.find({
+			overrideAccess: true,
+			collection: "payload-kv",
+			pagination: false,
+			where: { key: { contains: "officer-task:" } },
+			select: { key: true, data: true }
+		})).docs;
+		const now = Date.now();
+		const officerTasks = (await payload.find({
+			overrideAccess: true,
+			collection: "officer-tasks",
+			trash: true,
+			pagination: false,
+			depth: 1,
+			where: { id: { in: entries.map(entry => (entry.data as any).id) } },
+			select: { creditApplicationAssignment: true, settledAt: true },
+			populate: { "credit-application-assignments": { dueDate: true } }
+		})).docs;
+		const kvIdsToDelete: string[] = [];
+		for(const entry of entries) {
+			const data = entry.data as any;
+			if((now - data.createdAt) >= ACTIVE_OFFICER_TASK_KV_TTL_MS) {
+				kvIdsToDelete.push(entry.id);
+				continue;
+			}
+			const officerTask = officerTasks.find(officerTask => officerTask.id == data.id);
+			if(officerTask == null || officerTask.settledAt != null) {
+				kvIdsToDelete.push(entry.id);
+				continue;
+			}
+			const dueDate = (officerTask.creditApplicationAssignment as any).dueDate;
+			if(dueDate != null && Date.parse(dueDate) <= now) {
+				kvIdsToDelete.push(entry.id);
+				continue;
+			}
+		}
+		await payload.delete({
+			overrideAccess: true,
+			collection: "payload-kv",
+			where: { id: { in: kvIdsToDelete } }
+		});
+		return { output: null };
+	}
+});

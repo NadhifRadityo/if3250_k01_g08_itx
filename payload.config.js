@@ -11,7 +11,7 @@ import { GenericRichtextUploads } from "./collections/GenericCollection";
 import { GpsLogs } from "./collections/GpsLogCollection";
 import { LoginLogs } from "./collections/LoginLogCollection";
 import { MessageLogs } from "./collections/MessageLogCollection";
-import { OfficerTasks, OfficerTasksSchemaHook } from "./collections/OfficerTaskCollection";
+import { OfficerTasks, OfficerTasksSchemaHook, OfficerTasksClearActive } from "./collections/OfficerTaskCollection";
 import { RecordingLogs, RecordingLogAudioFiles, RecordingLogTranscriptions } from "./collections/RecordingLogCollection";
 import { Roles, RolesSchemaHook } from "./collections/RoleCollection";
 import { SatisfactionSurveys, SatisfactionSurveysSchemaHook } from "./collections/SatisfactionSurveyCollection";
@@ -86,6 +86,11 @@ export default buildConfig({
 		InternalForceSelectPlugin(),
 		BindSelectPlugin()
 	],
+	jobs: {
+		tasks: [
+			OfficerTasksClearActive()
+		]
+	},
 	typescript: {
 		autoGenerate: true
 	}

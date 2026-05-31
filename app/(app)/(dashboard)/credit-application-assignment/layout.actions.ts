@@ -9,9 +9,40 @@ import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendP
 import type { CreditApplicationAssignment } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
+import { chainAndCreateNextOfficerTask, getCurrentChainHeadOfficerTaskId, getLatestPublishedAssignmentVersionId } from "../officer-task/layout.shared";
 import { resolveRelationUsers, resolveRelationSurveys, resolveRelationCreditApplications, resolveRelationSatisfactionSurveys } from "../relation-navigation.actions";
 import { RelationUser, RelationSurvey, RelationCreditApplication, RelationSatisfactionSurvey } from "../relation-navigation.shared";
 import { FormState } from "./layout.components";
+
+async function ensureNoBlockingOfficerTask(
+	{ payload, creditApplicationAssignmentId }:
+	{ payload: Payload, creditApplicationAssignmentId: string }
+): Promise<void> {
+	const tasks = await payload.find({
+		overrideAccess: true,
+		collection: "officer-tasks",
+		trash: true,
+		pagination: false,
+		depth: 0,
+		where: { creditApplicationAssignment: { equals: creditApplicationAssignmentId } },
+		select: { settlementStatus: true, evaluatedAt: true, evaluationApproved: true }
+	});
+	const activeKvs = (await payload.find({
+		overrideAccess: true,
+		collection: "payload-kv",
+		pagination: false,
+		where: { key: { contains: "officer-task:" } },
+		select: { data: true }
+	})).docs;
+	for(const task of tasks.docs) {
+		if(task.evaluationApproved == true)
+			throw new Error("Cannot modify or approve while there is an approved officer task for this assignment.");
+		if(task.settlementStatus == "finished" && task.evaluatedAt == null)
+			throw new Error("Cannot modify or approve while there is an officer task on evaluation for this assignment.");
+		if(activeKvs.some(kv => (kv.data as any).id == task.id))
+			throw new Error("Cannot modify or approve while there is an active officer task for this assignment.");
+	}
+}
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
@@ -289,6 +320,9 @@ export async function requestUpsertAction(formState: FormState) {
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
+	if(formState.id != null)
+		await ensureNoBlockingOfficerTask({ payload, creditApplicationAssignmentId: formState.id });
+
 	formState.creditApplications ??= [];
 	if(formState.creditApplications.length == 0)
 		throw new Error("Credit application is required.");
@@ -481,6 +515,8 @@ export async function requestDeleteAction(
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
+	await ensureNoBlockingOfficerTask({ payload, creditApplicationAssignmentId: id });
+
 	await payload.update({
 		user: user,
 		overrideAccess: true,
@@ -667,6 +703,8 @@ export async function reviewAction(
 	});
 	if(creditApplicationAssignment.reviewedAt != null)
 		throw new Error("This request has already been reviewed.");
+	if(decision == "approve")
+		await ensureNoBlockingOfficerTask({ payload, creditApplicationAssignmentId: id });
 	if(decision == "reject") {
 		await payload.update({
 			user: user,
@@ -699,5 +737,64 @@ export async function reviewAction(
 			reviewComment: reviewComment
 		}
 	});
+	if(creditApplicationAssignment.deletedAt == null) {
+		const previousChainHeadId = await getCurrentChainHeadOfficerTaskId({ payload, creditApplicationAssignmentId: id });
+		if(previousChainHeadId == null) {
+			const versionId = await getLatestPublishedAssignmentVersionId({ payload, creditApplicationAssignmentId: id });
+			if(versionId == null)
+				throw new Error("Credit application assignment has no published version.");
+			await payload.create({
+				user: user,
+				overrideAccess: true,
+				collection: "officer-tasks",
+				data: {
+					_status: "published",
+					creditApplicationAssignment: id,
+					creditApplicationAssignmentVersion: versionId,
+					next: null,
+					settledAt: null,
+					settlementStatus: null,
+					settlementComment: null,
+					evaluatedAt: null,
+					evaluatedBy: null,
+					evaluationApproved: null,
+					evaluationComment: null
+				}
+			});
+			return { id: id };
+		}
+		const previousChainHead = await payload.findByID({
+			user: user,
+			overrideAccess: true,
+			collection: "officer-tasks",
+			id: previousChainHeadId,
+			draft: true,
+			trash: true,
+			depth: 0
+		});
+		if(previousChainHead.settledAt == null) {
+			await payload.update({
+				user: user,
+				overrideAccess: true,
+				collection: "officer-tasks",
+				id: previousChainHeadId,
+				trash: true,
+				data: {
+					settledAt: new Date().toISOString(),
+					settlementStatus: "cancelled",
+					settlementComment: lexicalPlainText("Auto cancelled by system because assignment was updated")
+				}
+			});
+			await payload.delete({
+				overrideAccess: true,
+				collection: "payload-kv",
+				where: { and: [
+					{ key: { contains: "officer-task:" } },
+					{ "data.id": { equals: previousChainHeadId } }
+				] }
+			});
+			await chainAndCreateNextOfficerTask({ payload, previousOfficerTaskId: previousChainHeadId, userId: user.id });
+		}
+	}
 	return { id: id };
 }

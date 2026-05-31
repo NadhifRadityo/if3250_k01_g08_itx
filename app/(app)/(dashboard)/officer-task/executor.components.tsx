@@ -1,26 +1,43 @@
 "use client";
 
-import { useMemo } from "react";
+import { useRef, useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CircleAlertIcon } from "lucide-react";
+import { SerializedEditorState } from "lexical";
+import {
+	ArrowLeftIcon,
+	ArrowRightIcon,
+	NavigationIcon,
+	CircleAlertIcon
+} from "lucide-react";
 
 import { getRelationshipId } from "@/utils/payload";
-import { SearchableSelect } from "@/components/SearchableSelect";
+import { RichTextInput } from "@/components/RichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
+import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
+import { Input } from "@/components/radix/Input";
 import { Skeleton } from "@/components/radix/Skeleton";
-import { OfficerTask } from "@/payload-types";
 
+import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { filterConfigColumns as creditApplicationAssignmentFilterConfigColumns } from "../credit-application-assignment/layout.components";
 import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
-import { searchRelationOfficerTasksAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
+import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { FormState, queryExecutorAction } from "./executor.actions";
-import { RelationValues, getDetailsAction } from "./layout.actions";
-import { settlementStatusSelectOptions } from "./layout.shared";
+import { RelationValues, getDetailsAction, appendGpsLogAction, queryExecutorAction } from "./executor.actions";
+import { officerTaskStatusLabels, computeOfficerTaskStatus, settlementStatusSelectOptions } from "./layout.shared";
+
+export const defaultStatusRenderer = () =>
+	(_: unknown, row: ColumnData, ctx: RowValueRendererContext) => {
+		const status = computeOfficerTaskStatus({
+			row: row,
+			isActive: ctx.activeOfficerTask?.id == row.id,
+			dueDate: row.creditApplicationAssignmentDueDate ?? null
+		});
+		return (<Badge variant={status == "approved" ? "default" : status == "rejected" || status == "cancelled" || status == "stale" ? "destructive" : status == "active" ? "default" : "secondary"}>{officerTaskStatusLabels[status]}</Badge>);
+	};
 
 export type ColumnData = Awaited<ReturnType<typeof queryExecutorAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -31,7 +48,6 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "updatedBy", label: "Updated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment", type: "relation", relationFilterConfigColumn: () => ["Credit Application Assignment", creditApplicationAssignmentFilterConfigColumns] },
 	{ key: "creditApplicationAssignmentVersion", label: "Credit Application Assignment Version", type: "text" },
-	{ key: "next", label: "Next", type: "relation", relationSearch: searchRelationOfficerTasksAction },
 	{ key: "settledAt", label: "Settled At", type: "date" },
 	{ key: "settlementStatus", label: "Settlement Status", type: "select", selectOptions: settlementStatusSelectOptions },
 	{ key: "evaluatedAt", label: "Evaluated At", type: "date" },
@@ -50,6 +66,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "settledAt", label: "Settled At" },
 	{ key: "settlementStatus", label: "Settlement Status" },
 	{ key: "settlementComment", label: "Settlement Comment" },
+	{ key: "#status", label: "Status" },
 	{ key: "evaluatedAt", label: "Evaluated At" },
 	{ key: "evaluatedBy", label: "Evaluated By" },
 	{ key: "evaluationApproved", label: "Evaluation Approved" },
@@ -67,6 +84,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "settledAt", label: "Settled At", sortable: true },
 	{ key: "settlementStatus", label: "Settlement Status", sortable: true },
 	{ key: "settlementComment", label: "Settlement Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
+	{ key: "#status", label: "Status", sortable: false },
 	{ key: "evaluatedAt", label: "Evaluated At", sortable: true },
 	{ key: "evaluatedBy", label: "Evaluated By", sortable: false },
 	{ key: "evaluationApproved", label: "Evaluation Approved", sortable: true },
@@ -84,6 +102,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "settledAt", type: "date" },
 	{ key: "settlementStatus", type: "select", selectOptions: settlementStatusSelectOptions },
 	{ key: "settlementComment", type: "richText" },
+	{ key: "#status", type: "null", render: defaultStatusRenderer() },
 	{ key: "evaluatedAt", type: "date" },
 	{ key: "evaluatedBy", type: "relation", render: defaultRelationUserRenderer({ description: "Evaluated By", relationSource: "officer-tasks.evaluatedBy" }) },
 	{ key: "evaluationApproved", type: "boolean" },
@@ -91,11 +110,17 @@ export const rowValueRendererConfigColumns = Object.freeze([
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;
+	activeOfficerTask?: { id: string, otpEntered: boolean } | null;
 	isMutating?: boolean;
-	setEditFormDrawerState?: (v: FormState) => void;
-	setEditFormDrawerOpen?: (v: boolean) => void;
-	setCancelTargetRow?: (v: ColumnData | null) => void;
-	setRestoreTargetRow?: (v: ColumnData | null) => void;
+	onActivate?: (row: ColumnData) => void;
+	onClearActive?: (row: ColumnData) => void;
+	onSendOtp?: (row: ColumnData) => void;
+	onInputOtp?: (row: ColumnData) => void;
+	onFillSurvey?: (row: ColumnData) => void;
+	onFinish?: (row: ColumnData) => void;
+	onUndoFinish?: (row: ColumnData) => void;
+	onCancel?: (row: ColumnData) => void;
+	onSendSatisfactionSurvey?: (row: ColumnData) => void;
 } & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",
@@ -104,6 +129,7 @@ export const eligibleDetailsTriggerColumns = Object.freeze([
 	"creditApplicationAssignmentVersion",
 	"settledAt",
 	"settlementStatus",
+	"#status",
 	"evaluatedAt",
 	"evaluationApproved"
 ]);
@@ -116,6 +142,7 @@ export const defaultColumnOrder = Object.freeze([
 	"settledAt",
 	"settlementStatus",
 	"settlementComment",
+	"#status",
 	"evaluatedAt",
 	"evaluatedBy",
 	"evaluationApproved",
@@ -131,6 +158,7 @@ export const defaultColumnsShown = Object.freeze([
 	"creditApplicationAssignmentVersion",
 	"settledAt",
 	"settlementStatus",
+	"#status",
 	"evaluatedAt",
 	"evaluationApproved",
 	"updatedAt"
@@ -140,8 +168,8 @@ export const defaultColumnsSort = Object.freeze([
 ]) as [string, boolean][];
 
 export function DetailsDrawer(
-	{ open, onOpenChange, row, rowValueRendererContext, renderActions }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode }
+	{ open, onOpenChange, row, rowValueRendererContext, renderActions, onChainNavigate }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode, onChainNavigate?: (id: string) => void }
 ) {
 	const query = useQuery({
 		queryKey: ["officer-task", "details", row?.id ?? null],
@@ -159,6 +187,8 @@ export function DetailsDrawer(
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
 		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+	const previousId = query.data?.row.previous ?? null;
+	const nextId = getRelationshipId(query.data?.row.next);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
@@ -167,6 +197,28 @@ export function DetailsDrawer(
 					<DrawerDescription>Review all available columns for this officer task entry.</DrawerDescription>
 				</DrawerHeader>
 				<div className="flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+					{onChainNavigate != null ? (
+						<div className="flex items-center gap-2">
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								disabled={previousId == null || query.isFetching}
+								onClick={() => { if(previousId != null) onChainNavigate(previousId); }}
+							>
+								<ArrowLeftIcon />Previous
+							</Button>
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								disabled={nextId == null || query.isFetching}
+								onClick={() => { if(nextId != null) onChainNavigate(nextId); }}
+							>
+								<ArrowRightIcon />Next
+							</Button>
+						</div>
+					) : null}
 					{row == null ? (
 						<p className="text-muted-foreground text-sm">
 							No officer task selected.
@@ -180,12 +232,8 @@ export function DetailsDrawer(
 					) : query.isError || query.data == null ? (
 						<Alert variant="destructive">
 							<CircleAlertIcon />
-							<AlertTitle>
-								{`${query.error?.name ?? "Error"}`}
-							</AlertTitle>
-							<AlertDescription>
-								{`${query.error?.message ?? "Unable to load officer task details."}`}
-							</AlertDescription>
+							<AlertTitle>{`${query.error?.name ?? "Error"}`}</AlertTitle>
+							<AlertDescription>{`${query.error?.message ?? "Unable to load officer task details."}`}</AlertDescription>
 						</Alert>
 					) : (
 						drawerValueRendererConfigColumns.map(column => (
@@ -199,129 +247,313 @@ export function DetailsDrawer(
 					)}
 				</div>
 				<DrawerFooter className="border-t sm:flex-row sm:items-center sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-						Close
-					</Button>
-					{row != null && renderActions != null ? (
-						renderActions(row)
-					) : null}
+					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+					{row != null && renderActions != null ? renderActions(row) : null}
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
 	);
 }
-export function toFormState(data: OfficerTask) {
-	return {
-		id: data.id,
-		creditApplicationAssignment: getRelationshipId(data.creditApplicationAssignment),
-		next: getRelationshipId(data.next) ?? undefined
-	} as FormState;
-}
-export function FormDrawer(
-	{ open, onOpenChange, title, formState, onFormStateChange, onSubmit, mutationError, isMutating }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, title: string, formState: FormState, onFormStateChange: (v: FormState) => void, onSubmit?: () => void, mutationError?: any, isMutating?: boolean }
+
+export function ActivateDialog(
+	{ open, onOpenChange, isMutating, onConfirm }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, isMutating: boolean, onConfirm: () => void }
 ) {
 	return (
-		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
-			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">
-				<DrawerHeader>
-					<DrawerTitle>{title}</DrawerTitle>
-					<DrawerDescription>Manage the officer task linkage to its credit application assignment and the next officer task in the chain.</DrawerDescription>
-				</DrawerHeader>
-				<div className="flex-1 overflow-y-auto px-4">
-					<div className="pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Credit Application Assignment</label>
-							<SearchableSelect
-								value={formState.creditApplicationAssignment!}
-								onValueChange={value => onFormStateChange({ ...formState, creditApplicationAssignment: value })}
-								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationCreditApplicationAssignmentsAction(keyword, selectedValues)
-									.then(creditApplicationAssignments => creditApplicationAssignments.map(creditApplicationAssignment => ({
-										value: creditApplicationAssignment.id,
-										label: creditApplicationAssignment.label
-									})))}
-								disabled={isMutating}
-								placeholder="Search credit application assignment"
-								searchPlaceholder="Search credit application assignment..."
-								allowClear
-							/>
-						</div>
-						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Next</label>
-							<SearchableSelect
-								value={formState.next!}
-								onValueChange={value => onFormStateChange({ ...formState, next: value.length > 0 ? value : undefined })}
-								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationOfficerTasksAction(keyword, selectedValues)
-									.then(officerTasks => officerTasks.map(officerTask => ({
-										value: officerTask.id,
-										label: officerTask.label
-									})))}
-								disabled={isMutating}
-								placeholder="Search next officer task"
-								searchPlaceholder="Search next officer task..."
-								allowClear
-							/>
-						</div>
-						{mutationError != null ? (
-							<Alert variant="destructive" className="sm:col-span-2">
-								<CircleAlertIcon />
-								<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
-								<AlertDescription>{`${mutationError?.message ?? "Unable to submit form."}`}</AlertDescription>
-							</Alert>
-						) : null}
-					</div>
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Activate Officer Task</AlertDialogTitle>
+					<AlertDialogDescription>
+						This sets this officer task as your active officer task.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Activate</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+export function ClearActiveDialog(
+	{ open, onOpenChange, isMutating, onConfirm }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, isMutating: boolean, onConfirm: () => void }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Clear Active Officer Task</AlertDialogTitle>
+					<AlertDialogDescription>
+						This clears your currently active officer task.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Clear</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+export function SendOtpDialog(
+	{ open, onOpenChange, isMutating, onConfirm }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, isMutating: boolean, onConfirm: () => void }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Send OTP</AlertDialogTitle>
+					<AlertDialogDescription>
+						This sends a 6-digit time-based OTP via WhatsApp to the customer. The OTP is valid for 30 minutes.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Send</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+export function InputOtpDialog(
+	{ open, onOpenChange, otp, onOtpChange, onConfirm, mutationError, isMutating }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, otp: string, onOtpChange: (v: string) => void, onConfirm: () => void, mutationError?: any, isMutating: boolean }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Input OTP</AlertDialogTitle>
+					<AlertDialogDescription>Enter the 6-digit OTP code received from the customer.</AlertDialogDescription>
+				</AlertDialogHeader>
+				<div className="space-y-2">
+					<Input
+						value={otp}
+						onChange={e => onOtpChange(e.target.value.replace(/\D/g, "").slice(0, 6))}
+						placeholder="123456"
+						inputMode="numeric"
+						className="font-mono text-center text-lg tracking-widest"
+						disabled={isMutating}
+					/>
+					{mutationError != null ? (
+						<Alert variant="destructive">
+							<CircleAlertIcon />
+							<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
+							<AlertDescription>{`${mutationError?.message ?? "Unable to verify OTP."}`}</AlertDescription>
+						</Alert>
+					) : null}
 				</div>
-				<DrawerFooter className="border-t sm:flex-row sm:justify-end">
-					<Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isMutating}>Cancel</Button>
-					<Button type="button" onClick={onSubmit} disabled={isMutating}>Save</Button>
-				</DrawerFooter>
-			</DrawerContent>
-		</Drawer>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating || otp.length != 6}>Confirm</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+export function FinishDialog(
+	{ open, onOpenChange, settlementComment, onSettlementCommentChange, onConfirm, mutationError, isMutating }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, settlementComment: SerializedEditorState, onSettlementCommentChange: (v: SerializedEditorState) => void, onConfirm: () => void, mutationError?: any, isMutating: boolean }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent className="md:min-w-[520px]">
+				<AlertDialogHeader>
+					<AlertDialogTitle>Finish Officer Task</AlertDialogTitle>
+					<AlertDialogDescription>
+						Optionally provide a settlement comment to give the evaluator additional notes, then finish the officer task to be evaluated.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<div className="space-y-2 min-w-0">
+					<label className="text-sm font-medium">Settlement Comment</label>
+					<RichTextInput
+						serializedState={settlementComment}
+						onSerializedStateChange={onSettlementCommentChange}
+						onImageUpload={uploadGenericRichtextImage}
+						disabled={isMutating}
+					/>
+				</div>
+				{mutationError != null ? (
+					<Alert variant="destructive">
+						<CircleAlertIcon />
+						<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${mutationError?.message ?? "Unable to finish officer task."}`}</AlertDescription>
+					</Alert>
+				) : null}
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Finish</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+export function UndoFinishDialog(
+	{ open, onOpenChange, isMutating, onConfirm }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, isMutating: boolean, onConfirm: () => void }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Undo Finish</AlertDialogTitle>
+					<AlertDialogDescription>
+						This reverts this officer task back to pending so you can edit the settlement comment or cancel it.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Undo Finish</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
 	);
 }
 
 export function CancelDialog(
-	{ open, onOpenChange, onConfirm, isMutating }:
-	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating: boolean }
+	{ open, onOpenChange, settlementComment, onSettlementCommentChange, onConfirm, mutationError, isMutating }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, settlementComment: SerializedEditorState, onSettlementCommentChange: (v: SerializedEditorState) => void, onConfirm: () => void, mutationError?: any, isMutating: boolean }
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
-			<AlertDialogContent>
+			<AlertDialogContent className="md:min-w-[520px]">
 				<AlertDialogHeader>
 					<AlertDialogTitle>Cancel Officer Task</AlertDialogTitle>
 					<AlertDialogDescription>
-						This will mark the officer task as cancelled by setting settledAt and settlementStatus to "cancelled".
+						Optionally provide a settlement comment to give the evaluator additional notes, then cancel this officer task. A new officer task will be created in the chain.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
+				<div className="space-y-2 min-w-0">
+					<label className="text-sm font-medium">Settlement Comment</label>
+					<RichTextInput
+						serializedState={settlementComment}
+						onSerializedStateChange={onSettlementCommentChange}
+						onImageUpload={uploadGenericRichtextImage}
+						disabled={isMutating}
+					/>
+				</div>
+				{mutationError != null ? (
+					<Alert variant="destructive">
+						<CircleAlertIcon />
+						<AlertTitle>{`${mutationError?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${mutationError?.message ?? "Unable to cancel officer task."}`}</AlertDescription>
+					</Alert>
+				) : null}
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
-					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Cancel</AlertDialogAction>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Cancel Task</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
 	);
 }
 
-export function RestoreDialog(
-	{ open, onOpenChange, onConfirm, isMutating }:
-	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating: boolean }
+export function SendSatisfactionSurveyDialog(
+	{ open, onOpenChange, isMutating, onConfirm }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, isMutating: boolean, onConfirm: () => void }
 ) {
 	return (
 		<AlertDialog open={open} onOpenChange={onOpenChange}>
 			<AlertDialogContent>
 				<AlertDialogHeader>
-					<AlertDialogTitle>Restore Officer Task</AlertDialogTitle>
+					<AlertDialogTitle>Send Satisfaction Survey</AlertDialogTitle>
 					<AlertDialogDescription>
-						This will clear settledAt and settlementStatus to restore the officer task.
+						This sends a WhatsApp message containing a link to fill the satisfaction survey to the customer.
 					</AlertDialogDescription>
 				</AlertDialogHeader>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
-					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Restore</AlertDialogAction>
+					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Send</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function GeofenceWarningDialog(
+	{ open, onOpenChange }:
+	{ open: boolean, onOpenChange: (v: boolean) => void }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Location Out of Geofence</AlertDialogTitle>
+					<AlertDialogDescription>
+						You must have your location enabled and be within the assigned geofence regions before continuing. Please activate your location and ensure you are inside the geofence regions.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogAction onClick={() => onOpenChange(false)}>OK</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
+
+export function ActivateLocationButton(
+	{ disabled, onGeofenceStatusChange }:
+	{ disabled?: boolean, onGeofenceStatusChange?: (isInside: boolean) => void }
+) {
+	const [isActive, setIsActive] = useState(false);
+	const [error, setError] = useState(null as string | null);
+	const onGeofenceStatusChangeRef = useRef(onGeofenceStatusChange);
+	onGeofenceStatusChangeRef.current = onGeofenceStatusChange;
+	useEffect(() => {
+		if(!isActive)
+			return;
+		if(typeof navigator == "undefined" || navigator.geolocation == null) {
+			setError("Geolocation is not supported by this browser.");
+			setIsActive(false);
+			return;
+		}
+		const watchId = navigator.geolocation.watchPosition(
+			async position => {
+				if(typeof document != "undefined" && !document.hasFocus())
+					return;
+				try {
+					const result = await appendGpsLogAction({
+						latitude: position.coords.latitude,
+						longitude: position.coords.longitude,
+						accuracy: position.coords.accuracy
+					});
+					onGeofenceStatusChangeRef.current?.(result.isInsideGeofence);
+				} catch(error) {
+					setError(`${error}`);
+				}
+			},
+			geolocationError => {
+				setError(geolocationError.message);
+			},
+			{ enableHighAccuracy: true, maximumAge: 5000, timeout: 60000 }
+		);
+		return () => navigator.geolocation.clearWatch(watchId);
+	}, [isActive]);
+	return (
+		<>
+			<Button
+				type="button"
+				variant={isActive ? "default" : "outline"}
+				onClick={() => { setError(null); setIsActive(previous => !previous); }}
+				disabled={disabled}
+			>
+				<NavigationIcon />{isActive ? "Location Active" : "Activate Location"}
+			</Button>
+			{error != null ? (
+				<Alert variant="destructive">
+					<CircleAlertIcon />
+					<AlertTitle>Location error</AlertTitle>
+					<AlertDescription>{error}</AlertDescription>
+				</Alert>
+			) : null}
+		</>
 	);
 }

@@ -154,7 +154,7 @@ export async function compileAccesses(
 	const groupedCompiledAccesses = compiledAccesses.reduce((p, c) => ({ ...p, [c.collection]:
 		[...(p[c.collection] ?? []), c] }), {} as Record<string, CompiledAccess[]>);
 	for(const [collection, compiledAccesses] of Object.entries(groupedCompiledAccesses))
-		await payload.kv.set(`accesses:${collection}`, JSON.stringify(compiledAccesses));
+		await payload.kv.set(`accesses:${collection}`, compiledAccesses);
 }
 export async function executeAccesses(
 	{ payload, user, accessesCollection }:
@@ -177,7 +177,7 @@ export async function executeAccesses(
 		] },
 		select: {}
 	})).docs.map(u => u.id);
-	const compiledAccesses = (await payload.kv.get<CompiledAccess[]>(`accesses:${accessesCollection}`))!;
+	const compiledAccesses = await payload.kv.get<CompiledAccess[]>(`accesses:${accessesCollection}`) ?? [];
 	// Sorted from least important to the most important. The later values will override the earlier ones.
 	const appliedAccesses = compiledAccesses.map(a => a.compiledUsers.includes(user.id) ? [0, a] as const : userTeams.some(t => a.compiledTeams.includes(t)) ? [1, a] as const : a.compiledRoles.includes(getRelationshipId(user.role)!) ? [2, a] as const : [-1, a] as const)
 		.filter(([t]) => t != -1).sort(([at, aa], [bt, ba]) => aa.priority != ba.priority ? aa.priority - ba.priority : bt != at ? bt - at : Date.parse(aa.createdAt) - Date.parse(ba.createdAt)).map(([_, a]) => a);
