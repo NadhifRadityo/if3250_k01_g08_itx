@@ -1018,12 +1018,14 @@ function GeofenceRegionsEditor(
 		});
 		return () => {
 			navigator.geolocation.clearWatch(watchId);
-			if(map.getLayer("gps-dot")) map.removeLayer("gps-dot");
-			if(map.getLayer("gps-dot-halo")) map.removeLayer("gps-dot-halo");
-			if(map.getSource(dotSourceId)) map.removeSource(dotSourceId);
-			if(map.getLayer("gps-accuracy-line")) map.removeLayer("gps-accuracy-line");
-			if(map.getLayer("gps-accuracy-fill")) map.removeLayer("gps-accuracy-fill");
-			if(map.getSource(accuracySourceId)) map.removeSource(accuracySourceId);
+			if(map.style != null) {
+				if(map.getLayer("gps-dot")) map.removeLayer("gps-dot");
+				if(map.getLayer("gps-dot-halo")) map.removeLayer("gps-dot-halo");
+				if(map.getSource(dotSourceId)) map.removeSource(dotSourceId);
+				if(map.getLayer("gps-accuracy-line")) map.removeLayer("gps-accuracy-line");
+				if(map.getLayer("gps-accuracy-fill")) map.removeLayer("gps-accuracy-fill");
+				if(map.getSource(accuracySourceId)) map.removeSource(accuracySourceId);
+			}
 		};
 	}, [gpsTracking]);
 
@@ -1142,7 +1144,7 @@ function GeofenceRegionsEditor(
 				{!panelOpen ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
 			</Button>
 			<div className={cn("absolute z-10 flex gap-1 bg-white rounded-lg p-1 shadow-md transition-[left] duration-200 top-3", panelOpen ? "left-85" : "left-3", interacting && "pointer-events-none opacity-60")}>
-					<Button type="button" size="sm" variant={mode === "pan" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => setMode("pan")} title="Pan / Select" disabled={disabled}>
+					<Button type="button" size="sm" variant={mode === "pan" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => setMode("pan")} title="Pan / Select">
 						<MousePointer2Icon className="size-3.5 sm:size-4" />
 					</Button>
 					<Button type="button" size="sm" variant={mode === "draw_polygon" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => { setMode("draw_polygon"); setSelectedId(null); }} title="Draw Polygon" disabled={disabled}>
@@ -1155,7 +1157,7 @@ function GeofenceRegionsEditor(
 						<SquareIcon className="size-3.5 sm:size-4" />
 					</Button>
 					<div className="w-px bg-border mx-1" />
-					<Button type="button" size="sm" variant={gpsTracking ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => setGpsTracking(t => !t)} title={gpsTracking ? "Stop tracking" : "Track my location"} disabled={disabled}>
+					<Button type="button" size="sm" variant={gpsTracking ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => setGpsTracking(t => !t)} title={gpsTracking ? "Stop tracking" : "Track my location"}>
 						{gpsTracking ? <LocateFixedIcon className="size-3.5 sm:size-4" /> : <LocateIcon className="size-3.5 sm:size-4" />}
 					</Button>
 					<div className="w-px bg-border mx-1" />
@@ -1177,7 +1179,6 @@ function GeofenceRegionsEditor(
 			<MapNavigationControls
 				mapRef={mapRef}
 				mapReadyTick={styleReadyTick}
-				disabled={disabled}
 				className={cn("absolute bottom-9 right-3 z-10", interacting && "pointer-events-none opacity-60")}
 			/>
 		</div>
@@ -1504,7 +1505,7 @@ const LightPresetControls = React.memo(function LightPresetControls(
 		return () => {
 			clearInterval(interval);
 			map.off("moveend", onMoveEnd);
-			if(originalLightsRef.current != null) {
+			if(map.style != null && originalLightsRef.current != null) {
 				map.setLights(originalLightsRef.current);
 			}
 		};

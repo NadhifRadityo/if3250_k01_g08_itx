@@ -24,16 +24,20 @@ const tableConfigColumnsWithActions = Object.freeze([
 const rowValueRendererConfigColumnsWithActions = Object.freeze([
 	...rowValueRendererConfigColumns,
 	{ key: "#actions", type: "null", render: (_, row, { isMutating, setEvaluateDrawerRow, setEvaluateDrawerOpen }) => (
-		<Button
-			type="button"
-			size="sm"
-			variant="default"
-			onClick={() => { setEvaluateDrawerRow!(row); setEvaluateDrawerOpen!(true); }}
-			disabled={row.evaluationApproved == true || isMutating}
-		>
-			<CheckIcon />
-			Evaluate
-		</Button>
+		<>
+			{row.settledAt != null && row.settlementStatus == "finished" && row.evaluationApproved != false ? (
+				<Button
+					type="button"
+					size="sm"
+					variant="default"
+					onClick={() => { setEvaluateDrawerRow!(row); setEvaluateDrawerOpen!(true); }}
+					disabled={row.evaluationApproved == true || isMutating}
+				>
+					<CheckIcon />
+					Evaluate
+				</Button>
+			) : null}
+		</>
 	) } satisfies (typeof rowValueRendererConfigColumns)[number]
 ]);
 const defaultColumnOrderWithActions = Object.freeze([

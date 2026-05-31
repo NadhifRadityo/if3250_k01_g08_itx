@@ -6,6 +6,7 @@ import { SerializedEditorState } from "lexical";
 import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
 import { getRelationshipId } from "@/utils/payload";
+import { DatetimeInput } from "@/components/DatetimeInput";
 import { GeofenceRegionsEditorDialog } from "@/components/GeofenceRegionsEditorDialog";
 import { RichTextInput } from "@/components/RichText";
 import { SearchableSelect, SearchableMultiSelect } from "@/components/SearchableSelect";
@@ -14,7 +15,6 @@ import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, Al
 import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
-import { Input } from "@/components/radix/Input";
 import { Skeleton } from "@/components/radix/Skeleton";
 import { CreditApplicationAssignment } from "@/payload-types";
 
@@ -686,11 +686,11 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Assigned Date</label>
-							<Input type="date" value={formState.assignedDate ?? ""} onChange={event => onFormStateChange({ ...formState, assignedDate: event.target.value.length > 0 ? event.target.value : undefined })} disabled={isMutating} />
+							<DatetimeInput mode="datetime" value={formState.assignedDate} onChange={v => onFormStateChange({ ...formState, assignedDate: v })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Due Date</label>
-							<Input type="date" value={formState.dueDate ?? ""} onChange={event => onFormStateChange({ ...formState, dueDate: event.target.value.length > 0 ? event.target.value : undefined })} disabled={isMutating} />
+							<DatetimeInput mode="datetime" value={formState.dueDate} onChange={v => onFormStateChange({ ...formState, dueDate: v })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<div className="flex items-center justify-between">

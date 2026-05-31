@@ -9,7 +9,7 @@ import Form, { type JsonFormDefinition } from "@/components/Form";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { appendGpsLogAction } from "../../(dashboard)/officer-task/executor.actions";
+import { appendGpsLogAction } from "../../../(dashboard)/officer-task/executor.actions";
 import { submitAction, getContextAction, checkGeofenceAction, partialSubmitAction } from "./page.actions";
 function isJsonFormDefinition(value: unknown): value is JsonFormDefinition {
 	if(value == null || typeof value != "object")

@@ -26,7 +26,7 @@ import { officerTaskStatusLabels, computeOfficerTaskStatus, settlementStatusSele
 
 export const defaultStatusRenderer = () =>
 	(_, row, { activeOfficerTask }) => {
-		const status = computeOfficerTaskStatus({ row: row, isActive: activeOfficerTask.id == row.id, dueDate: row.creditApplicationAssignmentDueDate });
+		const status = computeOfficerTaskStatus({ row: row, isActive: activeOfficerTask?.id == row.id, dueDate: row.creditApplicationAssignmentDueDate });
 		return (<Badge variant={status == "approved" ? "default" : status == "rejected" || status == "cancelled" || status == "stale" ? "destructive" : status == "active" ? "default" : "secondary"}>{officerTaskStatusLabels[status]}</Badge>);
 	};
 
@@ -342,7 +342,7 @@ export function InputOtpDialog(
 				</div>
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
-					<AlertDialogAction onClick={onConfirm} disabled={isMutating || otp.length != 6}>Confirm</AlertDialogAction>
+					<AlertDialogAction onClick={e => { e.preventDefault(); onConfirm(); }} disabled={isMutating || otp.length != 6}>Confirm</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
@@ -380,7 +380,7 @@ export function FinishDialog(
 				) : null}
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
-					<AlertDialogAction onClick={onConfirm} disabled={isMutating}>Finish</AlertDialogAction>
+					<AlertDialogAction onClick={e => { e.preventDefault(); onConfirm(); }} disabled={isMutating}>Finish</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
@@ -440,7 +440,7 @@ export function CancelDialog(
 				) : null}
 				<AlertDialogFooter>
 					<AlertDialogCancel disabled={isMutating}>Back</AlertDialogCancel>
-					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Cancel Task</AlertDialogAction>
+					<AlertDialogAction variant="destructive" onClick={e => { e.preventDefault(); onConfirm(); }} disabled={isMutating}>Cancel Task</AlertDialogAction>
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>

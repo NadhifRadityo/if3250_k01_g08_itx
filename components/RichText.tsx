@@ -547,26 +547,7 @@ export const RichTextPreview = ({
 			);
 		},
 		theme: editorTheme
-	}), []);
-
-	const serializedStateString = useMemo(() => JSON.stringify(serializedState), [serializedState]);
-	const lastSerializedStateString = useRef(serializedStateString);
-	useEffect(() => {
-		const editor = editorRef.current;
-		if(editor == null)
-			return;
-		if(serializedStateString == lastSerializedStateString.current)
-			return;
-		lastSerializedStateString.current = serializedStateString;
-		const serializedState = JSON.parse(serializedStateString ?? "null");
-		if(serializedState != null)
-			editor.setEditorState(editor.parseEditorState(serializedState));
-		else {
-			editor.update(() => {
-				$getRoot().clear();
-			});
-		}
-	}, [serializedState]);
+	}), [serializedState]);
 
 	return (
 		<div className={cn("bg-background overflow-hidden rounded-lg border shadow w-full", className)}>

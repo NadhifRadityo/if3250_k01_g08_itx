@@ -326,11 +326,11 @@ export async function requestUpsertAction(formState: FormState) {
 	formState.creditApplications ??= [];
 	if(formState.creditApplications.length == 0)
 		throw new Error("Credit application is required.");
-	if(formState.officer == null || formState.officer.trim().length == 0)
+	if(formState.officer == null)
 		throw new Error("Officer is required.");
-	if(formState.survey == null || formState.survey.trim().length == 0)
+	if(formState.survey == null)
 		throw new Error("Survey is required.");
-	if(formState.satisfactionSurvey == null || formState.satisfactionSurvey.trim().length == 0)
+	if(formState.satisfactionSurvey == null)
 		throw new Error("Satisfaction survey is required.");
 	const officer = await payload.findByID({
 		user: user,

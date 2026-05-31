@@ -33,47 +33,47 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 		return (
 			<>
 				{isPending && !isActive ? (
-					<Button type="button" size="sm" variant="default" onClick={() => onActivate?.(row)} disabled={isMutating}>
+					<Button type="button" size="sm" variant="default" onClick={() => onActivate!(row)} disabled={isMutating}>
 						<PlayIcon />Activate
 					</Button>
 				) : null}
 				{isActive ? (
-					<Button type="button" size="sm" variant="outline" onClick={() => onClearActive?.(row)} disabled={isMutating}>
+					<Button type="button" size="sm" variant="outline" onClick={() => onClearActive!(row)} disabled={isMutating}>
 						<StopCircleIcon />Clear Active
 					</Button>
 				) : null}
 				{isActive && !otpEntered ? (
 					<>
-						<Button type="button" size="sm" variant="outline" onClick={() => onSendOtp?.(row)} disabled={isMutating}>
+						<Button type="button" size="sm" variant="outline" onClick={() => onSendOtp!(row)} disabled={isMutating}>
 							<SendIcon />Send OTP
 						</Button>
-						<Button type="button" size="sm" variant="outline" onClick={() => onInputOtp?.(row)} disabled={isMutating}>
+						<Button type="button" size="sm" variant="outline" onClick={() => onInputOtp!(row)} disabled={isMutating}>
 							<KeyRoundIcon />Input OTP
 						</Button>
 					</>
 				) : null}
 				{isActive && otpEntered && !row.hasSurveyResult ? (
-					<Button type="button" size="sm" variant="outline" onClick={() => onFillSurvey?.(row)} disabled={isMutating}>
+					<Button type="button" size="sm" variant="outline" onClick={() => onFillSurvey!(row)} disabled={isMutating}>
 						<ExternalLinkIcon />Fill Survey
 					</Button>
 				) : null}
 				{row.hasSurveyResult && row.settledAt == null ? (
-					<Button type="button" size="sm" variant="default" onClick={() => onFinish?.(row)} disabled={isMutating}>
+					<Button type="button" size="sm" variant="default" onClick={() => onFinish!(row)} disabled={isMutating}>
 						<FlagIcon />Finish
 					</Button>
 				) : null}
 				{isSettledFinished ? (
-					<Button type="button" size="sm" variant="outline" onClick={() => onUndoFinish?.(row)} disabled={isMutating}>
+					<Button type="button" size="sm" variant="outline" onClick={() => onUndoFinish!(row)} disabled={isMutating}>
 						<UndoIcon />Undo Finish
 					</Button>
 				) : null}
 				{isPending ? (
-					<Button type="button" size="sm" variant="destructive" onClick={() => onCancel?.(row)} disabled={isMutating}>
+					<Button type="button" size="sm" variant="destructive" onClick={() => onCancel!(row)} disabled={isMutating}>
 						<XIcon />Cancel
 					</Button>
 				) : null}
 				{row.settlementStatus == "finished" && !row.hasSatisfactionSurveyResult ? (
-					<Button type="button" size="sm" variant="outline" onClick={() => onSendSatisfactionSurvey?.(row)} disabled={isMutating}>
+					<Button type="button" size="sm" variant="outline" onClick={() => onSendSatisfactionSurvey!(row)} disabled={isMutating}>
 						<SendIcon />Send Satisfaction Survey
 					</Button>
 				) : null}
@@ -307,8 +307,7 @@ export default function Page() {
 							setInputOtpTargetRow(null);
 							setInputOtpValue("");
 						} catch(error) {
-							const message = (error as Error | null | undefined)?.message ?? "";
-							if(typeof message == "string" && message.includes("geofence"))
+							if(`${error?.message}`.includes("geofence"))
 								setGeofenceWarningOpen(true);
 							setInputOtpMutationError(error);
 						} finally {

@@ -24,6 +24,7 @@ import { defaultRelationUserRenderer, defaultRelationCreditApplicationImportRend
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { filterConfigColumns as creditApplicationImportFilterConfigColumns } from "./import.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { DatetimeInput } from "@/components/DatetimeInput";
 
 export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -871,11 +872,11 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Date 1</label>
-							<Input type="date" value={formState.otherDate1} onChange={event => onFormStateChange({ ...formState, otherDate1: event.target.value })} disabled={isMutating} />
+							<DatetimeInput mode="datetime" value={formState.otherDate1} onChange={v => onFormStateChange({ ...formState, otherDate1: v })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2">
 							<label className="text-sm font-medium">Other Date 2</label>
-							<Input type="date" value={formState.otherDate2} onChange={event => onFormStateChange({ ...formState, otherDate2: event.target.value })} disabled={isMutating} />
+							<DatetimeInput mode="datetime" value={formState.otherDate2} onChange={v => onFormStateChange({ ...formState, otherDate2: v })} disabled={isMutating} />
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Others</label>

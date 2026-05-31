@@ -274,14 +274,23 @@ export default function Page() {
 						editFormDrawerState.creditApplications ??= [];
 						if(editFormDrawerState.creditApplications.length == 0)
 							return setEditFormMutationError({ name: "ValidationError", message: "Credit application is required." });
-						if(editFormDrawerState.officer == null || editFormDrawerState.officer.trim().length == 0)
+						if(editFormDrawerState.officer == null)
 							return setEditFormMutationError({ name: "ValidationError", message: "Officer is required." });
+						if(editFormDrawerState.survey == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Survey is required." });
+						if(editFormDrawerState.satisfactionSurvey == null)
+							return setEditFormMutationError({ name: "ValidationError", message: "Satisfaction survey is required." });
 						setEditFormMutationError(null);
 						try {
 							await requestUpsertAction({
 								id: editFormDrawerState.id,
 								creditApplications: editFormDrawerState.creditApplications,
 								officer: editFormDrawerState.officer,
+								survey: editFormDrawerState.survey,
+								satisfactionSurvey: editFormDrawerState.satisfactionSurvey,
+								assignedDate: editFormDrawerState.assignedDate,
+								dueDate: editFormDrawerState.dueDate,
+								geofenceRegions: editFormDrawerState.geofenceRegions,
 								changeRequestComment: editFormDrawerState.changeRequestComment
 							});
 							setEditFormDrawerOpen(false);
@@ -305,13 +314,22 @@ export default function Page() {
 						addFormDrawerState.creditApplications ??= [];
 						if(addFormDrawerState.creditApplications.length == 0)
 							return setAddFormMutationError({ name: "ValidationError", message: "Credit application is required." });
-						if(addFormDrawerState.officer == null || addFormDrawerState.officer.trim().length == 0)
+						if(addFormDrawerState.officer == null)
 							return setAddFormMutationError({ name: "ValidationError", message: "Officer is required." });
+						if(addFormDrawerState.survey == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "Survey is required." });
+						if(addFormDrawerState.satisfactionSurvey == null)
+							return setAddFormMutationError({ name: "ValidationError", message: "Satisfaction survey is required." });
 						setAddFormMutationError(null);
 						try {
 							await requestUpsertAction({
 								creditApplications: addFormDrawerState.creditApplications,
 								officer: addFormDrawerState.officer,
+								survey: addFormDrawerState.survey,
+								satisfactionSurvey: addFormDrawerState.satisfactionSurvey,
+								assignedDate: addFormDrawerState.assignedDate,
+								dueDate: addFormDrawerState.dueDate,
+								geofenceRegions: addFormDrawerState.geofenceRegions,
 								changeRequestComment: addFormDrawerState.changeRequestComment
 							});
 							setAddFormDrawerOpen(false);

@@ -11,7 +11,7 @@ export const ACTIVE_OFFICER_TASK_KV_TTL_MS = 12 * 60 * 60 * 1000;
 export const OTP_PERIOD_MS = 30 * 60 * 1000;
 export const GEOFENCE_VALIDATION_WINDOW_CLIENT_MS = 10 * 60 * 1000;
 export const GEOFENCE_VALIDATION_WINDOW_SERVER_MS = 30 * 60 * 1000;
-export const GEOFENCE_MAX_ACCURACY_METERS = 50;
+export const GEOFENCE_MAX_ACCURACY_METERS = 200;
 
 export type ActiveOfficerTaskKvData = {
 	id: string;

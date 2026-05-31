@@ -12,7 +12,7 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 
 import { useDashboardContext } from "./layout.components";
 import { RelationSummary, getRelationSummaryAction } from "./relation-navigation.actions";
-import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationMessageLog, RelationSurvey, RelationLoginLog, RelationOfficerTask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
+import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationSurvey, RelationLoginLog, RelationMessageLog, RelationOfficerTask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
 type PendingRelationRedirectData = {
 	relationType: string;
@@ -680,14 +680,14 @@ export const defaultRelationOfficerTaskRenderer = ({ description, relationSource
 			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
 			relationId={officerTaskId}
 			fallback={{
-				title: officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>),
+				title: officerTaskRelation?._ ?? (<>Officer Task <span className="font-mono">{officerTaskId}</span></>),
 				description: description,
 				fields: [
 					{ label: "Id", value: (<span className="font-mono">{officerTaskId}</span>) }
 				]
 			}}
 		>
-			{officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>)}
+			{officerTaskRelation?._ ?? (<>Officer Task <span className="font-mono">{officerTaskId}</span></>)}
 		</RelationNavigationLink>
 	))(context?.relationValues?.[`officer-tasks:${officerTaskId}`]);
 export const defaultRelationOfficerTasksRenderer = ({ description, relationSource }: { description: React.ReactNode, relationSource?: string }) =>
@@ -695,13 +695,13 @@ export const defaultRelationOfficerTasksRenderer = ({ description, relationSourc
 		<RelationNavigationLink
 			relationType="officer-tasks"
 			relationSource={relationSource != null ? `${relationSource}:${row.id}` : undefined}
-			pickerTitle="Select credit application assignments"
+			pickerTitle="Select officer tasks"
 			pickerDescription={description}
 			relationChoices={officerTaskIds.map(officerTaskId => (officerTaskRelation => ({
 				id: officerTaskId,
-				name: officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>),
+				name: officerTaskRelation?._ ?? (<>Officer Task <span className="font-mono">{officerTaskId}</span></>),
 				fallback: {
-					title: officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>),
+					title: officerTaskRelation?._ ?? (<>Officer Task <span className="font-mono">{officerTaskId}</span></>),
 					description: description,
 					fields: [
 						{ label: "Id", value: (<span className="font-mono">{officerTaskId}</span>) }
@@ -711,7 +711,7 @@ export const defaultRelationOfficerTasksRenderer = ({ description, relationSourc
 		>
 			{officerTaskIds.map((officerTaskId, i) => (officerTaskRelation => (
 				<React.Fragment key={officerTaskId}>
-					{officerTaskRelation?._ ?? (<>Credit Application Assignment <span className="font-mono">{officerTaskId}</span></>)}
+					{officerTaskRelation?._ ?? (<>Officer Task <span className="font-mono">{officerTaskId}</span></>)}
 					{i != officerTaskIds.length - 1 ? ", " : ""}
 				</React.Fragment>
 			))(context?.relationValues?.[`officer-tasks:${officerTaskId}`]))}

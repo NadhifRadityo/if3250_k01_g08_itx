@@ -130,13 +130,13 @@ export const SatisfactionSurveyResults = (): CollectionConfig => ({
 							req: req,
 							disableErrors: true,
 							overrideAccess: true,
-							collection: "surveys",
+							collection: "satisfaction-surveys",
 							id: value ?? previousValue,
 							depth: 0,
 							select: { parent: true }
 						});
-						if(version == null || version.parent != (data?.survey ?? originalDoc.survey))
-							throw new APIError("Invalid survey version", 400, undefined, true);
+						if(version == null || version.parent != (data?.satisfactionSurvey ?? originalDoc.satisfactionSurvey))
+							throw new APIError("Invalid satisfaction survey version", 400, undefined, true);
 					}
 				]
 			}
