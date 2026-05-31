@@ -31,26 +31,33 @@ export default function Page() {
 		refetchInterval: 60000,
 		refetchOnWindowFocus: true
 	});
+	const [locationError, setLocationError] = useState(null as any);
 	useEffect(() => {
-		if(typeof navigator == "undefined" || navigator.geolocation == null)
-			return;
 		const watchId = navigator.geolocation.watchPosition(
 			async position => {
-				if(typeof document != "undefined" && !document.hasFocus())
-					return;
+				setLocationError(null);
+				if(!document.hasFocus()) return;
 				try {
 					await appendGpsLogAction({
 						latitude: position.coords.latitude,
 						longitude: position.coords.longitude,
 						accuracy: position.coords.accuracy
 					});
-				} catch{}
+				} catch(error) {
+					setLocationError(error);
+				}
 			},
-			() => {},
+			error => {
+				setLocationError(error);
+			},
 			{ enableHighAccuracy: true, maximumAge: 5000, timeout: 60000 }
 		);
-		return () => navigator.geolocation.clearWatch(watchId);
-	}, []);	const formDefinition = useMemo(() => {
+		return () => {
+			navigator.geolocation.clearWatch(watchId);
+			setLocationError(null);
+		};
+	}, []);
+	const formDefinition = useMemo(() => {
 		const content = query.data?.surveyContent;
 		if(isJsonFormDefinition(content))
 			return content;
@@ -99,6 +106,13 @@ export default function Page() {
 				<h1 className="text-xl font-semibold">{query.data.surveyTitle}</h1>
 				<p className="text-muted-foreground text-sm">Officer task: <span className="font-mono">{params.officerTaskId}</span></p>
 			</header>
+			{locationError != null ? (
+				<Alert variant="destructive">
+					<CircleAlertIcon />
+					<AlertTitle>{`${locationError?.name ?? "Location Error"}`}</AlertTitle>
+					<AlertDescription>{`${locationError?.message ?? "An error occured while querying geolocation."}`}</AlertDescription>
+				</Alert>
+			) : null}
 			{geofenceQuery.data?.isInsideGeofence == false ? (
 				<Alert variant="destructive">
 					<CircleAlertIcon />
@@ -106,6 +120,13 @@ export default function Page() {
 					<AlertDescription>
 						You appear to be outside the assigned geofence regions. Please activate your location and remain within the geofence to continue.
 					</AlertDescription>
+				</Alert>
+			) : null}
+			{locationError != null ? (
+				<Alert variant="destructive">
+					<CircleAlertIcon />
+					<AlertTitle>Location error</AlertTitle>
+					<AlertDescription>{locationError}</AlertDescription>
 				</Alert>
 			) : null}
 			{submissionError != null ? (

@@ -8,19 +8,12 @@ import * as turf from "@turf/turf";
 
 import payloadConfig from "@payload-config";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId } from "@/utils/payload";
-import { OfficerTask } from "@/payload-types";
+import { CreditApplication, CreditApplicationAssignment, OfficerTask } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
 import { RelationUser, RelationOfficerTask, RelationCreditApplicationAssignment } from "../relation-navigation.shared";
-import {
-	OTP_PERIOD_MS,
-	GEOFENCE_MAX_ACCURACY_METERS,
-	chainAndCreateNextOfficerTask,
-	GEOFENCE_VALIDATION_WINDOW_CLIENT_MS,
-	GEOFENCE_VALIDATION_WINDOW_SERVER_MS,
-	type ActiveOfficerTaskKvData
-} from "./layout.shared";
+import { OTP_PERIOD_MS, GEOFENCE_MAX_ACCURACY_METERS, chainAndCreateNextOfficerTask, GEOFENCE_VALIDATION_WINDOW_CLIENT_MS, GEOFENCE_VALIDATION_WINDOW_SERVER_MS, type ActiveOfficerTaskKvData } from "./layout.shared";
 
 const PAGE_LIMIT = 20;
 
@@ -201,91 +194,52 @@ async function resolveRelations(
 	return relations;
 }
 
-async function annotateOfficerTaskRows(
+async function annotateRows(
 	{ payload, docs }:
 	{ payload: Payload, docs: OfficerTask[] }
 ) {
-	const docIds = docs.map(doc => doc.id);
-	const previousMap = new Map<string, string>();
-	if(docIds.length > 0) {
-		const previousDocs = await payload.find({
-			overrideAccess: true,
-			collection: "officer-tasks",
-			trash: true,
-			pagination: false,
-			depth: 0,
-			where: { next: { in: docIds } },
-			select: { next: true }
-		});
-		for(const previousDoc of previousDocs.docs) {
-			const nextId = getRelationshipId(previousDoc.next);
-			if(nextId != null)
-				previousMap.set(nextId, previousDoc.id);
-		}
-	}
-	const creditApplicationAssignmentIds = new Set<string>();
-	for(const doc of docs) {
-		const id = getRelationshipId(doc.creditApplicationAssignment);
-		if(id != null)
-			creditApplicationAssignmentIds.add(id);
-	}
-	const creditApplicationAssignmentDueDateMap = new Map<string, string | null>();
-	if(creditApplicationAssignmentIds.size > 0) {
-		const creditApplicationAssignments = await payload.find({
-			overrideAccess: true,
-			collection: "credit-application-assignments",
-			draft: true,
-			trash: true,
-			pagination: false,
-			depth: 0,
-			where: { id: { in: [...creditApplicationAssignmentIds] } },
-			select: { dueDate: true }
-		});
-		for(const doc of creditApplicationAssignments.docs)
-			creditApplicationAssignmentDueDateMap.set(doc.id, doc.dueDate ?? null);
-	}
-	const officerTaskIds = docs.map(doc => doc.id);
-	const surveyResultsByOfficerTask = new Set<string>();
-	const satisfactionSurveyResultsByOfficerTask = new Set<string>();
-	if(officerTaskIds.length > 0) {
-		const surveyResults = await payload.find({
-			overrideAccess: true,
-			collection: "survey-results",
-			pagination: false,
-			depth: 0,
-			where: { officerTask: { in: officerTaskIds } },
-			select: { officerTask: true }
-		});
-		for(const doc of surveyResults.docs) {
-			const officerTask = getRelationshipId(doc.officerTask);
-			if(officerTask != null)
-				surveyResultsByOfficerTask.add(officerTask);
-		}
-		const satisfactionSurveyResults = await payload.find({
-			overrideAccess: true,
-			collection: "satisfaction-survey-results",
-			pagination: false,
-			depth: 0,
-			where: { officerTask: { in: officerTaskIds } },
-			select: { officerTask: true }
-		});
-		for(const doc of satisfactionSurveyResults.docs) {
-			const officerTask = getRelationshipId(doc.officerTask);
-			if(officerTask != null)
-				satisfactionSurveyResultsByOfficerTask.add(officerTask);
-		}
-	}
-	return docs.map(doc => {
-		const creditApplicationAssignmentId = getRelationshipId(doc.creditApplicationAssignment);
-		const dueDate = creditApplicationAssignmentId != null ? creditApplicationAssignmentDueDateMap.get(creditApplicationAssignmentId) ?? null : null;
-		return {
-			...doc,
-			previous: previousMap.get(doc.id) ?? null,
-			creditApplicationAssignmentDueDate: dueDate,
-			hasSurveyResult: surveyResultsByOfficerTask.has(doc.id),
-			hasSatisfactionSurveyResult: satisfactionSurveyResultsByOfficerTask.has(doc.id)
-		};
-	});
+	const previousDocs = (await payload.find({
+		overrideAccess: true,
+		collection: "officer-tasks",
+		trash: true,
+		pagination: false,
+		depth: 0,
+		where: { next: { in: docs.map(doc => doc.id) } },
+		select: { next: true }
+	})).docs.map(d => ({ ...d, next: getRelationshipId(d.next) }));
+	const creditApplicationAssignments = (await payload.find({
+		overrideAccess: true,
+		collection: "credit-application-assignments",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		where: { id: { in: [...new Set(docs.map(d => getRelationshipId(d.creditApplicationAssignment)))] } },
+		select: { dueDate: true }
+	})).docs;
+	const surveyResults = (await payload.find({
+		overrideAccess: true,
+		collection: "survey-results",
+		pagination: false,
+		depth: 0,
+		where: { officerTask: { in: docs.map(doc => doc.id) } },
+		select: { officerTask: true }
+	})).docs.map(d => getRelationshipId(d.officerTask));
+	const satisfactionSurveyResults = (await payload.find({
+		overrideAccess: true,
+		collection: "satisfaction-survey-results",
+		pagination: false,
+		depth: 0,
+		where: { officerTask: { in: docs.map(doc => doc.id) } },
+		select: { officerTask: true }
+	})).docs.map(d => getRelationshipId(d.officerTask));
+	return docs.map(doc => ({
+		...doc,
+		previous: previousDocs.find(d => d.next == doc.id)?.id,
+		creditApplicationAssignmentDueDate: creditApplicationAssignments.find(c => c.id == getRelationshipId(doc.creditApplicationAssignment))?.dueDate,
+		hasSurveyResult: surveyResults.includes(doc.id),
+		hasSatisfactionSurveyResult: satisfactionSurveyResults.includes(doc.id)
+	}));
 }
 
 export async function getActiveAction() {
@@ -293,12 +247,10 @@ export async function getActiveAction() {
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
-
-	const data = await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${user.id}`);
-	return data ?? null;
+	return await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${user.id}`);
 }
 
-export async function queryExecutorAction(
+export async function queryAction(
 	{ keyword, filters, columnsSort, pageIndex }:
 	{ keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
 ) {
@@ -331,7 +283,7 @@ export async function queryExecutorAction(
 			buildFilterWhere(filters)
 		] }
 	});
-	const annotatedDocs = await annotateOfficerTaskRows({ payload, docs: result.docs });
+	const annotatedDocs = await annotateRows({ payload, docs: result.docs });
 	const relations = await resolveRelations({ payload, docs: result.docs });
 	return { ...result, docs: annotatedDocs, relations };
 }
@@ -365,7 +317,7 @@ export async function getDetailsAction(id: string) {
 			evaluationComment: true
 		}
 	});
-	const annotatedDocs = await annotateOfficerTaskRows({ payload, docs: [result] });
+	const annotatedDocs = await annotateRows({ payload, docs: [result] });
 	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: annotatedDocs[0], relations };
 }
@@ -385,7 +337,7 @@ async function ensureOfficerOwnsOfficerTask(
 		populate: { "credit-application-assignments": { officer: true, geofenceRegions: true } }
 	});
 	const creditApplicationAssignment = officerTask.creditApplicationAssignment;
-	const officerId = getRelationshipId((creditApplicationAssignment as any).officer);
+	const officerId = getRelationshipId((creditApplicationAssignment as CreditApplicationAssignment).officer);
 	if(officerId != userId)
 		throw new Error("This officer task is not assigned to you.");
 	return officerTask;
@@ -434,36 +386,35 @@ export async function appendGpsLogAction(
 
 	const sessionId = JSON.parse(Buffer.from(extractJWT({ payload, headers })!.split(".")[1], "base64url").toString("utf-8")).sid;
 	const activeKv = await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${user.id}`);
-	const officerTaskId = activeKv?.id ?? null;
 	await payload.create({
 		overrideAccess: true,
 		collection: "gps-logs",
 		data: {
 			user: user.id,
 			sessionId: sessionId,
-			officerTask: officerTaskId,
+			officerTask: activeKv?.id,
 			latitude: latitude,
 			longitude: longitude,
 			accuracy: accuracy
 		}
 	});
 	let isInsideGeofence = true;
-	if(officerTaskId != null) {
+	if(activeKv?.id != null) {
 		const officerTask = await payload.findByID({
 			overrideAccess: true,
 			collection: "officer-tasks",
-			id: officerTaskId,
+			id: activeKv.id,
 			trash: true,
 			depth: 1,
 			select: { creditApplicationAssignment: true },
 			populate: { "credit-application-assignments": { geofenceRegions: true } }
 		});
-		const geofenceRegions = (officerTask.creditApplicationAssignment as any)?.geofenceRegions ?? null;
+		const geofenceRegions = (officerTask.creditApplicationAssignment as CreditApplicationAssignment)?.geofenceRegions;
 		if(geofenceRegions != null) {
 			isInsideGeofence = await isOfficerInsideGeofenceRegions({
 				payload: payload,
 				officerId: user.id,
-				geofenceRegions: geofenceRegions,
+				geofenceRegions: geofenceRegions as any,
 				windowMs: GEOFENCE_VALIDATION_WINDOW_CLIENT_MS
 			});
 		}
@@ -497,7 +448,7 @@ export async function sendOtpMessageAction(
 		select: { creditApplication: true },
 		populate: { "credit-applications": { whatsappNumber: true } }
 	});
-	const whatsappNumber = (creditApplicationAssignment.creditApplication as any).whatsappNumber;
+	const whatsappNumber = (creditApplicationAssignment.creditApplication as CreditApplication).whatsappNumber;
 	const otp = generateTotp({ creditApplicationAssignmentId, secret: payload.secret });
 	await payload.create({
 		overrideAccess: true,
@@ -528,12 +479,12 @@ export async function inputOtpAction(
 		throw new Error("OTP has already been entered for this officer task.");
 	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
 	const creditApplicationAssignmentId = getRelationshipId(officerTask.creditApplicationAssignment)!;
-	const geofenceRegions = (officerTask.creditApplicationAssignment as any).geofenceRegions ?? null;
+	const geofenceRegions = (officerTask.creditApplicationAssignment as CreditApplicationAssignment).geofenceRegions;
 	if(geofenceRegions != null) {
 		const inside = await isOfficerInsideGeofenceRegions({
 			payload: payload,
 			officerId: user.id,
-			geofenceRegions: geofenceRegions,
+			geofenceRegions: geofenceRegions as any,
 			windowMs: GEOFENCE_VALIDATION_WINDOW_SERVER_MS
 		});
 		if(!inside)
@@ -709,7 +660,7 @@ export async function sendSatisfactionSurveyMessageAction(
 		select: { creditApplication: true },
 		populate: { "credit-applications": { whatsappNumber: true } }
 	});
-	const whatsappNumber = (creditApplicationAssignment.creditApplication as any).whatsappNumber;
+	const whatsappNumber = (creditApplicationAssignment.creditApplication as CreditApplication).whatsappNumber;
 	const serverUrl = payload.config.serverURL ?? "";
 	const link = `${serverUrl}/fill-satisfaction-survey/${id}`;
 	await payload.create({

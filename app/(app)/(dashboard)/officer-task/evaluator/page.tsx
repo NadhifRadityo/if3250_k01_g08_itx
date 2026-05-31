@@ -10,7 +10,7 @@ import { Button } from "@/components/radix/Button";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
-import { evaluateAction, getDetailsAction, queryEvaluatorAction } from "../evaluator.actions";
+import { queryAction, evaluateAction, getDetailsAction } from "../evaluator.actions";
 import { ColumnData, DetailsDrawer, EvaluateDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../evaluator.components";
 
 const columnConfigColumnsWithActions = Object.freeze([
@@ -56,8 +56,13 @@ export default function Page() {
 	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-task.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["officer-task", "evaluator", { keyword, filters, columnsSort, pageIndex }],
-		queryFn: async () => await queryEvaluatorAction({
+		queryKey: ["officer-task", "evaluator", {
+			keyword,
+			filters,
+			columnsSort,
+			pageIndex
+		}],
+		queryFn: async () => await queryAction({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,

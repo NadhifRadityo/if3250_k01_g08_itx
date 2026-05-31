@@ -19,20 +19,16 @@ import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, 
 import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, queryEvaluatorAction } from "./evaluator.actions";
+import { queryAction, RelationValues, getDetailsAction } from "./evaluator.actions";
 import { officerTaskStatusLabels, computeOfficerTaskStatus, settlementStatusSelectOptions } from "./layout.shared";
 
 export const defaultStatusRenderer = () =>
-	(_: unknown, row: ColumnData, ctx: RowValueRendererContext) => {
-		const status = computeOfficerTaskStatus({
-			row: row,
-			isActive: ctx.activeIds?.includes(row.id) ?? false,
-			dueDate: row.creditApplicationAssignmentDueDate ?? null
-		});
+	(_, row, { activeIds }) => {
+		const status = computeOfficerTaskStatus({ row: row, isActive: activeIds.includes(row.id), dueDate: row.creditApplicationAssignmentDueDate });
 		return (<Badge variant={status == "approved" ? "default" : status == "rejected" || status == "cancelled" || status == "stale" ? "destructive" : status == "active" ? "default" : "secondary"}>{officerTaskStatusLabels[status]}</Badge>);
 	};
 
-export type ColumnData = Awaited<ReturnType<typeof queryEvaluatorAction>>["docs"][number];
+export type ColumnData = Awaited<ReturnType<typeof queryAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOfficerTasksAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
@@ -168,8 +164,7 @@ export function DetailsDrawer(
 		columns: drawerValueRendererConfigColumns,
 		context: {
 			...rowValueRendererContext,
-			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations },
-			activeIds: query.data?.activeIds ?? rowValueRendererContext.activeIds
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
@@ -259,8 +254,7 @@ export function EvaluateDrawer(
 		columns: drawerValueRendererConfigColumns,
 		context: {
 			...rowValueRendererContext,
-			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations },
-			activeIds: query.data?.activeIds ?? rowValueRendererContext.activeIds
+			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
 	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>

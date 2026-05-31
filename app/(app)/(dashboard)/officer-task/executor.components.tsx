@@ -3,12 +3,7 @@
 import { useRef, useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
-import {
-	ArrowLeftIcon,
-	ArrowRightIcon,
-	NavigationIcon,
-	CircleAlertIcon
-} from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, NavigationIcon, CircleAlertIcon } from "lucide-react";
 
 import { getRelationshipId } from "@/utils/payload";
 import { RichTextInput } from "@/components/RichText";
@@ -26,20 +21,16 @@ import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, 
 import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, appendGpsLogAction, queryExecutorAction } from "./executor.actions";
+import { queryAction, RelationValues, getDetailsAction, appendGpsLogAction } from "./executor.actions";
 import { officerTaskStatusLabels, computeOfficerTaskStatus, settlementStatusSelectOptions } from "./layout.shared";
 
 export const defaultStatusRenderer = () =>
-	(_: unknown, row: ColumnData, ctx: RowValueRendererContext) => {
-		const status = computeOfficerTaskStatus({
-			row: row,
-			isActive: ctx.activeOfficerTask?.id == row.id,
-			dueDate: row.creditApplicationAssignmentDueDate ?? null
-		});
+	(_, row, { activeOfficerTask }) => {
+		const status = computeOfficerTaskStatus({ row: row, isActive: activeOfficerTask.id == row.id, dueDate: row.creditApplicationAssignmentDueDate });
 		return (<Badge variant={status == "approved" ? "default" : status == "rejected" || status == "cancelled" || status == "stale" ? "destructive" : status == "active" ? "default" : "secondary"}>{officerTaskStatusLabels[status]}</Badge>);
 	};
 
-export type ColumnData = Awaited<ReturnType<typeof queryExecutorAction>>["docs"][number];
+export type ColumnData = Awaited<ReturnType<typeof queryAction>>["docs"][number];
 export const filterConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOfficerTasksAction },
 	{ key: "createdAt", label: "Created At", type: "date" },
@@ -504,21 +495,15 @@ export function ActivateLocationButton(
 	{ disabled?: boolean, onGeofenceStatusChange?: (isInside: boolean) => void }
 ) {
 	const [isActive, setIsActive] = useState(false);
-	const [error, setError] = useState(null as string | null);
+	const [error, setError] = useState(null as any);
 	const onGeofenceStatusChangeRef = useRef(onGeofenceStatusChange);
 	onGeofenceStatusChangeRef.current = onGeofenceStatusChange;
 	useEffect(() => {
-		if(!isActive)
-			return;
-		if(typeof navigator == "undefined" || navigator.geolocation == null) {
-			setError("Geolocation is not supported by this browser.");
-			setIsActive(false);
-			return;
-		}
+		if(!isActive) return;
 		const watchId = navigator.geolocation.watchPosition(
 			async position => {
-				if(typeof document != "undefined" && !document.hasFocus())
-					return;
+				setError(null);
+				if(!document.hasFocus()) return;
 				try {
 					const result = await appendGpsLogAction({
 						latitude: position.coords.latitude,
@@ -527,15 +512,18 @@ export function ActivateLocationButton(
 					});
 					onGeofenceStatusChangeRef.current?.(result.isInsideGeofence);
 				} catch(error) {
-					setError(`${error}`);
+					setError(error);
 				}
 			},
-			geolocationError => {
-				setError(geolocationError.message);
+			error => {
+				setError(error);
 			},
 			{ enableHighAccuracy: true, maximumAge: 5000, timeout: 60000 }
 		);
-		return () => navigator.geolocation.clearWatch(watchId);
+		return () => {
+			navigator.geolocation.clearWatch(watchId);
+			setError(null);
+		};
 	}, [isActive]);
 	return (
 		<>
@@ -550,8 +538,8 @@ export function ActivateLocationButton(
 			{error != null ? (
 				<Alert variant="destructive">
 					<CircleAlertIcon />
-					<AlertTitle>Location error</AlertTitle>
-					<AlertDescription>{error}</AlertDescription>
+					<AlertTitle>{`${error?.name ?? "Location Error"}`}</AlertTitle>
+					<AlertDescription>{`${error?.message ?? "An error occured while querying geolocation."}`}</AlertDescription>
 				</Alert>
 			) : null}
 		</>

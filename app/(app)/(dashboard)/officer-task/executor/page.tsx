@@ -2,70 +2,16 @@
 
 import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-	XIcon,
-	FlagIcon,
-	PlayIcon,
-	SendIcon,
-	UndoIcon,
-	KeyRoundIcon,
-	StopCircleIcon,
-	CircleAlertIcon,
-	ExternalLinkIcon
-} from "lucide-react";
+import { XIcon, FlagIcon, PlayIcon, SendIcon, UndoIcon, KeyRoundIcon, StopCircleIcon, CircleAlertIcon, ExternalLinkIcon } from "lucide-react";
 
 import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 
-import {
-	MenuPage,
-	MenuToolbar,
-	MenuPagination,
-	MenuFilterState,
-	useConfigStorage,
-	MenuFilterSummary,
-	DashboardMenuTable,
-	MenuColumnConfigCard,
-	MenuFilterConfigCard,
-	useMenuRowValueRenderer
-} from "../../layout.components";
+import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
-import {
-	cancelAction,
-	finishAction,
-	activateAction,
-	inputOtpAction,
-	getActiveAction,
-	getDetailsAction,
-	undoFinishAction,
-	clearActiveAction,
-	queryExecutorAction,
-	sendOtpMessageAction,
-	sendSatisfactionSurveyMessageAction
-} from "../executor.actions";
-import {
-	ColumnData,
-	CancelDialog,
-	FinishDialog,
-	DetailsDrawer,
-	SendOtpDialog,
-	ActivateDialog,
-	InputOtpDialog,
-	UndoFinishDialog,
-	ClearActiveDialog,
-	defaultColumnOrder,
-	defaultColumnsSort,
-	tableConfigColumns,
-	columnConfigColumns,
-	defaultColumnsShown,
-	filterConfigColumns,
-	GeofenceWarningDialog,
-	ActivateLocationButton,
-	SendSatisfactionSurveyDialog,
-	eligibleDetailsTriggerColumns,
-	rowValueRendererConfigColumns
-} from "../executor.components";
+import { queryAction, cancelAction, finishAction, activateAction, inputOtpAction, getActiveAction, getDetailsAction, undoFinishAction, clearActiveAction, sendOtpMessageAction, sendSatisfactionSurveyMessageAction } from "../executor.actions";
+import { ColumnData, CancelDialog, FinishDialog, DetailsDrawer, SendOtpDialog, ActivateDialog, InputOtpDialog, UndoFinishDialog, ClearActiveDialog, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, GeofenceWarningDialog, ActivateLocationButton, SendSatisfactionSurveyDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../executor.components";
 import { computeOfficerTaskStatus } from "../layout.shared";
 
 const columnConfigColumnsWithActions = Object.freeze([
@@ -81,11 +27,7 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 	{ key: "#actions", type: "null", render: (_, row, { activeOfficerTask, isMutating, onActivate, onClearActive, onSendOtp, onInputOtp, onFillSurvey, onFinish, onUndoFinish, onCancel, onSendSatisfactionSurvey }) => {
 		const isActive = activeOfficerTask?.id == row.id;
 		const otpEntered = isActive && (activeOfficerTask?.otpEntered ?? false);
-		const status = computeOfficerTaskStatus({
-			row: row,
-			isActive: isActive,
-			dueDate: row.creditApplicationAssignmentDueDate ?? null
-		});
+		const status = computeOfficerTaskStatus({ row: row, isActive: isActive, dueDate: row.creditApplicationAssignmentDueDate });
 		const isPending = status == "pending" || status == "stale" || status == "active";
 		const isSettledFinished = row.settlementStatus == "finished" && row.evaluatedAt == null;
 		return (
@@ -159,8 +101,13 @@ export default function Page() {
 	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-task.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
 	const query = useQuery({
-		queryKey: ["officer-task", "executor", { keyword, filters, columnsSort, pageIndex }],
-		queryFn: async () => await queryExecutorAction({
+		queryKey: ["officer-task", "executor", {
+			keyword,
+			filters,
+			columnsSort,
+			pageIndex
+		}],
+		queryFn: async () => await queryAction({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,

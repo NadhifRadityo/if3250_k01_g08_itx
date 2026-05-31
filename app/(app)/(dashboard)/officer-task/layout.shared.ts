@@ -36,7 +36,7 @@ export async function getCurrentChainHeadOfficerTaskId(
 		] },
 		select: {}
 	});
-	return result.docs[0]?.id ?? null;
+	return result.docs[0]?.id;
 }
 
 export async function getLatestPublishedAssignmentVersionId(
@@ -56,7 +56,7 @@ export async function getLatestPublishedAssignmentVersionId(
 		] },
 		select: {}
 	});
-	return versions.docs[0]?.id ?? null;
+	return versions.docs[0]?.id;
 }
 
 export async function chainAndCreateNextOfficerTask(

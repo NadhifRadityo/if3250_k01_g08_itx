@@ -11,7 +11,7 @@ import { OfficerTask } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
 import { RelationUser, RelationOfficerTask, RelationCreditApplicationAssignment } from "../relation-navigation.shared";
-import { chainAndCreateNextOfficerTask } from "./layout.shared";
+import { ActiveOfficerTaskKvData, chainAndCreateNextOfficerTask } from "./layout.shared";
 
 const PAGE_LIMIT = 20;
 
@@ -51,7 +51,7 @@ async function resolveRelations(
 	return relations;
 }
 
-async function annotateOfficerTaskRows(
+async function annotateRows(
 	{ payload, docs }:
 	{ payload: Payload, docs: OfficerTask[] }
 ) {
@@ -63,7 +63,7 @@ async function annotateOfficerTaskRows(
 		depth: 0,
 		where: { next: { in: docs.map(doc => doc.id) } },
 		select: { next: true }
-	})).docs;
+	})).docs.map(d => ({ ...d, next: getRelationshipId(d.next) }));
 	const creditApplicationAssignments = (await payload.find({
 		overrideAccess: true,
 		collection: "credit-application-assignments",
@@ -76,12 +76,12 @@ async function annotateOfficerTaskRows(
 	})).docs;
 	return docs.map(doc => ({
 		...doc,
-		previous: previousDocs.find(previousDoc => getRelationshipId(previousDoc.next) == doc.id)?.id ?? null,
-		creditApplicationAssignmentDueDate: creditApplicationAssignments.find(caa => caa.id == getRelationshipId(doc.creditApplicationAssignment))?.dueDate ?? null
+		previous: previousDocs.find(d => d.next == doc.id)?.id,
+		creditApplicationAssignmentDueDate: creditApplicationAssignments.find(c => c.id == getRelationshipId(doc.creditApplicationAssignment))?.dueDate
 	}));
 }
 
-export async function queryEvaluatorAction(
+export async function queryAction(
 	{ keyword, filters, columnsSort, pageIndex }:
 	{ keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
 ) {
@@ -113,7 +113,7 @@ export async function queryEvaluatorAction(
 			buildFilterWhere(filters)
 		] }
 	});
-	const annotatedDocs = await annotateOfficerTaskRows({ payload, docs: result.docs });
+	const annotatedDocs = await annotateRows({ payload, docs: result.docs });
 	const relations = await resolveRelations({ payload, docs: result.docs });
 	const activeIds = (await payload.find({
 		overrideAccess: true,
@@ -121,7 +121,7 @@ export async function queryEvaluatorAction(
 		pagination: false,
 		where: { key: { contains: "officer-task:" } },
 		select: { data: true }
-	})).docs.map(doc => (doc.data as any).id);
+	})).docs.map(doc => (doc.data as ActiveOfficerTaskKvData).id);
 	return { ...result, docs: annotatedDocs, relations, activeIds };
 }
 
@@ -154,16 +154,9 @@ export async function getDetailsAction(id: string) {
 			evaluationComment: true
 		}
 	});
-	const annotatedDocs = await annotateOfficerTaskRows({ payload, docs: [result] });
+	const annotatedDocs = await annotateRows({ payload, docs: [result] });
 	const relations = await resolveRelations({ payload, docs: [result] });
-	const activeIds = (await payload.find({
-		overrideAccess: true,
-		collection: "payload-kv",
-		pagination: false,
-		where: { key: { contains: "officer-task:" } },
-		select: { data: true }
-	})).docs.map(doc => (doc.data as any).id);
-	return { row: annotatedDocs[0], relations, activeIds };
+	return { row: annotatedDocs[0], relations };
 }
 
 export async function evaluateAction(
