@@ -65,7 +65,6 @@ export type RowValueRendererContext = {
 	relationValues?: RelationValues;
 } & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
-	"user",
 	"firstSeen",
 	"lastSeen",
 	"pointCount",

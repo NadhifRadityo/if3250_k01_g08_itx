@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
@@ -30,8 +30,12 @@ export default function Page() {
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
 	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-tracking.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
-	const [periodStart, setPeriodStart] = useConfigStorage<string>({ localStorageKey: "officer-tracking.period-start", updateIfThisSearhParamExists: "periodStart", defaultValue: getDefaultPeriodStart() });
+	const [periodStart, setPeriodStart] = useConfigStorage<string>({ localStorageKey: "officer-tracking.period-start", updateIfThisSearhParamExists: "periodStart", defaultValue: "" });
 	const [periodEnd, setPeriodEnd] = useConfigStorage<string | null>({ localStorageKey: "officer-tracking.period-end", updateIfThisSearhParamExists: "periodEnd", defaultValue: null });
+	useEffect(() => {
+		if(periodStart.length > 0) return;
+		setPeriodStart(getDefaultPeriodStart());
+	}, [periodStart, setPeriodStart]);
 	const query = useQuery({
 		queryKey: ["officer-tracking", "reporting", {
 			periodStart,
@@ -49,6 +53,7 @@ export default function Page() {
 			columnsSort: columnsSort,
 			pageIndex: pageIndex
 		}),
+		enabled: periodStart.length > 0,
 		refetchInterval: periodEnd == null ? 10000 : false,
 		refetchOnWindowFocus: true
 	});
@@ -165,12 +170,14 @@ export default function Page() {
 					</Alert>
 				) : null}
 				<div className="h-[60vh] min-h-120">
-					<OfficerTrackingMap
-						users={mapUsers}
-						periodStart={periodStart}
-						periodEnd={periodEnd}
-						isLoading={query.isLoading}
-					/>
+					{periodStart.length > 0 ? (
+						<OfficerTrackingMap
+							users={mapUsers}
+							periodStart={periodStart}
+							periodEnd={periodEnd}
+							isLoading={query.isLoading}
+						/>
+					) : null}
 				</div>
 				<DashboardMenuTable
 					columns={tableConfigColumns}

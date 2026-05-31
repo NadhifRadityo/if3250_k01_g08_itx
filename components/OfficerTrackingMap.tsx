@@ -71,16 +71,19 @@ export function OfficerTrackingMap(
 	const [styleReadyTick, setStyleReadyTick] = useState(0);
 	const styleReadyRef = useRef(false);
 	const [gpsTracking, setGpsTracking] = useState(false);
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => { setMounted(true); }, []);
 
 	const periodStartMs = useMemo(() => new Date(periodStart).getTime(), [periodStart]);
 	const periodEndMs = useMemo(() => periodEnd != null ? new Date(periodEnd).getTime() : null, [periodEnd]);
-	const [nowMs, setNowMs] = useState(() => Date.now());
+	const [nowMs, setNowMs] = useState<number | null>(null);
 	useEffect(() => {
+		setNowMs(Date.now());
 		if(periodEndMs != null) return;
 		const handle = setInterval(() => setNowMs(Date.now()), 1000);
 		return () => { clearInterval(handle); };
 	}, [periodEndMs]);
-	const effectiveEndMs = periodEndMs ?? Math.max(nowMs, periodStartMs + 1);
+	const effectiveEndMs = periodEndMs ?? (nowMs != null ? Math.max(nowMs, periodStartMs + 1) : periodStartMs + 1);
 
 	const [sliderTimeMs, setSliderTimeMs] = useState<number | null>(null);
 	const [playing, setPlaying] = useState(false);
@@ -278,8 +281,8 @@ export function OfficerTrackingMap(
 			/>
 			<div className="absolute bottom-3 left-3 right-3 z-10 bg-white rounded-lg shadow-md p-3 flex flex-col gap-2">
 				<div className="flex items-center justify-between gap-2 text-xs">
-					<span className="font-medium text-foreground">
-						{formatSliderTime(currentTimeMs)}
+					<span className="font-medium text-foreground" suppressHydrationWarning>
+						{mounted ? formatSliderTime(currentTimeMs) : ""}
 					</span>
 					<div className="flex items-center gap-1">
 						<Button
@@ -332,8 +335,8 @@ export function OfficerTrackingMap(
 					disabled={users.length == 0 || isLoading || effectiveEndMs <= periodStartMs}
 				/>
 				<div className="flex items-center justify-between text-[10px] text-muted-foreground">
-					<span>{formatSliderTime(periodStartMs)}</span>
-					<span>{periodEndMs != null ? formatSliderTime(periodEndMs) : "Live"}</span>
+					<span suppressHydrationWarning>{mounted ? formatSliderTime(periodStartMs) : ""}</span>
+					<span suppressHydrationWarning>{periodEndMs != null ? (mounted ? formatSliderTime(periodEndMs) : "") : "Live"}</span>
 				</div>
 			</div>
 		</div>

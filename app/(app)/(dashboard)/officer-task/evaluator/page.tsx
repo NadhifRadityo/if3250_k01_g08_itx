@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckIcon, CircleAlertIcon } from "lucide-react";
+import { CheckIcon, RefreshCwIcon, CircleAlertIcon } from "lucide-react";
 
 import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -25,18 +25,28 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 	...rowValueRendererConfigColumns,
 	{ key: "#actions", type: "null", render: (_, row, { isMutating, setEvaluateDrawerRow, setEvaluateDrawerOpen }) => (
 		<>
-			{row.settledAt != null && row.settlementStatus == "finished" && row.evaluationApproved != false ? (
-				<Button
-					type="button"
-					size="sm"
-					variant="default"
-					onClick={() => { setEvaluateDrawerRow!(row); setEvaluateDrawerOpen!(true); }}
-					disabled={row.evaluationApproved == true || isMutating}
-				>
-					<CheckIcon />
-					Evaluate
-				</Button>
-			) : null}
+			{row.settledAt != null && row.settlementStatus == "finished" && (row.evaluationApproved == null || (row.evaluationApproved &&
+				(row.creditApplicationAssignmentDueDate == null || Date.now() < Date.parse(row.creditApplicationAssignmentDueDate)))) ? (
+					<Button
+						type="button"
+						size="sm"
+						variant="default"
+						onClick={() => { setEvaluateDrawerRow!(row); setEvaluateDrawerOpen!(true); }}
+						disabled={isMutating}
+					>
+						{row.evaluatedAt != null ? (
+							<>
+								<RefreshCwIcon />
+								Reevaluate
+							</>
+						) : (
+							<>
+								<CheckIcon />
+								Evaluate
+							</>
+						)}
+					</Button>
+				) : null}
 		</>
 	) } satisfies (typeof rowValueRendererConfigColumns)[number]
 ]);

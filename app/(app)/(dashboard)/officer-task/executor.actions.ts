@@ -139,11 +139,11 @@ export async function isOfficerInsideGeofenceRegions(
 }
 
 function generateTotp(
-	{ creditApplicationAssignmentId, secret, at = Date.now() }:
-	{ creditApplicationAssignmentId: string, secret: string, at?: number }
+	{ officerTaskId, secret, at = Date.now() }:
+	{ officerTaskId: string, secret: string, at?: number }
 ): string {
 	const counter = Math.floor(at / OTP_PERIOD_MS);
-	const seed = `${secret}:${creditApplicationAssignmentId}:${counter}`;
+	const seed = `${secret}:${officerTaskId}:${counter}`;
 	const digest = createHash("sha256").update(seed).digest();
 	const offset = digest[digest.length - 1] & 0x0f;
 	const code = ((digest[offset] & 0x7f) << 24) |
@@ -154,12 +154,12 @@ function generateTotp(
 }
 
 function verifyTotp(
-	{ creditApplicationAssignmentId, secret, otp, at = Date.now() }:
-	{ creditApplicationAssignmentId: string, secret: string, otp: string, at?: number }
+	{ officerTaskId, secret, otp, at = Date.now() }:
+	{ officerTaskId: string, secret: string, otp: string, at?: number }
 ): boolean {
 	if(otp == null || otp.length != 6)
 		return false;
-	return generateTotp({ creditApplicationAssignmentId, secret, at }) == otp;
+	return generateTotp({ officerTaskId, secret, at }) == otp;
 }
 
 async function resolveRelations(
@@ -215,7 +215,17 @@ async function annotateRows(
 		pagination: false,
 		depth: 0,
 		where: { id: { in: [...new Set(docs.map(d => getRelationshipId(d.creditApplicationAssignment)))] } },
-		select: { dueDate: true }
+		select: { dueDate: true, creditApplication: true }
+	})).docs;
+	const creditApplications = (await payload.find({
+		overrideAccess: true,
+		collection: "credit-applications",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		where: { id: { in: [...new Set(creditApplicationAssignments.map(c => getRelationshipId(c.creditApplication)).filter((id): id is string => id != null))] } },
+		select: { addresses: true }
 	})).docs;
 	const surveyResults = (await payload.find({
 		overrideAccess: true,
@@ -233,13 +243,18 @@ async function annotateRows(
 		where: { officerTask: { in: docs.map(doc => doc.id) } },
 		select: { officerTask: true }
 	})).docs.map(d => getRelationshipId(d.officerTask));
-	return docs.map(doc => ({
-		...doc,
-		previous: previousDocs.find(d => d.next == doc.id)?.id,
-		creditApplicationAssignmentDueDate: creditApplicationAssignments.find(c => c.id == getRelationshipId(doc.creditApplicationAssignment))?.dueDate,
-		hasSurveyResult: surveyResults.includes(doc.id),
-		hasSatisfactionSurveyResult: satisfactionSurveyResults.includes(doc.id)
-	}));
+	return docs.map(doc => {
+		const creditApplicationAssignment = creditApplicationAssignments.find(c => c.id == getRelationshipId(doc.creditApplicationAssignment));
+		const creditApplication = creditApplicationAssignment != null ? creditApplications.find(c => c.id == getRelationshipId(creditApplicationAssignment.creditApplication)) : undefined;
+		return {
+			...doc,
+			previous: previousDocs.find(d => d.next == doc.id)?.id,
+			creditApplicationAssignmentDueDate: creditApplicationAssignment?.dueDate,
+			creditApplicationAddresses: creditApplication?.addresses ?? [],
+			hasSurveyResult: surveyResults.includes(doc.id),
+			hasSatisfactionSurveyResult: satisfactionSurveyResults.includes(doc.id)
+		};
+	});
 }
 
 export async function getActiveAction() {
@@ -437,11 +452,10 @@ export async function sendOtpMessageAction(
 	if(activeKv.otpEntered)
 		throw new Error("OTP has already been entered for this officer task.");
 	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
-	const creditApplicationAssignmentId = getRelationshipId(officerTask.creditApplicationAssignment)!;
 	const creditApplicationAssignment = await payload.findByID({
 		overrideAccess: true,
 		collection: "credit-application-assignments",
-		id: creditApplicationAssignmentId,
+		id: getRelationshipId(officerTask.creditApplicationAssignment)!,
 		draft: true,
 		trash: true,
 		depth: 1,
@@ -449,7 +463,7 @@ export async function sendOtpMessageAction(
 		populate: { "credit-applications": { whatsappNumber: true } }
 	});
 	const whatsappNumber = (creditApplicationAssignment.creditApplication as CreditApplication).whatsappNumber;
-	const content = `Your OTP code is: ${generateTotp({ creditApplicationAssignmentId, secret: payload.secret })}. It is valid for 30 minutes.`;
+	const content = `Your OTP code is: ${generateTotp({ officerTaskId: id, secret: payload.secret })}. It is valid for 30 minutes.`;
 	let deliveryStatus: "pending" | "failed" | "sent";
 	try {
 		const response = await fetch(new URL("/api/v1/messages", process.env.MESSAGING_ENDPOINT), {
@@ -496,7 +510,6 @@ export async function inputOtpAction(
 	if(activeKv.otpEntered)
 		throw new Error("OTP has already been entered for this officer task.");
 	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
-	const creditApplicationAssignmentId = getRelationshipId(officerTask.creditApplicationAssignment)!;
 	const geofenceRegions = (officerTask.creditApplicationAssignment as CreditApplicationAssignment).geofenceRegions;
 	if(geofenceRegions != null) {
 		const inside = await isOfficerInsideGeofenceRegions({
@@ -508,7 +521,7 @@ export async function inputOtpAction(
 		if(!inside)
 			throw new Error("Officer location is not within the geofence regions. Please enable your location and try again.");
 	}
-	const isValid = verifyTotp({ creditApplicationAssignmentId, secret: payload.secret, otp });
+	const isValid = verifyTotp({ officerTaskId: id, secret: payload.secret, otp });
 	if(!isValid)
 		throw new Error("Invalid OTP code.");
 	await payload.kv.set(`officer-task:${user.id}`, {
@@ -646,7 +659,6 @@ export async function sendSatisfactionSurveyMessageAction(
 	if(user == null) return unauthorized();
 
 	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
-	const creditApplicationAssignmentId = getRelationshipId(officerTask.creditApplicationAssignment)!;
 	const fullOfficerTask = await payload.findByID({
 		overrideAccess: true,
 		collection: "officer-tasks",
@@ -671,7 +683,7 @@ export async function sendSatisfactionSurveyMessageAction(
 	const creditApplicationAssignment = await payload.findByID({
 		overrideAccess: true,
 		collection: "credit-application-assignments",
-		id: creditApplicationAssignmentId,
+		id: getRelationshipId(officerTask.creditApplicationAssignment)!,
 		draft: true,
 		trash: true,
 		depth: 1,

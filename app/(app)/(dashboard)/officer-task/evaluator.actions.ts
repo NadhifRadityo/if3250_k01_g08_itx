@@ -185,6 +185,17 @@ export async function evaluateAction(
 		throw new Error("Officer task is already approved.");
 	if(officerTask.settlementStatus != "finished")
 		throw new Error("Officer task must be in 'finished' settlement status before it can be evaluated.");
+	const creditApplicationAssignment = await payload.findByID({
+		overrideAccess: true,
+		collection: "credit-application-assignments",
+		draft: true,
+		trash: true,
+		depth: 0,
+		id: getRelationshipId(officerTask.creditApplicationAssignment)!,
+		select: { dueDate: true }
+	});
+	if(officerTask.evaluationApproved != null && creditApplicationAssignment.dueDate != null && Date.now() >= Date.parse(creditApplicationAssignment.dueDate))
+		throw new Error("Officer task is already past its due date.");
 	await payload.update({
 		user: user,
 		overrideAccess: true,

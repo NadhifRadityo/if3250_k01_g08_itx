@@ -129,7 +129,7 @@ export default function Page() {
 			<iframe
 				ref={iframeRef}
 				src={iframeSrc}
-				allow="camera; microphone; autoplay"
+				allow="camera; microphone; display-capture; autoplay"
 				className="h-[80vh] w-full rounded-3xl border"
 			/>
 		</div>

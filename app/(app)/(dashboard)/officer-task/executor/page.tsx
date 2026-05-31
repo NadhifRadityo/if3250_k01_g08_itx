@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { XIcon, FlagIcon, PlayIcon, SendIcon, UndoIcon, PhoneIcon, KeyRoundIcon, StopCircleIcon, CircleAlertIcon, ExternalLinkIcon } from "lucide-react";
+import { XIcon, FlagIcon, PlayIcon, SendIcon, UndoIcon, PhoneIcon, KeyRoundIcon, NavigationIcon, StopCircleIcon, CircleAlertIcon, ExternalLinkIcon } from "lucide-react";
 
 import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -24,16 +24,15 @@ const tableConfigColumnsWithActions = Object.freeze([
 ]);
 const rowValueRendererConfigColumnsWithActions = Object.freeze([
 	...rowValueRendererConfigColumns,
-	{ key: "#actions", type: "null", render: (_, row, { activeOfficerTask, isMutating, onActivate, onClearActive, onSendOtp, onInputOtp, onFillSurvey, onFinish, onUndoFinish, onCancel, onSendSatisfactionSurvey, onCall }) => {
+	{ key: "#actions", type: "null", render: (_, row, { activeOfficerTask, isMutating, onActivate, onClearActive, onSendOtp, onInputOtp, onFillSurvey, onFinish, onUndoFinish, onCancel, onSendSatisfactionSurvey, onCall, onDirection }) => {
 		const isActive = activeOfficerTask?.id == row.id;
 		const otpEntered = isActive && (activeOfficerTask?.otpEntered ?? false);
 		const status = computeOfficerTaskStatus({ row: row, isActive: isActive, dueDate: row.creditApplicationAssignmentDueDate });
-		const isPending = status == "pending" || status == "stale" || status == "active";
 		const isSettledFinished = row.settlementStatus == "finished" && row.evaluatedAt == null;
 		const isBeforeDueDate = row.creditApplicationAssignmentDueDate == null || Date.now() < Date.parse(row.creditApplicationAssignmentDueDate);
 		return (
 			<>
-				{isPending && !isActive ? (
+				{status == "pending" && !isActive ? (
 					<Button type="button" size="sm" variant="default" onClick={() => onActivate!(row)} disabled={isMutating}>
 						<PlayIcon />Activate
 					</Button>
@@ -68,7 +67,7 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 						<UndoIcon />Undo Finish
 					</Button>
 				) : null}
-				{isPending ? (
+				{status == "pending" || isActive ? (
 					<Button type="button" size="sm" variant="destructive" onClick={() => onCancel!(row)} disabled={isMutating}>
 						<XIcon />Cancel
 					</Button>
@@ -78,9 +77,14 @@ const rowValueRendererConfigColumnsWithActions = Object.freeze([
 						<SendIcon />Send Satisfaction Survey
 					</Button>
 				) : null}
-				{isBeforeDueDate ? (
+				{isActive || isBeforeDueDate ? (
 					<Button type="button" size="sm" variant="outline" onClick={() => onCall!(row)} disabled={isMutating}>
 						<PhoneIcon />Call
+					</Button>
+				) : null}
+				{isActive || isBeforeDueDate ? (
+					<Button type="button" size="sm" variant="outline" onClick={() => onDirection!(row)} disabled={(isMutating ?? false) || (row.creditApplicationAddresses?.length ?? 0) == 0}>
+						<NavigationIcon />Direction
 					</Button>
 				) : null}
 			</>
@@ -158,7 +162,12 @@ export default function Page() {
 		onUndoFinish: setUndoFinishTargetRow,
 		onCancel: (row: ColumnData) => { setCancelTargetRow(row); setCancelSettlementComment(lexicalPlainText("")); setCancelMutationError(null); },
 		onSendSatisfactionSurvey: setSendSatisfactionSurveyTargetRow,
-		onCall: (row: ColumnData) => { window.open(`/call/${row.id}`, "_blank"); }
+		onCall: (row: ColumnData) => { window.open(`/call/${row.id}`, "_blank"); },
+		onDirection: (row: ColumnData) => {
+			const addresses = row.creditApplicationAddresses ?? [];
+			if(addresses.length == 0) return;
+			window.open(`https://www.google.com/maps/dir/?api=1&origin=&destination=${encodeURIComponent(addresses[addresses.length - 1])}${addresses.length > 1 ? `&waypoints=${addresses.slice(0, -1).map(a => encodeURIComponent(a)).join("|")}` : ""}&travelmode=driving`, "_blank");
+		}
 	};
 	const renderCell = useMenuRowValueRenderer({
 		columns: rowValueRendererConfigColumnsWithActions,

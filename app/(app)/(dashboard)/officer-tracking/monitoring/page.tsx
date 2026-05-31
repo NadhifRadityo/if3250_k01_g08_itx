@@ -64,7 +64,7 @@ export default function Page() {
 			points: mapUser.points
 		};
 	}), [query.data?.mapUsers, query.data?.relations]);
-	const periodStart = query.data?.periodStart ?? new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+	const periodStart = query.data?.periodStart ?? null;
 	const periodEnd = query.data?.periodEnd ?? null;
 
 	return (
@@ -110,12 +110,14 @@ export default function Page() {
 					</Alert>
 				) : null}
 				<div className="h-[60vh] min-h-120">
-					<OfficerTrackingMap
-						users={mapUsers}
-						periodStart={periodStart}
-						periodEnd={periodEnd}
-						isLoading={query.isLoading}
-					/>
+					{periodStart != null ? (
+						<OfficerTrackingMap
+							users={mapUsers}
+							periodStart={periodStart}
+							periodEnd={periodEnd}
+							isLoading={query.isLoading}
+						/>
+					) : null}
 				</div>
 				<DashboardMenuTable
 					columns={tableConfigColumns}
@@ -142,7 +144,7 @@ export default function Page() {
 					open={detailsDrawerOpen}
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
-					periodStart={periodStart}
+					periodStart={periodStart ?? ""}
 					periodEnd={periodEnd}
 					rowValueRendererContext={rowValueRendererContext}
 				/>
