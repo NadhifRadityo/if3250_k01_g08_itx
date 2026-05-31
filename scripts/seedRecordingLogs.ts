@@ -142,7 +142,7 @@ for(const seed of RECORDING_LOG_SEEDS) {
 				createdAt: seed.createdAt,
 				officerTask: officerTaskIdMap.get(seed.creditApplicationKey)!,
 				phoneNumber: seed.phoneNumber,
-				audioUrl: AUDIO_URL,
+				recordingUrl: AUDIO_URL,
 				transcriptionUrl: TRANSCRIPTION_URL
 			}
 		});

@@ -92,7 +92,7 @@ export async function logoutAction() {
 					outcome: "success"
 				}
 			});
-		} catch{}
+		} catch(_) {}
 	}
 	return redirect("/login", RedirectType.push);
 }

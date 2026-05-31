@@ -36,7 +36,7 @@ export async function loginAction(email: string, password: string) {
 					outcome: "success"
 				}
 			});
-		} catch{}
+		} catch(_) {}
 		return redirect("/", RedirectType.push);
 	} catch (error) {
 		try {
@@ -59,7 +59,7 @@ export async function loginAction(email: string, password: string) {
 					outcome: "failure"
 				}
 			});
-		} catch{}
+		} catch(_) {}
 		throw error;
 	}
 }

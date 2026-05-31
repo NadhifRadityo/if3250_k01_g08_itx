@@ -8,7 +8,7 @@ import * as turf from "@turf/turf";
 
 import payloadConfig from "@payload-config";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId } from "@/utils/payload";
-import { CreditApplication, CreditApplicationAssignment, OfficerTask } from "@/payload-types";
+import { OfficerTask, CreditApplication, CreditApplicationAssignment } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
@@ -449,15 +449,33 @@ export async function sendOtpMessageAction(
 		populate: { "credit-applications": { whatsappNumber: true } }
 	});
 	const whatsappNumber = (creditApplicationAssignment.creditApplication as CreditApplication).whatsappNumber;
-	const otp = generateTotp({ creditApplicationAssignmentId, secret: payload.secret });
+	const content = `Your OTP code is: ${generateTotp({ creditApplicationAssignmentId, secret: payload.secret })}. It is valid for 30 minutes.`;
+	let deliveryStatus: "pending" | "failed" | "sent";
+	try {
+		const response = await fetch(new URL("/api/v1/messages", process.env.MESSAGING_ENDPOINT), {
+			method: "POST",
+			headers: {
+				"X-API-Key": process.env.MESSAGING_API_KEY!,
+				"Content-Type": "application/json"
+			},
+			body: JSON.stringify({
+				to: whatsappNumber,
+				type: "text",
+				content: content
+			})
+		});
+		deliveryStatus = response.ok ? "sent" : "failed";
+	} catch(_) {
+		deliveryStatus = "failed";
+	}
 	await payload.create({
 		overrideAccess: true,
 		collection: "message-logs",
 		data: {
 			officerTask: id,
-			content: `Your OTP code is: ${otp}. It is valid for 30 minutes.`,
+			content: content,
 			whatsappNumber: whatsappNumber,
-			whatsappDeliveryStatus: "pending"
+			whatsappDeliveryStatus: deliveryStatus
 		}
 	});
 	return { ok: true };
@@ -661,16 +679,33 @@ export async function sendSatisfactionSurveyMessageAction(
 		populate: { "credit-applications": { whatsappNumber: true } }
 	});
 	const whatsappNumber = (creditApplicationAssignment.creditApplication as CreditApplication).whatsappNumber;
-	const serverUrl = payload.config.serverURL ?? "";
-	const link = `${serverUrl}/fill-satisfaction-survey/${id}`;
+	const content = `Please fill our satisfaction survey: ${payload.config.serverURL ?? ""}/fill-satisfaction-survey/${id}`;
+	let deliveryStatus: "pending" | "failed" | "sent";
+	try {
+		const response = await fetch(new URL("/api/v1/messages", process.env.MESSAGING_ENDPOINT), {
+			method: "POST",
+			headers: {
+				"X-API-Key": process.env.MESSAGING_API_KEY!,
+				"Content-Type": "application/json"
+			},
+			body: JSON.stringify({
+				to: whatsappNumber,
+				type: "text",
+				content: content
+			})
+		});
+		deliveryStatus = response.ok ? "sent" : "failed";
+	} catch(_) {
+		deliveryStatus = "failed";
+	}
 	await payload.create({
 		overrideAccess: true,
 		collection: "message-logs",
 		data: {
 			officerTask: id,
-			content: `Please fill our satisfaction survey: ${link}`,
+			content: content,
 			whatsappNumber: whatsappNumber,
-			whatsappDeliveryStatus: "pending"
+			whatsappDeliveryStatus: deliveryStatus
 		}
 	});
 	return { ok: true };

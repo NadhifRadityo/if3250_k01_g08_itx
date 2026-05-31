@@ -59,7 +59,7 @@ async function queryAction(
 				{ "officerTask.creditApplicationAssignment.officer.name": { like: keyword } },
 				{ "officerTask.creditApplicationAssignment.officer.email": { like: keyword } },
 				{ phoneNumber: { like: keyword } },
-				{ audioUrl: { like: keyword } },
+				{ recordingUrl: { like: keyword } },
 				{ transcriptionUrl: { like: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
@@ -92,7 +92,7 @@ export async function getDetailsAction(id: string) {
 			createdAt: true,
 			officerTask: true,
 			phoneNumber: true,
-			audioUrl: true,
+			recordingUrl: true,
 			transcriptionUrl: true
 		}
 	});

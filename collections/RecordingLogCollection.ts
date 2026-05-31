@@ -9,7 +9,7 @@ export const RecordingLogs = (): CollectionConfig => ({
 	timestamps: false,
 	admin: {
 		useAsTitle: "officerTask",
-		defaultColumns: ["createdAt", "officerTask", "phoneNumber", "audioUrl", "transcriptionUrl"]
+		defaultColumns: ["createdAt", "officerTask", "phoneNumber", "recordingUrl", "transcriptionUrl"]
 	},
 	hooks: {
 		beforeChange: [
@@ -45,7 +45,7 @@ export const RecordingLogs = (): CollectionConfig => ({
 			required: true
 		},
 		{
-			name: "audioUrl",
+			name: "recordingUrl",
 			type: "text"
 		},
 		{

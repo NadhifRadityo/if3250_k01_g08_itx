@@ -112,6 +112,7 @@ export type RowValueRendererContext = {
 	onUndoFinish?: (row: ColumnData) => void;
 	onCancel?: (row: ColumnData) => void;
 	onSendSatisfactionSurvey?: (row: ColumnData) => void;
+	onCall?: (row: ColumnData) => void;
 } & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",

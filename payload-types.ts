@@ -1113,7 +1113,7 @@ export interface RecordingLog {
   createdAt: string;
   officerTask?: (string | null) | OfficerTask;
   phoneNumber: string;
-  audioUrl?: string | null;
+  recordingUrl?: string | null;
   transcriptionUrl?: string | null;
 }
 /**
@@ -1823,7 +1823,7 @@ export interface RecordingLogsSelect<T extends boolean = true> {
   createdAt?: T;
   officerTask?: T;
   phoneNumber?: T;
-  audioUrl?: T;
+  recordingUrl?: T;
   transcriptionUrl?: T;
 }
 /**

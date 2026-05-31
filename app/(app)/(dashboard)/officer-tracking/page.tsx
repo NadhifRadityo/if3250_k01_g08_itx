@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
 
-import { resolveManagementRootHref } from "../layout.actions";
+import { getDashboardContextAction } from "../layout.actions";
 
 export default async function Page() {
-	return redirect(await resolveManagementRootHref("monitoring-officer-tracking"));
+	const dashboardContext = await getDashboardContextAction();
+	if(dashboardContext == null) return redirect("/login");
+	const thisMenu = dashboardContext.menus.find(menu => menu.key == "officer-tracking");
+	if(thisMenu == null) return redirect("/");
+	return redirect(thisMenu.modes[thisMenu.defaultMode].href);
 }

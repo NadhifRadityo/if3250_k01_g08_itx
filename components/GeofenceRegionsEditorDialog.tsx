@@ -17,10 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import "mapbox-gl/dist/mapbox-gl.css";
 import { ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, ChevronDownIcon, ChevronUpIcon, CircleIcon, CloudMoonIcon, CloudSunIcon, GripVerticalIcon, LocateFixedIcon, LocateIcon, MapPinIcon, MinusIcon, MoonIcon, MountainSnowIcon, MousePointer2Icon, NavigationIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PentagonIcon, PlusIcon, SearchIcon, SquareIcon, SunIcon, SunsetIcon, Trash2Icon, XIcon } from "lucide-react";
 
+export const MAPBOX_ACCESS_TOKEN = "pk.eyJ1IjoibmFkaGlmcmFkaXR5byIsImEiOiJjbW80OG1menEwb2JnMm9zZ2w0YjUzMzhxIn0.D28hzAHuC353e4e_Q3YV1A";
+
 type InteractionMode = "pan" | "draw_polygon" | "draw_circle" | "draw_rectangle";
 type LightPresetMode = "auto" | "dawn" | "day" | "dusk" | "night";
 
-function getAutoLightPreset(): "dawn" | "day" | "dusk" | "night" {
+export function getAutoLightPreset(): "dawn" | "day" | "dusk" | "night" {
 	const hour = new Date().getHours();
 	if(hour >= 5 && hour < 8) return "dawn";
 	if(hour >= 8 && hour < 17) return "day";
@@ -28,7 +30,7 @@ function getAutoLightPreset(): "dawn" | "day" | "dusk" | "night" {
 	return "night";
 }
 
-function nextLightPresetBoundary(now: Date): Date {
+export function nextLightPresetBoundary(now: Date): Date {
 	const boundaries = [5, 8, 17, 20];
 	for(const h of boundaries) {
 		const d = new Date(now);
@@ -41,7 +43,7 @@ function nextLightPresetBoundary(now: Date): Date {
 	return d;
 }
 
-function durationFromPixelDistance(pixels: number): number {
+export function durationFromPixelDistance(pixels: number): number {
 	const min = 200;
 	const max = 1500;
 	const ref = 600;
@@ -49,7 +51,7 @@ function durationFromPixelDistance(pixels: number): number {
 	return Math.round(min + (max - min) * ratio);
 }
 
-function animationDurationToCenter(map: mapboxgl.Map, target: [number, number]): number {
+export function animationDurationToCenter(map: mapboxgl.Map, target: [number, number]): number {
 	const c = map.getCenter();
 	const a = map.project([c.lng, c.lat]);
 	const b = map.project(target);
@@ -57,7 +59,7 @@ function animationDurationToCenter(map: mapboxgl.Map, target: [number, number]):
 	return durationFromPixelDistance(d);
 }
 
-function animationDurationToBounds(map: mapboxgl.Map, bbox: [number, number, number, number]): number {
+export function animationDurationToBounds(map: mapboxgl.Map, bbox: [number, number, number, number]): number {
 	const [minLng, minLat, maxLng, maxLat] = bbox;
 	const targetCenter: [number, number] = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
 	const c = map.getCenter();
@@ -67,7 +69,7 @@ function animationDurationToBounds(map: mapboxgl.Map, bbox: [number, number, num
 	return durationFromPixelDistance(d);
 }
 
-function computeSunPosition(lat: number, lng: number, date: Date): { altitude: number, azimuth: number } {
+export function computeSunPosition(lat: number, lng: number, date: Date): { altitude: number, azimuth: number } {
 	const rad = Math.PI / 180;
 	const deg = 180 / Math.PI;
 	const JD = date.getTime() / 86400000 + 2440587.5;
@@ -95,12 +97,102 @@ const operationLabels = Object.freeze({
 	"exclusion": "Exclusion"
 });
 
-function seededRegionColor(id: string): string {
+export function seededRegionColor(id: string): string {
 	let hash = 5381;
 	for(let i = 0; i < id.length; i++)
 		hash = ((hash << 5) + hash + id.charCodeAt(i)) | 0;
 	const h = ((Math.abs(hash) * 137.508) + 60) % 360;
 	return `hsl(${h}, 65%, 50%)`;
+}
+
+export function useMapGpsTracking(
+	{ enabled, mapRef, onError }:
+	{ enabled: boolean, mapRef: React.RefObject<mapboxgl.Map | null>, onError: () => void }
+) {
+	const onErrorRef = useRef(onError);
+	onErrorRef.current = onError;
+	useEffect(() => {
+		if(!enabled) return;
+		const map = mapRef.current;
+		if(map == null) return;
+		if(typeof navigator == "undefined" || navigator.geolocation == null) {
+			onErrorRef.current();
+			return;
+		}
+		const dotSourceId = "gps-dot";
+		const accuracySourceId = "gps-accuracy";
+		const ensureLayers = () => {
+			if(!map.isStyleLoaded()) { map.once("load", ensureLayers); return; }
+			if(!map.getSource(accuracySourceId)) {
+				map.addSource(accuracySourceId, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+				map.addLayer({
+					id: "gps-accuracy-fill", type: "fill", source: accuracySourceId,
+					paint: { "fill-color": "#3b82f6", "fill-opacity": 0.18 }
+				});
+				map.addLayer({
+					id: "gps-accuracy-line", type: "line", source: accuracySourceId,
+					paint: { "line-color": "#3b82f6", "line-opacity": 0.4, "line-width": 1 }
+				});
+			}
+			if(!map.getSource(dotSourceId)) {
+				map.addSource(dotSourceId, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+				map.addLayer({
+					id: "gps-dot-halo", type: "circle", source: dotSourceId,
+					paint: { "circle-radius": 11, "circle-color": "#ffffff", "circle-opacity": 0.95, "circle-stroke-color": "#3b82f6", "circle-stroke-width": 2, "circle-stroke-opacity": 0.4, "circle-pitch-alignment": "map" }
+				});
+				map.addLayer({
+					id: "gps-dot", type: "circle", source: dotSourceId,
+					paint: { "circle-radius": 7, "circle-color": "#3b82f6", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2, "circle-pitch-alignment": "map" }
+				});
+			}
+		};
+		ensureLayers();
+		let firstFix = true;
+		const startTime = Date.now();
+		const startCenter = map.getCenter();
+		const onPosition: PositionCallback = pos => {
+			if(!map.isStyleLoaded()) { map.once("load", () => onPosition(pos)); return; }
+			const { latitude, longitude, accuracy } = pos.coords;
+			const dotData: any = { type: "Feature", geometry: { type: "Point", coordinates: [longitude, latitude] }, properties: {} };
+			const circle = turf.circle([longitude, latitude], Math.max(1, accuracy), { steps: 64, units: "meters" });
+			const dotSrc = map.getSource(dotSourceId) as mapboxgl.GeoJSONSource | undefined;
+			const accSrc = map.getSource(accuracySourceId) as mapboxgl.GeoJSONSource | undefined;
+			if(dotSrc) dotSrc.setData(dotData);
+			if(accSrc) accSrc.setData(circle as any);
+			if(firstFix) {
+				firstFix = false;
+				const elapsed = Date.now() - startTime;
+				const now = map.getCenter();
+				const notMoved = Math.abs(now.lng - startCenter.lng) < 1e-7 && Math.abs(now.lat - startCenter.lat) < 1e-7;
+				const targetZoom = Math.max(map.getZoom(), 15);
+				if(elapsed < 5000 || notMoved) {
+					map.easeTo({
+						center: [longitude, latitude],
+						zoom: targetZoom,
+						bearing: map.getBearing(),
+						pitch: map.getPitch(),
+						duration: animationDurationToCenter(map, [longitude, latitude])
+					});
+				}
+			}
+		};
+		const watchId = navigator.geolocation.watchPosition(onPosition, () => onErrorRef.current(), {
+			enableHighAccuracy: true,
+			maximumAge: 1000,
+			timeout: 20_000
+		});
+		return () => {
+			navigator.geolocation.clearWatch(watchId);
+			if(map.style != null) {
+				if(map.getLayer("gps-dot")) map.removeLayer("gps-dot");
+				if(map.getLayer("gps-dot-halo")) map.removeLayer("gps-dot-halo");
+				if(map.getSource(dotSourceId)) map.removeSource(dotSourceId);
+				if(map.getLayer("gps-accuracy-line")) map.removeLayer("gps-accuracy-line");
+				if(map.getLayer("gps-accuracy-fill")) map.removeLayer("gps-accuracy-fill");
+				if(map.getSource(accuracySourceId)) map.removeSource(accuracySourceId);
+			}
+		};
+	}, [enabled, mapRef]);
 }
 
 function generateRegionId(): string {
@@ -334,7 +426,7 @@ function GeofenceRegionsEditor(
 	useEffect(() => {
 		const mapContainer = mapContainerRef.current;
 		if(mapContainer == null) return;
-		mapboxgl.accessToken = "pk.eyJ1IjoibmFkaGlmcmFkaXR5byIsImEiOiJjbW80OG1menEwb2JnMm9zZ2w0YjUzMzhxIn0.D28hzAHuC353e4e_Q3YV1A";
+		mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
 		const map = new mapboxgl.Map({
 			container: mapContainer,
 			style: "mapbox://styles/mapbox/standard",
@@ -942,92 +1034,11 @@ function GeofenceRegionsEditor(
 
 	// --- Search ---
 	const [gpsTracking, setGpsTracking] = useState(false);
-	const gpsFirstFixRef = useRef(true);
-	// GPS tracking with continuous updates
-	useEffect(() => {
-		if(!gpsTracking) return;
-		const map = mapRef.current;
-		if(map == null) return;
-		if(typeof navigator === "undefined" || navigator.geolocation == null) {
-			setGpsTracking(false);
-			return;
-		}
-		const dotSourceId = "gps-dot";
-		const accuracySourceId = "gps-accuracy";
-		const ensureLayers = () => {
-			if(!map.isStyleLoaded()) { map.once("load", ensureLayers); return; }
-			if(!map.getSource(accuracySourceId)) {
-				map.addSource(accuracySourceId, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-				map.addLayer({
-					id: "gps-accuracy-fill", type: "fill", source: accuracySourceId,
-					paint: { "fill-color": "#3b82f6", "fill-opacity": 0.18 }
-				});
-				map.addLayer({
-					id: "gps-accuracy-line", type: "line", source: accuracySourceId,
-					paint: { "line-color": "#3b82f6", "line-opacity": 0.4, "line-width": 1 }
-				});
-			}
-			if(!map.getSource(dotSourceId)) {
-				map.addSource(dotSourceId, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-				map.addLayer({
-					id: "gps-dot-halo", type: "circle", source: dotSourceId,
-					paint: { "circle-radius": 11, "circle-color": "#ffffff", "circle-opacity": 0.95, "circle-stroke-color": "#3b82f6", "circle-stroke-width": 2, "circle-stroke-opacity": 0.4, "circle-pitch-alignment": "map" }
-				});
-				map.addLayer({
-					id: "gps-dot", type: "circle", source: dotSourceId,
-					paint: { "circle-radius": 7, "circle-color": "#3b82f6", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2, "circle-pitch-alignment": "map" }
-				});
-			}
-		};
-		ensureLayers();
-		gpsFirstFixRef.current = true;
-		const startTime = Date.now();
-		const startCenter = map.getCenter();
-
-		const onPosition: PositionCallback = (pos) => {
-			if(!map.isStyleLoaded()) { map.once("load", () => onPosition(pos)); return; }
-			const { latitude, longitude, accuracy } = pos.coords;
-			const dotData: any = { type: "Feature", geometry: { type: "Point", coordinates: [longitude, latitude] }, properties: {} };
-			const circle = turf.circle([longitude, latitude], Math.max(1, accuracy), { steps: 64, units: "meters" });
-			const dotSrc = map.getSource(dotSourceId) as mapboxgl.GeoJSONSource | undefined;
-			const accSrc = map.getSource(accuracySourceId) as mapboxgl.GeoJSONSource | undefined;
-			if(dotSrc) dotSrc.setData(dotData);
-			if(accSrc) accSrc.setData(circle as any);
-			if(gpsFirstFixRef.current) {
-				gpsFirstFixRef.current = false;
-				const elapsed = Date.now() - startTime;
-				const now = map.getCenter();
-				const notMoved = Math.abs(now.lng - startCenter.lng) < 1e-7 && Math.abs(now.lat - startCenter.lat) < 1e-7;
-				const targetZoom = Math.max(map.getZoom(), 15);
-				if(elapsed < 5000 || notMoved) {
-					map.easeTo({
-						center: [longitude, latitude],
-						zoom: targetZoom,
-						bearing: map.getBearing(),
-						pitch: map.getPitch(),
-						duration: animationDurationToCenter(map, [longitude, latitude])
-					});
-				}
-			}
-		};
-		const onError = () => { setGpsTracking(false); };
-		const watchId = navigator.geolocation.watchPosition(onPosition, onError, {
-			enableHighAccuracy: true,
-			maximumAge: 1000,
-			timeout: 20_000
-		});
-		return () => {
-			navigator.geolocation.clearWatch(watchId);
-			if(map.style != null) {
-				if(map.getLayer("gps-dot")) map.removeLayer("gps-dot");
-				if(map.getLayer("gps-dot-halo")) map.removeLayer("gps-dot-halo");
-				if(map.getSource(dotSourceId)) map.removeSource(dotSourceId);
-				if(map.getLayer("gps-accuracy-line")) map.removeLayer("gps-accuracy-line");
-				if(map.getLayer("gps-accuracy-fill")) map.removeLayer("gps-accuracy-fill");
-				if(map.getSource(accuracySourceId)) map.removeSource(accuracySourceId);
-			}
-		};
-	}, [gpsTracking]);
+	useMapGpsTracking({
+		enabled: gpsTracking,
+		mapRef,
+		onError: useCallback(() => setGpsTracking(false), [])
+	});
 
 	// Re-center the map when the sidebar opens/closes so the same geographic point stays
 	// at the visual center of the *unpadded* area (right of the sidebar).
@@ -1438,7 +1449,7 @@ const lightPresetButtons = Object.freeze([
 	{ value: "night", title: "Night", icon: <MoonIcon className="size-3.5 sm:size-4" /> }
 ] as const);
 
-const LightPresetControls = React.memo(function LightPresetControls(
+export const LightPresetControls = React.memo(function LightPresetControls(
 	{ className, mapRef, mapReadyTick }:
 	{ className?: string, mapRef: React.RefObject<mapboxgl.Map | null>, mapReadyTick: number }
 ) {
@@ -1530,7 +1541,7 @@ const LightPresetControls = React.memo(function LightPresetControls(
 	);
 });
 
-const MapNavigationControls = React.memo(function MapNavigationControls(
+export const MapNavigationControls = React.memo(function MapNavigationControls(
 	{ className, disabled = false, mapRef, mapReadyTick }:
 	{ className?: string, disabled?: boolean, mapRef: React.RefObject<mapboxgl.Map | null>, mapReadyTick: number }
 ) {
@@ -1968,13 +1979,13 @@ const RegionCard = React.memo(function RegionCard(
 	);
 });
 
-const MapSearchControls = React.memo(function MapSearchControls(
+export const MapSearchControls = React.memo(function MapSearchControls(
 	{ className, mapRef, mapReadyTick, panelLeftPadding }:
 	{
 		className?: string,
 		mapRef: React.RefObject<mapboxgl.Map | null>,
 		mapReadyTick: number,
-		panelLeftPadding: () => number
+		panelLeftPadding?: () => number
 	}
 ) {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -2013,7 +2024,7 @@ const MapSearchControls = React.memo(function MapSearchControls(
 		searchMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: "bottom" }).setLngLat([lng, lat]).addTo(map);
 		setActiveFeatureKey(key);
 		if(feature.bbox != null) {
-			map.fitBounds(feature.bbox, { padding: { top: 80, right: 80, bottom: 80, left: 80 + panelLeftPadding() }, bearing: map.getBearing(), pitch: map.getPitch(), duration: animationDurationToBounds(map, feature.bbox), maxZoom: 16 });
+			map.fitBounds(feature.bbox, { padding: { top: 80, right: 80, bottom: 80, left: 80 + (panelLeftPadding?.() ?? 0) }, bearing: map.getBearing(), pitch: map.getPitch(), duration: animationDurationToBounds(map, feature.bbox), maxZoom: 16 });
 		} else {
 			map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 14), bearing: map.getBearing(), pitch: map.getPitch(), duration: animationDurationToCenter(map, [lng, lat]) });
 		}

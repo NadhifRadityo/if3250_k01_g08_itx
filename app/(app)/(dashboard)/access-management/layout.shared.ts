@@ -425,7 +425,7 @@ export const collectionMaskFields = Object.freeze({
 		"createdAt": "date",
 		"officerTask": "relation",
 		"phoneNumber": "phoneNumber",
-		"audioUrl": "text",
+		"recordingUrl": "text",
 		"transcriptionUrl": "text"
 	}
 } as Record<string, Record<string, keyof (typeof maskOptionsMap)>>);

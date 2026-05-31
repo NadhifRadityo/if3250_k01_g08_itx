@@ -4,13 +4,22 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { DatetimeInput } from "@/components/DatetimeInput";
 import { OfficerTrackingMap, OfficerTrackingUser } from "@/components/OfficerTrackingMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { Button } from "@/components/radix/Button";
+import { Label } from "@/components/radix/Label";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
-import { queryMonitoringAction } from "../layout.actions";
+import { queryReportingAction } from "../layout.actions";
 import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+
+function getDefaultPeriodStart() {
+	const start = new Date();
+	start.setHours(0, 0, 0, 0);
+	return start.toISOString();
+}
 
 export default function Page() {
 	const [keyword, setKeyword] = useState("");
@@ -21,20 +30,26 @@ export default function Page() {
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
 	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-tracking.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);
+	const [periodStart, setPeriodStart] = useConfigStorage<string>({ localStorageKey: "officer-tracking.period-start", updateIfThisSearhParamExists: "periodStart", defaultValue: getDefaultPeriodStart() });
+	const [periodEnd, setPeriodEnd] = useConfigStorage<string | null>({ localStorageKey: "officer-tracking.period-end", updateIfThisSearhParamExists: "periodEnd", defaultValue: null });
 	const query = useQuery({
-		queryKey: ["officer-tracking", "monitoring", {
+		queryKey: ["officer-tracking", "reporting", {
+			periodStart,
+			periodEnd,
 			keyword,
 			filters,
 			columnsSort,
 			pageIndex
 		}],
-		queryFn: async () => await queryMonitoringAction({
+		queryFn: async () => await queryReportingAction({
+			periodStart: periodStart,
+			periodEnd: periodEnd,
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
 			pageIndex: pageIndex
 		}),
-		refetchInterval: 10000,
+		refetchInterval: periodEnd == null ? 10000 : false,
 		refetchOnWindowFocus: true
 	});
 	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
@@ -64,15 +79,55 @@ export default function Page() {
 			points: mapUser.points
 		};
 	}), [query.data?.mapUsers, query.data?.relations]);
-	const periodStart = query.data?.periodStart ?? new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
-	const periodEnd = query.data?.periodEnd ?? null;
 
 	return (
 		<MenuPage
-			title="Officer Tracking Monitoring"
-			description="Monitor officer locations from GPS log entries recorded today."
+			title="Officer Tracking Reporting"
+			description="View officer locations from GPS log entries within a custom period."
 		>
 			<RelationNavigationProvider>
+				<div className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-end">
+					<div className="flex-1 space-y-1">
+						<Label className="text-xs font-medium">Period Start</Label>
+						<DatetimeInput
+							mode="datetime"
+							precision="second"
+							value={periodStart}
+							onChange={value => {
+								setPeriodStart(value.length > 0 ? new Date(value).toISOString() : getDefaultPeriodStart());
+								setPageIndex(1);
+							}}
+							placeholder="Select start date and time"
+						/>
+					</div>
+					<div className="flex-1 space-y-1">
+						<Label className="text-xs font-medium">Period End</Label>
+						<div className="flex items-center gap-2">
+							<DatetimeInput
+								className="flex-1"
+								mode="datetime"
+								precision="second"
+								value={periodEnd ?? ""}
+								onChange={value => {
+									setPeriodEnd(value.length > 0 ? new Date(value).toISOString() : null);
+									setPageIndex(1);
+								}}
+								placeholder="Live"
+							/>
+							<Button
+								type="button"
+								variant={periodEnd == null ? "default" : "outline"}
+								size="sm"
+								onClick={() => {
+									setPeriodEnd(null);
+									setPageIndex(1);
+								}}
+							>
+								Live
+							</Button>
+						</div>
+					</div>
+				</div>
 				<MenuToolbar
 					keyword={keyword}
 					onKeywordChange={setKeyword}

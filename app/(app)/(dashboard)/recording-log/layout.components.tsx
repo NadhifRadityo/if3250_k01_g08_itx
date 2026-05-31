@@ -21,7 +21,7 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] },
 	{ key: "phoneNumber", label: "Phone Number", type: "text" },
-	{ key: "audioUrl", label: "Audio URL", type: "text" },
+	{ key: "recordingUrl", label: "Recording URL", type: "text" },
 	{ key: "transcriptionUrl", label: "Transcription URL", type: "text" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
@@ -29,7 +29,7 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "createdAt", label: "Created At" },
 	{ key: "officerTask", label: "Officer Task" },
 	{ key: "phoneNumber", label: "Phone Number" },
-	{ key: "audioUrl", label: "Audio URL" },
+	{ key: "recordingUrl", label: "Recording URL" },
 	{ key: "transcriptionUrl", label: "Transcription URL" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
@@ -37,7 +37,7 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "createdAt", label: "Created At", sortable: true },
 	{ key: "officerTask", label: "Officer Task", sortable: false },
 	{ key: "phoneNumber", label: "Phone Number", sortable: true },
-	{ key: "audioUrl", label: "Audio URL", sortable: true },
+	{ key: "recordingUrl", label: "Recording URL", sortable: true },
 	{ key: "transcriptionUrl", label: "Transcription URL", sortable: true }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
@@ -45,7 +45,7 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "createdAt", type: "date" },
 	{ key: "officerTask", type: "relation", render: defaultRelationOfficerTaskRenderer({ description: "Officer Task", relationSource: "recording-logs.officerTask" }) },
 	{ key: "phoneNumber", type: "text" },
-	{ key: "audioUrl", type: "text" },
+	{ key: "recordingUrl", type: "text" },
 	{ key: "transcriptionUrl", type: "text" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
@@ -62,14 +62,14 @@ export const defaultColumnOrder = Object.freeze([
 	"createdAt",
 	"officerTask",
 	"phoneNumber",
-	"audioUrl",
+	"recordingUrl",
 	"transcriptionUrl"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"createdAt",
 	"officerTask",
 	"phoneNumber",
-	"audioUrl",
+	"recordingUrl",
 	"transcriptionUrl"
 ]) as string[];
 export const defaultColumnsSort = Object.freeze([
