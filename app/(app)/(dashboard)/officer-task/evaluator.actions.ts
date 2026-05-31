@@ -32,9 +32,6 @@ async function resolveRelations(
 		const updatedBy = getRelationshipId(doc.updatedBy);
 		if(updatedBy != null)
 			userIds.add(updatedBy);
-		const deletedBy = getRelationshipId(doc.deletedBy);
-		if(deletedBy != null)
-			userIds.add(deletedBy);
 		const creditApplicationAssignment = getRelationshipId(doc.creditApplicationAssignment);
 		if(creditApplicationAssignment != null)
 			creditApplicationAssignmentIds.add(creditApplicationAssignment);

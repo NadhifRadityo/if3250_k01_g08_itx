@@ -28,8 +28,6 @@ export const OfficerTasks = (): CollectionConfig => ({
 		beforeChange: [
 			({ req, operation, data }) => {
 				if(req.user == null) return;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
 				if(operation == "create")
 					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
 				if(operation == "update")
@@ -70,7 +68,6 @@ export const OfficerTasks = (): CollectionConfig => ({
 	fields: [
 		// timestamps: createdAt
 		// timestamps: updatedAt
-		// timestamps: deletedAt
 		{
 			name: "createdAt",
 			label: "Created At",
@@ -110,26 +107,6 @@ export const OfficerTasks = (): CollectionConfig => ({
 		{
 			name: "updatedBy",
 			label: "updated By",
-			type: "relationship",
-			relationTo: "users",
-			admin: {
-				hidden: true,
-				disableBulkEdit: true
-			}
-		},
-		{
-			name: "deletedAt",
-			label: "Deleted At",
-			type: "date",
-			index: true,
-			admin: {
-				hidden: true,
-				disableBulkEdit: true
-			}
-		},
-		{
-			name: "deletedBy",
-			label: "deleted By",
 			type: "relationship",
 			relationTo: "users",
 			admin: {
@@ -225,19 +202,23 @@ export const OfficerTasksSchemaHook = (): PostgresSchemaHook => ({ schema, exten
 			officerTaskTailUniqueIdx: uniqueIndex("officer_tasks_credit_application_assignment_tail_idx")
 				.on(t.creditApplicationAssignment)
 				.where(sql`"next_id" IS NULL`),
-			officerTaskActiveImpliesTailCheck: check(
-				"officer_tasks_active_implies_tail_check",
+			officerTasksSettledAtNullImpliesNextIdNull: check(
+				"officer_tasks_settled_at_null_implies_next_id_null",
 				sql`"settled_at" IS NOT NULL OR "next_id" IS NULL`
 			),
-			officerTaskApprovedImpliesTailCheck: check(
-				"officer_tasks_approved_implies_tail_check",
+			officerTasksApprovedTrueImpliesNextIdNull: check(
+				"officer_tasks_approved_true_implies_next_id_null",
 				sql`"evaluation_approved" IS NOT TRUE OR "next_id" IS NULL`
 			),
-			officerTaskEvaluatedRequiresFinishedCheck: check(
-				"officer_tasks_evaluated_requires_finished_check",
+			officerTasksEvaluatedAtNotNullImpliesSettlementStatusFinished: check(
+				"officer_tasks_evaluated_at_not_null_implies_settlement_status_finished",
 				sql`"evaluated_at" IS NULL OR "settlement_status" = 'finished'`
 			),
-			officerTaskFinishedWithSuccessorRequiresRejectedCheck: check(
+			officerTasksEvaluatedAtNotNullImpliesEvaluationApprovedNotNull: check(
+				"officer_tasks_evaluated_at_not_null_implies_evaluation_approved_not_null",
+				sql`"evaluated_at" IS NULL OR "evaluation_approved" IS NOT NULL`
+			),
+			officerTasksFinishedWithSuccessorRequiresRejectedCheck: check(
 				"officer_tasks_finished_with_successor_requires_rejected_check",
 				sql`"settlement_status" IS DISTINCT FROM 'finished' OR "next_id" IS NULL OR "evaluation_approved" IS FALSE`
 			)

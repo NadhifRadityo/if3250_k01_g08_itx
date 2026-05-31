@@ -32,9 +32,6 @@ async function resolveRelations(
 		const updatedBy = getRelationshipId(doc.updatedBy);
 		if(updatedBy != null)
 			userIds.add(updatedBy);
-		const deletedBy = getRelationshipId(doc.deletedBy);
-		if(deletedBy != null)
-			userIds.add(deletedBy);
 		const creditApplicationAssignment = getRelationshipId(doc.creditApplicationAssignment);
 		if(creditApplicationAssignment != null)
 			creditApplicationAssignmentIds.add(creditApplicationAssignment);
@@ -113,8 +110,6 @@ export async function getDetailsAction(id: string) {
 			createdBy: true,
 			updatedAt: true,
 			updatedBy: true,
-			deletedAt: true,
-			deletedBy: true,
 			creditApplicationAssignment: true,
 			creditApplicationAssignmentVersion: true,
 			next: true,

@@ -38,9 +38,6 @@ async function resolveRelations(
 		const updatedBy = getRelationshipId(doc.updatedBy);
 		if(updatedBy != null)
 			userIds.add(updatedBy);
-		const deletedBy = getRelationshipId(doc.deletedBy);
-		if(deletedBy != null)
-			userIds.add(deletedBy);
 		const creditApplicationAssignment = getRelationshipId(doc.creditApplicationAssignment);
 		if(creditApplicationAssignment != null)
 			creditApplicationAssignmentIds.add(creditApplicationAssignment);
@@ -140,8 +137,6 @@ export async function upsertAction(formState: FormState) {
 			overrideAccess: true,
 			data: {
 				_status: "published",
-				deletedAt: null,
-				deletedBy: null,
 				creditApplicationAssignment: formState.creditApplicationAssignment,
 				creditApplicationAssignmentVersion: creditApplicationAssignmentVersion.id,
 				next: formState.next ?? null,
@@ -164,8 +159,6 @@ export async function upsertAction(formState: FormState) {
 		trash: true,
 		data: {
 			_status: "published",
-			deletedAt: null,
-			deletedBy: null,
 			creditApplicationAssignment: formState.creditApplicationAssignment,
 			creditApplicationAssignmentVersion: creditApplicationAssignmentVersion.id,
 			next: formState.next ?? null

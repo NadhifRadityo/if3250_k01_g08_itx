@@ -325,8 +325,6 @@ export const collectionMaskFields = Object.freeze({
 		"createdBy": "relation",
 		"updatedAt": "date",
 		"updatedBy": "relation",
-		"deletedAt": "date",
-		"deletedBy": "relation",
 		"creditApplicationAssignment": "relation",
 		"creditApplicationAssignmentVersion": "text",
 		"next": "relation",
@@ -485,7 +483,6 @@ export const collectionRelationFields = Object.freeze({
 	"officer-tasks": {
 		"createdBy": "staged-users",
 		"updatedBy": "staged-users",
-		"deletedBy": "staged-users",
 		"creditApplicationAssignment": "credit-application-assignments",
 		"next": "officer-tasks",
 		"evaluatedBy": "staged-users"

@@ -970,8 +970,6 @@ export interface OfficerTask {
   createdBy?: (string | null) | User;
   updatedAt: string;
   updatedBy?: (string | null) | User;
-  deletedAt?: string | null;
-  deletedBy?: (string | null) | User;
   creditApplicationAssignment: string | CreditApplicationAssignment;
   creditApplicationAssignmentVersion: string;
   next?: (string | null) | OfficerTask;
@@ -1010,6 +1008,7 @@ export interface OfficerTask {
     };
     [k: string]: unknown;
   } | null;
+  deletedAt?: string | null;
   _status?: ('draft' | 'published') | null;
 }
 /**
@@ -1729,8 +1728,6 @@ export interface OfficerTasksSelect<T extends boolean = true> {
   createdBy?: T;
   updatedAt?: T;
   updatedBy?: T;
-  deletedAt?: T;
-  deletedBy?: T;
   creditApplicationAssignment?: T;
   creditApplicationAssignmentVersion?: T;
   next?: T;
@@ -1741,6 +1738,7 @@ export interface OfficerTasksSelect<T extends boolean = true> {
   evaluatedBy?: T;
   evaluationApproved?: T;
   evaluationComment?: T;
+  deletedAt?: T;
   _status?: T;
 }
 /**
