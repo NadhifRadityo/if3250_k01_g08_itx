@@ -9,7 +9,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryMonitoringAction } from "../layout.actions";
-import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+import { ColumnData, DetailsDrawer, ExportCsvButton, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 export default function Page() {
 	const [keyword, setKeyword] = useState("");
@@ -68,6 +68,15 @@ export default function Page() {
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
+					rightSlot={(
+						<ExportCsvButton
+							mode="monitoring"
+							keyword={keyword}
+							filters={filters}
+							columnsSort={columnsSort}
+							disabled={query.isLoading}
+						/>
+					)}
 				/>
 				<MenuFilterConfigCard
 					open={filterConfigCardOpen}
