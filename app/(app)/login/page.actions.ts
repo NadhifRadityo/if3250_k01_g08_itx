@@ -1,6 +1,6 @@
 "use server";
 
-import { headers as nextHeaders } from "next/headers";
+import { cookies as nextCookies, headers as nextHeaders } from "next/headers";
 import { redirect, RedirectType } from "next/navigation";
 import { login as payloadLogin } from "@payloadcms/next/auth";
 import { getPayload } from "payload";
@@ -15,15 +15,48 @@ export async function loginAction(email: string, password: string) {
 	if(loggedInuser != null)
 		throw new Error("Already logged in");
 	const ipAddress = getClientIpFromHeaders(headers);
+	const userSessions = (await payload.find({
+		collection: "users",
+		overrideAccess: true,
+		limit: 1,
+		where: { email: { equals: email } }
+	})).docs[0]?.sessions;
 	try {
-		const { user } = await payloadLogin({
+		const { user, token } = await payloadLogin({
 			config: payloadConfig,
 			collection: "users",
 			email: email,
 			password: password
 		});
-		if(user == null)
+		if(user == null || token == null)
 			throw new Error("Login failed");
+		if(userSessions != null && userSessions.length > 0) {
+			try {
+				await payload.create({
+					collection: "login-logs",
+					overrideAccess: true,
+					depth: 0,
+					data: {
+						event: "login",
+						user: user.id,
+						ipAddress: ipAddress,
+						outcome: "failure"
+					}
+				});
+			} catch(_) {}
+			const generatedSessionId = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString("utf-8")).sid;
+			await payload.db.updateOne({
+				id: user.id,
+				collection: "users",
+				data: { ...user, sessions: user.sessions.filter(s => s.id != generatedSessionId) },
+				returning: false
+			});
+			const cookies = await nextCookies();
+			const existingCookie = cookies.getAll().find(c => c.name.startsWith(payload.config.cookiePrefix));
+			if(existingCookie != null)
+				cookies.delete(existingCookie.name);
+			throw new Error("Another device has logged in, please contact your administrator.");
+		}
 		try {
 			await payload.create({
 				collection: "login-logs",
@@ -38,7 +71,7 @@ export async function loginAction(email: string, password: string) {
 			});
 		} catch(_) {}
 		return redirect("/", RedirectType.push);
-	} catch (error) {
+	} catch(error) {
 		try {
 			const found = await payload.find({
 				collection: "users",
@@ -47,14 +80,13 @@ export async function loginAction(email: string, password: string) {
 				depth: 0,
 				overrideAccess: true
 			});
-			const userId = found.docs[0] != null ? String(found.docs[0].id) : null;
 			await payload.create({
 				collection: "login-logs",
 				overrideAccess: true,
 				depth: 0,
 				data: {
 					event: "login",
-					user: userId,
+					user: found.docs[0]?.id,
 					ipAddress: ipAddress,
 					outcome: "failure"
 				}
