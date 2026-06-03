@@ -15,7 +15,12 @@ export const RecordingLogs = (): CollectionConfig => ({
 		beforeChange: [
 			({ operation }) => {
 				if(operation != "create")
-					throw new APIError("Recording logs are append only");
+					throw new APIError("Recording logs are append only", 400, undefined, true);
+			}
+		],
+		beforeDelete: [
+			() => {
+				throw new APIError("Cannot hard delete a recording log", 400, undefined, true);
 			}
 		]
 	},

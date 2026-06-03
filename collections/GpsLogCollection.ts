@@ -19,7 +19,7 @@ export const GpsLogs = (): CollectionConfig => ({
 		beforeChange: [
 			({ operation }) => {
 				if(operation != "create")
-					throw new APIError("GPS logs are append only");
+					throw new APIError("GPS logs are append only", 400, undefined, true);
 			},
 			async ({ data, originalDoc, req, req: { payload } }) => {
 				const doc = effectiveDoc(originalDoc, data);
@@ -40,6 +40,11 @@ export const GpsLogs = (): CollectionConfig => ({
 					if(officer != getRelationshipId(doc.user)!)
 						throw new Error("Officer task must be the same as user");
 				}
+			}
+		],
+		beforeDelete: [
+			() => {
+				throw new APIError("Cannot hard delete a GPS log", 400, undefined, true);
 			}
 		]
 	},

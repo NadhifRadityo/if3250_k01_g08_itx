@@ -173,7 +173,9 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 	const publishedData = {
 		...baseData,
 		createdAt: publishedAt,
+		createdBy: actingUser.id,
 		updatedAt: publishedAt,
+		updatedBy: actingUser.id,
 		deletedAt: null,
 		deletedBy: null,
 		_status: "published" as const,
@@ -188,7 +190,9 @@ for(const [index, seed] of CREDIT_APPLICATION_SEEDS.entries()) {
 	const draftData = {
 		...baseData,
 		createdAt: publishedAt,
+		createdBy: actingUser.id,
 		updatedAt: publishedAt,
+		updatedBy: actingUser.id,
 		deletedAt: null,
 		deletedBy: null,
 		_status: "draft" as const,

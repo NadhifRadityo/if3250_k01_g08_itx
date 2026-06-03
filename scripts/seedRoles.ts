@@ -159,6 +159,24 @@ const payload = await getPayload({ config: payloadConfig });
 
 console.log("[seedRoles] Starting role seeding...");
 
+// Get acting user (admin) if available
+console.log("[seedRoles] Looking up admin user...");
+const actingUser = (await payload.find({
+	collection: "users",
+	overrideAccess: true,
+	where: {
+		email: { equals: "admin@local.local" }
+	},
+	limit: 1,
+	sort: "-updatedAt",
+	draft: false,
+	trash: true,
+	depth: 0
+})).docs[0] ?? null;
+if(actingUser == null) {
+	console.log("[seedRoles] Admin user not found. Roles will be created with null user references (will be backfilled by seedUsers).");
+}
+
 for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 	const publishedAt = isoAt(index * 10);
 	const pendingAt = isoAt(index * 10 + 5);
@@ -185,14 +203,16 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		level: roleSeed.level,
 		menus: roleSeed.menus,
 		createdAt: publishedAt,
+		createdBy: actingUser?.id ?? null,
 		updatedAt: publishedAt,
+		updatedBy: actingUser?.id ?? null,
 		deletedAt: null,
 		deletedBy: null,
 		_status: "published" as const,
 		changeRequestType: "create" as const,
 		changeRequestComment: null,
 		reviewedAt: publishedAt,
-		reviewedBy: null,
+		reviewedBy: actingUser?.id ?? null,
 		reviewApproved: true,
 		reviewComment: lexicalPlainText(`Seed approved baseline for role '${roleSeed.name}'.`)
 	};
@@ -202,7 +222,9 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		level: roleSeed.level,
 		menus: roleSeed.menus,
 		createdAt: publishedAt,
+		createdBy: actingUser?.id ?? null,
 		updatedAt: pendingAt,
+		updatedBy: actingUser?.id ?? null,
 		deletedAt: null,
 		deletedBy: null,
 		_status: "draft" as const,
@@ -219,6 +241,7 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		console.log(`[seedRoles] Creating role '${roleSeed.name}' as draft...`);
 		const created = await payload.create({
 			collection: "roles",
+			...(actingUser != null ? { user: actingUser } : {}),
 			overrideAccess: true,
 			data: pendingData,
 			draft: true
@@ -229,6 +252,7 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 		id = existing.id;
 		await payload.update({
 			collection: "roles",
+			...(actingUser != null ? { user: actingUser } : {}),
 			overrideAccess: true,
 			trash: true,
 			id,
@@ -240,6 +264,7 @@ for(const [index, roleSeed] of ROLE_SEEDS.entries()) {
 	console.log(`[seedRoles] Publishing role '${roleSeed.name}'...`);
 	await payload.update({
 		collection: "roles",
+		...(actingUser != null ? { user: actingUser } : {}),
 		overrideAccess: true,
 		trash: true,
 		id,

@@ -15,7 +15,12 @@ export const LoginLogs = (): CollectionConfig => ({
 		beforeChange: [
 			({ operation }) => {
 				if(operation != "create")
-					throw new APIError("Login logs are append only");
+					throw new APIError("Login logs are append only", 400, undefined, true);
+			}
+		],
+		beforeDelete: [
+			() => {
+				throw new APIError("Cannot hard delete a login log", 400, undefined, true);
 			}
 		]
 	},

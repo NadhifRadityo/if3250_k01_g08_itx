@@ -22,18 +22,6 @@ export const SurveyResults = (): CollectionConfig => ({
 		defaultColumns: ["survey", "surveyVersion", "createdAt"]
 	},
 	hooks: {
-		beforeChange: [
-			({ req, operation, data }) => {
-				if(req.user == null) return;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
-				return data;
-			}
-		],
 		beforeDelete: [
 			() => {
 				throw new APIError("Cannot hard delete a survey result", 400, undefined, true);

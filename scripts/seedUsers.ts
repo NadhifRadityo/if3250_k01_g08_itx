@@ -160,7 +160,9 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 
 	const data = {
 		createdAt: isoAt(100 + index * 5),
+		createdBy: null,
 		updatedAt: isoAt(100 + index * 5),
+		updatedBy: null,
 		deletedAt: null,
 		deletedBy: null,
 		email: userSeed.email,
@@ -198,3 +200,55 @@ for(const [index, userSeed] of USER_SEEDS.entries()) {
 }
 
 console.log(`[seedUsers] Done. Seeded ${USER_SEEDS.length} users.`);
+
+// Update roles that were created without a user reference
+const adminUserId = ensuredUserIds.get("admin");
+if(adminUserId != null) {
+	console.log("[seedUsers] Backfilling roles with admin user reference...");
+	const rolesToUpdate = await payload.find({
+		collection: "roles",
+		overrideAccess: true,
+		where: {
+			or: [
+				{ createdBy: { exists: false } },
+				{ updatedBy: { exists: false } },
+				{ reviewedBy: { exists: false } }
+			]
+		},
+		pagination: false,
+		draft: true,
+		trash: true,
+		depth: 0
+	});
+	
+	for(const role of rolesToUpdate.docs) {
+		console.log(`[seedUsers] Updating role '${role.name}' (draft)...`);
+		await payload.update({
+			collection: "roles",
+			overrideAccess: true,
+			id: role.id,
+			draft: true,
+			trash: true,
+			data: {
+				createdBy: adminUserId,
+				updatedBy: adminUserId
+			}
+		});
+		
+		console.log(`[seedUsers] Updating role '${role.name}' (published)...`);
+		await payload.update({
+			collection: "roles",
+			overrideAccess: true,
+			id: role.id,
+			draft: false,
+			trash: true,
+			data: {
+				createdBy: adminUserId,
+				updatedBy: adminUserId,
+				reviewedBy: adminUserId
+			}
+		});
+	}
+	
+	console.log(`[seedUsers] Backfilled ${rolesToUpdate.docs.length} roles.`);
+}

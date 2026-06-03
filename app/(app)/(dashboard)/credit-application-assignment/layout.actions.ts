@@ -526,6 +526,8 @@ export async function requestDeleteAction(
 		trash: true,
 		data: {
 			_status: "draft",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: new Date().toISOString(),
 			deletedBy: user.id,
 			changeRequestType: "delete",
@@ -603,6 +605,8 @@ export async function cancelRequestAction(
 			trash: true,
 			data: {
 				_status: "draft",
+				updatedAt: new Date().toISOString(),
+				updatedBy: user.id,
 				deletedAt: new Date().toISOString(),
 				deletedBy: user.id,
 				reviewedAt: new Date().toISOString(),
@@ -621,6 +625,8 @@ export async function cancelRequestAction(
 		trash: true,
 		data: {
 			_status: "published",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: approvedVersion.deletedAt,
 			deletedBy: approvedVersion.deletedBy,
 			creditApplication: approvedVersion.creditApplication,
@@ -670,6 +676,8 @@ export async function requestRestoreAction(
 		trash: true,
 		data: {
 			_status: "draft",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: null,
 			deletedBy: null,
 			changeRequestType: "create",
@@ -715,6 +723,8 @@ export async function reviewAction(
 			trash: true,
 			data: {
 				_status: "draft",
+				updatedAt: new Date().toISOString(),
+				updatedBy: user.id,
 				reviewedAt: new Date().toISOString(),
 				reviewedBy: user.id,
 				reviewApproved: false,
@@ -731,6 +741,8 @@ export async function reviewAction(
 		trash: true,
 		data: {
 			_status: "published",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			reviewedAt: new Date().toISOString(),
 			reviewedBy: user.id,
 			reviewApproved: true,
@@ -749,6 +761,10 @@ export async function reviewAction(
 				collection: "officer-tasks",
 				data: {
 					_status: "published",
+					createdAt: new Date().toISOString(),
+					createdBy: user.id,
+					updatedAt: new Date().toISOString(),
+					updatedBy: user.id,
 					creditApplicationAssignment: id,
 					creditApplicationAssignmentVersion: versionId,
 					next: null,
@@ -780,6 +796,8 @@ export async function reviewAction(
 				id: previousChainHeadId,
 				trash: true,
 				data: {
+					updatedAt: new Date().toISOString(),
+					updatedBy: user.id,
 					settledAt: new Date().toISOString(),
 					settlementStatus: "cancelled",
 					settlementComment: lexicalPlainText("Auto cancelled by system because assignment was updated")

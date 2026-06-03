@@ -257,8 +257,8 @@ export function EvaluateDrawer(
 			relationValues: { ...rowValueRendererContext.relationValues, ...query.data?.relations }
 		}
 	});
-	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.map(column =>
-		[column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
+	const columnLabels = useMemo(() => Object.fromEntries(drawerValueRendererConfigColumns.filter(c => !["evaluatedAt", "evaluatedBy", "evaluationApproved", "evaluationComment"].includes(c.key))
+		.map(column => [column.key, tableConfigColumns.find(column2 => column2.key == column.key)!.label] as const)), []);
 	return (
 		<Drawer open={open} onOpenChange={onOpenChange} direction="right">
 			<DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-2xl">

@@ -39,18 +39,6 @@ export const CreditApplications = (): CollectionConfig => ({
 		defaultColumns: ["import", "name", "email", "addresses", "phoneNumbers", "whatsappNumber", "smsNumber", "collateralRegistryName", "collateralName", "collateralDescription", "assetName", "assetDescription", "period", "installment", "downPayment", "plafond", "vendor", "remarks"]
 	},
 	hooks: {
-		beforeChange: [
-			({ req, operation, data }) => {
-				if(req.user == null) return;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
-				return data;
-			}
-		],
 		beforeDelete: [
 			() => {
 				throw new APIError("Cannot hard delete a credit application", 400, undefined, true);
@@ -328,16 +316,6 @@ export const CreditApplicationImports = (): CollectionConfig => ({
 	},
 	hooks: {
 		beforeChange: [
-			({ req, operation, data }) => {
-				if(req.user == null) return;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
-				return data;
-			},
 			({ operation, data, originalDoc }) => {
 				if(operation == "update" && originalDoc != null) {
 					const resolvedDeletedAt = "deletedAt" in data ? data.deletedAt : originalDoc.deletedAt;

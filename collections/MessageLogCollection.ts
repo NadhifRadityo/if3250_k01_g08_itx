@@ -15,7 +15,12 @@ export const MessageLogs = (): CollectionConfig => ({
 		beforeChange: [
 			({ operation }) => {
 				if(operation != "create")
-					throw new APIError("Message logs are append only");
+					throw new APIError("Message logs are append only", 400, undefined, true);
+			}
+		],
+		beforeDelete: [
+			() => {
+				throw new APIError("Cannot hard delete a message log", 400, undefined, true);
 			}
 		]
 	},

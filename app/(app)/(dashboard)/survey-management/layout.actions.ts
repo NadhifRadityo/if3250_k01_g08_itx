@@ -257,6 +257,10 @@ export async function requestUpsertAction(formState: FormState) {
 			draft: true,
 			data: {
 				_status: "draft",
+				createdAt: new Date().toISOString(),
+				createdBy: user.id,
+				updatedAt: new Date().toISOString(),
+				updatedBy: user.id,
 				deletedAt: null,
 				deletedBy: null,
 				title: formState.title,
@@ -281,6 +285,8 @@ export async function requestUpsertAction(formState: FormState) {
 		trash: true,
 		data: {
 			_status: "draft",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: null,
 			deletedBy: null,
 			title: formState.title,
@@ -315,6 +321,8 @@ export async function requestDeleteAction(
 		trash: true,
 		data: {
 			_status: "draft",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: new Date().toISOString(),
 			deletedBy: user.id,
 			changeRequestType: "delete",
@@ -388,6 +396,8 @@ export async function cancelRequestAction(
 			trash: true,
 			data: {
 				_status: "draft",
+				updatedAt: new Date().toISOString(),
+				updatedBy: user.id,
 				deletedAt: new Date().toISOString(),
 				deletedBy: user.id,
 				reviewedAt: new Date().toISOString(),
@@ -406,6 +416,8 @@ export async function cancelRequestAction(
 		trash: true,
 		data: {
 			_status: "published",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: approvedVersion.deletedAt,
 			deletedBy: approvedVersion.deletedBy,
 			title: approvedVersion.title,
@@ -451,6 +463,8 @@ export async function requestRestoreAction(
 		trash: true,
 		data: {
 			_status: "draft",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: null,
 			deletedBy: null,
 			changeRequestType: "create",
@@ -494,6 +508,8 @@ export async function reviewAction(
 			trash: true,
 			data: {
 				_status: "draft",
+				updatedAt: new Date().toISOString(),
+				updatedBy: user.id,
 				reviewedAt: new Date().toISOString(),
 				reviewedBy: user.id,
 				reviewApproved: false,
@@ -510,6 +526,8 @@ export async function reviewAction(
 		trash: true,
 		data: {
 			_status: "published",
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			reviewedAt: new Date().toISOString(),
 			reviewedBy: user.id,
 			reviewApproved: true,

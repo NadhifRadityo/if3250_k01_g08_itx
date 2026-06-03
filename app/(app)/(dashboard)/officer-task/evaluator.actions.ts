@@ -203,6 +203,8 @@ export async function evaluateAction(
 		id: id,
 		trash: true,
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			evaluatedAt: new Date().toISOString(),
 			evaluatedBy: user.id,
 			evaluationApproved: decision == "approve",

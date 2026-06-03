@@ -5,6 +5,7 @@ import { CollectionConfig } from "payload";
 import { check } from "drizzle-orm/pg-core";
 
 import { MultiLineFeature, AllFormatsFeature, ReviewRichTextEditor } from "./shared";
+import { APIError } from "payload";
 
 const AccessRichTextEditor = () => lexicalEditor({
 	features: [
@@ -39,16 +40,9 @@ export const Accesses = (): CollectionConfig => ({
 		defaultColumns: ["name", "description"]
 	},
 	hooks: {
-		beforeChange: [
-			({ req, operation, data }) => {
-				if(req.user == null) return;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
-				return data;
+		beforeDelete: [
+			() => {
+				throw new APIError("Cannot hard delete an access", 400, undefined, true);
 			}
 		]
 	},

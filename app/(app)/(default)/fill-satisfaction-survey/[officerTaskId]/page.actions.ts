@@ -125,7 +125,7 @@ export async function partialSubmitAction(
 			id: existing.docs[0].id,
 			draft: true,
 			trash: true,
-			data: { _status: "draft", answers: answers }
+			data: { _status: "draft", updatedAt: new Date().toISOString(), updatedBy: null, answers: answers }
 		});
 		return { id: existing.docs[0].id };
 	}
@@ -135,6 +135,10 @@ export async function partialSubmitAction(
 		draft: true,
 		data: {
 			_status: "draft",
+			createdAt: new Date().toISOString(),
+			createdBy: null,
+			updatedAt: new Date().toISOString(),
+			updatedBy: null,
 			satisfactionSurvey: satisfactionSurveyId,
 			satisfactionSurveyVersion: satisfactionSurveyVersion.id,
 			officerTask: officerTaskId,
@@ -182,7 +186,7 @@ export async function submitAction(
 			collection: "satisfaction-survey-results",
 			id: existing.docs[0].id,
 			trash: true,
-			data: { _status: "published", answers: answers }
+			data: { _status: "published", updatedAt: new Date().toISOString(), updatedBy: null, answers: answers }
 		});
 		return { id: existing.docs[0].id };
 	}
@@ -191,6 +195,10 @@ export async function submitAction(
 		collection: "satisfaction-survey-results",
 		data: {
 			_status: "published",
+			createdAt: new Date().toISOString(),
+			createdBy: null,
+			updatedAt: new Date().toISOString(),
+			updatedBy: null,
 			satisfactionSurvey: satisfactionSurveyId,
 			satisfactionSurveyVersion: satisfactionSurveyVersion.id,
 			officerTask: officerTaskId,

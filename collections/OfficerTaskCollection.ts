@@ -28,14 +28,6 @@ export const OfficerTasks = (): CollectionConfig => ({
 	},
 	hooks: {
 		beforeChange: [
-			({ req, operation, data }) => {
-				if(req.user == null) return;
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
-				return data;
-			},
 			async ({ req, req: { payload }, data, originalDoc }) => {
 				const nextId = getRelationshipId(data.next ?? originalDoc?.next);
 				if(nextId == null)

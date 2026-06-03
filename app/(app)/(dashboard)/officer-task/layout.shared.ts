@@ -83,6 +83,10 @@ export async function chainAndCreateNextOfficerTask(
 		...(userId != null ? { user: { id: userId, collection: "users" } as any } : {}),
 		data: {
 			_status: "published",
+			createdAt: new Date().toISOString(),
+			createdBy: userId ?? null,
+			updatedAt: new Date().toISOString(),
+			updatedBy: userId ?? null,
 			creditApplicationAssignment: creditApplicationAssignmentId,
 			creditApplicationAssignmentVersion: versionId,
 			next: null,
@@ -102,6 +106,8 @@ export async function chainAndCreateNextOfficerTask(
 		trash: true,
 		...(userId != null ? { user: { id: userId, collection: "users" } as any } : {}),
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: userId ?? null,
 			next: created.id
 		}
 	});

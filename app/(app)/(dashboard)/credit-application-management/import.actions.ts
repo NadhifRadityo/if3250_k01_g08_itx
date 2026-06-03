@@ -418,6 +418,8 @@ export async function requestUpdateDescriptionAction(
 		overrideAccess: true,
 		trash: true,
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			description: description
 		}
 	});
@@ -450,6 +452,8 @@ export async function requestDeleteAction(id: string) {
 		overrideAccess: true,
 		trash: true,
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: new Date().toISOString(),
 			deletedBy: user.id
 		}
@@ -483,6 +487,8 @@ export async function requestRestoreAction(id: string) {
 		overrideAccess: true,
 		trash: true,
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			deletedAt: null,
 			deletedBy: null
 		}
@@ -522,6 +528,8 @@ export async function reviewAction(
 			overrideAccess: true,
 			trash: true,
 			data: {
+				updatedAt: new Date().toISOString(),
+				updatedBy: user.id,
 				reviewedAt: new Date().toISOString(),
 				reviewedBy: user.id,
 				reviewApproved: false,
@@ -540,6 +548,10 @@ export async function reviewAction(
 			overrideAccess: true,
 			data: {
 				_status: "published",
+				createdAt: new Date().toISOString(),
+				createdBy: user.id,
+				updatedAt: new Date().toISOString(),
+				updatedBy: user.id,
 				import: id,
 				name: row.name,
 				email: row.email,
@@ -582,6 +594,8 @@ export async function reviewAction(
 		overrideAccess: true,
 		trash: true,
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			reviewedAt: new Date().toISOString(),
 			reviewedBy: user.id,
 			reviewApproved: true,

@@ -28,18 +28,6 @@ export const Teams = (): CollectionConfig => ({
 		defaultColumns: ["name", "supervisor", "members", "updatedAt", "reviewedBy", "reviewComment"]
 	},
 	hooks: {
-		beforeChange: [
-			({ req, operation, data }) => {
-				if(req.user == null) return;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
-				return data;
-			}
-		],
 		beforeDelete: [
 			() => {
 				throw new APIError("Cannot hard delete a team", 400, undefined, true);

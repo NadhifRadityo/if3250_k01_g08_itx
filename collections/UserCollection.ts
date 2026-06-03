@@ -26,18 +26,6 @@ export const Users = (): CollectionConfig => ({
 		defaultColumns: ["email", "name", "role", "updatedAt"]
 	},
 	hooks: {
-		beforeChange: [
-			({ req, operation, data }) => {
-				if(req.user == null) return;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
-				return data;
-			}
-		],
 		beforeDelete: [
 			() => {
 				throw new APIError("Cannot hard delete a user", 400, undefined, true);
@@ -268,18 +256,6 @@ export const StagedUsers = (): CollectionConfig => ({
 		defaultColumns: ["email", "name", "role", "updatedAt", "reviewedBy", "reviewComment"]
 	},
 	hooks: {
-		beforeChange: [
-			({ req, operation, data }) => {
-				if(req.user == null) return;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
-				return data;
-			}
-		],
 		beforeDelete: [
 			() => {
 				throw new APIError("Cannot hard delete a user", 400, undefined, true);

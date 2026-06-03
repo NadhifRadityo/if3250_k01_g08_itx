@@ -562,6 +562,8 @@ export async function finishAction(
 		id: id,
 		trash: true,
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			settledAt: new Date().toISOString(),
 			settlementStatus: "finished",
 			settlementComment: settlementComment ?? lexicalPlainText("")
@@ -605,6 +607,8 @@ export async function undoFinishAction(
 		id: id,
 		trash: true,
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			settledAt: null,
 			settlementStatus: null
 		}
@@ -632,6 +636,8 @@ export async function cancelAction(
 		id: id,
 		trash: true,
 		data: {
+			updatedAt: new Date().toISOString(),
+			updatedBy: user.id,
 			settledAt: new Date().toISOString(),
 			settlementStatus: "cancelled",
 			settlementComment: settlementComment ?? lexicalPlainText("Cancelled by officer")

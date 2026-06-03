@@ -329,6 +329,10 @@ if(existingApproved == null) {
 		overwriteExistingFiles: true,
 		data: {
 			description: lexicalPlainText("Approved seed import containing the canonical credit application rows."),
+			createdAt: isoAt(400),
+			createdBy: actingUser.id,
+			updatedAt: isoAt(400),
+			updatedBy: actingUser.id,
 			deletedAt: null,
 			deletedBy: null,
 			reviewedAt: isoAt(400),
@@ -370,6 +374,10 @@ if(existingPending == null) {
 		overwriteExistingFiles: true,
 		data: {
 			description: lexicalPlainText("Pending seed import kept available for approver review scenarios."),
+			createdAt: isoAt(400),
+			createdBy: actingUser.id,
+			updatedAt: isoAt(400),
+			updatedBy: actingUser.id,
 			deletedAt: null,
 			deletedBy: null,
 			reviewedAt: null,
@@ -388,6 +396,8 @@ if(existingPending == null) {
 		id: existingPending.id,
 		data: {
 			description: lexicalPlainText("Pending seed import kept available for approver review scenarios."),
+			updatedAt: isoAt(400),
+			updatedBy: actingUser.id,
 			deletedAt: null,
 			deletedBy: null,
 			reviewedAt: null,

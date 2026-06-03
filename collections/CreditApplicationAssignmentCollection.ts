@@ -31,15 +31,7 @@ export const CreditApplicationAssignments = (): CollectionConfig => ({
 	},
 	hooks: {
 		beforeChange: [
-			({ req, operation, data, originalDoc }) => {
-				if(req.user == null)
-					return data;
-				if(data.deletedAt != null)
-					data = { deletedBy: req.user.id, ...data };
-				if(operation == "create")
-					data = { createdBy: req.user.id, updatedBy: req.user.id, ...data };
-				if(operation == "update")
-					data = { updatedBy: req.user.id, ...data };
+			({ operation, data, originalDoc }) => {
 				if(operation == "update" && originalDoc != null && data.creditApplication != null) {
 					const previousCreditApplicationId = getRelationshipId(originalDoc.creditApplication);
 					const nextCreditApplicationId = getRelationshipId(data.creditApplication);
