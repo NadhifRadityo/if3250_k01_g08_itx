@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import Form, { type JsonFormDefinition } from "@/components/Form";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
@@ -112,9 +113,9 @@ const defaultSurveyResultAnswersRenderer = ({ buttonLabel, dialogTitle }: { butt
 		<SurveyResultAnswersDialog buttonLabel={buttonLabel} dialogTitle={dialogTitle} value={value} />
 	);
 
-export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryMonitoringAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationSurveyResultsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationSurveyResultsAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -206,7 +207,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["survey-result", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});

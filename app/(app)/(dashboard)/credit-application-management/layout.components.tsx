@@ -5,6 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { XIcon, PlusIcon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
+import { DatetimeInput } from "@/components/DatetimeInput";
 import { RichTextInput } from "@/components/RichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
@@ -24,11 +26,10 @@ import { defaultRelationUserRenderer, defaultRelationCreditApplicationImportRend
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { filterConfigColumns as creditApplicationImportFilterConfigColumns } from "./import.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
-import { DatetimeInput } from "@/components/DatetimeInput";
 
-export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationCreditApplicationsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationCreditApplicationsAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -281,7 +282,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-management", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -359,7 +360,7 @@ export function HistoryDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-management", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
-		queryFn: async () => await getHistoryAction(row!.id),
+		queryFn: async () => await uwsa(getHistoryAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -447,7 +448,7 @@ export function ChangeRequestDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -539,7 +540,7 @@ export function ReviewDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -627,7 +628,7 @@ export function ReviewDrawer(
 						<RichTextInput
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
-							onImageUpload={uploadGenericRichtextImage}
+							onImageUpload={uwsa(uploadGenericRichtextImage)}
 							disabled={isMutating}
 						/>
 					</div>
@@ -804,7 +805,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.collateralDescription}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, collateralDescription: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -821,7 +822,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.assetDescription}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, assetDescription: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -850,7 +851,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.remarks}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, remarks: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -892,7 +893,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.changeRequestComment ?? undefined}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, changeRequestComment: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -932,7 +933,7 @@ export function DeleteDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>
@@ -1007,7 +1008,7 @@ export function RestoreDeletionDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>

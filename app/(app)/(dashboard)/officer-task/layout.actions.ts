@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { OfficerTask } from "@/payload-types";
 
@@ -43,9 +44,9 @@ async function resolveRelations(
 			userIds.add(evaluatedBy);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
-	Object.assign(relations, await resolveRelationCreditApplicationAssignments({ payload, ids: [...creditApplicationAssignmentIds] }));
-	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: [...officerTaskIds] }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: [...userIds] }));
+	Object.assign(relations, await uwsa(resolveRelationCreditApplicationAssignments)({ payload, ids: [...creditApplicationAssignmentIds] }));
+	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -86,14 +87,14 @@ async function queryAction(
 	return { ...result, relations };
 }
 
-export async function queryReportingAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+export const queryReportingAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "reporting" });
-}
-export async function queryMonitoringAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+});
+export const queryMonitoringAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "monitoring" });
-}
+});
 
-export async function getDetailsAction(id: string) {
+export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -124,4 +125,4 @@ export async function getDetailsAction(id: string) {
 	});
 	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: result, relations };
-}
+});

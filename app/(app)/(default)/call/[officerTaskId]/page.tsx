@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Skeleton } from "@/components/radix/Skeleton";
 
@@ -16,7 +17,7 @@ export default function Page() {
 	const params = useParams<{ officerTaskId: string }>();
 	const query = useQuery({
 		queryKey: ["call", params.officerTaskId],
-		queryFn: async () => await getContextAction({ officerTaskId: params.officerTaskId })
+		queryFn: async () => await uwsa(getContextAction)({ officerTaskId: params.officerTaskId })
 	});
 	const iframeRef = useRef(null as HTMLIFrameElement | null);
 	const [status, setStatus] = useState("idle" as CallStatus);
@@ -51,7 +52,7 @@ export default function Page() {
 					.filter((p: any): p is string => typeof p == "string" && p.length > 0)
 					.map((p: string) => new URL(p, messagingEndpoint).href);
 				try {
-					await appendRecordingLogsAction({
+					await uwsa(appendRecordingLogsAction)({
 						officerTaskId: params.officerTaskId,
 						recordingUrls: recordingUrls
 					});

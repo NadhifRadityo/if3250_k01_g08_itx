@@ -6,9 +6,10 @@ import { login as payloadLogin } from "@payloadcms/next/auth";
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa } from "@/utils/actions";
 import { getClientIpFromHeaders } from "@/utils/clientIp";
 
-export async function loginAction(email: string, password: string) {
+export const loginAction = wsa(async (email: string, password: string) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user: loggedInuser } = await payload.auth({ headers });
@@ -94,4 +95,4 @@ export async function loginAction(email: string, password: string) {
 		} catch(_) {}
 		throw error;
 	}
-}
+});

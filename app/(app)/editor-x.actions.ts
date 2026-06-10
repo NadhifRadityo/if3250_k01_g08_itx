@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa } from "@/utils/actions";
 
 export interface UploadedFile {
 	altText: string;
@@ -13,7 +14,7 @@ export interface UploadedFile {
 	width?: number;
 }
 
-export async function uploadGenericRichtextImage(formData: FormData): Promise<UploadedFile> {
+export const uploadGenericRichtextImage = wsa(async (formData: FormData): Promise<UploadedFile> => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -49,4 +50,4 @@ export async function uploadGenericRichtextImage(formData: FormData): Promise<Up
 		src: `/api/generic-richtext-uploads/file/${encodeURIComponent(result.filename!)}`,
 		width: result.width ?? undefined
 	};
-}
+});

@@ -5,6 +5,7 @@ import { redirect, usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, TrendingUpIcon, ArrowUpDownIcon, LocateFixedIcon, LockKeyholeIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import cn from "@/utils/cn";
 import useIsMobile from "@/utils/useIsMobile";
 import { DatetimeInput } from "@/components/DatetimeInput";
@@ -147,17 +148,17 @@ function DashboardMenuKey(
 	);
 }
 
-const DashboardContext = createContext<Awaited<ReturnType<typeof getDashboardContextAction>> | null>(null);
+const DashboardContext = createContext<rwsa<typeof getDashboardContextAction> | null>(null);
 export function useDashboardContext() {
 	return useContext(DashboardContext)!;
 }
 export function DashboardShell(
 	{ initialContext, children }:
-	{ initialContext: Awaited<ReturnType<typeof getDashboardContextAction>>, children: ReactNode }
+	{ initialContext: rwsa<typeof getDashboardContextAction>, children: ReactNode }
 ) {
 	const context = useQuery({
 		queryKey: ["dashboard", "context"],
-		queryFn: async () => await getDashboardContextAction(),
+		queryFn: async () => await uwsa(getDashboardContextAction)(),
 		initialData: initialContext,
 		staleTime: 60000,
 		gcTime: 120000
@@ -266,7 +267,7 @@ export function DashboardShell(
 												</div>
 											</DropdownMenuLabel>
 											<DropdownMenuSeparator />
-											<DropdownMenuItem onClick={() => logoutAction()}>
+											<DropdownMenuItem onClick={() => uwsa(logoutAction)()}>
 												<LogOutIcon />
 												Log out
 											</DropdownMenuItem>

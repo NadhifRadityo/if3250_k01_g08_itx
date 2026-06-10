@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { ArrowLeftIcon, ArrowRightIcon, CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 import { RichTextInput } from "@/components/RichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -28,9 +29,9 @@ export const defaultStatusRenderer = () =>
 		return (<Badge variant={status == "approved" ? "default" : status == "rejected" || status == "cancelled" || status == "stale" ? "destructive" : status == "active" ? "default" : "secondary"}>{officerTaskStatusLabels[status]}</Badge>);
 	};
 
-export type ColumnData = Awaited<ReturnType<typeof queryAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOfficerTasksAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationOfficerTasksAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -156,7 +157,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["officer-task", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -246,7 +247,7 @@ export function EvaluateDrawer(
 	const query = useQuery({
 		queryKey: ["officer-task", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -307,7 +308,7 @@ export function EvaluateDrawer(
 						<RichTextInput
 							serializedState={evaluationComment}
 							onSerializedStateChange={onEvaluationCommentChange}
-							onImageUpload={uploadGenericRichtextImage}
+							onImageUpload={uwsa(uploadGenericRichtextImage)}
 							disabled={isMutating}
 						/>
 					</div>

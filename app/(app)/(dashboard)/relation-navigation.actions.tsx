@@ -6,16 +6,17 @@ import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
 import { Payload, getPayload } from "payload";
 
+import { rwsa, wsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 import payloadConfig from "@/payload.config";
 
 import { dashboardRoleLabels } from "./layout.shared";
 import { RelationRole, RelationUser, RelationSurvey, RelationOfficerTask, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
-export async function resolveRelationUsers(
+export const resolveRelationUsers = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`users:${string}`, RelationUser>> {
+): Promise<Record<`users:${string}`, RelationUser>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -29,12 +30,12 @@ export async function resolveRelationUsers(
 		email: doc.email,
 		stagedUserId: getRelationshipId(doc.stagedUser)
 	}]));
-}
+});
 
-export async function resolveRelationRoles(
+export const resolveRelationRoles = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`roles:${string}`, RelationRole>> {
+): Promise<Record<`roles:${string}`, RelationRole>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -47,12 +48,12 @@ export async function resolveRelationRoles(
 	return Object.fromEntries(result.docs.map(doc => [`roles:${doc.id}`, {
 		name: doc.name
 	}]));
-}
+});
 
-export async function resolveRelationSurveys(
+export const resolveRelationSurveys = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`surveys:${string}`, RelationSurvey>> {
+): Promise<Record<`surveys:${string}`, RelationSurvey>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -66,12 +67,12 @@ export async function resolveRelationSurveys(
 	return Object.fromEntries(result.docs.map(doc => [`surveys:${doc.id}`, {
 		title: doc.title
 	}]));
-}
+});
 
-export async function resolveRelationSurveyResults(
+export const resolveRelationSurveyResults = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`survey-results:${string}`, RelationSurveyResult>> {
+): Promise<Record<`survey-results:${string}`, RelationSurveyResult>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -85,12 +86,12 @@ export async function resolveRelationSurveyResults(
 	return Object.fromEntries(result.docs.map(doc => [`survey-results:${doc.id}`, {
 		_: null
 	}]));
-}
+});
 
-export async function resolveRelationSatisfactionSurveys(
+export const resolveRelationSatisfactionSurveys = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> {
+): Promise<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -104,12 +105,12 @@ export async function resolveRelationSatisfactionSurveys(
 	return Object.fromEntries(result.docs.map(doc => [`satisfaction-surveys:${doc.id}`, {
 		title: doc.title
 	}]));
-}
+});
 
-export async function resolveRelationSatisfactionSurveyResults(
+export const resolveRelationSatisfactionSurveyResults = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult>> {
+): Promise<Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -123,12 +124,12 @@ export async function resolveRelationSatisfactionSurveyResults(
 	return Object.fromEntries(result.docs.map(doc => [`satisfaction-survey-results:${doc.id}`, {
 		_: null
 	}]));
-}
+});
 
-export async function resolveRelationCreditApplications(
+export const resolveRelationCreditApplications = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`credit-applications:${string}`, RelationCreditApplication>> {
+): Promise<Record<`credit-applications:${string}`, RelationCreditApplication>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -141,12 +142,12 @@ export async function resolveRelationCreditApplications(
 		name: doc.name,
 		email: doc.email
 	}]));
-}
+});
 
-export async function resolveRelationCreditApplicationImports(
+export const resolveRelationCreditApplicationImports = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`credit-application-imports:${string}`, RelationCreditApplicationImport>> {
+): Promise<Record<`credit-application-imports:${string}`, RelationCreditApplicationImport>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -160,12 +161,12 @@ export async function resolveRelationCreditApplicationImports(
 		filesize: doc.filesize!,
 		mimeType: doc.mimeType!
 	}]));
-}
+});
 
-export async function resolveRelationCreditApplicationAssignments(
+export const resolveRelationCreditApplicationAssignments = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> {
+): Promise<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -179,12 +180,12 @@ export async function resolveRelationCreditApplicationAssignments(
 	return Object.fromEntries(result.docs.map(doc => [`credit-application-assignments:${doc.id}`, {
 		_: null
 	}]));
-}
+});
 
-export async function resolveRelationOfficerTasks(
+export const resolveRelationOfficerTasks = wsa(async (
 	{ payload, ids }:
 	{ payload?: Payload, ids: string[] }
-): Promise<Record<`officer-tasks:${string}`, RelationOfficerTask>> {
+): Promise<Record<`officer-tasks:${string}`, RelationOfficerTask>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
 		overrideAccess: true,
@@ -198,9 +199,9 @@ export async function resolveRelationOfficerTasks(
 	return Object.fromEntries(result.docs.map(doc => [`officer-tasks:${doc.id}`, {
 		_: null
 	}]));
-}
+});
 
-export type RelationSummary = Awaited<ReturnType<typeof getRelationSummaryAction>>;
+export type RelationSummary = rwsa<typeof getRelationSummaryAction>;
 export type RelationSummaryResult = {
 	relationType: string;
 	relationId: string;
@@ -208,10 +209,10 @@ export type RelationSummaryResult = {
 	description: React.ReactNode;
 	fields: { label: React.ReactNode, value: React.ReactNode }[];
 };
-export async function getRelationSummaryAction(
+export const getRelationSummaryAction = wsa(async (
 	{ relationType, relationId }:
 	{ relationType: string, relationId: string }
-): Promise<RelationSummaryResult | null> {
+): Promise<RelationSummaryResult | null> => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -570,11 +571,11 @@ export async function getRelationSummaryAction(
 		};
 	}
 	return null;
-}
+});
 
 const RELATION_SEARCH_LIMIT = 20;
 
-export async function searchRelationUsersAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationUsersAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -601,9 +602,9 @@ export async function searchRelationUsersAction(keyword: string, selectedIds: st
 		id: doc.id,
 		label: (<>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>)
 	}));
-}
+});
 
-export async function searchRelationUsersByRoleLevelAction(roleLevel: "admin" | "manager" | "supervisor" | "officer", keyword: string, selectedIds: string[] = []) {
+export const searchRelationUsersByRoleLevelAction = wsa(async (roleLevel: "admin" | "manager" | "supervisor" | "officer", keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -633,9 +634,9 @@ export async function searchRelationUsersByRoleLevelAction(roleLevel: "admin" | 
 		id: doc.id,
 		label: (<>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>)
 	}));
-}
+});
 
-export async function searchRelationStagedUsersAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationStagedUsersAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -664,9 +665,9 @@ export async function searchRelationStagedUsersAction(keyword: string, selectedI
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email}`}</>
 	}));
-}
+});
 
-export async function searchRelationRolesAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationRolesAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -693,9 +694,9 @@ export async function searchRelationRolesAction(keyword: string, selectedIds: st
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
 	}));
-}
+});
 
-export async function searchRelationTeamsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationTeamsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -722,9 +723,9 @@ export async function searchRelationTeamsAction(keyword: string, selectedIds: st
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
 	}));
-}
+});
 
-export async function searchRelationAccessesAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationAccessesAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -751,9 +752,9 @@ export async function searchRelationAccessesAction(keyword: string, selectedIds:
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.name}</>
 	}));
-}
+});
 
-export async function searchRelationCreditApplicationsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationCreditApplicationsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -781,9 +782,9 @@ export async function searchRelationCreditApplicationsAction(keyword: string, se
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {`${doc.name} ${doc.email ?? ""}`}</>
 	}));
-}
+});
 
-export async function searchAvailableRelationCreditApplicationsAction(keyword: string, selectedIds: string[] = []) {
+export const searchAvailableRelationCreditApplicationsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -878,9 +879,9 @@ export async function searchAvailableRelationCreditApplicationsAction(keyword: s
 		});
 	}
 	return [...optionsById.values()].slice(0, RELATION_SEARCH_LIMIT + selectedIds.length);
-}
+});
 
-export async function searchRelationCreditApplicationImportsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationCreditApplicationImportsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -907,9 +908,9 @@ export async function searchRelationCreditApplicationImportsAction(keyword: stri
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.filename}</>
 	}));
-}
+});
 
-export async function searchRelationCreditApplicationAssignmentsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationCreditApplicationAssignmentsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -935,9 +936,9 @@ export async function searchRelationCreditApplicationAssignmentsAction(keyword: 
 		id: doc.id,
 		label: <span className="font-mono">{doc.id}</span>
 	}));
-}
+});
 
-export async function searchRelationOfficerTasksAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationOfficerTasksAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -963,9 +964,9 @@ export async function searchRelationOfficerTasksAction(keyword: string, selected
 		id: doc.id,
 		label: <span className="font-mono">{doc.id}</span>
 	}));
-}
+});
 
-export async function searchRelationSurveysAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationSurveysAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -992,9 +993,9 @@ export async function searchRelationSurveysAction(keyword: string, selectedIds: 
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.title}</>
 	}));
-}
+});
 
-export async function searchRelationSurveyResultsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationSurveyResultsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1018,9 +1019,9 @@ export async function searchRelationSurveyResultsAction(keyword: string, selecte
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
 	}));
-}
+});
 
-export async function searchRelationSatisfactionSurveysAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationSatisfactionSurveysAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1047,9 +1048,9 @@ export async function searchRelationSatisfactionSurveysAction(keyword: string, s
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.title}</>
 	}));
-}
+});
 
-export async function searchRelationSatisfactionSurveyResultsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationSatisfactionSurveyResultsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1073,9 +1074,9 @@ export async function searchRelationSatisfactionSurveyResultsAction(keyword: str
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
 	}));
-}
+});
 
-export async function searchRelationLoginLogsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationLoginLogsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1099,9 +1100,9 @@ export async function searchRelationLoginLogsAction(keyword: string, selectedIds
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.createdAt}</>
 	}));
-}
+});
 
-export async function searchRelationGpsLogsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationGpsLogsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1126,9 +1127,9 @@ export async function searchRelationGpsLogsAction(keyword: string, selectedIds: 
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.sessionId}</>
 	}));
-}
+});
 
-export async function searchRelationMessageLogsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationMessageLogsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1156,9 +1157,9 @@ export async function searchRelationMessageLogsAction(keyword: string, selectedI
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.email ?? doc.whatsappNumber ?? doc.smsNumber ?? doc.createdAt}</>
 	}));
-}
+});
 
-export async function searchRelationRecordingLogsAction(keyword: string, selectedIds: string[] = []) {
+export const searchRelationRecordingLogsAction = wsa(async (keyword: string, selectedIds: string[] = []) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -1183,4 +1184,4 @@ export async function searchRelationRecordingLogsAction(keyword: string, selecte
 		id: doc.id,
 		label: <>(<span className="font-mono">{doc.id}</span>) {doc.phoneNumber}</>
 	}));
-}
+});

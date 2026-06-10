@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
@@ -17,16 +18,16 @@ import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 import { settlementStatusSelectOptions } from "./layout.shared";
 
-export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryMonitoringAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationOfficerTasksAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationOfficerTasksAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
 	{ key: "updatedBy", label: "Updated By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "creditApplicationAssignment", label: "Credit Application Assignment", type: "relation", relationFilterConfigColumn: () => ["Credit Application Assignment", creditApplicationAssignmentFilterConfigColumns] },
 	{ key: "creditApplicationAssignmentVersion", label: "Credit Application Assignment Version", type: "text" },
-	{ key: "next", label: "Next", type: "relation", relationSearch: searchRelationOfficerTasksAction },
+	{ key: "next", label: "Next", type: "relation", relationSearch: uwsa(searchRelationOfficerTasksAction) },
 	{ key: "settledAt", label: "Settled At", type: "date" },
 	{ key: "settlementStatus", label: "Settlement Status", type: "select", selectOptions: settlementStatusSelectOptions },
 	{ key: "evaluatedAt", label: "Evaluated At", type: "date" },
@@ -136,7 +137,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["officer-task", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});

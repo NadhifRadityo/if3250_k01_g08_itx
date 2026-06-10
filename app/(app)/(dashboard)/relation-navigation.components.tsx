@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2Icon, CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import cn from "@/utils/cn";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
@@ -106,7 +107,7 @@ function useRelationNavigationSummary() {
 		startTransition(async () => {
 			setDrawerOpen(true);
 			try {
-				const summary = await getRelationSummaryAction({ relationType, relationId: pickedId });
+				const summary = await uwsa(getRelationSummaryAction)({ relationType, relationId: pickedId });
 				if(summary == null)
 					throw new Error(`Cannot find relation ${JSON.stringify(relationType)} with id ${JSON.stringify(pickedId)}`);
 				setSummary(summary);

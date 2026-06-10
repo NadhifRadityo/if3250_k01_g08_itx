@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, RefreshCwIcon, CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
@@ -76,7 +77,7 @@ export default function Page() {
 			columnsSort,
 			pageIndex
 		}],
-		queryFn: async () => await queryAction({
+		queryFn: async () => await uwsa(queryAction)({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -173,7 +174,7 @@ export default function Page() {
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
 					onChainNavigate={async id => {
-						const result = await getDetailsAction(id);
+						const result = await uwsa(getDetailsAction)(id);
 						setDetailsDrawerRow(result.row);
 					}}
 				/>
@@ -189,7 +190,7 @@ export default function Page() {
 					onApprove={() => startMutationTransition(async () => {
 						setEvaluateMutationError(null);
 						try {
-							await evaluateAction({
+							await uwsa(evaluateAction)({
 								id: evaluateDrawerRow!.id,
 								decision: "approve",
 								evaluationComment: evaluationComment
@@ -205,7 +206,7 @@ export default function Page() {
 					onReject={() => startMutationTransition(async () => {
 						setEvaluateMutationError(null);
 						try {
-							await evaluateAction({
+							await uwsa(evaluateAction)({
 								id: evaluateDrawerRow!.id,
 								decision: "reject",
 								evaluationComment: evaluationComment

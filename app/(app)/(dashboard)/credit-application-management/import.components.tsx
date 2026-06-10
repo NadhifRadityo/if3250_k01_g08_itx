@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { DownloadIcon, CircleAlertIcon, FileSpreadsheetIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import cn from "@/utils/cn";
 import { RichTextInput, RichTextPreview } from "@/components/RichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -24,10 +25,10 @@ import { defaultRelationUserRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { getDetailsAction, queryViewerAction, parsePreviewAction } from "./import.actions";
 
-export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
-export type RelationValues = Awaited<ReturnType<typeof queryViewerAction>>["relations"];
+export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
+export type RelationValues = rwsa<typeof queryViewerAction>["relations"];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationCreditApplicationImportsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationCreditApplicationImportsAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -387,7 +388,7 @@ function ImportFileBox(
 				formData.set("importId", importId);
 			else if(file instanceof File)
 				formData.set("file", file);
-			return await parsePreviewAction(formData);
+			return await uwsa(parsePreviewAction)(formData);
 		},
 		refetchOnWindowFocus: false
 	});
@@ -541,7 +542,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-import", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: () => getDetailsAction(row!.id),
+		queryFn: () => uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -683,7 +684,7 @@ export function FormDrawer(
 						<RichTextInput
 							serializedState={formState.description}
 							onSerializedStateChange={value => onFormStateChange({ ...formState, description: value })}
-							onImageUpload={uploadGenericRichtextImage}
+							onImageUpload={uwsa(uploadGenericRichtextImage)}
 							disabled={isMutating}
 						/>
 					</div>
@@ -749,7 +750,7 @@ export function ReviewDrawer(
 						<RichTextInput
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
-							onImageUpload={uploadGenericRichtextImage}
+							onImageUpload={uwsa(uploadGenericRichtextImage)}
 							disabled={isMutating}
 						/>
 					</div>

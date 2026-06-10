@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
 import type { SatisfactionSurvey } from "@/payload-types";
 
@@ -37,7 +38,7 @@ async function resolveRelations(
 			userIds.add(reviewedBy);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: [...userIds] }));
 	return relations;
 }
 
@@ -78,17 +79,17 @@ async function queryAction(
 	return { ...result, relations };
 }
 
-export async function queryViewerAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+export const queryViewerAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "viewer" });
-}
-export async function queryEditorAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+});
+export const queryEditorAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "editor" });
-}
-export async function queryApproverAction(p: Omit<Parameters<typeof queryAction>[0], "mode">) {
+});
+export const queryApproverAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "approver" });
-}
+});
 
-export async function getDetailsAction(id: string) {
+export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -123,9 +124,9 @@ export async function getDetailsAction(id: string) {
 	});
 	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: result, relations };
-}
+});
 
-export async function getDifferenceAction(id: string) {
+export const getDifferenceAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -197,9 +198,9 @@ export async function getDifferenceAction(id: string) {
 		requestedVersion: requestedVersion,
 		relations: relations
 	};
-}
+});
 
-export async function getHistoryAction(id: string) {
+export const getHistoryAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -237,9 +238,9 @@ export async function getHistoryAction(id: string) {
 	const entries = versionsResult.docs.map(v => ({ ...v.version, id: id, versionId: v.id }));
 	const relations = await resolveRelations({ payload, docs: entries });
 	return { entries, relations };
-}
+});
 
-export async function requestUpsertAction(formState: FormState) {
+export const requestUpsertAction = wsa(async (formState: FormState) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -301,12 +302,12 @@ export async function requestUpsertAction(formState: FormState) {
 		}
 	});
 	return { id: formState.id };
-}
+});
 
-export async function requestDeleteAction(
+export const requestDeleteAction = wsa(async (
 	{ id, changeRequestComment }:
 	{ id: string, changeRequestComment?: any }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -334,12 +335,12 @@ export async function requestDeleteAction(
 		}
 	});
 	return { id: id };
-}
+});
 
-export async function cancelRequestAction(
+export const cancelRequestAction = wsa(async (
 	{ id }:
 	{ id: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -432,12 +433,12 @@ export async function cancelRequestAction(
 		}
 	});
 	return { id: id };
-}
+});
 
-export async function requestRestoreAction(
+export const requestRestoreAction = wsa(async (
 	{ id, changeRequestComment }:
 	{ id: string, changeRequestComment?: any }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -476,12 +477,12 @@ export async function requestRestoreAction(
 		}
 	});
 	return { id: id };
-}
+});
 
-export async function reviewAction(
+export const reviewAction = wsa(async (
 	{ id, decision, reviewComment }:
 	{ id: string, decision: "approve" | "reject", reviewComment: any }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -535,4 +536,4 @@ export async function reviewAction(
 		}
 	});
 	return { id: id };
-}
+});

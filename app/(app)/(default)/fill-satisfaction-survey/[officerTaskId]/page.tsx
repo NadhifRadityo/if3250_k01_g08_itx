@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import Form, { type JsonFormDefinition } from "@/components/Form";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Skeleton } from "@/components/radix/Skeleton";
@@ -23,7 +24,7 @@ export default function Page() {
 	const params = useParams<{ officerTaskId: string }>();
 	const query = useQuery({
 		queryKey: ["fill-satisfaction-survey", params.officerTaskId],
-		queryFn: async () => await getContextAction({ officerTaskId: params.officerTaskId })
+		queryFn: async () => await uwsa(getContextAction)({ officerTaskId: params.officerTaskId })
 	});
 	const formDefinition = useMemo(() => {
 		const content = query.data?.satisfactionSurveyContent;
@@ -89,7 +90,7 @@ export default function Page() {
 					onPartialSubmit={async payload => {
 						setSubmissionError(null);
 						try {
-							await partialSubmitAction({
+							await uwsa(partialSubmitAction)({
 								officerTaskId: params.officerTaskId,
 								answers: { values: payload.values }
 							});
@@ -100,7 +101,7 @@ export default function Page() {
 					onSubmit={async payload => {
 						setSubmissionError(null);
 						try {
-							await submitAction({
+							await uwsa(submitAction)({
 								officerTaskId: params.officerTaskId,
 								answers: { values: payload.values }
 							});

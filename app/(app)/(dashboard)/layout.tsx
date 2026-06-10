@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { connection as nextConnection } from "next/server";
 
+import { uwsa } from "@/utils/actions";
 import Comment from "@/components/Comment";
 import Root, { generateRootMetadata, generateRootViewport } from "@/app/root";
 
@@ -18,7 +19,7 @@ export async function generateViewport() {
 
 async function SuspensedLayout({ children }: { children: React.ReactNode }) {
 	await nextConnection();
-	const context = await getDashboardContextAction();
+	const context = await uwsa(getDashboardContextAction)();
 	if(context == null)
 		return redirect("/login");
 

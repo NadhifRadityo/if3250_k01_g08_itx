@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import Form, { type JsonFormDefinition } from "@/components/Form";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Skeleton } from "@/components/radix/Skeleton";
@@ -23,11 +24,11 @@ export default function Page() {
 	const params = useParams<{ officerTaskId: string }>();
 	const query = useQuery({
 		queryKey: ["fill-survey", params.officerTaskId],
-		queryFn: async () => await getContextAction({ officerTaskId: params.officerTaskId })
+		queryFn: async () => await uwsa(getContextAction)({ officerTaskId: params.officerTaskId })
 	});
 	const geofenceQuery = useQuery({
 		queryKey: ["fill-survey", "geofence", params.officerTaskId],
-		queryFn: async () => await checkGeofenceAction({ officerTaskId: params.officerTaskId }),
+		queryFn: async () => await uwsa(checkGeofenceAction)({ officerTaskId: params.officerTaskId }),
 		refetchInterval: 60000,
 		refetchOnWindowFocus: true
 	});
@@ -38,7 +39,7 @@ export default function Page() {
 				setLocationError(null);
 				if(!document.hasFocus()) return;
 				try {
-					await appendGpsLogAction({
+					await uwsa(appendGpsLogAction)({
 						latitude: position.coords.latitude,
 						longitude: position.coords.longitude,
 						accuracy: position.coords.accuracy
@@ -144,7 +145,7 @@ export default function Page() {
 					onPartialSubmit={async payload => {
 						setSubmissionError(null);
 						try {
-							await partialSubmitAction({
+							await uwsa(partialSubmitAction)({
 								officerTaskId: params.officerTaskId,
 								answers: { values: payload.values }
 							});
@@ -155,7 +156,7 @@ export default function Page() {
 					onSubmit={async payload => {
 						setSubmissionError(null);
 						try {
-							await submitAction({
+							await uwsa(submitAction)({
 								officerTaskId: params.officerTaskId,
 								answers: { values: payload.values }
 							});

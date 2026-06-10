@@ -3,6 +3,7 @@
 import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 
 async function ensureOfficerTaskIsEligible(
@@ -23,10 +24,10 @@ async function ensureOfficerTaskIsEligible(
 	return officerTask;
 }
 
-export async function getContextAction(
+export const getContextAction = wsa(async (
 	{ officerTaskId }:
 	{ officerTaskId: string }
-) {
+) => {
 	const payload = await getPayload({ config: payloadConfig });
 
 	const officerTask = await payload.findByID({
@@ -84,12 +85,12 @@ export async function getContextAction(
 		existingAnswers: existing.docs[0]?.answers ?? null,
 		alreadySubmitted: existing.docs[0] != null
 	};
-}
+});
 
-export async function partialSubmitAction(
+export const partialSubmitAction = wsa(async (
 	{ officerTaskId, answers }:
 	{ officerTaskId: string, answers: any }
-) {
+) => {
 	const payload = await getPayload({ config: payloadConfig });
 
 	const officerTask = await ensureOfficerTaskIsEligible({ payload, officerTaskId });
@@ -146,12 +147,12 @@ export async function partialSubmitAction(
 		}
 	});
 	return { id: created.id };
-}
+});
 
-export async function submitAction(
+export const submitAction = wsa(async (
 	{ officerTaskId, answers }:
 	{ officerTaskId: string, answers: any }
-) {
+) => {
 	const payload = await getPayload({ config: payloadConfig });
 
 	const officerTask = await ensureOfficerTaskIsEligible({ payload, officerTaskId });
@@ -206,4 +207,4 @@ export async function submitAction(
 		}
 	});
 	return { id: created.id };
-}
+});

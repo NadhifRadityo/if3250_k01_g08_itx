@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { GpsLog } from "@/payload-types";
 
@@ -51,8 +52,8 @@ async function resolveRelations(
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const relations = {} as RelationValues;
-	Object.assign(relations, await resolveRelationUsers({ payload, ids: userIds }));
-	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: officerTaskIds }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: userIds }));
+	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, ids: officerTaskIds }));
 	return relations;
 }
 
@@ -208,24 +209,24 @@ function getMonitoringPeriod() {
 	};
 }
 
-export async function queryMonitoringAction(
+export const queryMonitoringAction = wsa(async (
 	{ keyword, filters, columnsSort, pageIndex }:
 	{ keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
-) {
+) => {
 	const { periodStart, periodEnd } = getMonitoringPeriod();
 	return await queryAction({ mode: "monitoring", periodStart, periodEnd, keyword, filters, columnsSort, pageIndex });
-}
-export async function queryReportingAction(
+});
+export const queryReportingAction = wsa(async (
 	{ periodStart, periodEnd, keyword, filters, columnsSort, pageIndex }:
 	{ periodStart: string, periodEnd: string | null, keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
-) {
+) => {
 	return await queryAction({ mode: "reporting", periodStart, periodEnd, keyword, filters, columnsSort, pageIndex });
-}
+});
 
-export async function getDetailsAction(
+export const getDetailsAction = wsa(async (
 	{ userId, periodStart, periodEnd }:
 	{ userId: string, periodStart: string, periodEnd: string | null }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -258,4 +259,4 @@ export async function getDetailsAction(
 		docs: result.docs,
 		relations: relations
 	};
-}
+});

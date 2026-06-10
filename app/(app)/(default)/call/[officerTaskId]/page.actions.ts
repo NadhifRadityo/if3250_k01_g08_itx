@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 import { CreditApplication, CreditApplicationAssignment } from "@/payload-types";
 
@@ -28,10 +29,10 @@ async function ensureOfficerOwnsOfficerTask(
 	return officerTask;
 }
 
-export async function getContextAction(
+export const getContextAction = wsa(async (
 	{ officerTaskId }:
 	{ officerTaskId: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -59,12 +60,12 @@ export async function getContextAction(
 		messagingEndpoint: process.env.MESSAGING_ENDPOINT!,
 		messagingApiKey: process.env.MESSAGING_API_KEY!
 	};
-}
+});
 
-export async function appendRecordingLogsAction(
+export const appendRecordingLogsAction = wsa(async (
 	{ officerTaskId, recordingUrls }:
 	{ officerTaskId: string, recordingUrls: string[] }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -93,4 +94,4 @@ export async function appendRecordingLogsAction(
 		}
 	});
 	return { ok: true };
-}
+});

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 import { RichTextInput } from "@/components/RichText";
 import { SearchableSelect, SearchableMultiSelect } from "@/components/SearchableSelect";
@@ -20,14 +21,14 @@ import { Team } from "@/payload-types";
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { changeRequestTypeSelectOptions } from "../layout.shared";
-import { searchRelationTeamsAction, searchRelationUsersAction, searchRelationUsersByRoleLevelAction } from "../relation-navigation.actions";
+import { searchRelationTeamsAction, searchRelationUsersAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationUsersRenderer } from "../relation-navigation.components";
-import { userFilterConfigColumns, userByRoleFilterConfigColumns } from "../user-management/layout.components";
+import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
-export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationTeamsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationTeamsAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -164,7 +165,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["team-management", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -242,7 +243,7 @@ export function HistoryDrawer(
 	const query = useQuery({
 		queryKey: ["team-management", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
-		queryFn: async () => await getHistoryAction(row!.id),
+		queryFn: async () => await uwsa(getHistoryAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -330,7 +331,7 @@ export function ChangeRequestDrawer(
 	const query = useQuery({
 		queryKey: ["team-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -422,7 +423,7 @@ export function ReviewDrawer(
 	const query = useQuery({
 		queryKey: ["team-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -510,7 +511,7 @@ export function ReviewDrawer(
 						<RichTextInput
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
-							onImageUpload={uploadGenericRichtextImage}
+							onImageUpload={uwsa(uploadGenericRichtextImage)}
 							disabled={isMutating}
 						/>
 					</div>
@@ -567,7 +568,7 @@ export function FormDrawer(
 								value={formState.supervisor ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, supervisor: value })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationUsersAction(keyword, selectedValues)
+								onSearch={(keyword, selectedValues) => uwsa(searchRelationUsersAction)(keyword, selectedValues)
 									.then(users => users.map(user => ({
 										value: user.id,
 										label: user.label
@@ -587,7 +588,7 @@ export function FormDrawer(
 								values={formState.members ?? []}
 								onValuesChange={values => onFormStateChange({ ...formState, members: values })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationUsersAction(keyword, selectedValues)
+								onSearch={(keyword, selectedValues) => uwsa(searchRelationUsersAction)(keyword, selectedValues)
 									.then(users => users.map(user => ({
 										value: user.id,
 										label: user.label
@@ -602,7 +603,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.changeRequestComment ?? undefined}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, changeRequestComment: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -642,7 +643,7 @@ export function DeleteDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>
@@ -717,7 +718,7 @@ export function RestoreDeletionDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>

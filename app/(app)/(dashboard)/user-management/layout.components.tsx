@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 import { RichTextInput } from "@/components/RichText";
 import { SearchableSelect } from "@/components/SearchableSelect";
@@ -25,9 +26,9 @@ import { defaultRelationRoleRenderer, defaultRelationUserRenderer } from "../rel
 import { filterConfigColumns as roleFilterConfigColumns } from "../role-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
 
-export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const userByRoleFilterConfigColumns = (roleLevel: "admin" | "manager" | "supervisor" | "officer") => Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: (keyword, selectedIds) => searchRelationUsersByRoleLevelAction(roleLevel, keyword, selectedIds) },
+	{ key: "id", label: "Id", type: "relation", relationSearch: (keyword, selectedIds) => uwsa(searchRelationUsersByRoleLevelAction)(roleLevel, keyword, selectedIds) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -45,7 +46,7 @@ export const userByRoleFilterConfigColumns = (roleLevel: "admin" | "manager" | "
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
 export const userFilterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationUsersAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationUsersAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -63,7 +64,7 @@ export const userFilterConfigColumns = Object.freeze([
 	{ key: "reviewApproved", label: "Review Approved", type: "boolean" }
 ] as MenuFilterConfigColumn[]);
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationStagedUsersAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationStagedUsersAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -217,7 +218,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["user-management", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -295,7 +296,7 @@ export function HistoryDrawer(
 	const query = useQuery({
 		queryKey: ["user-management", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
-		queryFn: async () => await getHistoryAction(row!.id),
+		queryFn: async () => await uwsa(getHistoryAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -383,7 +384,7 @@ export function ChangeRequestDrawer(
 	const query = useQuery({
 		queryKey: ["user-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -475,7 +476,7 @@ export function ReviewDrawer(
 	const query = useQuery({
 		queryKey: ["user-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -563,7 +564,7 @@ export function ReviewDrawer(
 						<RichTextInput
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
-							onImageUpload={uploadGenericRichtextImage}
+							onImageUpload={uwsa(uploadGenericRichtextImage)}
 							disabled={isMutating}
 						/>
 					</div>
@@ -642,7 +643,7 @@ export function FormDrawer(
 								value={formState.role ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, role: value })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationRolesAction(keyword, selectedValues).then(roles => roles.map(role => ({
+								onSearch={(keyword, selectedValues) => uwsa(searchRelationRolesAction)(keyword, selectedValues).then(roles => roles.map(role => ({
 									value: role.id,
 									label: role.label
 								})))}
@@ -657,7 +658,7 @@ export function FormDrawer(
 								value={formState.supervisor ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, supervisor: value })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationUsersByRoleLevelAction("supervisor", keyword, selectedValues).then(users => users.map(user => ({
+								onSearch={(keyword, selectedValues) => uwsa(searchRelationUsersByRoleLevelAction)("supervisor", keyword, selectedValues).then(users => users.map(user => ({
 									value: user.id,
 									label: user.label
 								})))}
@@ -681,7 +682,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.changeRequestComment ?? undefined}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, changeRequestComment: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -721,7 +722,7 @@ export function DeleteDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>
@@ -796,7 +797,7 @@ export function RestoreDeletionDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>

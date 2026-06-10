@@ -7,6 +7,7 @@ import { Payload, extractJWT, getPayload } from "payload";
 import * as turf from "@turf/turf";
 
 import payloadConfig from "@payload-config";
+import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId } from "@/utils/payload";
 import { OfficerTask, CreditApplication, CreditApplicationAssignment } from "@/payload-types";
 
@@ -103,10 +104,10 @@ function isPointInGeofenceRegions(
 	return turf.booleanPointInPolygon([longitude, latitude], combined);
 }
 
-export async function isOfficerInsideGeofenceRegions(
+export const isOfficerInsideGeofenceRegions = wsa(async (
 	{ payload, officerId, geofenceRegions, windowMs, at = Date.now() }:
 	{ payload: Payload, officerId: string, geofenceRegions: GeofenceRegion[] | null | undefined, windowMs: number, at?: number }
-): Promise<boolean> {
+): Promise<boolean> => {
 	if(geofenceRegions == null || geofenceRegions.length == 0)
 		return true;
 	const since = new Date(at - windowMs).toISOString();
@@ -136,7 +137,7 @@ export async function isOfficerInsideGeofenceRegions(
 			return true;
 	}
 	return false;
-}
+});
 
 function generateTotp(
 	{ officerTaskId, secret, at = Date.now() }:
@@ -188,9 +189,9 @@ async function resolveRelations(
 			userIds.add(evaluatedBy);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await resolveRelationUsers({ payload, ids: [...userIds] }));
-	Object.assign(relations, await resolveRelationCreditApplicationAssignments({ payload, ids: [...creditApplicationAssignmentIds] }));
-	Object.assign(relations, await resolveRelationOfficerTasks({ payload, ids: [...officerTaskIds] }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: [...userIds] }));
+	Object.assign(relations, await uwsa(resolveRelationCreditApplicationAssignments)({ payload, ids: [...creditApplicationAssignmentIds] }));
+	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -257,18 +258,18 @@ async function annotateRows(
 	});
 }
 
-export async function getActiveAction() {
+export const getActiveAction = wsa(async () => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 	return await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${user.id}`);
-}
+});
 
-export async function queryAction(
+export const queryAction = wsa(async (
 	{ keyword, filters, columnsSort, pageIndex }:
 	{ keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -301,9 +302,9 @@ export async function queryAction(
 	const annotatedDocs = await annotateRows({ payload, docs: result.docs });
 	const relations = await resolveRelations({ payload, docs: result.docs });
 	return { ...result, docs: annotatedDocs, relations };
-}
+});
 
-export async function getDetailsAction(id: string) {
+export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -335,7 +336,7 @@ export async function getDetailsAction(id: string) {
 	const annotatedDocs = await annotateRows({ payload, docs: [result] });
 	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: annotatedDocs[0], relations };
-}
+});
 
 async function ensureOfficerOwnsOfficerTask(
 	{ payload, userId, officerTaskId }:
@@ -358,10 +359,10 @@ async function ensureOfficerOwnsOfficerTask(
 	return officerTask;
 }
 
-export async function activateAction(
+export const activateAction = wsa(async (
 	{ id }:
 	{ id: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -378,9 +379,9 @@ export async function activateAction(
 		otpEntered: false
 	} satisfies ActiveOfficerTaskKvData);
 	return { id: id };
-}
+});
 
-export async function clearActiveAction() {
+export const clearActiveAction = wsa(async () => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -388,12 +389,12 @@ export async function clearActiveAction() {
 
 	await payload.kv.delete(`officer-task:${user.id}`);
 	return { ok: true };
-}
+});
 
-export async function appendGpsLogAction(
+export const appendGpsLogAction = wsa(async (
 	{ latitude, longitude, accuracy }:
 	{ latitude: number, longitude: number, accuracy: number }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -426,7 +427,7 @@ export async function appendGpsLogAction(
 		});
 		const geofenceRegions = (officerTask.creditApplicationAssignment as CreditApplicationAssignment)?.geofenceRegions;
 		if(geofenceRegions != null) {
-			isInsideGeofence = await isOfficerInsideGeofenceRegions({
+			isInsideGeofence = await uwsa(isOfficerInsideGeofenceRegions)({
 				payload: payload,
 				officerId: user.id,
 				geofenceRegions: geofenceRegions as any,
@@ -435,12 +436,12 @@ export async function appendGpsLogAction(
 		}
 	}
 	return { ok: true, isInsideGeofence };
-}
+});
 
-export async function sendOtpMessageAction(
+export const sendOtpMessageAction = wsa(async (
 	{ id }:
 	{ id: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -493,12 +494,12 @@ export async function sendOtpMessageAction(
 		}
 	});
 	return { ok: true };
-}
+});
 
-export async function inputOtpAction(
+export const inputOtpAction = wsa(async (
 	{ id, otp }:
 	{ id: string, otp: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -512,7 +513,7 @@ export async function inputOtpAction(
 	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
 	const geofenceRegions = (officerTask.creditApplicationAssignment as CreditApplicationAssignment).geofenceRegions;
 	if(geofenceRegions != null) {
-		const inside = await isOfficerInsideGeofenceRegions({
+		const inside = await uwsa(isOfficerInsideGeofenceRegions)({
 			payload: payload,
 			officerId: user.id,
 			geofenceRegions: geofenceRegions as any,
@@ -529,12 +530,12 @@ export async function inputOtpAction(
 		otpEntered: true
 	} satisfies ActiveOfficerTaskKvData);
 	return { ok: true };
-}
+});
 
-export async function finishAction(
+export const finishAction = wsa(async (
 	{ id, settlementComment }:
 	{ id: string, settlementComment?: any }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -578,12 +579,12 @@ export async function finishAction(
 		] }
 	});
 	return { id: id };
-}
+});
 
-export async function undoFinishAction(
+export const undoFinishAction = wsa(async (
 	{ id }:
 	{ id: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -614,12 +615,12 @@ export async function undoFinishAction(
 		}
 	});
 	return { id: id };
-}
+});
 
-export async function cancelAction(
+export const cancelAction = wsa(async (
 	{ id, settlementComment }:
 	{ id: string, settlementComment?: any }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -653,12 +654,12 @@ export async function cancelAction(
 	});
 	await chainAndCreateNextOfficerTask({ payload, previousOfficerTaskId: id, userId: user.id });
 	return { id: id };
-}
+});
 
-export async function sendSatisfactionSurveyMessageAction(
+export const sendSatisfactionSurveyMessageAction = wsa(async (
 	{ id }:
 	{ id: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -727,4 +728,4 @@ export async function sendSatisfactionSurveyMessageAction(
 		}
 	});
 	return { ok: true };
-}
+});

@@ -5,6 +5,7 @@ import { unauthorized } from "next/navigation";
 import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa, uwsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 
 import { isOfficerInsideGeofenceRegions } from "../../../(dashboard)/officer-task/executor.actions";
@@ -44,7 +45,7 @@ async function ensureOfficerOwnsAndOtpEntered(
 		throw new Error("OTP has not been entered for this officer task.");
 	const geofenceRegions = (creditApplicationAssignment as any).geofenceRegions ?? null;
 	if(geofenceRegions != null) {
-		const inside = await isOfficerInsideGeofenceRegions({
+		const inside = await uwsa(isOfficerInsideGeofenceRegions)({
 			payload: payload,
 			officerId: userId,
 			geofenceRegions: geofenceRegions,
@@ -56,10 +57,10 @@ async function ensureOfficerOwnsAndOtpEntered(
 	return officerTask;
 }
 
-export async function getContextAction(
+export const getContextAction = wsa(async (
 	{ officerTaskId }:
 	{ officerTaskId: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -127,12 +128,12 @@ export async function getContextAction(
 		existingSurveyResultId: existing.docs[0]?.id ?? null,
 		existingAnswers: existing.docs[0]?.answers ?? null
 	};
-}
+});
 
-export async function checkGeofenceAction(
+export const checkGeofenceAction = wsa(async (
 	{ officerTaskId }:
 	{ officerTaskId: string }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -155,19 +156,19 @@ export async function checkGeofenceAction(
 	const geofenceRegions = (creditApplicationAssignment as any).geofenceRegions ?? null;
 	if(geofenceRegions == null)
 		return { isInsideGeofence: true };
-	const isInsideGeofence = await isOfficerInsideGeofenceRegions({
+	const isInsideGeofence = await uwsa(isOfficerInsideGeofenceRegions)({
 		payload: payload,
 		officerId: user.id,
 		geofenceRegions: geofenceRegions,
 		windowMs: GEOFENCE_VALIDATION_WINDOW_CLIENT_MS
 	});
 	return { isInsideGeofence };
-}
+});
 
-export async function partialSubmitAction(
+export const partialSubmitAction = wsa(async (
 	{ officerTaskId, answers }:
 	{ officerTaskId: string, answers: any }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -227,12 +228,12 @@ export async function partialSubmitAction(
 		}
 	});
 	return { id: created.id };
-}
+});
 
-export async function submitAction(
+export const submitAction = wsa(async (
 	{ officerTaskId, answers }:
 	{ officerTaskId: string, answers: any }
-) {
+) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -290,4 +291,4 @@ export async function submitAction(
 		}
 	});
 	return { id: created.id };
-}
+});

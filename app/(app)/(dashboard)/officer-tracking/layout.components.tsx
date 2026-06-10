@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
@@ -19,7 +20,7 @@ import { RelationValues, getDetailsAction, OfficerTrackingRow } from "./layout.a
 
 export type ColumnData = OfficerTrackingRow;
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "GPS Log Id", type: "relation", relationSearch: searchRelationGpsLogsAction },
+	{ key: "id", label: "GPS Log Id", type: "relation", relationSearch: uwsa(searchRelationGpsLogsAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "user", label: "User", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "sessionId", label: "Session Id", type: "text" },
@@ -125,7 +126,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["officer-tracking", "details", row?.user ?? null, periodStart, periodEnd],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction({ userId: row!.user, periodStart, periodEnd }),
+		queryFn: async () => await uwsa(getDetailsAction)({ userId: row!.user, periodStart, periodEnd }),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});

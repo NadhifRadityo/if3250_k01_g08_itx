@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { XIcon, PlusIcon, PencilIcon, Trash2Icon, HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
@@ -94,7 +95,7 @@ export default function Page() {
 			includeDeleted,
 			pageIndex
 		}],
-		queryFn: async () => await queryEditorAction({
+		queryFn: async () => await uwsa(queryEditorAction)({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -289,7 +290,7 @@ export default function Page() {
 							return setEditFormMutationError({ name: "ValidationError", message: "Masks is required." });
 						setEditFormMutationError(null);
 						try {
-							await requestUpsertAction(editFormDrawerState);
+							await uwsa(requestUpsertAction)(editFormDrawerState);
 							setEditFormDrawerOpen(false);
 						} catch(error) {
 							setEditFormMutationError(error);
@@ -324,7 +325,7 @@ export default function Page() {
 							return setAddFormMutationError({ name: "ValidationError", message: "Masks is required." });
 						setAddFormMutationError(null);
 						try {
-							await requestUpsertAction(addFormDrawerState);
+							await uwsa(requestUpsertAction)(addFormDrawerState);
 							setAddFormDrawerOpen(false);
 							setAddFormDrawerState({});
 						} catch(error) {
@@ -343,7 +344,7 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await requestDeleteAction({
+							await uwsa(requestDeleteAction)({
 								id: deleteTargetRow!.id,
 								changeRequestComment: deleteChangeRequestComment
 							});
@@ -363,7 +364,7 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await cancelRequestAction({
+							await uwsa(cancelRequestAction)({
 								id: cancelPendingRequestTargetRow!.id
 							});
 							setCancelPendingRequestTargetRow(null);
@@ -381,7 +382,7 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await cancelRequestAction({
+							await uwsa(cancelRequestAction)({
 								id: revertApprovedTargetRow!.id
 							});
 							setRevertApprovedTargetRow(null);
@@ -401,7 +402,7 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await requestRestoreAction({
+							await uwsa(requestRestoreAction)({
 								id: restoreDeletionTargetRow!.id,
 								changeRequestComment: restoreDeletionChangeRequestComment
 							});

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import { lexicalPlainText } from "@/utils/payload";
 import { RichTextInput } from "@/components/RichText";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
@@ -27,8 +28,8 @@ import { columnConfigColumns as gpsLogColumnConfigColumns, filterConfigColumns a
 import { MenuFilterState, MenuFilterSummary, useDashboardContext, MenuFilterConfigCard, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
 import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { columnConfigColumns as loginLogColumnConfigColumns, filterConfigColumns as loginLogFilterConfigColumns } from "../login-log/layout.components";
-import { columnConfigColumns as officerTaskColumnConfigColumns, filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { columnConfigColumns as messageLogColumnConfigColumns, filterConfigColumns as messageLogFilterConfigColumns } from "../message-log/layout.components";
+import { columnConfigColumns as officerTaskColumnConfigColumns, filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { columnConfigColumns as recordingLogColumnConfigColumns, filterConfigColumns as recordingLogFilterConfigColumns } from "../recording-log/layout.components";
 import { searchRelationAccessesAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
@@ -96,9 +97,9 @@ const defaultAccessMaskRenderer = () =>
 		</div>
 	))(collectionColumnConfigColumns[collection].filter(c => value[c.key] != null).map(c => [c.key, value[c.key]] as const));
 
-export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationAccessesAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationAccessesAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -276,7 +277,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["access-management", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -354,7 +355,7 @@ export function HistoryDrawer(
 	const query = useQuery({
 		queryKey: ["access-management", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
-		queryFn: async () => await getHistoryAction(row!.id),
+		queryFn: async () => await uwsa(getHistoryAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -442,7 +443,7 @@ export function ChangeRequestDrawer(
 	const query = useQuery({
 		queryKey: ["access-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -534,7 +535,7 @@ export function ReviewDrawer(
 	const query = useQuery({
 		queryKey: ["access-management", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -622,7 +623,7 @@ export function ReviewDrawer(
 						<RichTextInput
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
-							onImageUpload={uploadGenericRichtextImage}
+							onImageUpload={uwsa(uploadGenericRichtextImage)}
 							disabled={isMutating}
 						/>
 					</div>
@@ -724,7 +725,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.description ?? lexicalPlainText("")}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, description: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -857,7 +858,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.changeRequestComment ?? undefined}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, changeRequestComment: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -897,7 +898,7 @@ export function DeleteDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>
@@ -972,7 +973,7 @@ export function RestoreDeletionDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>

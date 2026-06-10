@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { OfficerTrackingMap, OfficerTrackingUser } from "@/components/OfficerTrackingMap";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 
@@ -28,7 +29,7 @@ export default function Page() {
 			columnsSort,
 			pageIndex
 		}],
-		queryFn: async () => await queryMonitoringAction({
+		queryFn: async () => await uwsa(queryMonitoringAction)({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,

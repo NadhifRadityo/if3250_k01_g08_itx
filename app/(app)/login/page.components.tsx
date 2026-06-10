@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { EyeIcon, EyeOffIcon, AlertCircleIcon } from "lucide-react";
 import { z } from "zod";
 
+import { uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/radix/Field";
@@ -45,7 +46,7 @@ export function LoginForm() {
 			className="space-y-8"
 			onSubmit={form.handleSubmit(async ({ email, password }) => {
 				try {
-					await loginAction(email, password);
+					await uwsa(loginAction)(email, password);
 				} catch(error) {
 					unstable_rethrow(error);
 					form.setError("root", { type: error?.name, message: error?.message });

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
@@ -27,7 +28,7 @@ export default function Page() {
 			columnsSort,
 			pageIndex
 		}],
-		queryFn: async () => await queryMonitoringAction({
+		queryFn: async () => await uwsa(queryMonitoringAction)({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,

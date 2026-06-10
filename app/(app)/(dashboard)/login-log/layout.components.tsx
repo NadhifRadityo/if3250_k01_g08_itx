@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
@@ -15,7 +16,7 @@ import { defaultRelationUserRenderer } from "../relation-navigation.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
-export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryMonitoringAction>["docs"][number];
 export const eventSelectOptions = Object.freeze([
 	{ value: "login", label: "Login" },
 	{ value: "logout", label: "Logout" }
@@ -25,7 +26,7 @@ export const outcomeSelectOptions = Object.freeze([
 	{ value: "failure", label: "Failure" }
 ] as const);
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationLoginLogsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationLoginLogsAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "user", label: "User", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "ipAddress", label: "IP Address", type: "text" },
@@ -93,7 +94,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["login-log", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});

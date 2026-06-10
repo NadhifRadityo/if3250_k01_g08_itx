@@ -6,6 +6,7 @@ import { logout as payloadLogout } from "@payloadcms/next/auth";
 import { getPayload, type Payload } from "payload";
 
 import payloadConfig from "@payload-config";
+import { wsa } from "@/utils/actions";
 import { getClientIpFromHeaders } from "@/utils/clientIp";
 import { getRelationshipId } from "@/utils/payload";
 import type { User } from "@/payload-types";
@@ -55,7 +56,7 @@ async function resolveRoleMenus(payload: Payload, user: User) {
 	return role.menus;
 }
 
-export async function getDashboardContextAction() {
+export const getDashboardContextAction = wsa(async () => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -71,9 +72,9 @@ export async function getDashboardContextAction() {
 		},
 		menus: menus
 	};
-}
+});
 
-export async function logoutAction() {
+export const logoutAction = wsa(async () => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -95,4 +96,4 @@ export async function logoutAction() {
 		} catch(_) {}
 	}
 	return redirect("/login", RedirectType.push);
-}
+});

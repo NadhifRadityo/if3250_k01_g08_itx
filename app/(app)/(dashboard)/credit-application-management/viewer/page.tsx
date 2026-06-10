@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Switch } from "@/components/radix/Switch";
 
@@ -31,7 +32,7 @@ export default function Page() {
 			includeDeleted,
 			pageIndex
 		}],
-		queryFn: async () => await queryViewerAction({
+		queryFn: async () => await uwsa(queryViewerAction)({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,

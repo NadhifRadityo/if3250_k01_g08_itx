@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PlusIcon, PencilIcon, Trash2Icon, CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
@@ -82,7 +83,7 @@ export default function Page() {
 			includeDeleted,
 			pageIndex
 		}],
-		queryFn: async () => await queryEditorAction({
+		queryFn: async () => await uwsa(queryEditorAction)({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -239,7 +240,7 @@ export default function Page() {
 							return setEditFormMutationError({ name: "ValidationError", message: "Import id is required." });
 						setEditFormMutationError(null);
 						try {
-							await requestUpdateDescriptionAction({
+							await uwsa(requestUpdateDescriptionAction)({
 								id: editFormDrawerState.id,
 								description: editFormDrawerState.description ?? lexicalPlainText("")
 							});
@@ -267,7 +268,7 @@ export default function Page() {
 							const formData = new FormData();
 							formData.set("file", addFormDrawerState.file as File);
 							formData.set("description", JSON.stringify(addFormDrawerState.description));
-							await requestCreateAction(formData);
+							await uwsa(requestCreateAction)(formData);
 							setAddFormDrawerOpen(false);
 							setAddFormDrawerState({});
 						} catch(error) {
@@ -284,7 +285,7 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await requestDeleteAction(deleteTargetRow!.id);
+							await uwsa(requestDeleteAction)(deleteTargetRow!.id);
 							setDeleteTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
@@ -300,7 +301,7 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await requestRestoreAction(restoreDeletionTargetRow!.id);
+							await uwsa(requestRestoreAction)(restoreDeletionTargetRow!.id);
 							setRestoreDeletionTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SerializedEditorState } from "lexical";
 import { HistoryIcon, CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 import { DatetimeInput } from "@/components/DatetimeInput";
 import { GeofenceRegionsEditorDialog } from "@/components/GeofenceRegionsEditorDialog";
@@ -34,9 +35,9 @@ const defaultGeofenceRegionsRenderer = ({ buttonLabel, dialogTitle }: { buttonLa
 		<GeofenceRegionsEditorDialog buttonLabel={buttonLabel} dialogTitle={dialogTitle} disabled value={value as any ?? []} />
 	);
 
-export type ColumnData = Awaited<ReturnType<typeof queryViewerAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationCreditApplicationAssignmentsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationCreditApplicationAssignmentsAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "createdBy", label: "Created By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "updatedAt", label: "Updated At", type: "date" },
@@ -196,7 +197,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -274,7 +275,7 @@ export function HistoryDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "history", row?.id ?? null],
 		enabled: canAccessHistory && open && row != null,
-		queryFn: async () => await getHistoryAction(row!.id),
+		queryFn: async () => await uwsa(getHistoryAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -362,7 +363,7 @@ export function ChangeRequestDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -454,7 +455,7 @@ export function ReviewDrawer(
 	const query = useQuery({
 		queryKey: ["credit-application-assignment", "change-request-diff", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDifferenceAction(row!.id),
+		queryFn: async () => await uwsa(getDifferenceAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});
@@ -542,7 +543,7 @@ export function ReviewDrawer(
 						<RichTextInput
 							serializedState={reviewComment}
 							onSerializedStateChange={onReviewCommentChange}
-							onImageUpload={uploadGenericRichtextImage}
+							onImageUpload={uwsa(uploadGenericRichtextImage)}
 							disabled={isMutating}
 						/>
 					</div>
@@ -604,7 +605,7 @@ export function FormDrawer(
 									values={formState.creditApplications ?? []}
 									onValuesChange={values => onFormStateChange({ ...formState, creditApplications: values })}
 									options={[]}
-									onSearch={(keyword, selectedValues) => searchAvailableRelationCreditApplicationsAction(keyword, selectedValues)
+									onSearch={(keyword, selectedValues) => uwsa(searchAvailableRelationCreditApplicationsAction)(keyword, selectedValues)
 										.then(creditApplications => creditApplications.map(creditApplication => ({
 											value: creditApplication.id,
 											label: creditApplication.label
@@ -621,7 +622,7 @@ export function FormDrawer(
 									value={formState.creditApplications?.[0] ?? ""}
 									onValueChange={value => onFormStateChange({ ...formState, creditApplications: value.length > 0 ? [value] : [] })}
 									options={[]}
-									onSearch={(keyword, selectedValues) => searchAvailableRelationCreditApplicationsAction(keyword, selectedValues)
+									onSearch={(keyword, selectedValues) => uwsa(searchAvailableRelationCreditApplicationsAction)(keyword, selectedValues)
 										.then(creditApplications => creditApplications.map(creditApplication => ({
 											value: creditApplication.id,
 											label: creditApplication.label
@@ -639,7 +640,7 @@ export function FormDrawer(
 								value={formState.officer ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, officer: value })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationUsersByRoleLevelAction("officer", keyword, selectedValues)
+								onSearch={(keyword, selectedValues) => uwsa(searchRelationUsersByRoleLevelAction)("officer", keyword, selectedValues)
 									.then(users => users.map(user => ({
 										value: user.id,
 										label: user.label
@@ -656,7 +657,7 @@ export function FormDrawer(
 								value={formState.survey ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, survey: value })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationSurveysAction(keyword, selectedValues)
+								onSearch={(keyword, selectedValues) => uwsa(searchRelationSurveysAction)(keyword, selectedValues)
 									.then(surveys => surveys.map(survey => ({
 										value: survey.id,
 										label: survey.label
@@ -673,7 +674,7 @@ export function FormDrawer(
 								value={formState.satisfactionSurvey ?? ""}
 								onValueChange={value => onFormStateChange({ ...formState, satisfactionSurvey: value })}
 								options={[]}
-								onSearch={(keyword, selectedValues) => searchRelationSatisfactionSurveysAction(keyword, selectedValues)
+								onSearch={(keyword, selectedValues) => uwsa(searchRelationSatisfactionSurveysAction)(keyword, selectedValues)
 									.then(satisfactionSurveys => satisfactionSurveys.map(satisfactionSurvey => ({
 										value: satisfactionSurvey.id,
 										label: satisfactionSurvey.label
@@ -709,7 +710,7 @@ export function FormDrawer(
 							<RichTextInput
 								serializedState={formState.changeRequestComment ?? undefined}
 								onSerializedStateChange={value => onFormStateChange({ ...formState, changeRequestComment: value })}
-								onImageUpload={uploadGenericRichtextImage}
+								onImageUpload={uwsa(uploadGenericRichtextImage)}
 								disabled={isMutating}
 							/>
 						</div>
@@ -749,7 +750,7 @@ export function DeleteDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>
@@ -824,7 +825,7 @@ export function RestoreDeletionDialog(
 					<RichTextInput
 						serializedState={changeRequestComment}
 						onSerializedStateChange={onChangeRequestCommentChange}
-						onImageUpload={uploadGenericRichtextImage}
+						onImageUpload={uwsa(uploadGenericRichtextImage)}
 						disabled={isMutating}
 					/>
 				</div>

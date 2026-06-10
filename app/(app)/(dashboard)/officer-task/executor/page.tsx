@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { XIcon, FlagIcon, PlayIcon, SendIcon, UndoIcon, PhoneIcon, KeyRoundIcon, NavigationIcon, StopCircleIcon, CircleAlertIcon, ExternalLinkIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
@@ -117,7 +118,7 @@ export default function Page() {
 			columnsSort,
 			pageIndex
 		}],
-		queryFn: async () => await queryAction({
+		queryFn: async () => await uwsa(queryAction)({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -126,7 +127,7 @@ export default function Page() {
 	});
 	const activeQuery = useQuery({
 		queryKey: ["officer-task", "active"],
-		queryFn: async () => await getActiveAction(),
+		queryFn: async () => await uwsa(getActiveAction)(),
 		refetchInterval: 30000,
 		refetchOnWindowFocus: true
 	});
@@ -254,7 +255,7 @@ export default function Page() {
 					rowValueRendererContext={rowValueRendererContext}
 					renderActions={r => renderCell(r, "#actions")}
 					onChainNavigate={async id => {
-						const result = await getDetailsAction(id);
+						const result = await uwsa(getDetailsAction)(id);
 						setDetailsDrawerRow(result.row);
 					}}
 				/>
@@ -266,7 +267,7 @@ export default function Page() {
 						setGenericMutationError(null);
 						try {
 							if(activateTargetRow != null)
-								await activateAction({ id: activateTargetRow.id });
+								await uwsa(activateAction)({ id: activateTargetRow.id });
 							setActivateTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
@@ -282,7 +283,7 @@ export default function Page() {
 					onConfirm={() => startMutationTransition(async () => {
 						setGenericMutationError(null);
 						try {
-							await clearActiveAction();
+							await uwsa(clearActiveAction)();
 							setClearActiveTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
@@ -299,7 +300,7 @@ export default function Page() {
 						setGenericMutationError(null);
 						try {
 							if(sendOtpTargetRow != null)
-								await sendOtpMessageAction({ id: sendOtpTargetRow.id });
+								await uwsa(sendOtpMessageAction)({ id: sendOtpTargetRow.id });
 							setSendOtpTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
@@ -319,7 +320,7 @@ export default function Page() {
 						setInputOtpMutationError(null);
 						try {
 							if(inputOtpTargetRow != null)
-								await inputOtpAction({ id: inputOtpTargetRow.id, otp: inputOtpValue });
+								await uwsa(inputOtpAction)({ id: inputOtpTargetRow.id, otp: inputOtpValue });
 							setInputOtpTargetRow(null);
 							setInputOtpValue("");
 						} catch(error) {
@@ -342,7 +343,7 @@ export default function Page() {
 						setFinishMutationError(null);
 						try {
 							if(finishTargetRow != null)
-								await finishAction({ id: finishTargetRow.id, settlementComment: finishSettlementComment });
+								await uwsa(finishAction)({ id: finishTargetRow.id, settlementComment: finishSettlementComment });
 							setFinishTargetRow(null);
 							setFinishSettlementComment(lexicalPlainText(""));
 						} catch(error) {
@@ -360,7 +361,7 @@ export default function Page() {
 						setGenericMutationError(null);
 						try {
 							if(undoFinishTargetRow != null)
-								await undoFinishAction({ id: undoFinishTargetRow.id });
+								await uwsa(undoFinishAction)({ id: undoFinishTargetRow.id });
 							setUndoFinishTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);
@@ -380,7 +381,7 @@ export default function Page() {
 						setCancelMutationError(null);
 						try {
 							if(cancelTargetRow != null)
-								await cancelAction({ id: cancelTargetRow.id, settlementComment: cancelSettlementComment });
+								await uwsa(cancelAction)({ id: cancelTargetRow.id, settlementComment: cancelSettlementComment });
 							setCancelTargetRow(null);
 							setCancelSettlementComment(lexicalPlainText(""));
 						} catch(error) {
@@ -398,7 +399,7 @@ export default function Page() {
 						setGenericMutationError(null);
 						try {
 							if(sendSatisfactionSurveyTargetRow != null)
-								await sendSatisfactionSurveyMessageAction({ id: sendSatisfactionSurveyTargetRow.id });
+								await uwsa(sendSatisfactionSurveyMessageAction)({ id: sendSatisfactionSurveyTargetRow.id });
 							setSendSatisfactionSurveyTargetRow(null);
 						} catch(error) {
 							setGenericMutationError(error);

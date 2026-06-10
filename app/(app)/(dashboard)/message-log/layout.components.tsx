@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CircleAlertIcon } from "lucide-react";
 
+import { rwsa, uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
@@ -15,14 +16,14 @@ import { searchRelationMessageLogsAction } from "../relation-navigation.actions"
 import { defaultRelationOfficerTaskRenderer } from "../relation-navigation.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
-export type ColumnData = Awaited<ReturnType<typeof queryMonitoringAction>>["docs"][number];
+export type ColumnData = rwsa<typeof queryMonitoringAction>["docs"][number];
 export const deliveryStatusSelectOptions = Object.freeze([
 	{ value: "sent", label: "Sent" },
 	{ value: "failed", label: "Failed" },
 	{ value: "pending", label: "Pending" }
 ] as const);
 export const filterConfigColumns = Object.freeze([
-	{ key: "id", label: "Id", type: "relation", relationSearch: searchRelationMessageLogsAction },
+	{ key: "id", label: "Id", type: "relation", relationSearch: uwsa(searchRelationMessageLogsAction) },
 	{ key: "createdAt", label: "Created At", type: "date" },
 	{ key: "officerTask", label: "Officer Task", type: "relation", relationFilterConfigColumn: () => ["Officer Task", officerTaskFilterConfigColumns] },
 	{ key: "content", label: "Content", type: "text" },
@@ -112,7 +113,7 @@ export function DetailsDrawer(
 	const query = useQuery({
 		queryKey: ["message-log", "details", row?.id ?? null],
 		enabled: open && row != null,
-		queryFn: async () => await getDetailsAction(row!.id),
+		queryFn: async () => await uwsa(getDetailsAction)(row!.id),
 		refetchInterval: 10000,
 		refetchOnWindowFocus: true
 	});

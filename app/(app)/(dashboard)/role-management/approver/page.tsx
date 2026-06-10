@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
+import { uwsa } from "@/utils/actions";
 import { lexicalPlainText } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
@@ -66,7 +67,7 @@ export default function Page() {
 			includeDeleted,
 			pageIndex
 		}],
-		queryFn: async () => await queryApproverAction({
+		queryFn: async () => await uwsa(queryApproverAction)({
 			keyword: keyword,
 			filters: filters,
 			columnsSort: columnsSort,
@@ -214,7 +215,7 @@ export default function Page() {
 					onApprove={() => startMutationTransition(async () => {
 						setReviewMutationError(null);
 						try {
-							await reviewAction({
+							await uwsa(reviewAction)({
 								id: reviewDrawerRow!.id,
 								decision: "approve",
 								reviewComment: reviewComment
@@ -230,7 +231,7 @@ export default function Page() {
 					onReject={() => startMutationTransition(async () => {
 						setReviewMutationError(null);
 						try {
-							await reviewAction({
+							await uwsa(reviewAction)({
 								id: reviewDrawerRow!.id,
 								decision: "reject",
 								reviewComment: reviewComment
