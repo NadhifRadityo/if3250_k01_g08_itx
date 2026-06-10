@@ -70,7 +70,7 @@ export function LoginForm() {
 							<Input
 								{...field}
 								aria-invalid={fieldState.invalid}
-								placeholder="Masukkan email anda"
+								placeholder="Enter your email"
 								autoComplete="email"
 								required
 							/>
@@ -92,7 +92,7 @@ export function LoginForm() {
 									aria-invalid={fieldState.invalid}
 									className="not-noscript:hide-native-password-toggle"
 									type={showPassword ? "text" : "password"}
-									placeholder="Masukkan password"
+									placeholder="Enter your password"
 								/>
 								<InputGroupAddon align="inline-end" className="noscript:hidden">
 									<InputGroupButton
@@ -118,7 +118,7 @@ export function LoginForm() {
 				/>
 			</FieldGroup>
 			<Button type="submit" className="w-full">
-				Masuk
+				Sign in
 			</Button>
 		</form>
 	);

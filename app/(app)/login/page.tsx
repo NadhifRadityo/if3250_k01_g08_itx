@@ -18,7 +18,7 @@ export default function LoginPage() {
 					</div>
 					<Card className="border-border/70 bg-card shadow-sm">
 						<CardHeader>
-							<CardTitle className="text-center text-2xl">Masuk ke Akun</CardTitle>
+							<CardTitle className="text-center text-2xl">Sign in to your account</CardTitle>
 						</CardHeader>
 						<CardContent>
 							<LoginForm />
