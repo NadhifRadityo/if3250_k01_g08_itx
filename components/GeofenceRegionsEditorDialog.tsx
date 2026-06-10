@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Presence } from "@radix-ui/react-presence";
 import * as turf from "@turf/turf";
 import * as geojson from "geojson";
+import { XIcon, SunIcon, MoonIcon, PlusIcon, MinusIcon, CircleIcon, LocateIcon, MapPinIcon, SearchIcon, SquareIcon, SunsetIcon, Trash2Icon, ArrowUpIcon, CloudSunIcon, PentagonIcon, ArrowDownIcon, ArrowLeftIcon, CloudMoonIcon, ArrowRightIcon, NavigationIcon, ChevronDownIcon, LocateFixedIcon, GripVerticalIcon, MountainSnowIcon, MousePointer2Icon, PanelLeftOpenIcon, PanelLeftCloseIcon } from "lucide-react";
 import mapboxgl from "mapbox-gl";
 
 import cn from "@/utils/cn";
@@ -11,11 +12,10 @@ import { Button } from "@/components/radix/Button";
 import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } from "@/components/radix/Dialog";
 import { Input } from "@/components/radix/Input";
 import { Label } from "@/components/radix/Label";
-import { ScrollArea, ScrollBar } from "@/components/radix/ScrollArea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/radix/Select"; // eslint-disable-line sort-imports
+import { ScrollBar, ScrollArea } from "@/components/radix/ScrollArea";
+import { Select, SelectItem, SelectValue, SelectContent, SelectTrigger } from "@/components/radix/Select";
 
 import "mapbox-gl/dist/mapbox-gl.css";
-import { ArrowDownIcon, ArrowLeftIcon, ArrowRightIcon, ArrowUpIcon, ChevronDownIcon, ChevronUpIcon, CircleIcon, CloudMoonIcon, CloudSunIcon, GripVerticalIcon, LocateFixedIcon, LocateIcon, MapPinIcon, MinusIcon, MoonIcon, MountainSnowIcon, MousePointer2Icon, NavigationIcon, PanelLeftCloseIcon, PanelLeftOpenIcon, PentagonIcon, PlusIcon, SearchIcon, SquareIcon, SunIcon, SunsetIcon, Trash2Icon, XIcon } from "lucide-react";
 
 export const MAPBOX_ACCESS_TOKEN = "pk.eyJ1IjoibmFkaGlmcmFkaXR5byIsImEiOiJjbW80OG1menEwb2JnMm9zZ2w0YjUzMzhxIn0.D28hzAHuC353e4e_Q3YV1A";
 
@@ -123,7 +123,7 @@ export function useMapGpsTracking(
 		const accuracySourceId = "gps-accuracy";
 		const ensureLayers = () => {
 			if(!map.isStyleLoaded()) { map.once("load", ensureLayers); return; }
-			if(!map.getSource(accuracySourceId)) {
+			if(map.getSource(accuracySourceId) == null) {
 				map.addSource(accuracySourceId, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 				map.addLayer({
 					id: "gps-accuracy-fill", type: "fill", source: accuracySourceId,
@@ -134,7 +134,7 @@ export function useMapGpsTracking(
 					paint: { "line-color": "#3b82f6", "line-opacity": 0.4, "line-width": 1 }
 				});
 			}
-			if(!map.getSource(dotSourceId)) {
+			if(map.getSource(dotSourceId) == null) {
 				map.addSource(dotSourceId, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 				map.addLayer({
 					id: "gps-dot-halo", type: "circle", source: dotSourceId,
@@ -155,10 +155,10 @@ export function useMapGpsTracking(
 			const { latitude, longitude, accuracy } = pos.coords;
 			const dotData: any = { type: "Feature", geometry: { type: "Point", coordinates: [longitude, latitude] }, properties: {} };
 			const circle = turf.circle([longitude, latitude], Math.max(1, accuracy), { steps: 64, units: "meters" });
-			const dotSrc = map.getSource(dotSourceId) as mapboxgl.GeoJSONSource | undefined;
-			const accSrc = map.getSource(accuracySourceId) as mapboxgl.GeoJSONSource | undefined;
-			if(dotSrc) dotSrc.setData(dotData);
-			if(accSrc) accSrc.setData(circle as any);
+			const dotSrc = map.getSource(dotSourceId);
+			const accSrc = map.getSource(accuracySourceId);
+			if(dotSrc != null && dotSrc.type == "geojson") dotSrc.setData(dotData);
+			if(accSrc != null && accSrc.type == "geojson") accSrc.setData(circle);
 			if(firstFix) {
 				firstFix = false;
 				const elapsed = Date.now() - startTime;
@@ -184,12 +184,12 @@ export function useMapGpsTracking(
 		return () => {
 			navigator.geolocation.clearWatch(watchId);
 			if(map.style != null) {
-				if(map.getLayer("gps-dot")) map.removeLayer("gps-dot");
-				if(map.getLayer("gps-dot-halo")) map.removeLayer("gps-dot-halo");
-				if(map.getSource(dotSourceId)) map.removeSource(dotSourceId);
-				if(map.getLayer("gps-accuracy-line")) map.removeLayer("gps-accuracy-line");
-				if(map.getLayer("gps-accuracy-fill")) map.removeLayer("gps-accuracy-fill");
-				if(map.getSource(accuracySourceId)) map.removeSource(accuracySourceId);
+				if(map.getLayer("gps-dot") != null) map.removeLayer("gps-dot");
+				if(map.getLayer("gps-dot-halo") != null) map.removeLayer("gps-dot-halo");
+				if(map.getSource(dotSourceId) != null) map.removeSource(dotSourceId);
+				if(map.getLayer("gps-accuracy-line") != null) map.removeLayer("gps-accuracy-line");
+				if(map.getLayer("gps-accuracy-fill") != null) map.removeLayer("gps-accuracy-fill");
+				if(map.getSource(accuracySourceId) != null) map.removeSource(accuracySourceId);
 			}
 		};
 	}, [enabled, mapRef]);
@@ -210,10 +210,10 @@ function resizeCursorFor(worldAngleDeg: number, bearingDeg: number): string {
 const openRouteServiceApiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjJmYmYyODBkNjVmZTRlZTc4M2RiNWY1MzEyMDVhN2ExIiwiaCI6Im11cm11cjY0In0=";
 
 type GeocodeFeature = {
-	type: "Feature",
-	geometry: { type: "Point", coordinates: [number, number] },
-	properties: any,
-	bbox: [number, number, number, number]
+	type: "Feature";
+	geometry: { type: "Point", coordinates: [number, number] };
+	properties: any;
+	bbox: [number, number, number, number];
 };
 
 async function fetchGeocode(
@@ -273,8 +273,8 @@ function computeCombined(regions: GeofenceRegion[]): geojson.Feature<geojson.Pol
 		else if(region.operation == "exclusion") {
 			const union = turf.union(turf.featureCollection([currentPolygon, polygon]));
 			const intersection = turf.intersect(turf.featureCollection([currentPolygon, polygon]));
-			if(union && intersection) currentPolygon = turf.difference(turf.featureCollection([union, intersection])) ?? union;
-			else if(union) currentPolygon = union;
+			if(union != null && intersection != null) currentPolygon = turf.difference(turf.featureCollection([union, intersection])) ?? union;
+			else if(union != null) currentPolygon = union;
 		}
 	}
 	return currentPolygon;
@@ -374,7 +374,7 @@ function GeofenceRegionsEditor(
 			else if(x > rect.width - margin) dx = ((x - (rect.width - margin)) / margin) * maxSpeed;
 			if(y < margin) dy = -((margin - y) / margin) * maxSpeed;
 			else if(y > rect.height - margin) dy = ((y - (rect.height - margin)) / margin) * maxSpeed;
-			if(dx !== 0 || dy !== 0) {
+			if(dx != 0 || dy != 0) {
 				map.panBy([dx, dy], { animate: false, duration: 0 });
 				onPan?.();
 			}
@@ -401,11 +401,11 @@ function GeofenceRegionsEditor(
 	const setRegionSourceData = useCallback((region: GeofenceRegion) => {
 		const map = mapRef.current;
 		if(map == null) return;
-		const src = map.getSource(`geofence-region-${region.id}`) as mapboxgl.GeoJSONSource | undefined;
-		if(src) src.setData(buildPolygon(region));
-		const combined = map.getSource("combined-geofence") as mapboxgl.GeoJSONSource | undefined;
-		if(combined && valueRef.current) {
-			const idx = valueRef.current.findIndex(r => r.id === region.id);
+		const src = map.getSource(`geofence-region-${region.id}`);
+		if(src != null && src.type == "geojson") src.setData(buildPolygon(region));
+		const combined = map.getSource("combined-geofence");
+		if(combined != null && combined.type == "geojson" && valueRef.current != null) {
+			const idx = valueRef.current.findIndex(r => r.id == region.id);
 			if(idx < 0) return;
 			const preview = [...valueRef.current];
 			preview[idx] = region;
@@ -416,7 +416,7 @@ function GeofenceRegionsEditor(
 
 	const updateRegion = useCallback((region: GeofenceRegion) => {
 		const cur = valueRef.current ?? [];
-		const idx = cur.findIndex(r => r.id === region.id);
+		const idx = cur.findIndex(r => r.id == region.id);
 		if(idx < 0) return;
 		const updated = [...cur];
 		updated[idx] = region;
@@ -443,7 +443,7 @@ function GeofenceRegionsEditor(
 			}
 			patternReadyRef.current = true;
 			styleReadyRef.current = true;
-			if(!map.getSource(ghostSourceId)) {
+			if(map.getSource(ghostSourceId) == null) {
 				map.addSource(ghostSourceId, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 				map.addLayer({ id: ghostSourceId, type: "fill", source: ghostSourceId, paint: { "fill-color": "#facc15", "fill-opacity": 0.3, "fill-color-transition": { duration: 0, delay: 0 } } });
 			}
@@ -468,20 +468,20 @@ function GeofenceRegionsEditor(
 		if(map == null) return;
 		let cancelled = false;
 		const run = () => {
-			if(cancelled || mapRef.current !== map) return;
+			if(cancelled || mapRef.current != map) return;
 			if(!styleReadyRef.current) { map.once("load", run); return; }
 
 			// Combined geofence (with stripe pattern)
 			const combined = computeCombined(value);
 			const combinedData: any = combined ?? { type: "FeatureCollection", features: [] };
-			const combinedSource = map.getSource("combined-geofence") as mapboxgl.GeoJSONSource | undefined;
-			if(combinedSource) {
+			const combinedSource = map.getSource("combined-geofence");
+			if(combinedSource != null && combinedSource.type == "geojson")
 				combinedSource.setData(combinedData);
-			} else {
+			else {
 				map.addSource("combined-geofence", { type: "geojson", data: combinedData });
-				const paint: mapboxgl.FillLayerSpecification["paint"] = patternReadyRef.current && map.hasImage("geofence-stripes")
-					? { "fill-pattern": "geofence-stripes", "fill-opacity": 0.7 }
-					: { "fill-color": "#3b82f6", "fill-opacity": 0.2 };
+				const paint: mapboxgl.FillLayerSpecification["paint"] = patternReadyRef.current && map.hasImage("geofence-stripes") ?
+					{ "fill-pattern": "geofence-stripes", "fill-opacity": 0.7 } :
+					{ "fill-color": "#3b82f6", "fill-opacity": 0.2 };
 				map.addLayer({ id: "combined-geofence", type: "fill", source: "combined-geofence", paint });
 			}
 
@@ -492,10 +492,10 @@ function GeofenceRegionsEditor(
 				currentIds.add(region.id);
 				const polygon = buildPolygon(region);
 				const sourceId = `geofence-region-${region.id}`;
-				const src = map.getSource(sourceId) as mapboxgl.GeoJSONSource | undefined;
-				if(src) {
+				const src = map.getSource(sourceId);
+				if(src != null && src.type == "geojson")
 					src.setData(polygon);
-				} else {
+				else {
 					map.addSource(sourceId, { type: "geojson", data: polygon });
 					map.addLayer({
 						id: `geofence-fill-${region.id}`, type: "fill", source: sourceId,
@@ -506,21 +506,21 @@ function GeofenceRegionsEditor(
 						paint: { "line-color": seededRegionColor(region.id), "line-width": 2 }
 					});
 				}
-				if(map.getLayer(`geofence-fill-${region.id}`))
-					map.setPaintProperty(`geofence-fill-${region.id}`, "fill-opacity", selectedId === region.id ? 0.35 : 0.1);
-				if(map.getLayer(`geofence-outline-${region.id}`))
-					map.setPaintProperty(`geofence-outline-${region.id}`, "line-width", selectedId === region.id ? 4 : 2);
+				if(map.getLayer(`geofence-fill-${region.id}`) != null)
+					map.setPaintProperty(`geofence-fill-${region.id}`, "fill-opacity", selectedId == region.id ? 0.35 : 0.1);
+				if(map.getLayer(`geofence-outline-${region.id}`) != null)
+					map.setPaintProperty(`geofence-outline-${region.id}`, "line-width", selectedId == region.id ? 4 : 2);
 			}
 			for(const id of createdRegionIdsRef.current) {
 				if(currentIds.has(id)) continue;
-				if(map.getLayer(`geofence-outline-${id}`)) map.removeLayer(`geofence-outline-${id}`);
-				if(map.getLayer(`geofence-fill-${id}`)) map.removeLayer(`geofence-fill-${id}`);
-				if(map.getSource(`geofence-region-${id}`)) map.removeSource(`geofence-region-${id}`);
+				if(map.getLayer(`geofence-outline-${id}`) != null) map.removeLayer(`geofence-outline-${id}`);
+				if(map.getLayer(`geofence-fill-${id}`) != null) map.removeLayer(`geofence-fill-${id}`);
+				if(map.getSource(`geofence-region-${id}`) != null) map.removeSource(`geofence-region-${id}`);
 			}
 			createdRegionIdsRef.current = currentIds;
 
 			// Ghost preview source (for drawing in progress)
-			if(!map.getSource(ghostSourceId)) {
+			if(map.getSource(ghostSourceId) == null) {
 				map.addSource(ghostSourceId, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
 				map.addLayer({ id: ghostSourceId, type: "fill", source: ghostSourceId, paint: { "fill-color": "#facc15", "fill-opacity": 0.3, "fill-color-transition": { duration: 0, delay: 0 } } });
 			}
@@ -547,10 +547,10 @@ function GeofenceRegionsEditor(
 	// Click-to-select regions
 	useEffect(() => {
 		const map = mapRef.current;
-		if(!map || disabled) return;
+		if(map == null || disabled) return;
 		const onClick = (e: mapboxgl.MapMouseEvent) => {
 			if(suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
-			if(mode !== "pan" || !valueRef.current) return;
+			if(mode != "pan" || valueRef.current == null) return;
 			const point = e.point;
 			for(const region of valueRef.current) {
 				const features = map.queryRenderedFeatures(point, { layers: [`geofence-fill-${region.id}`] });
@@ -569,11 +569,11 @@ function GeofenceRegionsEditor(
 			prevSelectedRef.current = null;
 			return;
 		}
-		if(selectedId === prevSelectedRef.current) return;
+		if(selectedId == prevSelectedRef.current) return;
 		prevSelectedRef.current = selectedId;
 		const map = mapRef.current;
 		if(map == null) return;
-		const region = value.find(r => r.id === selectedId);
+		const region = value.find(r => r.id == selectedId);
 		if(region == null) return;
 		const polygon = buildPolygon(region);
 		const bbox = turf.bbox(polygon) as [number, number, number, number];
@@ -589,23 +589,23 @@ function GeofenceRegionsEditor(
 	useEffect(() => {
 		clearMarkers();
 		const map = mapRef.current;
-		if(!map || selectedId == null || disabled || mode !== "pan") return;
-		const region = value.find(r => r.id === selectedId);
-		if(!region) return;
+		if(map == null || selectedId == null || disabled || mode != "pan") return;
+		const region = value.find(r => r.id == selectedId);
+		if(region == null) return;
 
-		if(map.getLayer(ghostSourceId)) {
+		if(map.getLayer(ghostSourceId) != null) {
 			map.setPaintProperty(ghostSourceId, "fill-color-transition", { duration: 0, delay: 0 });
 			map.setPaintProperty(ghostSourceId, "fill-color", seededRegionColor(region.id));
 		}
 
 		const handleStyle = (kind: "vertex" | "midpoint" | "move", cursor: string) => {
-			if(kind === "midpoint") return `width:12px;height:12px;border-radius:2px;background:white;border:2px solid #f59e0b;cursor:${cursor};box-shadow:0 1px 3px rgba(0,0,0,0.3);`;
-			if(kind === "move") return `width:18px;height:18px;border-radius:50%;background:#10b981;border:2px solid white;cursor:${cursor};box-shadow:0 2px 4px rgba(0,0,0,0.4);`;
+			if(kind == "midpoint") return `width:12px;height:12px;border-radius:2px;background:white;border:2px solid #f59e0b;cursor:${cursor};box-shadow:0 1px 3px rgba(0,0,0,0.3);`;
+			if(kind == "move") return `width:18px;height:18px;border-radius:50%;background:#10b981;border:2px solid white;cursor:${cursor};box-shadow:0 2px 4px rgba(0,0,0,0.4);`;
 			return `width:14px;height:14px;border-radius:50%;background:white;border:2px solid #3b82f6;cursor:${cursor};box-shadow:0 1px 3px rgba(0,0,0,0.3);`;
 		};
 
 		const computeHandlePositions = (r: GeofenceRegion): [number, number][] => {
-			if(r.type === "circle") {
+			if(r.type == "circle") {
 				const positions: [number, number][] = [[r.longitude, r.latitude]];
 				[0, 90, 180, 270].forEach(b => {
 					const pt = turf.destination([r.longitude, r.latitude], r.radius, b, { units: "meters" });
@@ -613,7 +613,7 @@ function GeofenceRegionsEditor(
 				});
 				return positions;
 			}
-			if(r.type === "rectangle") {
+			if(r.type == "rectangle") {
 				const corners: [number, number][] = [
 					[r.longitudeA, r.latitudeA],
 					[r.longitudeB, r.latitudeA],
@@ -645,22 +645,22 @@ function GeofenceRegionsEditor(
 			onDragEnd: (lngLat: mapboxgl.LngLat, marker: mapboxgl.Marker) => GeofenceRegion | null,
 			kind: "vertex" | "midpoint" | "move" = "vertex"
 		) => {
-			const initialCursor = typeof cursor === "string" ? cursor : resizeCursorFor(cursor.axisAngle, map.getBearing());
+			const initialCursor = typeof cursor == "string" ? cursor : resizeCursorFor(cursor.axisAngle, map.getBearing());
 			const el = document.createElement("div");
 			el.style.cssText = handleStyle(kind, initialCursor);
-			if(typeof cursor !== "string") el.dataset.axisAngle = String(cursor.axisAngle);
+			if(typeof cursor != "string") el.dataset.axisAngle = String(cursor.axisAngle);
 			const marker = new mapboxgl.Marker({ element: el, draggable: true }).setLngLat(lngLat).addTo(map);
 			let stopEdge: (() => void) | null = null;
 			let clientPos: { clientX: number, clientY: number } | null = null;
 			const applyDrag = () => {
 				const next = onDrag(marker.getLngLat(), marker);
-				if(next) {
+				if(next != null) {
 					setRegionSourceData(next);
 					updateGhost(buildPolygon(next));
 					const positions = computeHandlePositions(next);
-					if(positions.length === markersRef.current.length) {
+					if(positions.length == markersRef.current.length) {
 						markersRef.current.forEach((m, i) => {
-							if(m !== marker) m.setLngLat(positions[i]);
+							if(m != marker) m.setLngLat(positions[i]);
 						});
 					}
 				}
@@ -689,7 +689,7 @@ function GeofenceRegionsEditor(
 				window.removeEventListener("pointermove", onWindowPointerMove, true);
 				window.removeEventListener("mousemove", onWindowPointerMove, true);
 				const next = onDragEnd(marker.getLngLat(), marker);
-				if(next) updateRegion(next);
+				if(next != null) updateRegion(next);
 				updateGhost(null);
 				setInteracting(false);
 			});
@@ -698,15 +698,15 @@ function GeofenceRegionsEditor(
 		};
 
 		const updateGhost = (data: geojson.Feature | null) => {
-			const src = map.getSource(ghostSourceId) as mapboxgl.GeoJSONSource | undefined;
-			if(src) src.setData(data ?? { type: "FeatureCollection", features: [] } as any);
+			const src = map.getSource(ghostSourceId);
+			if(src != null && src.type == "geojson") src.setData(data ?? { type: "FeatureCollection", features: [] } as any);
 		};
 
-		if(region.type === "circle") {
+		if(region.type == "circle") {
 			// Center handle (drag whole region)
 			createHandle([region.longitude, region.latitude], "move",
-				(lngLat) => ({ ...region, latitude: lngLat.lat, longitude: lngLat.lng }),
-				(lngLat) => ({ ...region, latitude: lngLat.lat, longitude: lngLat.lng }),
+				lngLat => ({ ...region, latitude: lngLat.lat, longitude: lngLat.lng }),
+				lngLat => ({ ...region, latitude: lngLat.lat, longitude: lngLat.lng }),
 				"move"
 			);
 			// Radius handles at 4 cardinal directions
@@ -720,7 +720,7 @@ function GeofenceRegionsEditor(
 				};
 				createHandle(coords, { axisAngle: bearing % 180 }, compute, compute);
 			});
-		} else if(region.type === "rectangle") {
+		} else if(region.type == "rectangle") {
 			const corners: [number, number][] = [
 				[region.longitudeA, region.latitudeA],
 				[region.longitudeB, region.latitudeA],
@@ -731,31 +731,40 @@ function GeofenceRegionsEditor(
 			corners.forEach((corner, ci) => {
 				const compute = (lngLat: mapboxgl.LngLat): GeofenceRegion => {
 					let latA = region.latitudeA, lngA = region.longitudeA, latB = region.latitudeB, lngB = region.longitudeB;
-					if(ci === 0) { latA = lngLat.lat; lngA = lngLat.lng; }
-					else if(ci === 1) { latA = lngLat.lat; lngB = lngLat.lng; }
-					else if(ci === 2) { latB = lngLat.lat; lngB = lngLat.lng; }
-					else { latB = lngLat.lat; lngA = lngLat.lng; }
+					if(ci == 0) {
+						latA = lngLat.lat;
+						lngA = lngLat.lng;
+					} else if(ci == 1) {
+						latA = lngLat.lat;
+						lngB = lngLat.lng;
+					} else if(ci == 2) {
+						latB = lngLat.lat;
+						lngB = lngLat.lng;
+					} else {
+						latB = lngLat.lat;
+						lngA = lngLat.lng;
+					}
 					return { ...region, latitudeA: latA, longitudeA: lngA, latitudeB: latB, longitudeB: lngB };
 				};
-				createHandle(corner, { axisAngle: ci % 2 === 0 ? 45 : 135 }, compute, compute);
+				createHandle(corner, { axisAngle: ci % 2 == 0 ? 45 : 135 }, compute, compute);
 			});
 			// Edge-center handles
 			const edges: [number, number][] = [
 				[(corners[0][0] + corners[1][0]) / 2, corners[0][1]], // top
 				[corners[1][0], (corners[1][1] + corners[2][1]) / 2], // right
 				[(corners[2][0] + corners[3][0]) / 2, corners[2][1]], // bottom
-				[corners[3][0], (corners[0][1] + corners[3][1]) / 2], // left
+				[corners[3][0], (corners[0][1] + corners[3][1]) / 2] // left
 			];
 			edges.forEach((edge, ei) => {
 				const compute = (lngLat: mapboxgl.LngLat): GeofenceRegion => {
 					let latA = region.latitudeA, lngA = region.longitudeA, latB = region.latitudeB, lngB = region.longitudeB;
-					if(ei === 0) latA = lngLat.lat;
-					else if(ei === 1) lngB = lngLat.lng;
-					else if(ei === 2) latB = lngLat.lat;
+					if(ei == 0) latA = lngLat.lat;
+					else if(ei == 1) lngB = lngLat.lng;
+					else if(ei == 2) latB = lngLat.lat;
 					else lngA = lngLat.lng;
 					return { ...region, latitudeA: latA, longitudeA: lngA, latitudeB: latB, longitudeB: lngB };
 				};
-				createHandle(edge, { axisAngle: ei % 2 === 0 ? 0 : 90 }, compute, compute, "midpoint");
+				createHandle(edge, { axisAngle: ei % 2 == 0 ? 0 : 90 }, compute, compute, "midpoint");
 			});
 			// Move handle in the center
 			const centerLng = (region.longitudeA + region.longitudeB) / 2;
@@ -770,7 +779,7 @@ function GeofenceRegionsEditor(
 				latitudeB: lngLat.lat + latHeight / 2
 			});
 			createHandle([centerLng, centerLat], "move", compute, compute, "move");
-		} else if(region.type === "polygon") {
+		} else if(region.type == "polygon") {
 			// Vertex handles
 			region.positions.forEach((pos, vi) => {
 				const compute = (lngLat: mapboxgl.LngLat): GeofenceRegion => {
@@ -828,8 +837,8 @@ function GeofenceRegionsEditor(
 	// Drawing mode interactions (click-drag-release)
 	useEffect(() => {
 		const map = mapRef.current;
-		if(!map || disabled) return;
-		if(mode === "pan") { map.getCanvas().style.cursor = ""; map.dragPan.enable(); return; }
+		if(map == null || disabled) return;
+		if(mode == "pan") { map.getCanvas().style.cursor = ""; map.dragPan.enable(); return; }
 		map.dragPan.disable();
 		map.getCanvas().style.cursor = "crosshair";
 
@@ -837,45 +846,45 @@ function GeofenceRegionsEditor(
 		let stopEdgePan: (() => void) | null = null;
 
 		const clearGhost = () => {
-			const src = map.getSource(ghostSourceId) as mapboxgl.GeoJSONSource | undefined;
-			if(src) src.setData({ type: "FeatureCollection", features: [] } as any);
+			const src = map.getSource(ghostSourceId);
+			if(src != null && src.type == "geojson") src.setData({ type: "FeatureCollection", features: [] } as any);
 		};
 
 		const updateGhost = (lng: number, lat: number) => {
 			if(drawing == null) return;
-			const src = map.getSource(ghostSourceId) as mapboxgl.GeoJSONSource | undefined;
-			if(src == null) return;
-			if(drawing.type === "rectangle") {
+			const src = map.getSource(ghostSourceId);
+			if(src == null || src.type != "geojson") return;
+			if(drawing.type == "rectangle") {
 				const [sLng, sLat] = drawing.startLngLat;
 				const ghost = turf.polygon([[[sLng, sLat], [lng, sLat], [lng, lat], [sLng, lat], [sLng, sLat]]]);
-				src.setData(ghost as any);
-			} else if(drawing.type === "circle") {
+				src.setData(ghost);
+			} else if(drawing.type == "circle") {
 				const radius = turf.distance(drawing.startLngLat, [lng, lat], { units: "meters" });
 				const ghost = turf.circle(drawing.startLngLat, radius, { steps: 64, units: "meters" });
-				src.setData(ghost as any);
+				src.setData(ghost);
 			} else {
 				const last = drawing.points[drawing.points.length - 1];
-				if(last == null || last[0] !== lng || last[1] !== lat) drawing.points.push([lng, lat]);
+				if(last == null || last[0] != lng || last[1] != lat) drawing.points.push([lng, lat]);
 				if(drawing.points.length >= 3) {
 					const closed = [...drawing.points, drawing.points[0]];
 					const ghost = turf.polygon([closed]);
-					src.setData(ghost as any);
+					src.setData(ghost);
 				}
 			}
 		};
 
 		const onMouseDown = (e: mapboxgl.MapMouseEvent) => {
-			if(e.originalEvent.button !== 0) return;
+			if(e.originalEvent.button != 0) return;
 			const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
 			const pos = { x: e.point.x, y: e.point.y };
 			const clientPos = { clientX: e.originalEvent.clientX, clientY: e.originalEvent.clientY };
 			const id = generateRegionId();
-			if(mode === "draw_circle") drawing = { id, type: "circle", startLngLat: lngLat, points: [], pointerPos: pos, clientPos };
-			else if(mode === "draw_rectangle") drawing = { id, type: "rectangle", startLngLat: lngLat, points: [], pointerPos: pos, clientPos };
-			else if(mode === "draw_polygon") drawing = { id, type: "polygon", startLngLat: lngLat, points: [lngLat], pointerPos: pos, clientPos };
+			if(mode == "draw_circle") drawing = { id, type: "circle", startLngLat: lngLat, points: [], pointerPos: pos, clientPos };
+			else if(mode == "draw_rectangle") drawing = { id, type: "rectangle", startLngLat: lngLat, points: [], pointerPos: pos, clientPos };
+			else if(mode == "draw_polygon") drawing = { id, type: "polygon", startLngLat: lngLat, points: [lngLat], pointerPos: pos, clientPos };
 			if(drawing != null) {
 				e.preventDefault();
-				if(map.getLayer(ghostSourceId)) {
+				if(map.getLayer(ghostSourceId) != null) {
 					map.setPaintProperty(ghostSourceId, "fill-color-transition", { duration: 0, delay: 0 });
 					map.setPaintProperty(ghostSourceId, "fill-color", seededRegionColor(drawing.id));
 				}
@@ -912,13 +921,13 @@ function GeofenceRegionsEditor(
 			if(drawing == null) return;
 			const cur: [number, number] = [e.lngLat.lng, e.lngLat.lat];
 			let newRegion: GeofenceRegion | null = null;
-			if(drawing.type === "circle") {
+			if(drawing.type == "circle") {
 				const radius = turf.distance(drawing.startLngLat, cur, { units: "meters" });
 				if(radius >= 1) newRegion = { id: drawing.id, operation: "union", type: "circle", latitude: drawing.startLngLat[1], longitude: drawing.startLngLat[0], radius };
-			} else if(drawing.type === "rectangle") {
-				const sameSpot = drawing.startLngLat[0] === cur[0] && drawing.startLngLat[1] === cur[1];
+			} else if(drawing.type == "rectangle") {
+				const sameSpot = drawing.startLngLat[0] == cur[0] && drawing.startLngLat[1] == cur[1];
 				if(!sameSpot) newRegion = { id: drawing.id, operation: "union", type: "rectangle", latitudeA: drawing.startLngLat[1], longitudeA: drawing.startLngLat[0], latitudeB: cur[1], longitudeB: cur[0] };
-			} else if(drawing.type === "polygon" && drawing.points.length >= 3) {
+			} else if(drawing.type == "polygon" && drawing.points.length >= 3) {
 				const ring: [number, number][] = [...drawing.points, drawing.points[0]];
 				const tolerance = 1 / Math.pow(1.06, 10 * map.getZoom());
 				const simplified = turf.simplify(turf.polygon([ring]), { tolerance, highQuality: true, mutate: false });
@@ -962,7 +971,7 @@ function GeofenceRegionsEditor(
 
 	const deleteSelected = useCallback(() => {
 		if(selectedId == null) return;
-		const idx = value.findIndex(r => r.id === selectedId);
+		const idx = value.findIndex(r => r.id == selectedId);
 		if(idx < 0) return;
 		const updated = value.toSpliced(idx, 1);
 		onValueChange?.(updated);
@@ -993,7 +1002,7 @@ function GeofenceRegionsEditor(
 
 	const handleUpdateRegion = useCallback((region: GeofenceRegion) => {
 		const cur = valueRef.current ?? [];
-		const idx = cur.findIndex(r => r.id === region.id);
+		const idx = cur.findIndex(r => r.id == region.id);
 		if(idx < 0) return;
 		const next = [...cur];
 		next[idx] = region;
@@ -1002,17 +1011,17 @@ function GeofenceRegionsEditor(
 
 	const handleRemoveRegion = useCallback((id: string) => {
 		const cur = valueRef.current ?? [];
-		const idx = cur.findIndex(r => r.id === id);
+		const idx = cur.findIndex(r => r.id == id);
 		if(idx < 0) return;
 		onValueChangeRef.current?.(cur.toSpliced(idx, 1));
-		setSelectedId(prev => prev === id ? null : prev);
+		setSelectedId(prev => prev == id ? null : prev);
 	}, []);
 
 	const handleReorderStart = useCallback((index: number) => {
 		setReorderDrag({ from: index, over: null });
 	}, []);
 	const handleReorderOver = useCallback((index: number) => {
-		setReorderDrag(prev => prev == null || prev.over === index ? prev : { ...prev, over: index });
+		setReorderDrag(prev => prev == null || prev.over == index ? prev : { ...prev, over: index });
 	}, []);
 	const handleReorderEnd = useCallback(() => {
 		setReorderDrag(null);
@@ -1021,7 +1030,7 @@ function GeofenceRegionsEditor(
 		setReorderDrag(prev => {
 			if(prev == null) return null;
 			const from = prev.from;
-			if(from !== index) {
+			if(from != index) {
 				const cur = valueRef.current ?? [];
 				const next = [...cur];
 				const [moved] = next.splice(from, 1);
@@ -1079,37 +1088,43 @@ function GeofenceRegionsEditor(
 				>
 					<div className="flex items-center gap-1 p-1.5 border-b">
 						<h3 className="font-semibold text-sm flex-1 truncate">Geofence Regions</h3>
-						<Button type="button" size="sm" className="h-7" onClick={() => {
-							const map = mapRef.current;
-							let centerLng = 106.8456;
-							let centerLat = -6.2088;
-							let radius = 1000;
-							if(map != null) {
-								const canvas = map.getCanvas();
-								const w = canvas.clientWidth;
-								const h = canvas.clientHeight;
-								const padLeft = 80 + panelLeftPadding();
-								const padRight = 80;
-								const padTop = 80;
-								const padBottom = 80;
-								const innerCx = (padLeft + (w - padRight)) / 2;
-								const innerCy = (padTop + (h - padBottom)) / 2;
-								const halfWPx = Math.max(10, ((w - padRight) - padLeft) / 2);
-								const halfHPx = Math.max(10, ((h - padBottom) - padTop) / 2);
-								const c = map.unproject([innerCx, innerCy]);
-								centerLng = c.lng;
-								centerLat = c.lat;
-								const eastPt = map.unproject([innerCx + halfWPx, innerCy]);
-								const southPt = map.unproject([innerCx, innerCy + halfHPx]);
-								const halfWM = turf.distance([centerLng, centerLat], [eastPt.lng, eastPt.lat], { units: "meters" });
-								const halfHM = turf.distance([centerLng, centerLat], [southPt.lng, southPt.lat], { units: "meters" });
-								radius = Math.max(1, Math.min(halfWM, halfHM));
-							}
-							prevSelectedRef.current = null;
-							const newId = generateRegionId();
-							onValueChange?.([{ id: newId, operation: "union", type: "circle", latitude: centerLat, longitude: centerLng, radius }, ...value]);
-							setSelectedId(newId);
-						}} disabled={disabled}>
+						<Button
+							type="button"
+							size="sm"
+							className="h-7"
+							onClick={() => {
+								const map = mapRef.current;
+								let centerLng = 106.8456;
+								let centerLat = -6.2088;
+								let radius = 1000;
+								if(map != null) {
+									const canvas = map.getCanvas();
+									const w = canvas.clientWidth;
+									const h = canvas.clientHeight;
+									const padLeft = 80 + panelLeftPadding();
+									const padRight = 80;
+									const padTop = 80;
+									const padBottom = 80;
+									const innerCx = (padLeft + (w - padRight)) / 2;
+									const innerCy = (padTop + (h - padBottom)) / 2;
+									const halfWPx = Math.max(10, ((w - padRight) - padLeft) / 2);
+									const halfHPx = Math.max(10, ((h - padBottom) - padTop) / 2);
+									const c = map.unproject([innerCx, innerCy]);
+									centerLng = c.lng;
+									centerLat = c.lat;
+									const eastPt = map.unproject([innerCx + halfWPx, innerCy]);
+									const southPt = map.unproject([innerCx, innerCy + halfHPx]);
+									const halfWM = turf.distance([centerLng, centerLat], [eastPt.lng, eastPt.lat], { units: "meters" });
+									const halfHM = turf.distance([centerLng, centerLat], [southPt.lng, southPt.lat], { units: "meters" });
+									radius = Math.max(1, Math.min(halfWM, halfHM));
+								}
+								prevSelectedRef.current = null;
+								const newId = generateRegionId();
+								onValueChange?.([{ id: newId, operation: "union", type: "circle", latitude: centerLat, longitude: centerLng, radius }, ...value]);
+								setSelectedId(newId);
+							}}
+							disabled={disabled}
+						>
 							Add Region
 						</Button>
 					</div>
@@ -1124,10 +1139,10 @@ function GeofenceRegionsEditor(
 											key={region.id}
 											region={region}
 											index={index}
-											selected={selectedId === region.id}
+											selected={selectedId == region.id}
 											disabled={disabled}
-											dragSource={reorderDrag?.from === index}
-											dragTarget={reorderDrag != null && reorderDrag.over === index && reorderDrag.from !== index}
+											dragSource={reorderDrag?.from == index}
+											dragTarget={reorderDrag != null && reorderDrag.over == index && reorderDrag.from != index}
 											registerRef={registerCardRef}
 											onSelect={handleSelectRegion}
 											onUpdate={handleUpdateRegion}
@@ -1155,32 +1170,32 @@ function GeofenceRegionsEditor(
 				{!panelOpen ? <PanelLeftOpenIcon className="size-4" /> : <PanelLeftCloseIcon className="size-4" />}
 			</Button>
 			<div className={cn("absolute z-10 flex gap-1 bg-white rounded-lg p-1 shadow-md transition-[left] duration-200 top-3", panelOpen ? "left-85" : "left-3", interacting && "pointer-events-none opacity-60")}>
-					<Button type="button" size="sm" variant={mode === "pan" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => setMode("pan")} title="Pan / Select">
-						<MousePointer2Icon className="size-3.5 sm:size-4" />
-					</Button>
-					<Button type="button" size="sm" variant={mode === "draw_polygon" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => { setMode("draw_polygon"); setSelectedId(null); }} title="Draw Polygon" disabled={disabled}>
-						<PentagonIcon className="size-3.5 sm:size-4" />
-					</Button>
-					<Button type="button" size="sm" variant={mode === "draw_circle" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => { setMode("draw_circle"); setSelectedId(null); }} title="Draw Circle" disabled={disabled}>
-						<CircleIcon className="size-3.5 sm:size-4" />
-					</Button>
-					<Button type="button" size="sm" variant={mode === "draw_rectangle" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => { setMode("draw_rectangle"); setSelectedId(null); }} title="Draw Rectangle" disabled={disabled}>
-						<SquareIcon className="size-3.5 sm:size-4" />
-					</Button>
-					<div className="w-px bg-border mx-1" />
-					<Button type="button" size="sm" variant={gpsTracking ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => setGpsTracking(t => !t)} title={gpsTracking ? "Stop tracking" : "Track my location"}>
-						{gpsTracking ? <LocateFixedIcon className="size-3.5 sm:size-4" /> : <LocateIcon className="size-3.5 sm:size-4" />}
-					</Button>
-					<div className="w-px bg-border mx-1" />
-					<Button type="button" size="sm" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive" onClick={deleteSelected} title="Delete Selected" disabled={selectedId == null || disabled}>
-						<Trash2Icon className="size-3.5 sm:size-4" />
-					</Button>
-				</div>
-				<LightPresetControls
-					mapRef={mapRef}
-					mapReadyTick={styleReadyTick}
-					className={cn("absolute top-13 left-3 sm:top-3 sm:left-auto sm:right-3 z-10", interacting && "pointer-events-none opacity-60")}
-				/>
+				<Button type="button" size="sm" variant={mode == "pan" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => setMode("pan")} title="Pan / Select">
+					<MousePointer2Icon className="size-3.5 sm:size-4" />
+				</Button>
+				<Button type="button" size="sm" variant={mode == "draw_polygon" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => { setMode("draw_polygon"); setSelectedId(null); }} title="Draw Polygon" disabled={disabled}>
+					<PentagonIcon className="size-3.5 sm:size-4" />
+				</Button>
+				<Button type="button" size="sm" variant={mode == "draw_circle" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => { setMode("draw_circle"); setSelectedId(null); }} title="Draw Circle" disabled={disabled}>
+					<CircleIcon className="size-3.5 sm:size-4" />
+				</Button>
+				<Button type="button" size="sm" variant={mode == "draw_rectangle" ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => { setMode("draw_rectangle"); setSelectedId(null); }} title="Draw Rectangle" disabled={disabled}>
+					<SquareIcon className="size-3.5 sm:size-4" />
+				</Button>
+				<div className="w-px bg-border mx-1" />
+				<Button type="button" size="sm" variant={gpsTracking ? "default" : "ghost"} className="h-7 w-7 sm:h-8 sm:w-8 p-0" onClick={() => setGpsTracking(t => !t)} title={gpsTracking ? "Stop tracking" : "Track my location"}>
+					{gpsTracking ? <LocateFixedIcon className="size-3.5 sm:size-4" /> : <LocateIcon className="size-3.5 sm:size-4" />}
+				</Button>
+				<div className="w-px bg-border mx-1" />
+				<Button type="button" size="sm" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive" onClick={deleteSelected} title="Delete Selected" disabled={selectedId == null || disabled}>
+					<Trash2Icon className="size-3.5 sm:size-4" />
+				</Button>
+			</div>
+			<LightPresetControls
+				mapRef={mapRef}
+				mapReadyTick={styleReadyTick}
+				className={cn("absolute top-13 left-3 sm:top-3 sm:left-auto sm:right-3 z-10", interacting && "pointer-events-none opacity-60")}
+			/>
 			<MapSearchControls
 				mapRef={mapRef}
 				mapReadyTick={styleReadyTick}
@@ -1263,7 +1278,7 @@ function HoldButton({ children, className, disabled, onTick, title }: { children
 }
 
 function SpringSlider(
-	{ bottomIcon, disabled, onTick, title, topIcon }:
+	{ bottomIcon, disabled = false, onTick, title, topIcon }:
 	{ bottomIcon: React.ReactNode, disabled?: boolean, onTick: (offset: number) => void, title?: string, topIcon: React.ReactNode }
 ) {
 	const trackRef = useRef<HTMLDivElement>(null);
@@ -1394,13 +1409,13 @@ function buildPolygon(region: GeofenceRegion): geojson.Feature<geojson.Polygon |
 }
 
 function convertRegionType(region: GeofenceRegion, newType: GeofenceRegion["type"]): GeofenceRegion {
-	if(region.type === newType) return region;
+	if(region.type == newType) return region;
 	const polygon = buildPolygon(region);
 	const centroidPt = turf.centroid(polygon);
 	const [centerLng, centerLat] = centroidPt.geometry.coordinates as [number, number];
 	const bbox = turf.bbox(polygon) as [number, number, number, number];
 	const [minLng, minLat, maxLng, maxLat] = bbox;
-	if(newType === "circle") {
+	if(newType == "circle") {
 		const halfW = turf.distance([centerLng, centerLat], [minLng, centerLat], { units: "meters" });
 		const halfH = turf.distance([centerLng, centerLat], [centerLng, minLat], { units: "meters" });
 		return {
@@ -1412,7 +1427,7 @@ function convertRegionType(region: GeofenceRegion, newType: GeofenceRegion["type
 			radius: Math.max(1, (halfW + halfH) / 2)
 		};
 	}
-	if(newType === "rectangle") {
+	if(newType == "rectangle") {
 		return {
 			id: region.id,
 			operation: region.operation,
@@ -1462,13 +1477,13 @@ export const LightPresetControls = React.memo(function LightPresetControls(
 		if(map == null) return;
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
 		const apply = () => {
-			const preset = lightPreset === "auto" ? getAutoLightPreset() : lightPreset;
+			const preset = lightPreset == "auto" ? getAutoLightPreset() : lightPreset;
 			const doSet = () => map.setConfigProperty("basemap", "lightPreset", preset);
 			if(map.isStyleLoaded()) doSet();
 			else map.once("load", doSet);
 		};
 		const scheduleNext = () => {
-			if(lightPreset !== "auto") return;
+			if(lightPreset != "auto") return;
 			const now = new Date();
 			const next = nextLightPresetBoundary(now);
 			const ms = Math.max(50, next.getTime() - now.getTime() + 100);
@@ -1486,7 +1501,7 @@ export const LightPresetControls = React.memo(function LightPresetControls(
 	useEffect(() => {
 		const map = mapRef.current;
 		if(map == null) return;
-		if(lightPreset !== "auto") return;
+		if(lightPreset != "auto") return;
 		const applyLights = () => {
 			if(!map.isStyleLoaded()) { map.once("load", applyLights); return; }
 			if(originalLightsRef.current == null)
@@ -1496,7 +1511,7 @@ export const LightPresetControls = React.memo(function LightPresetControls(
 			const { altitude, azimuth } = computeSunPosition(center.lat, center.lng, new Date());
 			const polar = Math.max(0, Math.min(90, 90 - altitude));
 			const lights = originalLightsRef.current.map(light => {
-				if(light?.id === "directional" && light?.type === "directional") {
+				if(light?.id == "directional" && light?.type == "directional") {
 					return {
 						...light,
 						properties: {
@@ -1516,9 +1531,8 @@ export const LightPresetControls = React.memo(function LightPresetControls(
 		return () => {
 			clearInterval(interval);
 			map.off("moveend", onMoveEnd);
-			if(map.style != null && originalLightsRef.current != null) {
+			if(map.style != null && originalLightsRef.current != null)
 				map.setLights(originalLightsRef.current);
-			}
 		};
 	}, [lightPreset, mapReadyTick, mapRef]);
 
@@ -1529,7 +1543,7 @@ export const LightPresetControls = React.memo(function LightPresetControls(
 					key={b.value}
 					type="button"
 					size="sm"
-					variant={lightPreset === b.value ? "default" : "ghost"}
+					variant={lightPreset == b.value ? "default" : "ghost"}
 					className="h-7 w-7 sm:h-8 sm:w-8 p-0"
 					onClick={() => setLightPreset(b.value)}
 					title={b.title}
@@ -1630,7 +1644,7 @@ export const MapNavigationControls = React.memo(function MapNavigationControls(
 
 	const onDialPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
 		const drag = dialDragRef.current;
-		if(drag == null || drag.pointerId !== e.pointerId) return;
+		if(drag == null || drag.pointerId != e.pointerId) return;
 		const a = dialAngleFrom(e.clientX, e.clientY);
 		let delta = a - drag.angle;
 		if(delta > 180) delta -= 360;
@@ -1641,7 +1655,7 @@ export const MapNavigationControls = React.memo(function MapNavigationControls(
 
 	const onDialPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
 		const drag = dialDragRef.current;
-		if(drag != null && drag.pointerId === e.pointerId) {
+		if(drag != null && drag.pointerId == e.pointerId) {
 			dialDragRef.current = null;
 			setDialDragging(false);
 		}
@@ -1768,7 +1782,7 @@ const RegionCard = React.memo(function RegionCard(
 					<span className="size-3 rounded-full shrink-0" style={{ backgroundColor: seededRegionColor(region.id) }} />
 					<span className="text-sm font-medium">Region {index + 1}</span>
 				</div>
-				<Button type="button" variant="destructive" size="sm" onClick={(e) => { e.stopPropagation(); onRemove(region.id); }} disabled={disabled}>
+				<Button type="button" variant="destructive" size="sm" onClick={e => { e.stopPropagation(); onRemove(region.id); }} disabled={disabled}>
 					Remove
 				</Button>
 			</div>
@@ -1818,7 +1832,7 @@ const RegionCard = React.memo(function RegionCard(
 								step="any"
 								disabled={disabled}
 								value={region.latitude}
-								onChange={e => onUpdate({ ...region, latitude: e.target.valueAsNumber || 0 })}
+								onChange={e => onUpdate({ ...region, latitude: Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber })}
 								className="h-7 text-xs"
 							/>
 						</div>
@@ -1829,7 +1843,7 @@ const RegionCard = React.memo(function RegionCard(
 								step="any"
 								disabled={disabled}
 								value={region.longitude}
-								onChange={e => onUpdate({ ...region, longitude: e.target.valueAsNumber || 0 })}
+								onChange={e => onUpdate({ ...region, longitude: Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber })}
 								className="h-7 text-xs"
 							/>
 						</div>
@@ -1840,7 +1854,7 @@ const RegionCard = React.memo(function RegionCard(
 								min={1}
 								disabled={disabled}
 								value={region.radius}
-								onChange={e => onUpdate({ ...region, radius: Math.max(e.target.valueAsNumber || 0, 1) })}
+								onChange={e => onUpdate({ ...region, radius: Math.max(Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber, 1) })}
 								className="h-7 text-xs"
 							/>
 						</div>
@@ -1855,7 +1869,7 @@ const RegionCard = React.memo(function RegionCard(
 								step="any"
 								disabled={disabled}
 								value={region.latitudeA}
-								onChange={e => onUpdate({ ...region, latitudeA: e.target.valueAsNumber || 0 })}
+								onChange={e => onUpdate({ ...region, latitudeA: Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber })}
 								className="h-7 text-xs"
 							/>
 						</div>
@@ -1866,7 +1880,7 @@ const RegionCard = React.memo(function RegionCard(
 								step="any"
 								disabled={disabled}
 								value={region.longitudeA}
-								onChange={e => onUpdate({ ...region, longitudeA: e.target.valueAsNumber || 0 })}
+								onChange={e => onUpdate({ ...region, longitudeA: Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber })}
 								className="h-7 text-xs"
 							/>
 						</div>
@@ -1877,7 +1891,7 @@ const RegionCard = React.memo(function RegionCard(
 								step="any"
 								disabled={disabled}
 								value={region.latitudeB}
-								onChange={e => onUpdate({ ...region, latitudeB: e.target.valueAsNumber || 0 })}
+								onChange={e => onUpdate({ ...region, latitudeB: Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber })}
 								className="h-7 text-xs"
 							/>
 						</div>
@@ -1888,7 +1902,7 @@ const RegionCard = React.memo(function RegionCard(
 								step="any"
 								disabled={disabled}
 								value={region.longitudeB}
-								onChange={e => onUpdate({ ...region, longitudeB: e.target.valueAsNumber || 0 })}
+								onChange={e => onUpdate({ ...region, longitudeB: Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber })}
 								className="h-7 text-xs"
 							/>
 						</div>
@@ -1936,7 +1950,7 @@ const RegionCard = React.memo(function RegionCard(
 										value={pos[0]}
 										onChange={e => {
 											const newPositions = [...region.positions];
-											newPositions[posIndex] = [e.target.valueAsNumber || 0, pos[1]];
+											newPositions[posIndex] = [Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber, pos[1]];
 											onUpdate({ ...region, positions: newPositions });
 										}}
 										className="h-7 text-xs"
@@ -1951,7 +1965,7 @@ const RegionCard = React.memo(function RegionCard(
 										value={pos[1]}
 										onChange={e => {
 											const newPositions = [...region.positions];
-											newPositions[posIndex] = [pos[0], e.target.valueAsNumber || 0];
+											newPositions[posIndex] = [pos[0], Number.isNaN(e.target.valueAsNumber) ? 0 : e.target.valueAsNumber];
 											onUpdate({ ...region, positions: newPositions });
 										}}
 										className="h-7 text-xs"
@@ -1982,10 +1996,10 @@ const RegionCard = React.memo(function RegionCard(
 export const MapSearchControls = React.memo(function MapSearchControls(
 	{ className, mapRef, mapReadyTick, panelLeftPadding }:
 	{
-		className?: string,
-		mapRef: React.RefObject<mapboxgl.Map | null>,
-		mapReadyTick: number,
-		panelLeftPadding?: () => number
+		className?: string;
+		mapRef: React.RefObject<mapboxgl.Map | null>;
+		mapReadyTick: number;
+		panelLeftPadding?: () => number;
 	}
 ) {
 	const [searchQuery, setSearchQuery] = useState("");
@@ -2023,11 +2037,10 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 		el.addEventListener("click", e => { e.stopPropagation(); clearSearchMarker(); });
 		searchMarkerRef.current = new mapboxgl.Marker({ element: el, anchor: "bottom" }).setLngLat([lng, lat]).addTo(map);
 		setActiveFeatureKey(key);
-		if(feature.bbox != null) {
+		if(feature.bbox != null)
 			map.fitBounds(feature.bbox, { padding: { top: 80, right: 80, bottom: 80, left: 80 + (panelLeftPadding?.() ?? 0) }, bearing: map.getBearing(), pitch: map.getPitch(), duration: animationDurationToBounds(map, feature.bbox), maxZoom: 16 });
-		} else {
+		else
 			map.easeTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 14), bearing: map.getBearing(), pitch: map.getPitch(), duration: animationDurationToCenter(map, [lng, lat]) });
-		}
 	}, [clearSearchMarker, mapRef, panelLeftPadding]);
 
 	useEffect(() => () => { searchMarkerRef.current?.remove(); searchMarkerRef.current = null; }, []);
@@ -2040,7 +2053,7 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 			setAutocompleteLoading(false);
 			return;
 		}
-		if(q === lastAutoQueryRef.current && autocompleteResults != null) return;
+		if(q == lastAutoQueryRef.current && autocompleteResults != null) return;
 		const controller = new AbortController();
 		setAutocompleteLoading(true);
 		const timer = setTimeout(async () => {
@@ -2052,22 +2065,22 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 				setSearchMoved(false);
 				setAutocompleteResults(features);
 			} catch(err) {
-				if((err as Error).name !== "AbortError") setAutocompleteResults([]);
+				if((err as Error).name != "AbortError") setAutocompleteResults([]);
 			} finally {
 				setAutocompleteLoading(false);
 			}
 		}, 300);
 		return () => { controller.abort(); clearTimeout(timer); };
-	}, [searchQuery, mapRef]); // eslint-disable-line react-hooks/exhaustive-deps
+	}, [searchQuery, mapRef]);
 
 	// Close search-result cards when query changes from the one that produced them
 	useEffect(() => {
-		if(searchResults != null && searchQuery.trim() !== lastSearchQueryRef.current) setSearchResults(null);
+		if(searchResults != null && searchQuery.trim() != lastSearchQueryRef.current) setSearchResults(null);
 	}, [searchQuery, searchResults]);
 
 	// Clear the search marker entirely when the query is emptied
 	useEffect(() => {
-		if(searchQuery.length === 0) clearSearchMarker();
+		if(searchQuery.length == 0) clearSearchMarker();
 	}, [searchQuery, clearSearchMarker]);
 
 	// Track viewport movement to surface a "Search this area" prompt while results are visible
@@ -2102,7 +2115,7 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 	useEffect(() => {
 		if(!autocompleteOpen) return;
 		const onPointerDown = (e: PointerEvent) => {
-			if(searchContainerRef.current?.contains(e.target as Node)) return;
+			if(searchContainerRef.current != null && searchContainerRef.current.contains(e.target as Node)) return;
 			setAutocompleteOpen(false);
 		};
 		document.addEventListener("pointerdown", onPointerDown, true);
@@ -2121,7 +2134,7 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 			lastSearchBoundsRef.current = map?.getBounds() ?? null;
 			setSearchMoved(false);
 			setSearchResults(features);
-		} catch {
+		} catch{
 			setSearchResults([]);
 		} finally {
 			setSearchLoading(false);
@@ -2145,7 +2158,7 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 			lastAutoQueryRef.current = q;
 			setAutocompleteResults(features);
 		} catch(err) {
-			if((err as Error).name !== "AbortError") setAutocompleteResults([]);
+			if((err as Error).name != "AbortError") setAutocompleteResults([]);
 		} finally {
 			setAutocompleteLoading(false);
 		}
@@ -2162,8 +2175,7 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 					onChange={e => { setSearchQuery(e.target.value); setAutocompleteOpen(true); }}
 					onFocus={() => setAutocompleteOpen(true)}
 					onKeyDown={e => {
-						if(e.key === "Enter") { e.preventDefault(); runSearch(); }
-						else if(e.key === "Escape") setAutocompleteOpen(false);
+						if(e.key == "Enter") { e.preventDefault(); runSearch(); } else if(e.key == "Escape") setAutocompleteOpen(false);
 					}}
 				/>
 				{searchQuery.length > 0 ? (
@@ -2183,14 +2195,14 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 					<div className="bg-white rounded-lg shadow-md p-2">
 						{autocompleteLoading && autocompleteResults == null ? (
 							<div className="px-3 py-2 text-xs text-muted-foreground">Searching...</div>
-						) : autocompleteResults != null && autocompleteResults.length === 0 ? (
+						) : autocompleteResults != null && autocompleteResults.length == 0 ? (
 							<div className="px-3 py-2 text-xs text-muted-foreground">No results</div>
 						) : (
 							<ScrollArea className="h-full *:data-radix-scroll-area-viewport:max-h-80">
 								<ul>
 									{(autocompleteResults ?? []).map((feature, i) => {
 										const key = featureKey(feature, i);
-										const isActive = activeFeatureKey === key;
+										const isActive = activeFeatureKey == key;
 										return (
 											<li key={key}>
 												<button
@@ -2229,14 +2241,14 @@ export const MapSearchControls = React.memo(function MapSearchControls(
 					<div className="bg-white rounded-lg shadow-md p-2">
 						{searchLoading ? (
 							<div className="px-2 py-2 text-xs text-muted-foreground">Searching...</div>
-						) : searchResults != null && searchResults.length === 0 ? (
+						) : searchResults != null && searchResults.length == 0 ? (
 							<div className="px-2 py-2 text-xs text-muted-foreground">No results</div>
 						) : (
 							<ScrollArea className="w-full">
 								<div className="flex gap-2">
 									{(searchResults ?? []).map((feature, i) => {
 										const key = featureKey(feature, i);
-										const isActive = activeFeatureKey === key;
+										const isActive = activeFeatureKey == key;
 										return (
 											<button
 												key={key}
