@@ -36,7 +36,7 @@ export function LoginForm() {
 		const handle = setTimeout(() => setShowPassword(false), 1000 * 30);
 		return () => clearTimeout(handle);
 	}, [showPassword]);
-	const allowShowPassword = !form.formState.isValidating && !form.formState.disabled;
+	const allowShowPassword = !form.formState.isValidating && !form.formState.disabled && !form.formState.isSubmitting;
 	useEffect(() => {
 		if(allowShowPassword) return;
 		setShowPassword(false);
@@ -64,6 +64,7 @@ export function LoginForm() {
 				<Controller
 					name="email"
 					control={form.control}
+					disabled={form.formState.isSubmitting}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
 							<FieldLabel>Email</FieldLabel>
@@ -83,6 +84,7 @@ export function LoginForm() {
 				<Controller
 					name="password"
 					control={form.control}
+					disabled={form.formState.isSubmitting}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
 							<FieldLabel>Password</FieldLabel>
@@ -117,7 +119,7 @@ export function LoginForm() {
 					)}
 				/>
 			</FieldGroup>
-			<Button type="submit" className="w-full">
+			<Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
 				Sign in
 			</Button>
 		</form>
