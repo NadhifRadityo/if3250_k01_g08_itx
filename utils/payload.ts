@@ -8,7 +8,7 @@ export function getRelationshipId(value: unknown): string | null {
 	return null;
 }
 
-export const buildFilterWhere = (filters: { columnKey: string; operator: string; combinator: "and" | "or"; value: any; }[]) => ({ or:
+export const buildFilterWhere = (filters: { columnKey: string, operator: string, combinator: "and" | "or", value: any }[]) => ({ or:
 	filters.map(filter => ([{ [filter.columnKey]: { [filter.operator]: filter.value } }, filter.combinator ?? "and"] as const))
 		.reduce((termGroups, [unit, combinator], i) => i == 0 || combinator == "and" ?
 			[...termGroups.slice(0, -1), [...termGroups.at(-1)!, unit]] :
@@ -32,10 +32,10 @@ const negateOperatorMap: Record<string, string> = {
 	not_contains: "contains"
 };
 export function negateWhere(where: Where): Where {
-	if("and" in where && Array.isArray(where.and))
-		return { or: where.and.map(negateWhere) };
-	if("or" in where && Array.isArray(where.or))
-		return { and: where.or.map(negateWhere) };
+	if("and" in where && where.and != null)
+		return { or: where.and.map(w => negateWhere(w)) };
+	if("or" in where && where.or != null)
+		return { and: where.or.map(w => negateWhere(w)) };
 	const result = {} as Where;
 	for(const [field, condition] of Object.entries(where)) {
 		const negatedCondition = result[field] = {} as Record<string, any>;

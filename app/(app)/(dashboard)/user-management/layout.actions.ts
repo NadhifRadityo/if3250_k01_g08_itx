@@ -60,7 +60,7 @@ async function queryAction(
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
-	const accesses = await uwsa(executeAccesses)({ payload, user, accessesCollection: "staged-users" });
+	const processDocAccesses = await uwsa(executeAccesses)({ payload, user, accessesCollection: "staged-users" });
 	const result = await payload.find({
 		user: user,
 		overrideAccess: true,
@@ -88,11 +88,11 @@ async function queryAction(
 				{ "supervisor.name": { like: keyword } },
 				{ "supervisor.email": { like: keyword } }
 			] }] : []),
-			accesses.filter,
+			processDocAccesses.baseFilter,
 			buildFilterWhere(filters)
 		] }
 	});
-	const masks = await accesses.getMasksFor(result.docs.map(d => d.id));
+	const masks = await processDocAccesses(result.docs.map(d => d.id));
 	const relations = await resolveRelations({ payload, docs: result.docs });
 	return { ...result, masks, relations };
 }
@@ -113,7 +113,7 @@ export const getDetailsAction = wsa(async (id: string) => {
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const accesses = await uwsa(executeAccesses)({ payload, user, accessesCollection: "staged-users" });
+	const processDocAccesses = await uwsa(executeAccesses)({ payload, user, accessesCollection: "staged-users" });
 	const result = await payload.find({
 		user: user,
 		overrideAccess: false,
@@ -123,7 +123,7 @@ export const getDetailsAction = wsa(async (id: string) => {
 		depth: 0,
 		where: { and: [
 			{ id: { equals: id } },
-			accesses.filter
+			processDocAccesses.baseFilter
 		] },
 		select: {
 			_status: true,
@@ -148,9 +148,9 @@ export const getDetailsAction = wsa(async (id: string) => {
 		}
 	});
 	if(result.docs.length == 0) return null;
-	const masks = await accesses.getMasksFor(result.docs.map(d => d.id));
+	const masks = await processDocAccesses(result.docs.map(d => d.id));
 	const relations = await resolveRelations({ payload, docs: result.docs });
-	return { row: result.docs[0], mask: masks[0], relations };
+	return { row: result.docs[0], masks, relations };
 });
 
 export const getDifferenceAction = wsa(async (id: string) => {

@@ -205,6 +205,18 @@ export const Accesses = (): CollectionConfig => ({
 			required: true
 		},
 		{
+			name: "editables",
+			label: "Editables",
+			type: "json",
+			required: true
+		},
+		{
+			name: "auditFilters",
+			label: "Audit Filters",
+			type: "json",
+			required: true
+		},
+		{
 			name: "changeRequestType",
 			label: "Change Request Type",
 			type: "select",

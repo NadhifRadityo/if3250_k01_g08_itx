@@ -36,6 +36,8 @@ type CompiledAccess = {
 	collection: Access["collection"];
 	filters: any;
 	masks: any;
+	editables: any;
+	auditFilters: any;
 };
 export const compileAccesses = wsa(async (
 	{ payload, accessesCollection }:
@@ -66,7 +68,9 @@ export const compileAccesses = wsa(async (
 			subjectRoleFilters: true,
 			collection: true,
 			filters: true,
-			masks: true
+			masks: true,
+			editables: true,
+			auditFilters: true
 		}
 	});
 	const allCompiledUsers = new Map<string, string[]>();
@@ -149,7 +153,9 @@ export const compileAccesses = wsa(async (
 			compiledRoles: compiledRoles,
 			collection: access.collection,
 			filters: access.filters,
-			masks: access.masks
+			masks: access.masks,
+			editables: access.editables,
+			auditFilters: access.auditFilters
 		});
 	}
 	const groupedCompiledAccesses = compiledAccesses.reduce((p, c) => ({ ...p, [c.collection]:
@@ -182,53 +188,53 @@ export const executeAccesses = wsa(async (
 	// Sorted from least important to the most important. The later values will override the earlier ones.
 	const appliedAccesses = compiledAccesses.map(a => a.compiledUsers.includes(user.id) ? [0, a] as const : userTeams.some(t => a.compiledTeams.includes(t)) ? [1, a] as const : a.compiledRoles.includes(getRelationshipId(user.role)!) ? [2, a] as const : [-1, a] as const)
 		.filter(([t]) => t != -1).sort(([at, aa], [bt, ba]) => aa.priority != ba.priority ? aa.priority - ba.priority : bt != at ? bt - at : Date.parse(aa.createdAt) - Date.parse(ba.createdAt)).map(([_, a]) => a);
-	let currentFilter = null as Where | null;
+	let baseFilter = null as Where | null;
 	for(const appliedAccess of appliedAccesses) {
-		if(currentFilter == null) {
-			currentFilter = buildFilterWhere(appliedAccess.filters);
+		if(baseFilter == null) {
+			baseFilter = buildFilterWhere(appliedAccess.filters);
 			continue;
 		}
 		if(appliedAccess.operation == "union") {
-			currentFilter = { or: [
-				currentFilter,
+			baseFilter = { or: [
+				baseFilter,
 				buildFilterWhere(appliedAccess.filters)
 			] };
 			continue;
 		}
 		if(appliedAccess.operation == "difference") {
-			currentFilter = { and: [
-				currentFilter,
+			baseFilter = { and: [
+				baseFilter,
 				negateWhere(buildFilterWhere(appliedAccess.filters))
 			] };
 			continue;
 		}
 		if(appliedAccess.operation == "intersect") {
-			currentFilter = { and: [
-				currentFilter,
+			baseFilter = { and: [
+				baseFilter,
 				buildFilterWhere(appliedAccess.filters)
 			] };
 			continue;
 		}
 		if(appliedAccess.operation == "exclusion") {
-			currentFilter = { or: [
-				{ and: [currentFilter, negateWhere(buildFilterWhere(appliedAccess.filters))] },
-				{ and: [negateWhere(currentFilter), buildFilterWhere(appliedAccess.filters)] }
+			baseFilter = { or: [
+				{ and: [baseFilter, negateWhere(buildFilterWhere(appliedAccess.filters))] },
+				{ and: [negateWhere(baseFilter), buildFilterWhere(appliedAccess.filters)] }
 			] };
 			continue;
 		}
 	}
-	if(currentFilter == null)
-		currentFilter = { id: { exists: false } };
+	if(baseFilter == null)
+		baseFilter = { id: { exists: false } };
 	const defaultMask = Object.fromEntries(Object.keys(collectionMaskFields[accessesCollection]).map(f => [f, "hide"] as [string, string]));
-	const getMasksFor = async (ids: string[]) => {
-		const adapter = payload.db as PostgresAdapter;
-		const collectionConfig = payload.config.collections.find(c => c.slug == accessesCollection)!;
-		const toSnakeCase = (string: string) => string.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/[\W_]+/g, " ").trim().toLowerCase().replace(/\s+/g, "_");
-		const tableName = adapter.tableNameMap.get(toSnakeCase(collectionConfig.slug))!;
-		const table = adapter.tables[tableName];
-		// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/find/findMany.ts
-		const queryOptions = buildQuery({ adapter: adapter, fields: collectionConfig.flattenedFields, tableName: tableName, where: { or: appliedAccesses.map(a => buildFilterWhere(a.filters)) } });
-		if(queryOptions.where == null) return { ...defaultMask };
+	const adapter = payload.db as PostgresAdapter;
+	const collectionConfig = payload.config.collections.find(c => c.slug == accessesCollection)!;
+	const toSnakeCase = (string: string) => string.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/[\W_]+/g, " ").trim().toLowerCase().replace(/\s+/g, "_");
+	const tableName = adapter.tableNameMap.get(toSnakeCase(collectionConfig.slug))!;
+	const table = adapter.tables[tableName];
+	// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/find/findMany.ts
+	const queryOptions = buildQuery({ adapter: adapter, fields: collectionConfig.flattenedFields, tableName: tableName, where: { or: appliedAccesses.map(a => buildFilterWhere(a.filters)) } });
+	const processDocAccesses = async (ids: string[]) => {
+		if(queryOptions.where == null) return Object.fromEntries(ids.map(id => [id, { ...defaultMask }] as const));
 		// getTransaction with shouldReadFromPrimary logic
 		// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/utilities/getTransaction.ts, https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/utilities/readAfterWrite.ts
 		const db = adapter.primaryDrizzle != null && adapter.lastWriteTimestamp != null && (Date.now() - adapter.lastWriteTimestamp < adapter.readReplicasAfterWriteInterval) ? adapter.primaryDrizzle : adapter.drizzle;
@@ -240,7 +246,7 @@ export const executeAccesses = wsa(async (
 		for(const join of queryOptions.joins)
 			query = query[join.type ?? "leftJoin"](join.table as any, join.condition) as any;
 		const filterMatchesResults = await query;
-		return ids.map(id => {
+		return Object.fromEntries(ids.map(id => {
 			const filterMatches = filterMatchesResults.find(r => r.id == id) ?? (Object.fromEntries(appliedAccesses.map((_, i) => [`filters_${i}`, 0])) as Record<`filters_${number}`, 0 | 1>);
 			let isIncluded = false;
 			let currentMask = { ...defaultMask };
@@ -275,13 +281,10 @@ export const executeAccesses = wsa(async (
 					continue;
 				}
 			}
-			return currentMask;
-		});
+			return [id, currentMask] as const;
+		}));
 	};
-	return {
-		filter: currentFilter,
-		getMasksFor
-	};
+	return Object.assign(processDocAccesses, { baseFilter: baseFilter });
 });
 
 async function resolveRelations(
@@ -389,6 +392,8 @@ export const getDetailsAction = wsa(async (id: string) => {
 			collection: true,
 			filters: true,
 			masks: true,
+			editables: true,
+			auditFilters: true,
 			content: true,
 			changeRequestType: true,
 			changeRequestComment: true,
@@ -438,6 +443,8 @@ export const getDifferenceAction = wsa(async (id: string) => {
 				collection: true,
 				filters: true,
 				masks: true,
+				editables: true,
+				auditFilters: true,
 				changeRequestType: true,
 				changeRequestComment: true
 			}
@@ -476,6 +483,8 @@ export const getDifferenceAction = wsa(async (id: string) => {
 				collection: true,
 				filters: true,
 				masks: true,
+				editables: true,
+				auditFilters: true,
 				changeRequestType: true,
 				changeRequestComment: true
 			}
@@ -526,6 +535,8 @@ export const getHistoryAction = wsa(async (id: string) => {
 				collection: true,
 				filters: true,
 				masks: true,
+				editables: true,
+				auditFilters: true,
 				changeRequestType: true,
 				changeRequestComment: true,
 				reviewedAt: true,
@@ -561,6 +572,10 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 		throw new Error("Filters is required.");
 	if(formState.masks == null)
 		throw new Error("Masks is required.");
+	if(formState.editables == null)
+		throw new Error("Editables is required.");
+	if(formState.auditFilters == null)
+		throw new Error("Audit Filters is required.");
 	if(formState.id == null) {
 		const created = await payload.create({
 			user: user,
@@ -586,6 +601,8 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 				collection: formState.collection,
 				filters: formState.filters,
 				masks: formState.masks,
+				editables: formState.editables,
+				auditFilters: formState.auditFilters,
 				changeRequestType: "create",
 				changeRequestComment: formState.changeRequestComment,
 				reviewedAt: null,
@@ -620,6 +637,8 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 			collection: formState.collection,
 			filters: formState.filters,
 			masks: formState.masks,
+			editables: formState.editables,
+			auditFilters: formState.auditFilters,
 			changeRequestType: "update",
 			changeRequestComment: formState.changeRequestComment,
 			reviewedAt: null,
@@ -713,6 +732,8 @@ export const cancelRequestAction = wsa(async (
 				collection: true,
 				filters: true,
 				masks: true,
+				editables: true,
+				auditFilters: true,
 				changeRequestType: true,
 				changeRequestComment: true,
 				reviewedAt: true,
@@ -767,6 +788,8 @@ export const cancelRequestAction = wsa(async (
 			collection: approvedVersion.collection,
 			filters: approvedVersion.filters,
 			masks: approvedVersion.masks,
+			editables: approvedVersion.editables,
+			auditFilters: approvedVersion.auditFilters,
 			changeRequestType: approvedVersion.changeRequestType,
 			changeRequestComment: approvedVersion.changeRequestComment,
 			reviewedAt: approvedVersion.reviewedAt,

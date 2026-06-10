@@ -416,7 +416,7 @@ export function useConfigStorage<T>(
 	p: { localStorageKey?: string, updateIfThisSearhParamExists?: string, defaultValue: T }
 ): [T, React.Dispatch<React.SetStateAction<T>>];
 export function useConfigStorage<T>(
-	{ localStorageKey: localStorageKey, updateIfThisSearhParamExists: updateIfThisSearhParamExists, defaultValue }:
+	{ localStorageKey, updateIfThisSearhParamExists, defaultValue }:
 	{ localStorageKey?: string, updateIfThisSearhParamExists?: string, defaultValue: T | (() => T) }
 ): [T, React.Dispatch<React.SetStateAction<T>>] {
 	return useState<T>(defaultValue);

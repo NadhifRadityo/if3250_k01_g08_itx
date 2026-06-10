@@ -12,6 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Badge } from "@/components/radix/Badge";
 import { Button } from "@/components/radix/Button";
+import { Checkbox } from "@/components/radix/Checkbox";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Input } from "@/components/radix/Input";
 import { Label } from "@/components/radix/Label";
@@ -41,7 +42,7 @@ import { columnConfigColumns as surveyResultColumnConfigColumns, filterConfigCol
 import { columnConfigColumns as teamColumnConfigColumns, filterConfigColumns as teamFilterConfigColumns } from "../team-management/layout.components";
 import { userFilterConfigColumns, columnConfigColumns as userColumnConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
-import { maskOptionsMap, collectionMaskFields, operationSelectOptions, collectionSelectOptions } from "./layout.shared";
+import { maskOptionsMap, collectionMaskFields, operationSelectOptions, collectionSelectOptions, collectionNonEditableToggleableFields } from "./layout.shared";
 
 const collectionFilterConfigColumns = {
 	"staged-users": userFilterConfigColumns,
@@ -96,6 +97,19 @@ const defaultAccessMaskRenderer = () =>
 			) : null}
 		</div>
 	))(collectionColumnConfigColumns[collection].filter(c => value[c.key] != null).map(c => [c.key, value[c.key]] as const));
+const defaultAccessEditableRenderer = () =>
+	(value: Record<string, boolean>, { collection }: { collection: Access["collection"] }, { accessMaskClamp }: { accessMaskClamp?: boolean }) => (sortedValues => (
+		<div className="flex flex-wrap gap-1">
+			{(accessMaskClamp == true ? sortedValues.slice(0, 2) : sortedValues).map(([k, v]) => (
+				<Badge key={k} variant="outline" className="text-xs">
+					{collectionColumnConfigColumns[collection].find(c => c.key == k)!.label}: {v ? "Editable" : "Read-only"}
+				</Badge>
+			))}
+			{accessMaskClamp == true && sortedValues.length > 2 ? (
+				<Badge variant="outline" className="text-xs">+{sortedValues.length - 2} more</Badge>
+			) : null}
+		</div>
+	))(collectionColumnConfigColumns[collection].filter(c => value[c.key] != null).map(c => [c.key, value[c.key]] as const));
 
 export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -136,6 +150,8 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "collection", label: "Collection" },
 	{ key: "filters", label: "Filters" },
 	{ key: "masks", label: "Masks" },
+	{ key: "editables", label: "Editables" },
+	{ key: "auditFilters", label: "Audit Filters" },
 	{ key: "changeRequestType", label: "Request" },
 	{ key: "changeRequestComment", label: "Change Request Comment" },
 	{ key: "#status", label: "Status" },
@@ -164,6 +180,8 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "collection", label: "Collection", sortable: true },
 	{ key: "filters", label: "Filters", sortable: false },
 	{ key: "masks", label: "Masks", sortable: false },
+	{ key: "editables", label: "Editables", sortable: false },
+	{ key: "auditFilters", label: "Audit Filters", sortable: false },
 	{ key: "changeRequestType", label: "Request", sortable: true },
 	{ key: "changeRequestComment", label: "Change Request Comment", sortable: false, className: "max-w-[320px] overflow-hidden text-ellipsis whitespace-nowrap" },
 	{ key: "#status", label: "Status", sortable: false },
@@ -191,6 +209,8 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "collection", type: "select", selectOptions: collectionSelectOptions },
 	{ key: "filters", type: "null", render: defaultAccessFilterRenderer() },
 	{ key: "masks", type: "null", render: defaultAccessMaskRenderer() },
+	{ key: "editables", type: "null", render: defaultAccessEditableRenderer() },
+	{ key: "auditFilters", type: "null", render: defaultAccessFilterRenderer() },
 	{ key: "changeRequestType", type: "select", selectOptions: changeRequestTypeSelectOptions, render: defaultChangeRequestRenderer() },
 	{ key: "changeRequestComment", type: "richText" },
 	{ key: "#status", type: "null", render: defaultStatusRenderer() },
@@ -238,6 +258,8 @@ export const defaultColumnOrder = Object.freeze([
 	"collection",
 	"filters",
 	"masks",
+	"editables",
+	"auditFilters",
 	"createdBy",
 	"updatedBy",
 	"deletedBy",
@@ -651,6 +673,8 @@ export type FormState = {
 	collection?: Access["collection"];
 	filters?: any;
 	masks?: any;
+	editables?: any;
+	auditFilters?: any;
 	changeRequestComment?: any;
 };
 export function toFormState(data: Access) {
@@ -667,6 +691,8 @@ export function toFormState(data: Access) {
 		collection: data.collection,
 		filters: data.filters,
 		masks: data.masks,
+		editables: data.editables,
+		auditFilters: data.auditFilters,
 		changeRequestComment: data.changeRequestComment
 	} as FormState;
 }
@@ -804,7 +830,7 @@ export function FormDrawer(
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Collection</label>
-							<Select value={formState.collection} onValueChange={value => onFormStateChange({ ...formState, collection: value as any, filters: [], masks: {} })} disabled={isMutating}>
+							<Select value={formState.collection} onValueChange={value => onFormStateChange({ ...formState, collection: value as any, filters: [], masks: {}, editables: {}, auditFilters: [] })} disabled={isMutating}>
 								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Select level" />
 								</SelectTrigger>
@@ -833,25 +859,73 @@ export function FormDrawer(
 							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
-							<label className="text-sm font-medium">Mask</label>
+							<label className="text-sm font-medium">Masks & Editables</label>
 							{formState.collection != null ? (
 								<div className="grid gap-2 sm:grid-cols-2">
-									{collectionColumnConfigColumns[formState.collection].filter(f => f.key in collectionMaskFields[formState.collection!]).map(f => (
-										<div key={f.key} className="space-y-1">
-											<label className="text-xs text-muted-foreground">{f.label}</label>
-											<MemoizedSelect
-												options={maskOptionsMap[collectionMaskFields[formState.collection!][f.key]]}
-												value={(formState.masks ?? {})[f.key] ?? ""}
-												onValueChange={value => onFormStateChange({ ...formState, masks: { ...formState.masks, [f.key]: value } })}
-												placeholder="Inherit"
-												disabled={isMutating}
-											/>
-										</div>
-									))}
+									{collectionColumnConfigColumns[formState.collection].filter(f => f.key in collectionMaskFields[formState.collection!]).map(f => {
+										const maskValue = (formState.masks ?? {})[f.key] ?? null;
+										const editableValue = (formState.editables ?? {})[f.key] ?? null;
+										const isInherit = maskValue == null;
+										const isShow = maskValue == "show";
+										const isEditableToggleable = !collectionNonEditableToggleableFields[formState.collection!].includes(f.key);
+										const checkedState = isShow || isInherit ? (editableValue == null ? "indeterminate" as const : editableValue as boolean) : false;
+										return (
+											<div key={f.key} className="space-y-1">
+												<label className="text-xs text-muted-foreground">{f.label}</label>
+												<div className="flex items-center gap-2">
+													<div className="flex-1 min-w-0">
+														<MemoizedSelect
+															options={maskOptionsMap[collectionMaskFields[formState.collection!][f.key]]}
+															value={maskValue ?? ""}
+															onValueChange={value => {
+																const nextMasks = { ...formState.masks, [f.key]: value };
+																const nextEditables = value != null && value != "show" ?
+																	{ ...formState.editables, [f.key]: false } :
+																	value == null && editableValue == true ?
+																		{ ...formState.editables, [f.key]: null } :
+																		formState.editables;
+																onFormStateChange({ ...formState, masks: nextMasks, editables: nextEditables });
+															}}
+															placeholder="Inherit"
+															disabled={isMutating}
+														/>
+													</div>
+													{isEditableToggleable ? (
+														<Checkbox
+															checked={checkedState}
+															onCheckedChange={() => {
+																const next = isShow ?
+																	(checkedState == "indeterminate" ? true : checkedState ? false : null) :
+																	isInherit ?
+																		(checkedState == "indeterminate" ? false : null) :
+																		false;
+																onFormStateChange({ ...formState, editables: { ...formState.editables, [f.key]: next } });
+															}}
+															disabled={isMutating || (!isShow && !isInherit)}
+														/>
+													) : null}
+												</div>
+											</div>
+										);
+									})}
 								</div>
 							) : (
 								<p className="text-sm text-muted-foreground">Select a collection first</p>
 							)}
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<div className="flex items-center justify-between">
+								<label className="text-sm font-medium">Audit Filters</label>
+							</div>
+							<MenuFilterConfigCard
+								open={true}
+								onOpenChange={() => {}}
+								disabled={isMutating || formState.collection == null}
+								columns={formState.collection != null ? collectionFilterConfigColumns[formState.collection] : []}
+								filters={formState.auditFilters ?? []}
+								onFiltersChange={value => onFormStateChange({ ...formState, auditFilters: value })}
+								contentOnly
+							/>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<label className="text-sm font-medium">Change Request Comment</label>

@@ -19,6 +19,8 @@ type SeedAccess = {
 	collection: Access["collection"];
 	filters: any;
 	masks: any;
+	editables?: any;
+	auditFilters?: any;
 };
 
 const ALL_COLLECTIONS: Access["collection"][] = [
@@ -43,6 +45,29 @@ const ALL_COLLECTIONS: Access["collection"][] = [
 // Filter that matches all records
 const MATCH_ALL = [{ columnKey: "id", operator: "exists", combinator: "and" as const, value: true }];
 
+// Editable field profiles per collection. Default for any unlisted field is false; only fields
+// that should be writable for the use case are marked true here.
+const COLLECTION_EDITABLE_FIELDS: Record<Access["collection"], string[]> = {
+	"staged-users": ["email", "role", "name", "employeeId", "supervisor"],
+	"roles": ["name", "level", "menus"],
+	"teams": ["name", "supervisor", "members"],
+	"accesses": ["name", "description", "enabled", "priority", "operation", "subjectUserFilters", "subjectTeamFilters", "subjectRoleFilters", "collection", "filters", "masks", "editables", "auditFilters"],
+	"credit-applications": ["name", "email", "addresses", "phoneNumbers", "whatsappNumber", "smsNumber", "collateralRegistryName", "collateralName", "collateralDescription", "assetId", "assetName", "assetDescription", "period", "installment", "downPayment", "plafond", "vendor", "remarks", "otherText1", "otherText2", "otherNumber1", "otherNumber2", "otherDate1", "otherDate2", "others"],
+	"credit-application-imports": ["description"],
+	"credit-application-assignments": ["creditApplication", "officer", "survey", "satisfactionSurvey", "assignedDate", "dueDate", "geofenceRegions"],
+	"officer-tasks": ["settledAt", "settlementStatus", "settlementComment"],
+	"surveys": ["title", "description", "content"],
+	"survey-results": ["answers"],
+	"satisfaction-surveys": ["title", "description", "content"],
+	"satisfaction-survey-results": ["answers"],
+	"login-logs": [],
+	"gps-logs": [],
+	"message-logs": [],
+	"recording-logs": []
+};
+const editablesAllOf = (collection: Access["collection"]): Record<string, true> =>
+	Object.fromEntries(COLLECTION_EDITABLE_FIELDS[collection].map(f => [f, true] as const));
+
 // --- Access Seeds ---
 // Priority determines override order (higher = applied later, overrides earlier).
 // Operations: union (add records), difference (remove records), intersect (keep only overlap), exclusion (symmetric diff).
@@ -60,7 +85,13 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "admin" }],
 		collection: collection,
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		// Admins can edit every operational field for the collection.
+		editables: editablesAllOf(collection),
+		// Audit any soft-deleted record in collections that support soft delete so reviewers can spot admin-driven deletions.
+		auditFilters: ["staged-users", "roles", "teams", "accesses", "credit-applications", "credit-application-imports", "credit-application-assignments", "surveys", "survey-results", "satisfaction-surveys", "satisfaction-survey-results"].includes(collection) ?
+			[{ columnKey: "deletedAt", operator: "exists", combinator: "and" as const, value: true }] :
+			[]
 	})),
 
 	// ===== MANAGER: Broad access to management collections =====
@@ -76,7 +107,16 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "manager" }],
 		collection: collection,
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		// Managers edit all operational data; review fields stay read-only by default.
+		editables: editablesAllOf(collection),
+		// Audit soft-deleted records and pending change requests in their scope.
+		auditFilters: ["staged-users", "roles", "teams", "accesses", "credit-applications", "credit-application-imports", "credit-application-assignments", "surveys", "satisfaction-surveys"].includes(collection) ?
+			[
+				{ columnKey: "deletedAt", operator: "exists", combinator: "and" as const, value: true },
+				{ columnKey: "reviewApproved", operator: "exists", combinator: "or" as const, value: false }
+			] :
+			[]
 	})),
 
 	// Manager: access to logs but with sensitive fields masked
@@ -95,7 +135,13 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		masks: collection == "login-logs" ? { ipAddress: "redact" } :
 			collection == "recording-logs" ? { phoneNumber: "redact" } :
 				collection == "message-logs" ? { email: "redact", whatsappNumber: "redact", smsNumber: "redact" } :
-					{}
+					{},
+		// Logs are append-only system records; nothing is editable.
+		editables: {},
+		// Audit only failed login outcomes; other log types do not need extra scrutiny here.
+		auditFilters: collection == "login-logs" ?
+			[{ columnKey: "outcome", operator: "equals", combinator: "and" as const, value: "failure" }] :
+			[]
 	})),
 
 	// ===== SUPERVISOR: Access scoped to team-related data =====
@@ -111,7 +157,17 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "supervisor" }],
 		collection: collection,
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		// Supervisors update operational fields scoped to their team. For credit-applications they only annotate remarks.
+		editables: collection == "credit-applications" ?
+			{ remarks: true } :
+			collection == "officer-tasks" ?
+				{ settlementStatus: true, settlementComment: true } :
+				editablesAllOf(collection),
+		// Audit any soft-deleted record in their team's scope (for collections that support it).
+		auditFilters: collection == "officer-tasks" ?
+			[] :
+			[{ columnKey: "deletedAt", operator: "exists", combinator: "and" as const, value: true }]
 	})),
 
 	// Supervisor: can view surveys and satisfaction surveys (read-only, no sensitive fields)
@@ -127,7 +183,10 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "supervisor" }],
 		collection: collection,
 		filters: MATCH_ALL,
-		masks: { changeRequestType: "hide", changeRequestComment: "hide", reviewedAt: "hide", reviewedBy: "hide", reviewApproved: "hide", reviewComment: "hide" }
+		masks: { changeRequestType: "hide", changeRequestComment: "hide", reviewedAt: "hide", reviewedBy: "hide", reviewApproved: "hide", reviewComment: "hide" },
+		// Strictly read-only.
+		editables: {},
+		auditFilters: []
 	})),
 
 	// Supervisor: GPS and recording logs for monitoring their officers
@@ -143,7 +202,17 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "supervisor" }],
 		collection: collection,
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		// Logs are read-only.
+		editables: {},
+		// Audit messages with a non-success delivery status to flag failed customer outreach.
+		auditFilters: collection == "message-logs" ?
+			[
+				{ columnKey: "emailDeliveryStatus", operator: "not_equals", combinator: "and" as const, value: "delivered" },
+				{ columnKey: "whatsappDeliveryStatus", operator: "not_equals", combinator: "or" as const, value: "delivered" },
+				{ columnKey: "smsDeliveryStatus", operator: "not_equals", combinator: "or" as const, value: "delivered" }
+			] :
+			[]
 	})),
 
 	// ===== OFFICER: Limited access to own tasks and results =====
@@ -159,7 +228,12 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "officer" }],
 		collection: collection,
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		// Officers fill in their own task results / answers but can never settle their own task.
+		editables: collection == "officer-tasks" ?
+			{ settlementStatus: true, settlementComment: true } :
+			{ answers: true },
+		auditFilters: []
 	})),
 
 	// Officer: can view credit applications assigned to them
@@ -175,7 +249,10 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "officer" }],
 		collection: "credit-applications",
 		filters: MATCH_ALL,
-		masks: { changeRequestType: "hide", changeRequestComment: "hide", reviewedAt: "hide", reviewedBy: "hide", reviewApproved: "hide", reviewComment: "hide" }
+		masks: { changeRequestType: "hide", changeRequestComment: "hide", reviewedAt: "hide", reviewedBy: "hide", reviewApproved: "hide", reviewComment: "hide" },
+		// Officers only annotate field-work remarks; financial and identity fields stay locked.
+		editables: { remarks: true },
+		auditFilters: []
 	},
 
 	// Officer: GPS and recording logs (own reporting)
@@ -191,7 +268,10 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "officer" }],
 		collection: collection,
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		// Logs are write-once; officers cannot edit a log entry after it has been recorded.
+		editables: {},
+		auditFilters: []
 	})),
 
 	// ===== TEAM-BASED: Bandung team gets access to credit-application-assignments =====
@@ -207,7 +287,11 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: null,
 		collection: "credit-application-assignments",
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		// Team members can update scheduling and geofence fields but not change the assigned officer.
+		editables: { assignedDate: true, dueDate: true, geofenceRegions: true },
+		// Audit overdue assignments so the team supervisor can review them.
+		auditFilters: [{ columnKey: "dueDate", operator: "less_than", combinator: "and" as const, value: isoAt(0) }]
 	},
 	{
 		key: "jakarta-team-assignments",
@@ -221,7 +305,9 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: null,
 		collection: "credit-application-assignments",
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		editables: { assignedDate: true, dueDate: true, geofenceRegions: true },
+		auditFilters: [{ columnKey: "dueDate", operator: "less_than", combinator: "and" as const, value: isoAt(0) }]
 	},
 
 	// ===== USER-SPECIFIC: Admin user gets explicit full access to accesses (bootstrap) =====
@@ -237,7 +323,14 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: null,
 		collection: "accesses",
 		filters: MATCH_ALL,
-		masks: {}
+		masks: {},
+		// Admin can edit access rules end-to-end.
+		editables: editablesAllOf("accesses"),
+		// Audit any disabled or unreviewed access rule for compliance review.
+		auditFilters: [
+			{ columnKey: "enabled", operator: "equals", combinator: "and" as const, value: false },
+			{ columnKey: "reviewApproved", operator: "exists", combinator: "or" as const, value: false }
+		]
 	},
 
 	// ===== DIFFERENCE: Remove deleted records from officer view =====
@@ -253,7 +346,10 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: [{ columnKey: "level", operator: "equals", combinator: "and" as const, value: "officer" }],
 		collection: collection,
 		filters: [{ columnKey: "deletedAt", operator: "exists", combinator: "and" as const, value: true }],
-		masks: {}
+		masks: {},
+		// Pure restriction; nothing to edit or audit.
+		editables: {},
+		auditFilters: []
 	})),
 
 	// ===== INTERSECT: Manager Jakarta only sees Jakarta-region credit applications =====
@@ -269,7 +365,10 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: null,
 		collection: "credit-applications",
 		filters: [{ columnKey: "deletedAt", operator: "exists", combinator: "and" as const, value: false }],
-		masks: {}
+		masks: {},
+		// Pure narrowing; defer edit/audit policy to broader manager rule.
+		editables: {},
+		auditFilters: []
 	},
 
 	// ===== EXCLUSION: Supervisor Bandung exclusion on login-logs (sees everything except own logs) =====
@@ -285,7 +384,10 @@ const ACCESS_SEEDS: SeedAccess[] = [
 		subjectRoleFilters: null,
 		collection: "login-logs",
 		filters: [{ columnKey: "event", operator: "equals", combinator: "and" as const, value: "login" }],
-		masks: {}
+		masks: {},
+		editables: {},
+		// Audit failed login events so the supervisor can investigate suspicious activity.
+		auditFilters: [{ columnKey: "event", operator: "equals", combinator: "and" as const, value: "login_failed" }]
 	}
 ];
 
@@ -348,6 +450,8 @@ for(const [index, accessSeed] of ACCESS_SEEDS.entries()) {
 		collection: accessSeed.collection,
 		filters: accessSeed.filters,
 		masks: accessSeed.masks,
+		editables: accessSeed.editables ?? {},
+		auditFilters: accessSeed.auditFilters ?? [],
 		createdAt: publishedAt,
 		createdBy: actingUser.id,
 		updatedAt: publishedAt,
@@ -375,6 +479,8 @@ for(const [index, accessSeed] of ACCESS_SEEDS.entries()) {
 		collection: accessSeed.collection,
 		filters: accessSeed.filters,
 		masks: accessSeed.masks,
+		editables: accessSeed.editables ?? {},
+		auditFilters: accessSeed.auditFilters ?? [],
 		createdAt: publishedAt,
 		createdBy: actingUser.id,
 		updatedAt: pendingAt,
@@ -452,7 +558,9 @@ for(const collection of ALL_COLLECTIONS) {
 			subjectRoleFilters: true,
 			collection: true,
 			filters: true,
-			masks: true
+			masks: true,
+			editables: true,
+			auditFilters: true
 		}
 	});
 
@@ -472,6 +580,8 @@ for(const collection of ALL_COLLECTIONS) {
 		collection: Access["collection"];
 		filters: Access["filters"];
 		masks: Access["masks"];
+		editables: Access["editables"];
+		auditFilters: Access["auditFilters"];
 	};
 	const compiledAccesses: CompiledAccess[] = [];
 	for(const access of accesses.docs) {
@@ -539,7 +649,9 @@ for(const collection of ALL_COLLECTIONS) {
 			compiledRoles,
 			collection: access.collection,
 			filters: access.filters,
-			masks: access.masks
+			masks: access.masks,
+			editables: access.editables,
+			auditFilters: access.auditFilters
 		});
 	}
 

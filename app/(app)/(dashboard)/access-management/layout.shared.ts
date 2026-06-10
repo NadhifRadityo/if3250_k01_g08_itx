@@ -239,6 +239,8 @@ export const collectionMaskFields = Object.freeze({
 		"collection": "select",
 		"filters": "generic",
 		"masks": "generic",
+		"editables": "generic",
+		"auditFilters": "generic",
 		"changeRequestType": "select",
 		"changeRequestComment": "richText",
 		"reviewedAt": "date",
@@ -429,6 +431,24 @@ export const collectionMaskFields = Object.freeze({
 		"transcriptionUrl": "text"
 	}
 } as Record<string, Record<string, keyof (typeof maskOptionsMap)>>);
+export const collectionNonEditableToggleableFields = Object.freeze({
+	"staged-users": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "changeRequestType", "changeRequestComment", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"roles": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "changeRequestType", "changeRequestComment", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"teams": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "changeRequestType", "changeRequestComment", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"accesses": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "changeRequestType", "changeRequestComment", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"credit-applications": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "changeRequestType", "changeRequestComment", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"credit-application-imports": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"credit-application-assignments": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "changeRequestType", "changeRequestComment", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"officer-tasks": ["createdAt", "createdBy", "updatedAt", "updatedBy", "evaluatedAt", "evaluatedBy", "evaluationApproved", "evaluationComment"],
+	"surveys": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "changeRequestType", "changeRequestComment", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"survey-results": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy"],
+	"satisfaction-surveys": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy", "changeRequestType", "changeRequestComment", "reviewedAt", "reviewedBy", "reviewApproved", "reviewComment"],
+	"satisfaction-survey-results": ["createdAt", "createdBy", "updatedAt", "updatedBy", "deletedAt", "deletedBy"],
+	"login-logs": ["createdAt", "ipAddress", "user", "event", "outcome"],
+	"gps-logs": ["createdAt", "user", "sessionId", "officerTask", "latitude", "longitude", "accuracy"],
+	"message-logs": ["createdAt", "officerTask", "content", "email", "whatsappNumber", "smsNumber", "emailDeliveryStatus", "whatsappDeliveryStatus", "smsDeliveryStatus"],
+	"recording-logs": ["createdAt", "officerTask", "phoneNumber", "recordingUrl", "transcriptionUrl"]
+} as Record<string, readonly string[]>);
 export const collectionRelationFields = Object.freeze({
 	"staged-users": {
 		"createdBy": "staged-users",

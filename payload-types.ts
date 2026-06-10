@@ -529,6 +529,24 @@ export interface Access {
     | number
     | boolean
     | null;
+  editables:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  auditFilters:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   changeRequestType: 'create' | 'update' | 'delete';
   changeRequestComment?: {
     root: {
@@ -1569,6 +1587,8 @@ export interface AccessesSelect<T extends boolean = true> {
   collection?: T;
   filters?: T;
   masks?: T;
+  editables?: T;
+  auditFilters?: T;
   changeRequestType?: T;
   changeRequestComment?: T;
   reviewedAt?: T;
