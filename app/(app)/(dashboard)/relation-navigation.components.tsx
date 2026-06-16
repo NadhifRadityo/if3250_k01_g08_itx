@@ -11,7 +11,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 
-import { useDashboardContext } from "./layout.components";
+import { MenuFilterState, useDashboardContext } from "./layout.components";
 import { RelationSummary, getRelationSummaryAction } from "./relation-navigation.actions";
 import { RelationRole, RelationTeam, RelationUser, RelationAccess, RelationGpsLog, RelationSurvey, RelationLoginLog, RelationMessageLog, RelationOfficerTask, RelationRecordingLog, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
@@ -50,6 +50,15 @@ export function consumePendingRelationNavigationRedirectData(relationType: strin
 		relationId: pending.relationId,
 		relationIds: pending.relationIds,
 		relationSource: pending.relationSource
+	};
+}
+export function relationNavigationFilterConfigProvider(relationType: string) {
+	return () => {
+		const redirectData = consumePendingRelationNavigationRedirectData(relationType);
+		if(redirectData == null) return Symbol.unscopables;
+		if(redirectData.relationId != null)
+			return [{ columnKey: "id", operator: "equals", value: redirectData.relationId, combinator: "and" }] as MenuFilterState[];
+		return [{ columnKey: "id", operator: "in", value: redirectData.relationIds!, combinator: "and" }] as MenuFilterState[];
 	};
 }
 
@@ -233,9 +242,9 @@ function useRelationNavigationRedirect() {
 	menusRef.current = menus;
 	const getRedirectMenuLink = useCallback((redirectData: PendingRelationRedirectData) => {
 		const searchParams = new URLSearchParams();
-		searchParams.set("relationFilters", JSON.stringify(redirectData.relationId != null ?
-			[{ column: "id", operator: "equals", value: redirectData.relationId }] :
-			[{ column: "id", operator: "in", value: redirectData.relationIds }]
+		searchParams.set("filters", JSON.stringify(redirectData.relationId != null ?
+			[{ columnKey: "id", operator: "equals", value: redirectData.relationId, combinator: "and" }] as MenuFilterState[] :
+			[{ columnKey: "id", operator: "in", value: redirectData.relationIds, combinator: "and" }] as MenuFilterState[]
 		));
 		if(redirectData.relationSource != null)
 			searchParams.set("relationSource", redirectData.relationSource);

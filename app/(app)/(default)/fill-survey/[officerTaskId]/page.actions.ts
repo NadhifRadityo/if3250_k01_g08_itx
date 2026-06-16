@@ -10,7 +10,7 @@ import { getRelationshipId } from "@/utils/payload";
 import { User } from "@/payload-types";
 
 import { isUserInsideGeofenceRegions } from "../../../(dashboard)/officer-task/executor.actions";
-import { GEOFENCE_VALIDATION_WINDOW_CLIENT_MS, GEOFENCE_VALIDATION_WINDOW_SERVER_MS, type ActiveOfficerTaskKvData } from "../../../(dashboard)/officer-task/layout.shared";
+import { GEOFENCE_VALIDATION_WINDOW_CLIENT_MS, GEOFENCE_VALIDATION_WINDOW_SERVER_MS, ActiveOfficerTaskKvData } from "../../../(dashboard)/officer-task/layout.shared";
 
 async function ensureOfficerOwnsAndOtpEntered(
 	{ payload, user, officerTaskId, windowMs }:

@@ -1,12 +1,38 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { unstable_rethrow } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import cn from "@/utils/cn";
 
 export default function Entry({ children }: { children: React.ReactNode }) {
-	const [queryClient] = useState(() => new QueryClient());
+	const [queryClient] = useState(() => new QueryClient({
+		defaultOptions: {
+			queries: {
+				throwOnError: error => {
+					console.error(error);
+					try {
+						unstable_rethrow(error);
+						return false;
+					} catch(_) {
+						return true;
+					}
+				}
+			},
+			mutations: {
+				throwOnError: error => {
+					console.error(error);
+					try {
+						unstable_rethrow(error);
+						return false;
+					} catch(_) {
+						return true;
+					}
+				}
+			}
+		}
+	}));
 
 	useEffect(() => {
 		const elementStyle = cn(

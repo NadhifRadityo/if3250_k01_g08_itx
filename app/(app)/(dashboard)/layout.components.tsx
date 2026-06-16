@@ -1,7 +1,7 @@
 "use client";
 
-import React, { memo, useRef, useMemo, useState, useEffect, useContext, useCallback, createContext, type ReactNode } from "react";
-import { redirect, usePathname } from "next/navigation";
+import React, { memo, useRef, useMemo, useState, useEffect, useContext, useCallback, createContext, useLayoutEffect } from "react";
+import { redirect, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, TrendingUpIcon, ArrowUpDownIcon, LocateFixedIcon, LockKeyholeIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
 
@@ -154,7 +154,7 @@ export function useDashboardContext() {
 }
 export function DashboardShell(
 	{ initialContext, children }:
-	{ initialContext: rwsa<typeof getDashboardContextAction>, children: ReactNode }
+	{ initialContext: rwsa<typeof getDashboardContextAction>, children: React.ReactNode }
 ) {
 	const context = useQuery({
 		queryKey: ["dashboard", "context"],
@@ -330,7 +330,7 @@ export function DashboardShell(
 
 export function MenuPage(
 	{ title, description, children }:
-	{ title: string, description: string, children: ReactNode }
+	{ title: string, description: string, children: React.ReactNode }
 ) {
 	return (
 		<RedactProvider>
@@ -351,7 +351,7 @@ export function MenuPage(
 
 export function MenuToolbar(
 	{ keyword, onKeywordChange, searchPlaceholder, filterCount, onToggleFilter, onToggleColumns, isLoading = false, isMutating = false, rightSlot }:
-	{ keyword: string, onKeywordChange: (value: string) => void, searchPlaceholder: string, filterCount: number, onToggleFilter: () => void, onToggleColumns: () => void, isLoading?: boolean, isMutating?: boolean, rightSlot?: ReactNode }
+	{ keyword: string, onKeywordChange: (value: string) => void, searchPlaceholder: string, filterCount: number, onToggleFilter: () => void, onToggleColumns: () => void, isLoading?: boolean, isMutating?: boolean, rightSlot?: React.ReactNode }
 ) {
 	return (
 		<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -414,16 +414,42 @@ export function MenuPagination(
 }
 
 export function useConfigStorage<T = undefined>(
-	p: { localStorageKey?: string, updateIfThisSearhParamExists?: string, defaultValue?: undefined }
+	p: { localStorageKey?: string, customConfigProvider?: () => T | typeof Symbol.unscopables, updateIfThisSearhParamExists?: string, defaultValue?: undefined }
 ): [T | undefined, React.Dispatch<React.SetStateAction<T | undefined>>];
 export function useConfigStorage<T>(
-	p: { localStorageKey?: string, updateIfThisSearhParamExists?: string, defaultValue: T }
+	p: { localStorageKey?: string, customConfigProvider?: () => T | typeof Symbol.unscopables, updateIfThisSearhParamExists?: string, defaultValue: T }
 ): [T, React.Dispatch<React.SetStateAction<T>>];
 export function useConfigStorage<T>(
-	{ localStorageKey, updateIfThisSearhParamExists, defaultValue }:
-	{ localStorageKey?: string, updateIfThisSearhParamExists?: string, defaultValue: T | (() => T) }
+	{ localStorageKey, customConfigProvider, updateIfThisSearhParamExists, defaultValue }:
+	{ localStorageKey?: string, customConfigProvider?: () => T | typeof Symbol.unscopables, updateIfThisSearhParamExists?: string, defaultValue: T | (() => T) }
 ): [T, React.Dispatch<React.SetStateAction<T>>] {
-	return useState<T>(defaultValue);
+	const localStorageKeyRef = useRef(localStorageKey);
+	localStorageKeyRef.current = localStorageKey;
+	const [value, setValue0] = useState<T>(defaultValue);
+	useLayoutEffect(() => {
+		if(localStorageKey == null) return;
+		const valueRaw = localStorage.getItem(localStorageKey);
+		if(valueRaw == null) return;
+		let value: T;
+		try { value = JSON.parse(valueRaw); } catch(_) { return; }
+		setValue0(value);
+	}, [localStorageKey]);
+	const setValue = useCallback((newValue0: T | ((prevState: T) => T)) => setValue0(prevState => {
+		const newValue = typeof newValue0 == "function" ? (newValue0 as ((prevState: T) => T))(prevState) : newValue0;
+		if(localStorageKeyRef.current != null)
+			localStorage.setItem(localStorageKeyRef.current, JSON.stringify(newValue));
+		return newValue;
+	}), []);
+	const searchParams = useSearchParams();
+	useLayoutEffect(() => {
+		let nextValue = customConfigProvider != null ? customConfigProvider() : Symbol.unscopables;
+		if(nextValue == Symbol.unscopables && updateIfThisSearhParamExists != null && searchParams.has(updateIfThisSearhParamExists))
+			nextValue = (() => { try { return JSON.parse(searchParams.get(updateIfThisSearhParamExists)!) as T; } catch(_) { return Symbol.unscopables; } })();
+		if(nextValue == Symbol.unscopables)
+			return;
+		setValue(nextValue);
+	}, [updateIfThisSearhParamExists, searchParams.toString()]);
+	return [value, setValue];
 }
 
 export type MenuColumnConfigColumn = {
@@ -986,7 +1012,11 @@ export function DashboardMenuTable<T>(
 												<ArrowDownIcon className="size-3.5" />
 											)}
 										</Button>
-									) : column.label}
+									) : (
+										<span className={cn(isLoading || isMutating ? "opacity-50" : null)}>
+											{column.label}
+										</span>
+									)}
 								</TableHead>
 							);
 						})}

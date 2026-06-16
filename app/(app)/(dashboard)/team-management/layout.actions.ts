@@ -7,7 +7,7 @@ import { Payload, getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
-import type { Team } from "@/payload-types";
+import { Team, User } from "@/payload-types";
 
 import { compileAccesses } from "../access-management/layout.actions";
 import { MenuFilterState } from "../layout.components";
@@ -19,8 +19,8 @@ const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 async function resolveRelations(
-	{ payload, docs }:
-	{ payload?: Payload, docs: Team[] }
+	{ payload, user, docs }:
+	{ payload?: Payload, user: User, docs: Team[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
@@ -46,7 +46,7 @@ async function resolveRelations(
 			userIds.add(reviewedBy);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: [...userIds] }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, user, ids: [...userIds] }));
 	return relations;
 }
 
@@ -86,7 +86,7 @@ async function queryAction(
 			buildFilterWhere(filters)
 		] }
 	});
-	const relations = await resolveRelations({ payload, docs: result.docs });
+	const relations = await resolveRelations({ payload, user, docs: result.docs });
 	return { ...result, relations };
 }
 
@@ -133,7 +133,7 @@ export const getDetailsAction = wsa(async (id: string) => {
 			reviewComment: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
+	const relations = await resolveRelations({ payload, user, docs: [result] });
 	return { row: result, relations };
 });
 
@@ -203,7 +203,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 	if(approvedVersion != null)
 		approvedVersion.id = id;
 	requestedVersion.id = id;
-	const relations = await resolveRelations({ payload, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
+	const relations = await resolveRelations({ payload, user, docs: [...(approvedVersion != null ? [approvedVersion] : []), requestedVersion] });
 	return {
 		approvedVersion: approvedVersion,
 		requestedVersion: requestedVersion,
@@ -249,7 +249,7 @@ export const getHistoryAction = wsa(async (id: string) => {
 		}
 	});
 	const entries = versionsResult.docs.map(v => ({ ...v.version, id: id, versionId: v.id }));
-	const relations = await resolveRelations({ payload, docs: entries });
+	const relations = await resolveRelations({ payload, user, docs: entries });
 	return { entries, relations };
 });
 

@@ -10,7 +10,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
-import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { RelationNavigationProvider, relationNavigationFilterConfigProvider } from "../../relation-navigation.components";
 import { queryAction, cancelAction, finishAction, activateAction, inputOtpAction, getActiveAction, getDetailsAction, undoFinishAction, clearActiveAction, sendOtpMessageAction, sendSatisfactionSurveyMessageAction } from "../executor.actions";
 import { ColumnData, CancelDialog, FinishDialog, DetailsDrawer, SendOtpDialog, ActivateDialog, InputOtpDialog, UndoFinishDialog, ClearActiveDialog, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, GeofenceWarningDialog, ActivateLocationButton, SendSatisfactionSurveyDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../executor.components";
 import { computeOfficerTaskStatus } from "../layout.shared";
@@ -107,7 +107,7 @@ export default function Page() {
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "officer-task.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "officer-task.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: "officer-task.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "officer-task.filters", customConfigProvider: relationNavigationFilterConfigProvider("officer-tasks"), updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
 	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-task.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);

@@ -12,7 +12,7 @@ import { Button } from "@/components/radix/Button";
 import { Label } from "@/components/radix/Label";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
-import { RelationNavigationProvider } from "../../relation-navigation.components";
+import { RelationNavigationProvider, relationNavigationFilterConfigProvider } from "../../relation-navigation.components";
 import { queryReportingAction } from "../layout.actions";
 import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
@@ -27,7 +27,7 @@ export default function Page() {
 	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "officer-tracking.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
 	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "officer-tracking.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
-	const [filters, setFilters] = useConfigStorage({ localStorageKey: "officer-tracking.filters", updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
+	const [filters, setFilters] = useConfigStorage({ localStorageKey: "officer-tracking.filters", customConfigProvider: relationNavigationFilterConfigProvider("gps-logs"), updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
 	const [columnsSort, setColumnsSort] = useConfigStorage<[string, boolean][]>({ localStorageKey: "officer-tracking.columns-sort", updateIfThisSearhParamExists: "columnsSort", defaultValue: defaultColumnsSort });
 	const [pageIndex, setPageIndex] = useState(1);

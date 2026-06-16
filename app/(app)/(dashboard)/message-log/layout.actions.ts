@@ -7,7 +7,7 @@ import { Payload, getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
-import { MessageLog } from "@/payload-types";
+import { User, MessageLog } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationOfficerTasks } from "../relation-navigation.actions";
@@ -17,8 +17,8 @@ const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
-	{ payload, docs }:
-	{ payload?: Payload, docs: MessageLog[] }
+	{ payload, user, docs }:
+	{ payload?: Payload, user: User, docs: MessageLog[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const officerTaskIds = new Set<string>();
@@ -28,7 +28,7 @@ async function resolveRelations(
 			officerTaskIds.add(officerTask);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, ids: [...officerTaskIds] }));
+	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, user, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -70,7 +70,7 @@ async function queryAction(
 			buildFilterWhere(filters)
 		] }
 	});
-	const relations = await resolveRelations({ payload, docs: result.docs });
+	const relations = await resolveRelations({ payload, user, docs: result.docs });
 	return { ...result, relations };
 }
 
@@ -105,6 +105,6 @@ export const getDetailsAction = wsa(async (id: string) => {
 			smsDeliveryStatus: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
+	const relations = await resolveRelations({ payload, user, docs: [result] });
 	return { row: result, relations };
 });

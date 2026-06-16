@@ -17,8 +17,8 @@ const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 async function resolveRelations(
-	{ payload, docs }:
-	{ payload?: Payload, docs: LoginLog[] }
+	{ payload, user, docs }:
+	{ payload?: Payload, user: User, docs: LoginLog[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
@@ -64,7 +64,7 @@ async function queryAction(
 			buildFilterWhere(filters)
 		] }
 	});
-	const relations = await resolveRelations({ payload, docs: result.docs });
+	const relations = await resolveRelations({ payload, user, docs: result.docs });
 	return { ...result, relations };
 }
 
@@ -95,6 +95,6 @@ export const getDetailsAction = wsa(async (id: string) => {
 			outcome: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
+	const relations = await resolveRelations({ payload, user, docs: [result] });
 	return { row: result, relations };
 });

@@ -21,8 +21,8 @@ export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
 	Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
-	{ payload, docs }:
-	{ payload?: Payload, docs: OfficerTask[] }
+	{ payload, user, docs }:
+	{ payload?: Payload, user: User, docs: OfficerTask[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
@@ -46,9 +46,9 @@ async function resolveRelations(
 			userIds.add(evaluatedBy);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: [...userIds] }));
-	Object.assign(relations, await uwsa(resolveRelationCreditApplicationAssignments)({ payload, ids: [...creditApplicationAssignmentIds] }));
-	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, ids: [...officerTaskIds] }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, user, ids: [...userIds] }));
+	Object.assign(relations, await uwsa(resolveRelationCreditApplicationAssignments)({ payload, user, ids: [...creditApplicationAssignmentIds] }));
+	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, user, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -117,7 +117,7 @@ export const queryAction = wsa(async (
 		] }
 	});
 	const annotatedDocs = await annotateRows({ payload, user, docs: result.docs });
-	const relations = await resolveRelations({ payload, docs: result.docs });
+	const relations = await resolveRelations({ payload, user, docs: result.docs });
 	const activeIds = (await payload.find({
 		overrideAccess: true,
 		collection: "payload-kv",
@@ -158,7 +158,7 @@ export const getDetailsAction = wsa(async (id: string) => {
 		}
 	});
 	const annotatedDocs = await annotateRows({ payload, user, docs: [result] });
-	const relations = await resolveRelations({ payload, docs: [result] });
+	const relations = await resolveRelations({ payload, user, docs: [result] });
 	return { row: annotatedDocs[0], relations };
 });
 

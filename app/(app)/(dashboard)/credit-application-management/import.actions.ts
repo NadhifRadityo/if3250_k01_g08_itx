@@ -8,7 +8,7 @@ import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import ExcelJS from "@/utils/exceljs";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId } from "@/utils/payload";
-import type { CreditApplicationImport } from "@/payload-types";
+import { User, CreditApplicationImport } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers } from "../relation-navigation.actions";
@@ -46,8 +46,8 @@ const templateColumns = [
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
 
 async function resolveRelations(
-	{ payload, docs }:
-	{ payload?: Payload, docs: CreditApplicationImport[] }
+	{ payload, user, docs }:
+	{ payload?: Payload, user: User, docs: CreditApplicationImport[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
@@ -66,7 +66,7 @@ async function resolveRelations(
 			userIds.add(reviewedBy);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: [...userIds] }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, user, ids: [...userIds] }));
 	return relations;
 }
 
@@ -264,7 +264,7 @@ async function queryAction(
 			reviewComment: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: result.docs });
+	const relations = await resolveRelations({ payload, user, docs: result.docs });
 	return { ...result, relations };
 }
 
@@ -309,7 +309,7 @@ export const getDetailsAction = wsa(async (id: string) => {
 			reviewComment: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
+	const relations = await resolveRelations({ payload, user, docs: [result] });
 	return { row: result, relations: relations };
 });
 

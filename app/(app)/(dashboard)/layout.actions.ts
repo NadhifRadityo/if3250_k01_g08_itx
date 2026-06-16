@@ -3,13 +3,13 @@
 import { headers as nextHeaders } from "next/headers";
 import { redirect, RedirectType } from "next/navigation";
 import { logout as payloadLogout } from "@payloadcms/next/auth";
-import { getPayload, type Payload } from "payload";
+import { getPayload, Payload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa } from "@/utils/actions";
 import { getClientIpFromHeaders } from "@/utils/clientIp";
 import { getRelationshipId } from "@/utils/payload";
-import type { User } from "@/payload-types";
+import { User } from "@/payload-types";
 
 import { dashboardMenuKeys, dashboardRoleHrefs, preferredMenuModes, dashboardMenuLabels, dashboardRoleLabels, dashboardRoleSubLabels } from "./layout.shared";
 

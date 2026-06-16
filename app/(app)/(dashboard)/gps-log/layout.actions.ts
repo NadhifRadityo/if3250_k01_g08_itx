@@ -7,7 +7,7 @@ import { Payload, getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
-import { GpsLog } from "@/payload-types";
+import { User, GpsLog } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks } from "../relation-navigation.actions";
@@ -18,8 +18,8 @@ export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
 	Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
-	{ payload, docs }:
-	{ payload?: Payload, docs: GpsLog[] }
+	{ payload, user, docs }:
+	{ payload?: Payload, user: User, docs: GpsLog[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userIds = new Set<string>();
@@ -33,8 +33,8 @@ async function resolveRelations(
 			officerTaskIds.add(officerTask);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: [...userIds] }));
-	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, ids: [...officerTaskIds] }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, user, ids: [...userIds] }));
+	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, user, ids: [...officerTaskIds] }));
 	return relations;
 }
 
@@ -72,7 +72,7 @@ async function queryAction(
 			buildFilterWhere(filters)
 		] }
 	});
-	const relations = await resolveRelations({ payload, docs: result.docs });
+	const relations = await resolveRelations({ payload, user, docs: result.docs });
 	return { ...result, relations };
 }
 
@@ -105,6 +105,6 @@ export const getDetailsAction = wsa(async (id: string) => {
 			accuracy: true
 		}
 	});
-	const relations = await resolveRelations({ payload, docs: [result] });
+	const relations = await resolveRelations({ payload, user, docs: [result] });
 	return { row: result, relations };
 });

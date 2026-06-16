@@ -7,7 +7,7 @@ import { Payload, getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
-import { GpsLog } from "@/payload-types";
+import { User, GpsLog } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks } from "../relation-navigation.actions";
@@ -47,13 +47,13 @@ export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
 	Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
 
 async function resolveRelations(
-	{ payload, userIds, officerTaskIds }:
-	{ payload?: Payload, userIds: string[], officerTaskIds: string[] }
+	{ payload, user, userIds, officerTaskIds }:
+	{ payload?: Payload, user: User, userIds: string[], officerTaskIds: string[] }
 ) {
 	payload ??= await getPayload({ config: payloadConfig });
 	const relations = {} as RelationValues;
-	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: userIds }));
-	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, ids: officerTaskIds }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, user, ids: userIds }));
+	Object.assign(relations, await uwsa(resolveRelationOfficerTasks)({ payload, user, ids: officerTaskIds }));
 	return relations;
 }
 
@@ -183,7 +183,7 @@ async function queryAction(
 	}
 	for(const row of mapRows)
 		userIdSet.add(row.user);
-	const relations = await resolveRelations({ payload, userIds: [...userIdSet], officerTaskIds: [...officerTaskIdSet] });
+	const relations = await resolveRelations({ payload, user, userIds: [...userIdSet], officerTaskIds: [...officerTaskIdSet] });
 
 	return {
 		docs: docs,
@@ -251,7 +251,7 @@ export const getDetailsAction = wsa(async (
 		if(officerTaskId != null)
 			officerTaskIdSet.add(officerTaskId);
 	}
-	const relations = await resolveRelations({ payload, userIds: [userId], officerTaskIds: [...officerTaskIdSet] });
+	const relations = await resolveRelations({ payload, user, userIds: [userId], officerTaskIds: [...officerTaskIdSet] });
 	return {
 		userId: userId,
 		periodStart: periodStart,

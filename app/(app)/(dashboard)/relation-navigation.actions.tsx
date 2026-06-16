@@ -1,24 +1,27 @@
 "use server";
 
-import type { ReactNode } from "react";
 import React from "react";
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
 import { Payload, getPayload } from "payload";
 
-import { wsa, rwsa } from "@/utils/actions";
+import { wsa, rwsa, uwsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
+import { User } from "@/payload-types";
 import payloadConfig from "@/payload.config";
 
+import { executeAccesses } from "./access-management/layout.actions";
 import { dashboardRoleLabels } from "./layout.shared";
+import { defaultRelationRoleRenderer } from "./relation-navigation.components";
 import { RelationRole, RelationUser, RelationSurvey, RelationOfficerTask, RelationSurveyResult, RelationCreditApplication, RelationSatisfactionSurvey, RelationCreditApplicationImport, RelationSatisfactionSurveyResult, RelationCreditApplicationAssignment } from "./relation-navigation.shared";
 
 export const resolveRelationUsers = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`users:${string}`, RelationUser>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "users",
 		pagination: false,
@@ -33,11 +36,12 @@ export const resolveRelationUsers = wsa(async (
 });
 
 export const resolveRelationRoles = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`roles:${string}`, RelationRole>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "roles",
 		trash: true,
@@ -51,11 +55,12 @@ export const resolveRelationRoles = wsa(async (
 });
 
 export const resolveRelationSurveys = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`surveys:${string}`, RelationSurvey>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "surveys",
 		draft: true,
@@ -70,11 +75,12 @@ export const resolveRelationSurveys = wsa(async (
 });
 
 export const resolveRelationSurveyResults = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`survey-results:${string}`, RelationSurveyResult>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "survey-results",
 		draft: true,
@@ -89,11 +95,12 @@ export const resolveRelationSurveyResults = wsa(async (
 });
 
 export const resolveRelationSatisfactionSurveys = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "satisfaction-surveys",
 		draft: true,
@@ -108,11 +115,12 @@ export const resolveRelationSatisfactionSurveys = wsa(async (
 });
 
 export const resolveRelationSatisfactionSurveyResults = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "satisfaction-survey-results",
 		draft: true,
@@ -127,11 +135,12 @@ export const resolveRelationSatisfactionSurveyResults = wsa(async (
 });
 
 export const resolveRelationCreditApplications = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`credit-applications:${string}`, RelationCreditApplication>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "credit-applications",
 		pagination: false,
@@ -145,11 +154,12 @@ export const resolveRelationCreditApplications = wsa(async (
 });
 
 export const resolveRelationCreditApplicationImports = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`credit-application-imports:${string}`, RelationCreditApplicationImport>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "credit-application-imports",
 		pagination: false,
@@ -164,11 +174,12 @@ export const resolveRelationCreditApplicationImports = wsa(async (
 });
 
 export const resolveRelationCreditApplicationAssignments = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "credit-application-assignments",
 		draft: true,
@@ -183,11 +194,12 @@ export const resolveRelationCreditApplicationAssignments = wsa(async (
 });
 
 export const resolveRelationOfficerTasks = wsa(async (
-	{ payload, ids }:
-	{ payload?: Payload, ids: string[] }
+	{ payload, user, ids }:
+	{ payload?: Payload, user: User, ids: string[] }
 ): Promise<Record<`officer-tasks:${string}`, RelationOfficerTask>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
+		user: user,
 		overrideAccess: false,
 		collection: "officer-tasks",
 		draft: true,
@@ -217,12 +229,16 @@ export const getRelationSummaryAction = wsa(async (
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return null;
+	const executedAccesses = await uwsa(executeAccesses)({ payload, user });
 	if(relationType == "users") {
-		const doc = await payload.findByID({
+		const doc = (await payload.find({
 			user: user,
 			overrideAccess: false,
 			collection: "users",
-			id: relationId,
+			where: { and: [
+				{ id: { equals: relationId } },
+				executedAccesses.getBaseFilter("staged-users")
+			] },
 			depth: 0,
 			select: {
 				name: true,
@@ -232,17 +248,12 @@ export const getRelationSummaryAction = wsa(async (
 				supervisor: true,
 				deletedAt: true
 			}
-		});
-		const roleId = getRelationshipId(doc.role);
-		const roleName = roleId != null ? (await payload.findByID({
-			user: user,
-			overrideAccess: false,
-			collection: "roles",
-			id: roleId,
-			trash: true,
-			depth: 0,
-			select: { name: true }
-		})).name : "-";
+		})).docs[0];
+		if(doc == null) return null;
+		const roleId = getRelationshipId(doc.role)!;
+		const relations = {} as Record<`roles:${string}`, RelationRole>;
+		Object.assign(relations, await resolveRelationRoles({ payload, user, ids: [roleId] }));
+		const roleRenderer = defaultRelationRoleRenderer({ description: "User Role", relationSource: "staged-users" });
 		return {
 			relationType: relationType,
 			relationId: doc.id,
@@ -251,7 +262,7 @@ export const getRelationSummaryAction = wsa(async (
 			fields: [
 				{ label: "ID", value: (<span className="text-xs font-mono">{doc.id}</span>) },
 				{ label: "Employee ID", value: doc.employeeId },
-				{ label: "Role", value: roleName },
+				{ label: "Role", value: roleRenderer(roleId, doc, { relationValues: relations }) },
 				{ label: "Deleted At", value: doc.deletedAt != null ? new Date(doc.deletedAt).toLocaleString() : "-" }
 			]
 		};
@@ -856,7 +867,7 @@ export const searchAvailableRelationCreditApplicationsAction = wsa(async (keywor
 		}));
 	})();
 	const selectedIdSet = new Set(selectedIds);
-	const optionsById = new Map<string, { id: string, label: ReactNode }>();
+	const optionsById = new Map<string, { id: string, label: React.ReactNode }>();
 	for(const doc of result.docs) {
 		const creditApplication = doc.id;
 		const assignment = assignmentsByCreditApplication.get(creditApplication);
