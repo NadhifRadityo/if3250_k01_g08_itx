@@ -17,7 +17,6 @@ import { RecordingLogs } from "./collections/RecordingLogCollection";
 import { Roles, RolesSchemaHook } from "./collections/RoleCollection";
 import { SatisfactionSurveys, SatisfactionSurveysSchemaHook } from "./collections/SatisfactionSurveyCollection";
 import { SatisfactionSurveyResults } from "./collections/SatisfactionSurveyResultCollection";
-import { SearchPlugin } from "./collections/SearchPlugin";
 import { BindSelectPlugin, InternalForceSelectPlugin } from "./collections/SelectPlugin";
 import { Surveys, SurveysSchemaHook } from "./collections/SurveyCollection";
 import { SurveyResults } from "./collections/SurveyResultCollection";
@@ -97,15 +96,6 @@ export default buildConfig({
 					signedDownloads: true
 				}
 			}
-		}),
-		SearchPlugin({
-			collections: [
-				"users",
-				"staged-users",
-				"teams",
-				"credit-application-imports",
-				"credit-applications"
-			]
 		}),
 		EmptyableRequiredFieldValidationPlugin(),
 		SkipVirtualFieldValidationPlugin(),

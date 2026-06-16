@@ -86,7 +86,6 @@ export interface Config {
     'message-logs': MessageLog;
     'recording-logs': RecordingLog;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSync;
-    search: Search;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-locked-documents': PayloadLockedDocument;
@@ -118,7 +117,6 @@ export interface Config {
     'message-logs': MessageLogsSelect<false> | MessageLogsSelect<true>;
     'recording-logs': RecordingLogsSelect<false> | RecordingLogsSelect<true>;
     'database-locking-plugin-transaction-syncs': DatabaseLockingPluginTransactionSyncsSelect<false> | DatabaseLockingPluginTransactionSyncsSelect<true>;
-    search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -1156,46 +1154,6 @@ export interface DatabaseLockingPluginTransactionSync {
   updatedAt: string;
 }
 /**
- * This is a collection of automatically created search results. These results are used by the global site search and will be updated automatically as documents in the CMS are created or updated.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "search".
- */
-export interface Search {
-  id: string;
-  title?: string | null;
-  priority?: number | null;
-  doc:
-    | {
-        relationTo: 'users';
-        value: string | User;
-      }
-    | {
-        relationTo: 'staged-users';
-        value: string | StagedUser;
-      }
-    | {
-        relationTo: 'teams';
-        value: string | Team;
-      }
-    | {
-        relationTo: 'credit-application-imports';
-        value: string | CreditApplicationImport;
-      }
-    | {
-        relationTo: 'credit-applications';
-        value: string | CreditApplication;
-      };
-  doc_users?: (string | null) | User;
-  'doc_staged-users'?: (string | null) | StagedUser;
-  doc_teams?: (string | null) | Team;
-  'doc_credit-application-imports'?: (string | null) | CreditApplicationImport;
-  'doc_credit-applications'?: (string | null) | CreditApplication;
-  content: string;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
@@ -1395,10 +1353,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'database-locking-plugin-transaction-syncs';
         value: string | DatabaseLockingPluginTransactionSync;
-      } | null)
-    | ({
-        relationTo: 'search';
-        value: string | Search;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -1857,23 +1811,6 @@ export interface DatabaseLockingPluginTransactionSyncsSelect<T extends boolean =
   notified?: T;
   value?: T;
   updatedAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "search_select".
- */
-export interface SearchSelect<T extends boolean = true> {
-  title?: T;
-  priority?: T;
-  doc?: T;
-  doc_users?: T;
-  'doc_staged-users'?: T;
-  doc_teams?: T;
-  'doc_credit-application-imports'?: T;
-  'doc_credit-applications'?: T;
-  content?: T;
-  updatedAt?: T;
-  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

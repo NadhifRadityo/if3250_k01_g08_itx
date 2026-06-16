@@ -35,7 +35,11 @@ import { logoutAction } from "./layout.actions";
 import { DashboardMenu, getDashboardContextAction } from "./layout.actions";
 import { dashboardRoleKeys, dashboardMenuGroups, changeRequestTypeSelectOptions } from "./layout.shared";
 
-const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
+const DashboardContext = createContext<rwsa<typeof getDashboardContextAction> | null>(null);
+export function useDashboardContext() {
+	return useContext(DashboardContext)!;
+}
+export const MenuIcons: Record<string, React.FC<LucideProps & React.RefAttributes<SVGSVGElement>>> = {
 	"user-management": UserCogIcon,
 	"role-management": ShieldCheckIcon,
 	"team-management": UsersIcon,
@@ -147,11 +151,6 @@ function DashboardMenuKey(
 		</HoverCard>
 	);
 }
-
-const DashboardContext = createContext<rwsa<typeof getDashboardContextAction> | null>(null);
-export function useDashboardContext() {
-	return useContext(DashboardContext)!;
-}
 export function DashboardShell(
 	{ initialContext, children }:
 	{ initialContext: rwsa<typeof getDashboardContextAction>, children: React.ReactNode }
@@ -191,7 +190,6 @@ export function DashboardShell(
 		if(activeMenu == null) return;
 		setOpenSubmenuKeys(v => [...new Set([...v, activeMenu.key])]);
 	}, [activeMenu]);
-
 	return (
 		<RedactProvider canvasClassName="z-51">
 			<DashboardContext.Provider value={context}>
