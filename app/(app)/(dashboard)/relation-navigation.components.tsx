@@ -228,7 +228,7 @@ const relationToMenuMap = {
 	"credit-application-assignments": "credit-application-assignment",
 	"surveys": "survey-management",
 	"satisfaction-surveys": "satisfaction-survey-management",
-	// "": "officer-task",
+	"officer-tasks": "officer-task",
 	// "": "officer-tracking",
 	"login-logs": "login-log",
 	"gps-logs": "gps-log",

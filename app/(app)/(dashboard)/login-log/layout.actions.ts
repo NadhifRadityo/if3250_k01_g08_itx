@@ -7,7 +7,7 @@ import { Payload, getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
-import { LoginLog } from "@/payload-types";
+import { User, LoginLog } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers } from "../relation-navigation.actions";
@@ -28,7 +28,7 @@ async function resolveRelations(
 			userIds.add(userId);
 	}
 	const relations = {} as RelationValues;
-	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: [...userIds] }));
+	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, user, ids: [...userIds] }));
 	return relations;
 }
 

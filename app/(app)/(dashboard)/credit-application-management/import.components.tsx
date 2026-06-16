@@ -359,7 +359,7 @@ const generateTemplate = async () => {
 			error: column.error ?? `${column.label} contains an invalid value.`
 		});
 	}
-	for(let i = templateColumns.length; i <= 16384; i++)
+	for(let i = templateColumns.length + 1; i <= 16384; i++)
 		worksheet.getColumn(i).hidden = true;
 	const blobUrl = URL.createObjectURL(new Blob([await workbook.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
 	const anchorElement = document.createElement("a");

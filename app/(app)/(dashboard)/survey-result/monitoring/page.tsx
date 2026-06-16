@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CircleAlertIcon } from "lucide-react";
+import { DownloadIcon, CircleAlertIcon } from "lucide-react";
 
 import { uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { Button } from "@/components/radix/Button";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider, relationNavigationFilterConfigProvider } from "../../relation-navigation.components";
 import { queryMonitoringAction } from "../layout.actions";
-import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+import { ColumnData, DetailsDrawer, downloadResults, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 export default function Page() {
 	const [keyword, setKeyword] = useState("");
@@ -69,6 +70,18 @@ export default function Page() {
 					onToggleFilter={() => setFilterConfigCardOpen(!filterConfigCardOpen)}
 					onToggleColumns={() => setColumnConfigCardOpen(!columnConfigCardOpen)}
 					isLoading={query.isLoading}
+					rightSlot={(
+						<Button
+							type="button"
+							variant="link"
+							size="sm"
+							onClick={() => { if(query.data?.docs != null) downloadResults(query.data.docs as any); }}
+							disabled={query.isLoading || query.isError || (query.data?.docs ?? []).length == 0}
+						>
+							<DownloadIcon className="h-4 w-4" />
+							Download Results
+						</Button>
+					)}
 				/>
 				<MenuFilterConfigCard
 					open={filterConfigCardOpen}

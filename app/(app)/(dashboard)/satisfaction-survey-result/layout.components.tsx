@@ -20,6 +20,126 @@ import { filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "..
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
 
+export const downloadResults = async (rows: {
+	id: string;
+	satisfactionSurvey: string;
+	satisfactionSurveyVersion: string;
+	officerTask: string;
+	answers: { values: any };
+}[]) => {
+	const cssColorToArgb = (value: string) => {
+		const probe = document.createElement("div");
+		probe.style.color = value;
+		probe.style.position = "absolute";
+		probe.style.pointerEvents = "none";
+		probe.style.opacity = "0";
+		try {
+			document.body.appendChild(probe);
+			const computedColor = window.getComputedStyle(probe).color.trim();
+			const canvasContext = document.createElement("canvas").getContext("2d")!;
+			canvasContext.fillStyle = computedColor;
+			canvasContext.fillRect(0, 0, 1, 1);
+			const data = canvasContext.getImageData(0, 0, 1, 1, { colorSpace: "srgb", pixelFormat: "rgba-unorm8" }).data;
+			return [data[3], data[0], data[1], data[2]].map(channel =>
+				Math.round(channel).toString(16).padStart(2, "0").toUpperCase()).join("");
+		} finally {
+			document.body.removeChild(probe);
+		}
+	};
+
+	const ExcelJS = (await import("@/utils/exceljs")).default;
+	const workbook = new ExcelJS.Workbook();
+	const worksheet = workbook.addWorksheet("Satisfaction Survey Results", {
+		pageSetup: {
+			fitToWidth: 1,
+			fitToHeight: 0,
+			orientation: "landscape",
+			paperSize: 9,
+			margins: {
+				top: 0.4,
+				right: 0.4,
+				bottom: 0.4,
+				left: 0.4,
+				header: 0.2,
+				footer: 0.2
+			}
+		}
+	});
+	const backgroundArgb = cssColorToArgb("var(--background)");
+	const foregroundArgb = cssColorToArgb("var(--foreground)");
+	const accentArgb = cssColorToArgb("var(--accent)");
+	const accentForegroundArgb = cssColorToArgb("var(--accent-foreground)");
+	const documentTitle = document.title.trim().length > 0 ? document.title : "Mobile Survey Intelix";
+
+	workbook.title = "Satisfaction Survey Results Export";
+	workbook.creator = documentTitle;
+	workbook.lastModifiedBy = documentTitle;
+	workbook.created = new Date();
+	workbook.modified = new Date();
+	const allAnswerKeys = [...new Set(rows.flatMap(row => Object.keys(row.answers.values)))].sort();
+	const columns = [
+		{ key: "id", label: "ID", width: 28 },
+		{ key: "satisfactionSurvey", label: "Satisfaction Survey", width: 30 },
+		{ key: "satisfactionSurveyVersion", label: "Satisfaction Survey Version", width: 18 },
+		{ key: "officerTask", label: "Officer Task", width: 28 },
+		...allAnswerKeys.map(key => ({ key: `answer_${key}`, label: key, width: 30 }))
+	];
+	worksheet.columns = columns.map(column => ({
+		key: column.key,
+		width: column.width,
+		style: {
+			fill: { type: "pattern", pattern: "solid", fgColor: { argb: backgroundArgb } },
+			font: { name: "Inter", size: 10, color: { argb: foregroundArgb } },
+			alignment: { vertical: "top", wrapText: true }
+		}
+	}));
+
+	const headerRow = worksheet.addRow(columns.map(col => col.label));
+	headerRow.height = 24;
+	headerRow.eachCell(cell => {
+		cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: accentArgb } };
+		cell.font = { name: "Inter", size: 10, bold: true, color: { argb: accentForegroundArgb } };
+		cell.alignment = { vertical: "middle", horizontal: "left" };
+	});
+
+	for(const row of rows) {
+		const rowData = {
+			id: row.id,
+			satisfactionSurvey: row.satisfactionSurvey,
+			satisfactionSurveyVersion: row.satisfactionSurveyVersion,
+			officerTask: row.officerTask
+		};
+		for(const key of allAnswerKeys) {
+			const value = row.answers.values[key];
+			if(value == null)
+				rowData[`answer_${key}`] = "";
+			else if(typeof value == "object")
+				rowData[`answer_${key}`] = JSON.stringify(value);
+			else
+				rowData[`answer_${key}`] = `${value}`;
+		}
+		const dataRow = worksheet.addRow(rowData);
+		dataRow.eachCell(cell => {
+			cell.alignment = { vertical: "top", wrapText: true };
+		});
+	}
+	worksheet.autoFilter = {
+		from: { row: 1, column: 1 },
+		to: { row: 1, column: columns.length }
+	};
+	for(let i = columns.length + 1; i <= 16384; i++)
+		worksheet.getColumn(i).hidden = true;
+	const blobUrl = URL.createObjectURL(new Blob([await workbook.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+	const anchorElement = document.createElement("a");
+	anchorElement.href = blobUrl;
+	anchorElement.download = `satisfaction-survey-results-${new Date().toLocaleString()}.xlsx`;
+	anchorElement.style.display = "none";
+	document.body.appendChild(anchorElement);
+	anchorElement.click();
+	document.body.removeChild(anchorElement);
+	URL.revokeObjectURL(blobUrl);
+};
+
 function isJsonFormDefinition(value: unknown): value is JsonFormDefinition {
 	if(value == null || typeof value != "object")
 		return false;
