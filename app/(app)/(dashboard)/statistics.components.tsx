@@ -1,41 +1,36 @@
 "use client";
 
-import { useId, useMemo, useRef, useState, useEffect, useLayoutEffect, useCallback, useContext, createContext, Children, isValidElement, type ReactNode, type ReactElement, type MouseEvent as ReactMouseEvent } from "react";
-import * as d3 from "d3";
+import { useId, useRef, useMemo, Children, useState, useEffect, useContext, useCallback, createContext, isValidElement, useLayoutEffect, type ReactNode, type ReactElement, type MouseEvent as ReactMouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CircleAlertIcon, EyeOffIcon, GripVerticalIcon, PlusIcon, RefreshCwIcon } from "lucide-react";
+import * as d3 from "d3";
+import { PlusIcon, EyeOffIcon, RefreshCwIcon, CircleAlertIcon, GripVerticalIcon } from "lucide-react";
 
-import cn from "@/utils/cn";
 import { type rwsa } from "@/utils/actions";
+import cn from "@/utils/cn";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { Button } from "@/components/radix/Button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/radix/Card";
-import { DropdownMenu, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/radix/DropdownMenu";
+import { Card, CardTitle, CardHeader, CardContent, CardDescription } from "@/components/radix/Card";
+import { DropdownMenu, DropdownMenuItem, DropdownMenuLabel, DropdownMenuContent, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/radix/DropdownMenu";
 import { Skeleton } from "@/components/radix/Skeleton";
 
 import { useConfigStorage, type MenuFilterState } from "./layout.components";
 import { changeRequestTypeSelectOptions } from "./layout.shared";
-import { getCommonReviewableViewerStats, getCommonReviewableApproverStats, getCommonLogMonitoringStats, getCommonLogReportingStats } from "./statistics.actions";
-import type {
-	StatNumberData,
-	StatBucketData,
-	StatHistogramData,
-	StatSeriesData,
-	StatHeatmapData,
-	StatReviewStatusData,
-	StatPendingReviewData,
-	StatsLayoutConfig,
-	StatsLayoutCardConfig
-} from "./statistics.shared";
+import { getCommonLogReportingStats, getCommonLogMonitoringStats, getCommonReviewableViewerStats, getCommonReviewableApproverStats } from "./statistics.actions";
 
-// Local type derivations from the wsa-wrapped action shapes. The actions live in
-// `./statistics.actions` and their return types are inferred from their implementations.
 type CommonReviewableViewerStats = rwsa<typeof getCommonReviewableViewerStats>;
 type CommonReviewableApproverStats = rwsa<typeof getCommonReviewableApproverStats>;
 type CommonLogMonitoringStats = rwsa<typeof getCommonLogMonitoringStats>;
 type CommonLogReportingStats = rwsa<typeof getCommonLogReportingStats>;
 
-// === Layout context =============================================================================
+export type StatsLayoutCardConfig = {
+	key: string;
+	hidden: boolean;
+	span: 1 | 2 | 3 | 4;
+};
+export type StatsLayoutConfig = {
+	order: string[];
+	cards: Record<string, StatsLayoutCardConfig>;
+};
 
 const SPAN_CLASSES: Record<number, string> = {
 	1: "sm:col-span-1 xl:col-span-1",
@@ -75,12 +70,6 @@ function useStatsLayout(): StatsLayoutContextValue {
 	return ctx;
 }
 
-// === Section ====================================================================================
-
-// Reads the persisted layout config (same storage as <StatisticsSection>) and returns the list
-// of card keys that should be visible. Cards without a stored config fall back to their
-// `defaultHidden` value. The returned list is what menu components pass to their
-// `getXxxStatisticsAction` so the server only computes statistics for cards that will render.
 export function useStatisticsVisibleKeys(
 	{ layoutKey, cards }:
 	{ layoutKey: string, cards: readonly { key: string, defaultHidden?: boolean }[] }
@@ -105,10 +94,7 @@ export function StatisticsSection(
 		onRefresh?: () => void;
 	}
 ) {
-	const [layout, setLayout] = useConfigStorage<StatsLayoutConfig>({
-		localStorageKey: `statistics.${layoutKey}.layout`,
-		defaultValue: { order: [], cards: {} }
-	});
+	const [layout, setLayout] = useConfigStorage<StatsLayoutConfig>({ localStorageKey: `statistics.${layoutKey}.layout`, defaultValue: { order: [], cards: {} } });
 	const [knownCards, setKnownCards] = useState<{ key: string, title: string }[]>([]);
 	const [dragKey, setDragKey] = useState<string | null>(null);
 	const [dropTarget, setDropTarget] = useState<{ key: string, side: "before" | "after" } | null>(null);
@@ -176,10 +162,8 @@ export function StatisticsSection(
 		gridRef: gridRef
 	}), [getCardConfig, setCardConfig, registerCard, hideCard, showCard, knownCards, dragKey, moveCard, dropTarget, resizingKey]);
 
-	const hiddenCards = knownCards.filter(c => layout.cards[c.key]?.hidden == true);
+	const hiddenCards = knownCards.filter(c => layout.cards[c.key].hidden);
 
-	// Render children in the order tracked by `layout.order` (without using CSS `order`,
-	// so DOM order matches visual order for accessibility and keyboard navigation).
 	const orderedChildren = useMemo(() => {
 		const arr = Children.toArray(children).filter(isValidElement) as ReactElement<{ cardKey?: string, title?: string }>[];
 		const byKey = new Map<string, ReactElement>();
@@ -200,7 +184,6 @@ export function StatisticsSection(
 				byKey.delete(k);
 			}
 		}
-		// Unregistered or freshly mounted cards go at the end (they will register and add themselves to order).
 		return [...ordered, ...byKey.values(), ...unkeyed];
 	}, [children, layout.order]);
 
@@ -249,8 +232,6 @@ export function StatisticsSection(
 	);
 }
 
-// === Card =======================================================================================
-
 export function StatisticsCard(
 	{ cardKey, title, description, defaultSpan = 1, defaultHidden = false, span, skeleton = false, children }:
 	{
@@ -273,30 +254,17 @@ export function StatisticsCard(
 	const config = layout.getCardConfig(effectiveCardKey);
 	const cardSpan = config.span ?? effectiveDefaultSpan;
 	const wrapperRef = useRef<HTMLDivElement | null>(null);
+	const [dropdownOpen, setDropdownOpen] = useState(false);
 
-	// Track number of currently-open dropdowns so the card stays "active" (showing
-	// hover-only controls) while a menu is being interacted with.
-	const [openDropdowns, setOpenDropdowns] = useState(0);
-	const cardActive = openDropdowns > 0;
-	const onDropdownOpenChange = useCallback((open: boolean) => {
-		setOpenDropdowns(c => Math.max(0, c + (open ? 1 : -1)));
-	}, []);
-
-	// Resize preview state: while dragging the resize handle we render a ghost
-	// at the proposed size and only commit the new span on mouse-up.
 	const [resizePreview, setResizePreview] = useState<{ span: 1 | 2 | 3 | 4, width: number, height: number } | null>(null);
 	const flipFromRef = useRef<{ width: number, height: number } | null>(null);
 
-	// FLIP animation: when `cardSpan` changes, animate the wrapper from its
-	// previously-recorded size to the new one. `flipFromRef` is set right before
-	// the state change that causes the new span to take effect.
 	useLayoutEffect(() => {
 		const from = flipFromRef.current;
 		const wrapper = wrapperRef.current;
 		flipFromRef.current = null;
 		if(from == null || wrapper == null) return;
 		const newRect = wrapper.getBoundingClientRect();
-		if(Math.abs(from.width - newRect.width) < 1 && Math.abs(from.height - newRect.height) < 1) return;
 		wrapper.animate(
 			[
 				{ width: `${from.width}px`, height: `${from.height}px` },
@@ -313,7 +281,7 @@ export function StatisticsCard(
 		flipFromRef.current = { width: rect.width, height: rect.height };
 	}, []);
 
-	if(config.hidden == true)
+	if(config.hidden)
 		return null;
 
 	const onCardDragStart = (e: React.DragEvent<HTMLDivElement>) => {
@@ -425,13 +393,11 @@ export function StatisticsCard(
 	return (
 		<div
 			ref={wrapperRef}
-			data-active={cardActive ? "true" : "false"}
+			data-active={dropdownOpen ? "true" : "false"}
 			className={cn(
 				"group/stat-card relative",
 				SPAN_CLASSES[cardSpan],
 				isDragging ? "opacity-40" : "",
-				// During resize, both the resizing card and all others are non-interactive — the
-				// resize itself is driven by window-level listeners so this is purely a UX guard.
 				isResizing ? "pointer-events-none" : "",
 				isLockedByOtherResize ? "pointer-events-none opacity-60" : ""
 			)}
@@ -440,14 +406,12 @@ export function StatisticsCard(
 			onDragLeave={onCardDragLeave}
 			onDrop={onCardDrop}
 		>
-			{/* Drop indicators rendered in the grid gap on either side of the card. */}
 			{showBeforeIndicator ? (
 				<div className="absolute left-[-7.5px] top-0 bottom-0 w-1 bg-primary rounded-full z-20 pointer-events-none shadow-[0_0_8px_var(--primary)]" aria-hidden />
 			) : null}
 			{showAfterIndicator ? (
 				<div className="absolute right-[-7.5px] top-0 bottom-0 w-1 bg-primary rounded-full z-20 pointer-events-none shadow-[0_0_8px_var(--primary)]" aria-hidden />
 			) : null}
-
 			<Card size="sm" className="h-full">
 				<CardHeader>
 					<div className="flex items-start gap-2">
@@ -467,7 +431,7 @@ export function StatisticsCard(
 							{description != null ? <CardDescription className="text-xs">{description}</CardDescription> : null}
 						</div>
 						<div className="flex items-center gap-0.5 opacity-0 group-hover/stat-card:opacity-100 group-data-[active=true]/stat-card:opacity-100 transition-opacity">
-							<DropdownMenu onOpenChange={onDropdownOpenChange}>
+							<DropdownMenu onOpenChange={v => setDropdownOpen(v)}>
 								<DropdownMenuTrigger asChild>
 									<Button type="button" size="icon" variant="ghost" className="size-6" title={`Size: ${SPAN_LABELS[cardSpan]}`}>
 										<span className="text-[10px] font-mono">{SPAN_LABELS[cardSpan].slice(0, 1)}</span>
@@ -498,9 +462,6 @@ export function StatisticsCard(
 					{skeleton ? <Skeleton className="h-20 w-full" /> : children}
 				</CardContent>
 			</Card>
-
-			{/* Resize handle on the card edge (only when not currently resizing — during resize the
-			    handle moves to the ghost so the user can keep dragging it past the original edge). */}
 			{!isResizing ? (
 				<div
 					className={cn(
@@ -511,8 +472,6 @@ export function StatisticsCard(
 					{resizeHandle}
 				</div>
 			) : null}
-
-			{/* Resize ghost: shows the proposed size while dragging the handle. */}
 			{resizePreview != null ? (
 				<div
 					className="absolute top-0 left-0 z-30 pointer-events-none rounded-xl border-2 border-dashed border-primary bg-primary/10 transition-[width,height] duration-150 ease-out"
@@ -532,15 +491,13 @@ export function StatisticsCard(
 	);
 }
 
-// === Loader =====================================================================================
-
 export function StatisticsLoader<T>(
 	{ queryKey, queryAction, refetchInterval = 60000, render }:
 	{
 		queryKey: readonly unknown[];
 		queryAction: () => Promise<T>;
 		refetchInterval?: number | false;
-		render: (data: T | null) => ReactNode;
+		render: (data: T) => ReactNode;
 	}
 ) {
 	const query = useQuery({
@@ -550,7 +507,7 @@ export function StatisticsLoader<T>(
 		refetchOnWindowFocus: true,
 		staleTime: 30000
 	});
-	if(query.isError && query.data == null) {
+	if(query.isError || query.data == null) {
 		return (
 			<Alert variant="destructive">
 				<CircleAlertIcon />
@@ -559,13 +516,8 @@ export function StatisticsLoader<T>(
 			</Alert>
 		);
 	}
-	// Always render the children so the section structure (layout config, card hide/show, drag
-	// handles) stays mounted across loading/refetch cycles. The children render skeletons inside
-	// each card when `data` is null.
-	return <>{render(query.data ?? null)}</>;
+	return <>{render(query.data)}</>;
 }
-
-// === Hooks ======================================================================================
 
 function useChartSize(targetHeight: number) {
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -582,8 +534,6 @@ function useChartSize(targetHeight: number) {
 	return { containerRef: containerRef, width: width, height: targetHeight };
 }
 
-// === Colors =====================================================================================
-
 const CHART_COLORS = [
 	"var(--chart-1)",
 	"var(--chart-2)",
@@ -591,24 +541,11 @@ const CHART_COLORS = [
 	"var(--chart-4)",
 	"var(--chart-5)"
 ];
-const STATUS_COLORS = {
-	approved: "var(--chart-3)",
-	pending: "var(--chart-1)",
-	rejected: "var(--destructive)",
-	active: "var(--chart-3)",
-	disabled: "var(--muted-foreground)",
-	create: "var(--chart-1)",
-	update: "var(--chart-2)",
-	delete: "var(--destructive)"
-};
-
-// === Number cards ===============================================================================
 
 function AnimatedCount(
 	{ value, className, formatter = formatCount }:
 	{ value: number, className?: string, formatter?: (v: number) => string }
 ) {
-	// Eases the displayed value toward `value` using a cubic ease-out curve.
 	const [displayed, setDisplayed] = useState(value);
 	const previousRef = useRef(value);
 	useEffect(() => {
@@ -636,8 +573,8 @@ function AnimatedCount(
 }
 
 export function StatNumber(
-	{ data, formatter = formatCount }:
-	{ data: StatNumberData, formatter?: (v: number) => string }
+	{ data, formatter }:
+	{ data: { value: number, subtext?: string }, formatter?: (v: number) => string }
 ) {
 	return (
 		<div className="flex flex-col gap-1">
@@ -651,50 +588,79 @@ export function StatNumber(
 
 export function StatReviewStatus(
 	{ data, onSegmentClick }:
-	{ data: StatReviewStatusData, onSegmentClick?: (segment: "approved" | "pending" | "rejected") => void }
+	{ data: { approved: number, pending: number, rejected: number }, onSegmentClick?: (segment: "approved" | "pending" | "rejected") => void }
 ) {
-	const total = data.approved + data.pending + data.rejected;
-	const items = [
-		{ key: "approved" as const, label: "Approved", value: data.approved, color: STATUS_COLORS.approved },
-		{ key: "pending" as const, label: "Pending", value: data.pending, color: STATUS_COLORS.pending },
-		{ key: "rejected" as const, label: "Rejected", value: data.rejected, color: STATUS_COLORS.rejected }
-	];
 	return (
 		<div className="flex flex-col gap-3">
 			<div className="bg-muted relative flex h-2 w-full overflow-hidden rounded-full">
-				{total > 0 ? items.map(item => item.value > 0 ? (
-					<div
-						key={item.key}
-						className="h-full transition-all duration-500"
-						style={{ width: `${(item.value / total) * 100}%`, backgroundColor: item.color }}
-					/>
-				) : null) : null}
+				<div
+					className="h-full transition-all duration-500 bg-chart-3"
+					style={{ width: `${data.approved * 100 / (data.approved + data.pending + data.rejected)}%` }}
+				/>
+				<div
+					className="h-full transition-all duration-500 bg-chart-1"
+					style={{ width: `${data.pending * 100 / (data.approved + data.pending + data.rejected)}%` }}
+				/>
+				<div
+					className="h-full transition-all duration-500 bg-destructive"
+					style={{ width: `${data.rejected * 100 / (data.approved + data.pending + data.rejected)}%` }}
+				/>
 			</div>
 			<div className="grid grid-cols-3 gap-2">
-				{items.map(item => (
-					<button
-						key={item.key}
-						type="button"
-						onClick={() => onSegmentClick?.(item.key)}
-						disabled={onSegmentClick == null}
-						className={cn(
-							"flex flex-col gap-1 text-left rounded-md p-1.5 -m-1.5 transition-colors",
-							onSegmentClick != null ? "hover:bg-muted/60 cursor-pointer" : ""
-						)}
-					>
-						<span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-							<span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
-							{item.label}
-						</span>
-						<AnimatedCount value={item.value} className="font-sans text-lg font-semibold leading-none tabular-nums" />
-					</button>
-				))}
+				<button
+					type="button"
+					onClick={() => onSegmentClick?.("approved")}
+					disabled={onSegmentClick == null}
+					className={cn(
+						"flex flex-col gap-1 text-left rounded-md p-1.5 -m-1.5 transition-colors",
+						onSegmentClick != null ? "hover:bg-muted/60 cursor-pointer" : ""
+					)}
+				>
+					<span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+						<span className="size-2 shrink-0 rounded-full bg-chart-3" />
+						Approved
+					</span>
+					<AnimatedCount value={data.approved} className="font-sans text-lg font-semibold leading-none tabular-nums" />
+				</button>
+				<button
+					type="button"
+					onClick={() => onSegmentClick?.("pending")}
+					disabled={onSegmentClick == null}
+					className={cn(
+						"flex flex-col gap-1 text-left rounded-md p-1.5 -m-1.5 transition-colors",
+						onSegmentClick != null ? "hover:bg-muted/60 cursor-pointer" : ""
+					)}
+				>
+					<span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+						<span className="size-2 shrink-0 rounded-full bg-chart-1" />
+						Pending
+					</span>
+					<AnimatedCount value={data.pending} className="font-sans text-lg font-semibold leading-none tabular-nums" />
+				</button>
+				<button
+					type="button"
+					onClick={() => onSegmentClick?.("rejected")}
+					disabled={onSegmentClick == null}
+					className={cn(
+						"flex flex-col gap-1 text-left rounded-md p-1.5 -m-1.5 transition-colors",
+						onSegmentClick != null ? "hover:bg-muted/60 cursor-pointer" : ""
+					)}
+				>
+					<span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+						<span className="size-2 shrink-0 rounded-full bg-destructive" />
+						Rejected
+					</span>
+					<AnimatedCount value={data.rejected} className="font-sans text-lg font-semibold leading-none tabular-nums" />
+				</button>
 			</div>
 		</div>
 	);
 }
 
-export function StatPendingReview({ data }: { data: StatPendingReviewData }) {
+export function StatPendingReview(
+	{ data }:
+	{ data: { count: number, oldestAgeMs: number | null, avgAgeMs: number | null } }
+) {
 	return (
 		<div className="flex flex-col gap-1">
 			<AnimatedCount value={data.count} className="text-3xl font-semibold leading-none font-sans tabular-nums" />
@@ -705,8 +671,6 @@ export function StatPendingReview({ data }: { data: StatPendingReviewData }) {
 		</div>
 	);
 }
-
-// === Tooltip overlay ============================================================================
 
 function ChartTooltip(
 	{ x, y, content, anchorTop = false }:
@@ -726,18 +690,15 @@ function ChartTooltip(
 	);
 }
 
-// === Donut ======================================================================================
-
 export function StatDonut(
 	{ data, onItemClick }:
-	{ data: StatBucketData, onItemClick?: (item: { key: string, label?: any, count: number, filterValue?: any }) => void }
+	{ data: { key: string, label: string, count: number }[], onItemClick?: (key: string) => void }
 ) {
-	const items = useMemo(() => data.items.map((item, i) => ({
+	const items = useMemo(() => data.map((item, i) => ({
 		key: item.key,
 		label: item.label ?? item.key,
 		count: item.count,
-		color: CHART_COLORS[i % CHART_COLORS.length],
-		filterValue: item.filterValue ?? item.key
+		color: CHART_COLORS[i % CHART_COLORS.length]
 	})), [data]);
 	const { containerRef, width } = useChartSize(180);
 	const size = Math.min(width, 180);
@@ -765,7 +726,7 @@ export function StatDonut(
 							style={{ opacity: hoverKey != null && hoverKey != a.item.key ? 0.6 : 1 }}
 							onMouseEnter={() => setHoverKey(a.item.key)}
 							onMouseLeave={() => setHoverKey(null)}
-							onClick={() => onItemClick?.({ key: a.item.key, label: a.item.label, count: a.item.count, filterValue: a.item.filterValue })}
+							onClick={() => onItemClick?.(a.item.key)}
 						>
 							<title>{`${a.item.label}: ${formatCount(a.item.count)}`}</title>
 						</path>
@@ -780,7 +741,7 @@ export function StatDonut(
 					<button
 						key={item.key}
 						type="button"
-						onClick={() => onItemClick?.({ key: item.key, label: item.label, count: item.count, filterValue: item.filterValue })}
+						onClick={() => onItemClick?.(item.key)}
 						onMouseEnter={() => setHoverKey(item.key)}
 						onMouseLeave={() => setHoverKey(null)}
 						disabled={onItemClick == null}
@@ -803,31 +764,25 @@ export function StatDonut(
 	);
 }
 
-// === Horizontal bar =============================================================================
-
 export function StatHorizontalBar(
-	{ data, maxItems = 10, onItemClick }:
-	{ data: StatBucketData, maxItems?: number, onItemClick?: (item: { key: string, label?: any, count: number, filterValue?: any }) => void }
+	{ data, onItemClick }:
+	{ data: { key: string, label: string, count: number }[], onItemClick?: (key: string) => void }
 ) {
-	const items = data.items.slice(0, maxItems);
-	const max = items.length > 0 ? Math.max(...items.map(i => i.count)) : 0;
+	const max = data.length > 0 ? Math.max(...data.map(i => i.count)) : 0;
 	return (
 		<div className="flex flex-col gap-2">
-			{items.length == 0 ? (
+			{data.length == 0 ? (
 				<span className="text-muted-foreground text-xs">No data</span>
-			) : items.map((item, i) => (
+			) : data.map((item, i) => (
 				<button
 					key={item.key}
 					type="button"
-					onClick={() => onItemClick?.({ key: item.key, label: item.label, count: item.count, filterValue: item.filterValue ?? item.key })}
+					onClick={() => onItemClick?.(item.key)}
 					disabled={onItemClick == null}
-					className={cn(
-						"group/row flex flex-col gap-1 rounded-md p-1 -m-1 text-left transition-colors",
-						onItemClick != null ? "hover:bg-muted/60 cursor-pointer" : ""
-					)}
+					className={cn("group/row flex flex-col gap-1 rounded-md p-1 -m-1 text-left transition-colors", onItemClick != null ? "hover:bg-muted/60 cursor-pointer" : "")}
 				>
 					<div className="flex items-center justify-between gap-2 text-xs">
-						<span className="truncate">{item.label ?? item.key}</span>
+						<span className="truncate">{item.label}</span>
 						<AnimatedCount value={item.count} className="font-sans font-semibold tabular-nums" />
 					</div>
 					<div className="bg-muted h-1.5 w-full overflow-hidden rounded-full">
@@ -842,27 +797,20 @@ export function StatHorizontalBar(
 	);
 }
 
-// === Bar chart (categorical) ====================================================================
-
 export function StatBar(
 	{ data, onItemClick }:
-	{ data: StatSeriesData | StatBucketData, onItemClick?: (item: { key: string, label?: any, count: number, filterValue?: any, bucketStart?: string, bucketEnd?: string }) => void }
+	{ data: { key: string, label: string, count: number }[], onItemClick?: (key: string) => void }
 ) {
-	const points = useMemo(() => {
-		if("points" in data)
-			return data.points.map(p => ({ key: p.bucket, label: p.bucket, count: p.count, filterValue: p.bucketStart ?? p.bucket, bucketStart: p.bucketStart, bucketEnd: p.bucketEnd }));
-		return data.items.map(i => ({ key: i.key, label: i.label ?? i.key, count: i.count, filterValue: i.filterValue ?? i.key, bucketStart: undefined, bucketEnd: undefined }));
-	}, [data]);
 	const [hoverKey, setHoverKey] = useState<string | null>(null);
 	const [tooltip, setTooltip] = useState<{ x: number, y: number, label: string, count: number } | null>(null);
 	const { containerRef, width, height } = useChartSize(160);
 	const margin = { top: 8, right: 8, bottom: 24, left: 32 };
 	const innerWidth = Math.max(0, width - margin.left - margin.right);
 	const innerHeight = Math.max(0, height - margin.top - margin.bottom);
-	const xScale = useMemo(() => d3.scaleBand().domain(points.map(p => p.key)).range([0, innerWidth]).padding(0.2), [points, innerWidth]);
-	const yMax = points.length > 0 ? Math.max(...points.map(p => p.count), 1) : 1;
+	const xScale = useMemo(() => d3.scaleBand().domain(data.map(p => p.key)).range([0, innerWidth]).padding(0.2), [data, innerWidth]);
+	const yMax = data.length > 0 ? Math.max(...data.map(p => p.count), 1) : 1;
 	const yScale = useMemo(() => d3.scaleLinear().domain([0, yMax]).nice().range([innerHeight, 0]), [yMax, innerHeight]);
-	const xTickStep = Math.max(1, Math.ceil(points.length / 8));
+	const xTickStep = Math.max(1, Math.ceil(data.length / 8));
 	const yTicks = yScale.ticks(4);
 	return (
 		<div ref={containerRef} className="w-full relative">
@@ -874,7 +822,7 @@ export function StatBar(
 							<text x={-6} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-[10px] tabular-nums">{formatCount(t)}</text>
 						</g>
 					))}
-					{points.map((p, i) => {
+					{data.map((p, i) => {
 						const x = xScale(p.key) ?? 0;
 						const y = yScale(p.count);
 						const isHover = hoverKey == p.key;
@@ -894,7 +842,7 @@ export function StatBar(
 											setTooltip({ x: ev.clientX - rect.left, y: y + margin.top - rect.top, label: p.label, count: p.count });
 									}}
 									onMouseLeave={() => { setHoverKey(null); setTooltip(null); }}
-									onClick={() => onItemClick?.({ key: p.key, label: p.label, count: p.count, filterValue: p.filterValue, bucketStart: p.bucketStart, bucketEnd: p.bucketEnd })}
+									onClick={() => onItemClick?.(p.key)}
 								/>
 								{i % xTickStep == 0 ? (
 									<text x={xScale.bandwidth() / 2} y={innerHeight + 14} textAnchor="middle" className="fill-muted-foreground text-[10px]">
@@ -913,25 +861,22 @@ export function StatBar(
 	);
 }
 
-// === Line chart with d3 brush ===================================================================
-
 export function StatLine(
 	{ data, onRangeSelect }:
-	{ data: StatSeriesData, onRangeSelect?: (range: { start: string, end: string }) => void }
+	{ data: { bucket: string, count: number, bucketStart?: string, bucketEnd?: string }[], onRangeSelect?: (rangeStart: string, rangeEnd: string) => void }
 ) {
-	const points = data.points;
 	const { containerRef, width, height } = useChartSize(160);
 	const margin = { top: 8, right: 8, bottom: 24, left: 32 };
 	const innerWidth = Math.max(0, width - margin.left - margin.right);
 	const innerHeight = Math.max(0, height - margin.top - margin.bottom);
-	const xScale = useMemo(() => d3.scalePoint().domain(points.map(p => p.bucket)).range([0, innerWidth]).padding(0.5), [points, innerWidth]);
-	const yMax = points.length > 0 ? Math.max(...points.map(p => p.count), 1) : 1;
+	const xScale = useMemo(() => d3.scalePoint().domain(data.map(p => p.bucket)).range([0, innerWidth]).padding(0.5), [data, innerWidth]);
+	const yMax = data.length > 0 ? Math.max(...data.map(p => p.count), 1) : 1;
 	const yScale = useMemo(() => d3.scaleLinear().domain([0, yMax]).nice().range([innerHeight, 0]), [yMax, innerHeight]);
-	const lineGenerator = useMemo(() => d3.line<typeof points[number]>().x(p => xScale(p.bucket) ?? 0).y(p => yScale(p.count)).curve(d3.curveMonotoneX), [xScale, yScale]);
-	const areaGenerator = useMemo(() => d3.area<typeof points[number]>().x(p => xScale(p.bucket) ?? 0).y0(innerHeight).y1(p => yScale(p.count)).curve(d3.curveMonotoneX), [xScale, yScale, innerHeight]);
-	const linePath = points.length > 0 ? lineGenerator(points) ?? "" : "";
-	const areaPath = points.length > 0 ? areaGenerator(points) ?? "" : "";
-	const tickStep = Math.max(1, Math.ceil(points.length / 6));
+	const lineGenerator = useMemo(() => d3.line<typeof data[number]>().x(p => xScale(p.bucket) ?? 0).y(p => yScale(p.count)).curve(d3.curveMonotoneX), [xScale, yScale]);
+	const areaGenerator = useMemo(() => d3.area<typeof data[number]>().x(p => xScale(p.bucket) ?? 0).y0(innerHeight).y1(p => yScale(p.count)).curve(d3.curveMonotoneX), [xScale, yScale, innerHeight]);
+	const linePath = data.length > 0 ? lineGenerator(data) ?? "" : "";
+	const areaPath = data.length > 0 ? areaGenerator(data) ?? "" : "";
+	const tickStep = Math.max(1, Math.ceil(data.length / 6));
 	const yTicks = yScale.ticks(4);
 	const gradientId = useId();
 
@@ -942,7 +887,7 @@ export function StatLine(
 
 	useEffect(() => {
 		const g = brushRef.current;
-		if(g == null || innerWidth <= 0 || innerHeight <= 0 || points.length == 0) return;
+		if(g == null || innerWidth <= 0 || innerHeight <= 0 || data.length == 0) return;
 		const brush = d3.brushX<unknown>()
 			.extent([[0, 0], [innerWidth, innerHeight]])
 			.on("brush", event => {
@@ -956,36 +901,32 @@ export function StatLine(
 				}
 				const [lo, hi] = event.selection as [number, number];
 				if(onRangeSelect == null) return;
-				const inRange = points.map((p, i) => ({ p, i, x: xScale(p.bucket) ?? 0 })).filter(c => c.x >= lo && c.x <= hi);
+				const inRange = data.map((p, i) => ({ p, i, x: xScale(p.bucket) ?? 0 })).filter(c => c.x >= lo && c.x <= hi);
 				if(inRange.length == 0) return;
 				const startPoint = inRange[0].p;
 				const endPoint = inRange[inRange.length - 1].p;
-				onRangeSelect({
-					start: startPoint.bucketStart ?? startPoint.bucket,
-					end: endPoint.bucketEnd ?? endPoint.bucket
-				});
+				onRangeSelect(startPoint.bucketStart ?? startPoint.bucket, endPoint.bucketEnd ?? endPoint.bucket);
 				d3.select(g).call(brush.move, null);
 			});
 		const sel = d3.select(g);
 		sel.call(brush);
-		// Hide the default brush-overlay grab cursor when this chart isn't interactive.
 		if(onRangeSelect == null)
 			sel.selectAll(".overlay").style("cursor", "default");
 		return () => {
 			sel.on(".brush", null);
 			sel.selectAll("*").remove();
 		};
-	}, [innerWidth, innerHeight, points, xScale, onRangeSelect]);
+	}, [innerWidth, innerHeight, data, xScale, onRangeSelect]);
 
 	const onMouseMove = (e: ReactMouseEvent<SVGSVGElement>) => {
-		if(points.length == 0) return;
+		if(data.length == 0) return;
 		const svg = e.currentTarget;
 		const rect = svg.getBoundingClientRect();
 		const relX = e.clientX - rect.left - margin.left;
 		let nearest = 0;
 		let nearestDist = Infinity;
-		for(let i = 0; i < points.length; i++) {
-			const x = xScale(points[i].bucket) ?? 0;
+		for(let i = 0; i < data.length; i++) {
+			const x = xScale(data[i].bucket) ?? 0;
 			const d = Math.abs(x - relX);
 			if(d < nearestDist) {
 				nearestDist = d;
@@ -995,9 +936,9 @@ export function StatLine(
 		setHoverIdx(nearest);
 		const containerRect = (containerRef.current as HTMLElement | null)?.getBoundingClientRect();
 		if(containerRect != null) {
-			const x = (xScale(points[nearest].bucket) ?? 0) + margin.left;
-			const y = yScale(points[nearest].count) + margin.top;
-			setTooltip({ x: x, y: y, label: points[nearest].bucket, count: points[nearest].count });
+			const x = (xScale(data[nearest].bucket) ?? 0) + margin.left;
+			const y = yScale(data[nearest].count) + margin.top;
+			setTooltip({ x: x, y: y, label: data[nearest].bucket, count: data[nearest].count });
 		}
 	};
 	const onMouseLeave = () => {
@@ -1029,7 +970,7 @@ export function StatLine(
 					))}
 					<path d={areaPath} fill={`url(#${gradientId})`} pointerEvents="none" />
 					<path d={linePath} fill="none" stroke="var(--chart-1)" strokeWidth={1.5} className="transition-all duration-300" pointerEvents="none" />
-					{points.map((p, i) => {
+					{data.map((p, i) => {
 						const x = xScale(p.bucket) ?? 0;
 						const y = yScale(p.count);
 						const isHover = hoverIdx == i;
@@ -1047,8 +988,8 @@ export function StatLine(
 					})}
 					{hoverIdx != null ? (
 						<line
-							x1={xScale(points[hoverIdx].bucket) ?? 0}
-							x2={xScale(points[hoverIdx].bucket) ?? 0}
+							x1={xScale(data[hoverIdx].bucket) ?? 0}
+							x2={xScale(data[hoverIdx].bucket) ?? 0}
 							y1={0}
 							y2={innerHeight}
 							className="stroke-foreground/40"
@@ -1056,7 +997,7 @@ export function StatLine(
 							pointerEvents="none"
 						/>
 					) : null}
-					{points.map((p, i) => i % tickStep == 0 ? (
+					{data.map((p, i) => i % tickStep == 0 ? (
 						<text key={p.bucket} x={xScale(p.bucket) ?? 0} y={innerHeight + 14} textAnchor="middle" className="fill-muted-foreground text-[10px]" pointerEvents="none">
 							{p.bucket.length > 5 ? p.bucket.slice(5) : p.bucket}
 						</text>
@@ -1071,27 +1012,18 @@ export function StatLine(
 	);
 }
 
-// === Histogram ==================================================================================
-
 export function StatHistogram(
 	{ data, onBinClick }:
-	{ data: StatHistogramData, onBinClick?: (bin: { binStart: number, binEnd: number, count: number, label?: string | null }) => void }
+	{ data: { binStart: number, binEnd: number, count: number, label: string }[], onBinClick: (binStart: number, binEnd: number) => void }
 ) {
-	const points = useMemo(() => data.bins.map(b => ({
-		key: b.label ?? `${b.binStart}-${b.binEnd}`,
-		label: b.label ?? formatBinLabel(b.binStart, b.binEnd),
-		count: b.count,
-		binStart: b.binStart,
-		binEnd: b.binEnd
-	})), [data]);
 	const [hoverKey, setHoverKey] = useState<string | null>(null);
 	const [tooltip, setTooltip] = useState<{ x: number, y: number, label: string, count: number } | null>(null);
 	const { containerRef, width, height } = useChartSize(160);
 	const margin = { top: 8, right: 8, bottom: 24, left: 32 };
 	const innerWidth = Math.max(0, width - margin.left - margin.right);
 	const innerHeight = Math.max(0, height - margin.top - margin.bottom);
-	const xScale = useMemo(() => d3.scaleBand().domain(points.map(p => p.key)).range([0, innerWidth]).padding(0.1), [points, innerWidth]);
-	const yMax = points.length > 0 ? Math.max(...points.map(p => p.count), 1) : 1;
+	const xScale = useMemo(() => d3.scaleBand().domain(data.map((_, i) => `${i}`)).range([0, innerWidth]).padding(0.1), [data, innerWidth]);
+	const yMax = data.length > 0 ? Math.max(...data.map(p => p.count), 1) : 1;
 	const yScale = useMemo(() => d3.scaleLinear().domain([0, yMax]).nice().range([innerHeight, 0]), [yMax, innerHeight]);
 	const yTicks = yScale.ticks(4);
 	return (
@@ -1104,12 +1036,12 @@ export function StatHistogram(
 							<text x={-6} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-[10px] tabular-nums">{formatCount(t)}</text>
 						</g>
 					))}
-					{points.map((p, i) => {
-						const x = xScale(p.key) ?? 0;
+					{data.map((p, i) => {
+						const x = xScale(`${i}`) ?? 0;
 						const y = yScale(p.count);
-						const isHover = hoverKey == p.key;
+						const isHover = hoverKey == `${i}`;
 						return (
-							<g key={p.key}>
+							<g key={`${i}`}>
 								<rect
 									x={x}
 									y={y - (isHover ? 2 : 0)}
@@ -1118,13 +1050,13 @@ export function StatHistogram(
 									className={cn("transition-all duration-200", onBinClick != null ? "cursor-pointer" : "")}
 									style={{ fill: CHART_COLORS[i % CHART_COLORS.length], opacity: hoverKey != null && !isHover ? 0.5 : 1 }}
 									onMouseEnter={ev => {
-										setHoverKey(p.key);
+										setHoverKey(`${i}`);
 										const rect = (ev.currentTarget.ownerSVGElement?.parentElement)?.getBoundingClientRect();
 										if(rect != null)
 											setTooltip({ x: ev.clientX - rect.left, y: y + margin.top - rect.top, label: p.label, count: p.count });
 									}}
 									onMouseLeave={() => { setHoverKey(null); setTooltip(null); }}
-									onClick={() => onBinClick?.({ binStart: p.binStart, binEnd: p.binEnd, count: p.count, label: p.label })}
+									onClick={() => onBinClick?.(p.binStart, p.binEnd)}
 								/>
 								<text x={x + xScale.bandwidth() / 2} y={innerHeight + 14} textAnchor="middle" className="fill-muted-foreground text-[10px]" pointerEvents="none">
 									{p.label.length > 8 ? p.label.slice(0, 7) + "…" : p.label}
@@ -1141,30 +1073,28 @@ export function StatHistogram(
 	);
 }
 
-// === Heatmap ====================================================================================
-
 export function StatHeatmap(
-	{ data, onCellClick }:
-	{ data: StatHeatmapData, onCellClick?: (cell: { x: number, y: number, count: number, xLabel: string, yLabel: string }) => void }
+	{ data, onCellClick, xLabels, yLabels }:
+	{ data: { x: number, y: number, count: number }[], xLabels: string[], yLabels: string[], onCellClick?: (x: number, y: number) => void }
 ) {
 	const { containerRef, width, height } = useChartSize(180);
 	const margin = { top: 8, right: 8, bottom: 24, left: 36 };
 	const innerWidth = Math.max(0, width - margin.left - margin.right);
 	const innerHeight = Math.max(0, height - margin.top - margin.bottom);
-	const cellWidth = innerWidth / Math.max(1, data.xLabels.length);
-	const cellHeight = innerHeight / Math.max(1, data.yLabels.length);
-	const maxCount = data.cells.length > 0 ? Math.max(...data.cells.map(c => c.count), 1) : 1;
-	const xTickStep = Math.max(1, Math.ceil(data.xLabels.length / 6));
+	const cellWidth = innerWidth / Math.max(1, xLabels.length);
+	const cellHeight = innerHeight / Math.max(1, yLabels.length);
+	const maxCount = data.length > 0 ? Math.max(...data.map(c => c.count), 1) : 1;
+	const xTickStep = Math.max(1, Math.ceil(xLabels.length / 6));
 	const [hoverCell, setHoverCell] = useState<{ x: number, y: number } | null>(null);
 	const [tooltip, setTooltip] = useState<{ x: number, y: number, label: string, count: number } | null>(null);
 	return (
 		<div ref={containerRef} className="w-full relative">
 			<svg width={width} height={height} className="overflow-visible">
 				<g transform={`translate(${margin.left},${margin.top})`}>
-					{data.yLabels.map((yl, yi) => (
+					{yLabels.map((yl, yi) => (
 						<text key={yl} x={-6} y={yi * cellHeight + cellHeight / 2} dy="0.32em" textAnchor="end" className="fill-muted-foreground text-[10px]">{yl}</text>
 					))}
-					{data.cells.map(c => {
+					{data.map(c => {
 						const cx = c.x * cellWidth;
 						const cy = c.y * cellHeight;
 						const isHover = hoverCell?.x == c.x && hoverCell?.y == c.y;
@@ -1186,15 +1116,15 @@ export function StatHeatmap(
 										setHoverCell({ x: c.x, y: c.y });
 										const rect = (ev.currentTarget.ownerSVGElement?.parentElement)?.getBoundingClientRect();
 										if(rect != null)
-											setTooltip({ x: cx + w / 2 + margin.left, y: cy + margin.top, label: `${data.yLabels[c.y]} ${data.xLabels[c.x]}`, count: c.count });
+											setTooltip({ x: cx + w / 2 + margin.left, y: cy + margin.top, label: `${yLabels[c.y]} ${xLabels[c.x]}`, count: c.count });
 									}}
 									onMouseLeave={() => { setHoverCell(null); setTooltip(null); }}
-									onClick={() => onCellClick?.({ x: c.x, y: c.y, count: c.count, xLabel: data.xLabels[c.x], yLabel: data.yLabels[c.y] })}
+									onClick={() => onCellClick?.(c.x, c.y)}
 								/>
 							</g>
 						);
 					})}
-					{data.xLabels.map((xl, xi) => xi % xTickStep == 0 ? (
+					{xLabels.map((xl, xi) => xi % xTickStep == 0 ? (
 						<text key={xl} x={xi * cellWidth + cellWidth / 2} y={innerHeight + 14} textAnchor="middle" className="fill-muted-foreground text-[10px]" pointerEvents="none">{xl}</text>
 					) : null)}
 				</g>
@@ -1205,8 +1135,6 @@ export function StatHeatmap(
 		</div>
 	);
 }
-
-// === Formatters =================================================================================
 
 export function formatCount(value: number): string {
 	if(!Number.isFinite(value)) return "-";
@@ -1228,16 +1156,6 @@ export function formatDuration(ms: number): string {
 	return `${Math.round(days)}d`;
 }
 
-function formatBinLabel(binStart: number, binEnd: number): string {
-	if(!Number.isFinite(binEnd)) return `≥${formatCount(binStart)}`;
-	return `${formatCount(binStart)}-${formatCount(binEnd)}`;
-}
-
-// === Common composite renderers =================================================================
-
-// Card metadata for each Common*Cards component. Menu pages combine these with their
-// menu-specific cards and pass the result to `useStatisticsVisibleKeys` to determine which
-// statistics keys to request from the server.
 export const commonReviewableViewerCardDefinitions = Object.freeze([
 	{ key: "currentFiltered" },
 	{ key: "reviewStatus" },
@@ -1541,8 +1459,6 @@ export function CommonLogReportingCards(
 						<StatHeatmap
 							data={data.hourDayHeatmap}
 							onCellClick={cell => {
-								// Resolve to the most recent occurrence of (dow, hour) in the past then filter to that
-								// 1-hour range. The cell's xLabel is the hour ("HH"), yLabel is the dow short name.
 								const targetHour = Number(cell.xLabel);
 								const targetDow = data.hourDayHeatmap!.yLabels.indexOf(cell.yLabel);
 								const now = new Date();

@@ -18,14 +18,8 @@ import {
 import { resolveRelationUsers } from "./relation-navigation.actions";
 import type { MenuFilterState } from "./layout.components";
 import type { RelationUser } from "./relation-navigation.shared";
-import type {
-	StatSeriesPoint,
-	StatHistogramBin
-} from "./statistics.shared";
 
 type StatRelationValues = Partial<Record<`users:${string}`, RelationUser>>;
-
-// === Reviewable helpers =========================================================================
 
 async function computeFilteredCount(
 	{ payload, collectionSlug, baseFilters, additionalWhere }:
@@ -48,8 +42,6 @@ async function computeReviewableCurrentFiltered(
 	{ payload, collectionSlug, filters }:
 	{ payload: Payload, collectionSlug: CollectionSlug, filters?: MenuFilterState[] }
 ) {
-	// "Current filtered" total uses the exact filters the user has applied; deletion stats split
-	// the same set of filters into deleted vs not-deleted.
 	const [active, deleted] = await Promise.all([
 		computeFilteredCount({ payload, collectionSlug, baseFilters: filters, additionalWhere: { deletedAt: { exists: false } } }),
 		computeFilteredCount({ payload, collectionSlug, baseFilters: filters, additionalWhere: { deletedAt: { exists: true } } })
