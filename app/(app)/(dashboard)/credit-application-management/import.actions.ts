@@ -13,6 +13,11 @@ import type { CreditApplicationImport } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationUser } from "../relation-navigation.shared";
+import {
+	computeStatsRelationAvgChildCountBySql,
+	getCommonReviewableViewerStats,
+	getCommonReviewableApproverStats
+} from "../statistics.actions";
 
 const PAGE_LIMIT = 20;
 const templateColumns = [
@@ -277,6 +282,46 @@ export const queryEditorAction = wsa(async (p: Omit<Parameters<typeof queryActio
 export const queryApproverAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "approver" });
 });
+
+export const getViewerStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "credit-application-imports", filters, keys }),
+		computeStatisticExtras({ keys })
+	]);
+	return { ...common, ...extras };
+});
+export const getEditorStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "credit-application-imports", filters, keys }),
+		computeStatisticExtras({ keys })
+	]);
+	return { ...common, ...extras };
+});
+export const getApproverStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => await uwsa(getCommonReviewableApproverStats)({ collectionSlug: "credit-application-imports", filters, keys }));
+
+async function computeStatisticExtras(
+	{ keys }:
+	{ keys: string[] }
+) {
+	if(!keys.includes("avgRecordCount"))
+		return { avgRecordCount: undefined };
+	const { avg } = await uwsa(computeStatsRelationAvgChildCountBySql)({
+		relationTableName: "credit_applications",
+		groupByColumn: "import_id",
+		requireGroupByColumnNotNull: true,
+		requireDeletedAtIsNull: true
+	});
+	return { avgRecordCount: { value: Math.round(avg ?? 0), subtext: "Avg records per import" } };
+}
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();

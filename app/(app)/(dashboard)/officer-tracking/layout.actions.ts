@@ -12,6 +12,7 @@ import { GpsLog } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks } from "../relation-navigation.actions";
 import { RelationUser, RelationOfficerTask } from "../relation-navigation.shared";
+import { getCommonLogMonitoringStats, getCommonLogReportingStats } from "../statistics.actions";
 
 const PAGE_LIMIT = 20;
 const MAP_USER_LIMIT = 200;
@@ -222,6 +223,13 @@ export const queryReportingAction = wsa(async (
 ) => {
 	return await queryAction({ mode: "reporting", periodStart, periodEnd, keyword, filters, columnsSort, pageIndex });
 });
+
+export const getMonitoringStatisticsAction = wsa(async (
+	{ filters, keys }: { filters: MenuFilterState[], keys: string[] }
+) => await uwsa(getCommonLogMonitoringStats)({ collectionSlug: "gps-logs", filters, keys }));
+export const getReportingStatisticsAction = wsa(async (
+	{ filters, keys }: { filters: MenuFilterState[], keys: string[] }
+) => await uwsa(getCommonLogReportingStats)({ collectionSlug: "gps-logs", filters, keys }));
 
 export const getDetailsAction = wsa(async (
 	{ userId, periodStart, periodEnd }:

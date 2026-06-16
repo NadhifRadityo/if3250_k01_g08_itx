@@ -140,6 +140,176 @@ export const maskOptionsMap = Object.freeze({
 	"date": dateMaskOptions
 });
 
+export type MaskFieldType = keyof typeof maskOptionsMap;
+const splitWords = (text: string) => text.trim().split(/\s+/).filter(w => w.length > 0);
+const splitSentences = (text: string) => text.trim().split(/(?<=[.!?])\s+/).filter(s => s.length > 0);
+const splitName = (text: string) => {
+	const parts = splitWords(text);
+	if(parts.length == 0) return { first: "", middle: "", last: "" };
+	if(parts.length == 1) return { first: parts[0], middle: "", last: "" };
+	if(parts.length == 2) return { first: parts[0], middle: "", last: parts[1] };
+	return { first: parts[0], middle: parts.slice(1, -1).join(" "), last: parts[parts.length - 1] };
+};
+const splitEmail = (text: string) => {
+	const at = text.lastIndexOf("@");
+	if(at < 0) return { username: text, domain: "" };
+	return { username: text.slice(0, at), domain: text.slice(at + 1) };
+};
+const splitDigits = (text: string) => text.match(/\d/g)?.join("") ?? "";
+const phoneCountryCode = (text: string) => {
+	const m = text.match(/^\s*(\+?\d{1,4})/);
+	return m?.[1] ?? "";
+};
+const redactName = (mask: string, value: string): string | null => {
+	const { first, middle, last } = splitName(value);
+	switch(mask) {
+		case "showFirstNameOnly": return first || null;
+		case "showMiddleNameOnly": return middle || null;
+		case "showLastNameOnly": return last || null;
+		case "showFirstNameAndLastNameOnly": return [first, last].filter(Boolean).join(" ") || null;
+		case "showFirstNameAndMiddleNameOnly": return [first, middle].filter(Boolean).join(" ") || null;
+		case "showMiddleNameAndLastNameOnly": return [middle, last].filter(Boolean).join(" ") || null;
+		case "show1CharacterFirstName": return first.slice(0, 1) || null;
+		case "show2CharactersFirstName": return first.slice(0, 2) || null;
+		case "show3CharactersFirstName": return first.slice(0, 3) || null;
+		case "show1CharacterMiddleName": return middle.slice(0, 1) || null;
+		case "show2CharactersMiddleName": return middle.slice(0, 2) || null;
+		case "show3CharactersMiddleName": return middle.slice(0, 3) || null;
+		case "show1CharacterLastName": return last.slice(0, 1) || null;
+		case "show2CharactersLastName": return last.slice(0, 2) || null;
+		case "show3CharactersLastName": return last.slice(0, 3) || null;
+		case "showFirstNameAnd1CharacterLastName": return [first, last.slice(0, 1)].filter(Boolean).join(" ") || null;
+		case "showFirstNameAnd2CharactersLastName": return [first, last.slice(0, 2)].filter(Boolean).join(" ") || null;
+		case "showFirstNameAnd3CharactersLastName": return [first, last.slice(0, 3)].filter(Boolean).join(" ") || null;
+		case "show1CharacterFirstNameAndLastName": return [first.slice(0, 1), last].filter(Boolean).join(" ") || null;
+		case "show2CharactersFirstNameAndLastName": return [first.slice(0, 2), last].filter(Boolean).join(" ") || null;
+		case "show3CharactersFirstNameAndLastName": return [first.slice(0, 3), last].filter(Boolean).join(" ") || null;
+		default: return null;
+	}
+};
+const redactEmail = (mask: string, value: string): string | null => {
+	const { username, domain } = splitEmail(value);
+	switch(mask) {
+		case "showUsernameOnly": return username || null;
+		case "showDomainOnly": return domain || null;
+		case "show1CharacterUsername": return username.slice(0, 1) || null;
+		case "show2CharactersUsername": return username.slice(0, 2) || null;
+		case "show3CharactersUsername": return username.slice(0, 3) || null;
+		case "showLast1CharacterUsername": return username.slice(-1) || null;
+		case "showLast2CharactersUsername": return username.slice(-2) || null;
+		case "showLast3CharactersUsername": return username.slice(-3) || null;
+		case "show1CharacterDomain": return domain.slice(0, 1) || null;
+		case "show2CharactersDomain": return domain.slice(0, 2) || null;
+		case "show3CharactersDomain": return domain.slice(0, 3) || null;
+		case "showLast1CharacterDomain": return domain.slice(-1) || null;
+		case "showLast2CharactersDomain": return domain.slice(-2) || null;
+		case "showLast3CharactersDomain": return domain.slice(-3) || null;
+		case "show1CharacterUsernameAndDomain": return username && domain ? `${username.slice(0, 1)}@${domain.slice(0, 1)}` : null;
+		case "show2CharactersUsernameAndDomain": return username && domain ? `${username.slice(0, 2)}@${domain.slice(0, 2)}` : null;
+		case "show3CharactersUsernameAndDomain": return username && domain ? `${username.slice(0, 3)}@${domain.slice(0, 3)}` : null;
+		default: return null;
+	}
+};
+const redactText = (mask: string, value: string): string | null => {
+	const words = splitWords(value);
+	const sentences = splitSentences(value);
+	switch(mask) {
+		case "showFirst1Character": return value.slice(0, 1) || null;
+		case "showFirst2Characters": return value.slice(0, 2) || null;
+		case "showFirst3Characters": return value.slice(0, 3) || null;
+		case "showFirst5Characters": return value.slice(0, 5) || null;
+		case "showFirst10Characters": return value.slice(0, 10) || null;
+		case "showLast1Character": return value.slice(-1) || null;
+		case "showLast2Characters": return value.slice(-2) || null;
+		case "showLast3Characters": return value.slice(-3) || null;
+		case "showLast5Characters": return value.slice(-5) || null;
+		case "showLast10Characters": return value.slice(-10) || null;
+		case "showFirst1CharacterAndLast1Character": return value.length >= 2 ? `${value.slice(0, 1)}${value.slice(-1)}` : value || null;
+		case "showFirst2CharactersAndLast2Characters": return value.length >= 4 ? `${value.slice(0, 2)}${value.slice(-2)}` : value || null;
+		case "showFirst3CharactersAndLast3Characters": return value.length >= 6 ? `${value.slice(0, 3)}${value.slice(-3)}` : value || null;
+		case "showFirst5CharactersAndLast5Characters": return value.length >= 10 ? `${value.slice(0, 5)}${value.slice(-5)}` : value || null;
+		case "showFirst10CharactersAndLast10Characters": return value.length >= 20 ? `${value.slice(0, 10)}${value.slice(-10)}` : value || null;
+		case "showFirstWordOnly": return words[0] ?? null;
+		case "showLastWordOnly": return words[words.length - 1] ?? null;
+		case "showFirst2Words": return words.slice(0, 2).join(" ") || null;
+		case "showLast2Words": return words.slice(-2).join(" ") || null;
+		case "showFirst3Words": return words.slice(0, 3).join(" ") || null;
+		case "showLast3Words": return words.slice(-3).join(" ") || null;
+		case "showFirst5Words": return words.slice(0, 5).join(" ") || null;
+		case "showLast5Words": return words.slice(-5).join(" ") || null;
+		case "showFirst10Words": return words.slice(0, 10).join(" ") || null;
+		case "showLast10Words": return words.slice(-10).join(" ") || null;
+		case "showFirstSentenceOnly": return sentences[0] ?? null;
+		case "showLastSentenceOnly": return sentences[sentences.length - 1] ?? null;
+		default: return null;
+	}
+};
+const redactNumber = (mask: string, value: string): string | null => {
+	const digits = splitDigits(value);
+	switch(mask) {
+		case "showFirst1Digit": return digits.slice(0, 1) || null;
+		case "showFirst2Digits": return digits.slice(0, 2) || null;
+		case "showFirst3Digits": return digits.slice(0, 3) || null;
+		case "showLast1Digit": return digits.slice(-1) || null;
+		case "showLast2Digits": return digits.slice(-2) || null;
+		case "showLast3Digits": return digits.slice(-3) || null;
+		default: return null;
+	}
+};
+const redactPhoneNumber = (mask: string, value: string): string | null => {
+	const digits = splitDigits(value);
+	const cc = phoneCountryCode(value);
+	switch(mask) {
+		case "showFirst3Digits": return digits.slice(0, 3) || null;
+		case "showFirst4Digits": return digits.slice(0, 4) || null;
+		case "showFirst5Digits": return digits.slice(0, 5) || null;
+		case "showLast3Digits": return digits.slice(-3) || null;
+		case "showLast4Digits": return digits.slice(-4) || null;
+		case "showLast5Digits": return digits.slice(-5) || null;
+		case "showCountryCodeOnly": return cc || null;
+		case "showCountryCodeAndLast3Digits": return cc && digits ? `${cc} ${digits.slice(-3)}` : null;
+		case "showCountryCodeAndLast4Digits": return cc && digits ? `${cc} ${digits.slice(-4)}` : null;
+		case "showCountryCodeAndFirst3Digits": return cc && digits ? `${cc} ${digits.slice(0, 3)}` : null;
+		case "showCountryCodeAndFirst4Digits": return cc && digits ? `${cc} ${digits.slice(0, 4)}` : null;
+		default: return null;
+	}
+};
+const redactDate = (mask: string, value: any): any => {
+	const d = value instanceof Date ? value : new Date(value);
+	if(isNaN(d.getTime())) return null;
+	switch(mask) {
+		case "showYearOnly": return d.getUTCFullYear();
+		case "showMonthOnly": return d.getUTCMonth() + 1;
+		case "showDayOnly": return d.getUTCDate();
+		case "showMonthAndYear": return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+		case "showDayAndMonth": return `${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+		case "showQuarterOnly": return Math.floor(d.getUTCMonth() / 3) + 1;
+		case "showWeekOnly": {
+			const start = Date.UTC(d.getUTCFullYear(), 0, 1);
+			const day = Math.floor((d.getTime() - start) / 86400000);
+			return Math.floor(day / 7) + 1;
+		}
+		default: return null;
+	}
+};
+export function redactField(type: MaskFieldType, mask: string, value: any): any {
+	if(mask == "hide" || value == null) return null;
+	if(mask == "show") return value;
+	switch(type) {
+		case "name": return redactName(mask, String(value));
+		case "email": return redactEmail(mask, String(value));
+		case "text": return redactText(mask, String(value));
+		case "number": return redactNumber(mask, String(value));
+		case "phoneNumber": return redactPhoneNumber(mask, String(value));
+		case "date": return redactDate(mask, value);
+		case "generic":
+		case "relation":
+		case "richText":
+		case "select":
+		default: return null;
+	}
+}
+
 export const operationSelectOptions = Object.freeze([
 	{ value: "union", label: "Union" },
 	{ value: "difference", label: "Difference" },

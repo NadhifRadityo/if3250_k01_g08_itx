@@ -24,7 +24,8 @@ import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { searchRelationRolesAction, searchRelationUsersAction, searchRelationStagedUsersAction, searchRelationUsersByRoleLevelAction } from "../relation-navigation.actions";
 import { defaultRelationRoleRenderer, defaultRelationUserRenderer } from "../relation-navigation.components";
 import { filterConfigColumns as roleFilterConfigColumns } from "../role-management/layout.components";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { StatDonut, StatHorizontalBar, StatisticsCard, StatisticsLoader, StatisticsSection, CommonReviewableViewerCards, CommonReviewableApproverCards, commonReviewableViewerCardDefinitions, commonReviewableApproverCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, getViewerStatisticsAction, getApproverStatisticsAction } from "./layout.actions";
 
 export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const userByRoleFilterConfigColumns = (roleLevel: "admin" | "manager" | "supervisor" | "officer") => Object.freeze([
@@ -807,5 +808,97 @@ export function RestoreDeletionDialog(
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function ViewerStatistics({ filters, onFiltersChange }: { filters: import("../layout.components").MenuFilterState[], onFiltersChange: (v: import("../layout.components").MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "user-management.viewer",
+		cards: [...commonReviewableViewerCardDefinitions, { key: "byRole" }, { key: "supervisorCoverage" }, { key: "topSupervisors" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["user-management", "viewer", filters, keys]}
+			queryAction={() => uwsa(getViewerStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="user-management.viewer">
+					<CommonReviewableViewerCards data={data} totalLabel="Total Users" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.byRole != null && data.byRole.items.length > 0) ? (
+						<StatisticsCard cardKey="byRole" title="By Role" defaultSpan={2} skeleton={data == null}>
+							{data?.byRole != null ? (
+								<StatHorizontalBar
+									data={{ ...data.byRole, items: data.byRole.items.map(i => ({ ...i, label: data.relations[`roles:${i.key}`]?.name ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "role" || f.operator != "equals"),
+										{ columnKey: "role", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || data.supervisorCoverage != null ? (
+						<StatisticsCard cardKey="supervisorCoverage" title="Supervisor Coverage" skeleton={data == null}>
+							{data?.supervisorCoverage != null ? (
+								<StatDonut
+									data={{ items: [
+										{ key: "with", label: "With Supervisor", count: data.supervisorCoverage.withSupervisor, filterValue: true },
+										{ key: "without", label: "Without Supervisor", count: data.supervisorCoverage.withoutSupervisor, filterValue: false }
+									] }}
+									// "Has supervisor or not" maps to an `exists` operator (not the default `equals`).
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "supervisor" || f.operator != "exists"),
+										{ columnKey: "supervisor", operator: "exists", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.topSupervisors != null && data.topSupervisors.items.length > 0) ? (
+						<StatisticsCard cardKey="topSupervisors" title="Top Supervisors" defaultSpan={2} skeleton={data == null}>
+							{data?.topSupervisors != null ? (
+								<StatHorizontalBar
+									data={{ ...data.topSupervisors, items: data.topSupervisors.items.map(i => ({ ...i, label: data.relations[`users:${i.key}`]?.name ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "supervisor" || f.operator != "equals"),
+										{ columnKey: "supervisor", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ApproverStatistics({ filters, onFiltersChange }: { filters: import("../layout.components").MenuFilterState[], onFiltersChange: (v: import("../layout.components").MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "user-management.approver",
+		cards: [...commonReviewableApproverCardDefinitions, { key: "pendingByRole" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["user-management", "approver", filters, keys]}
+			queryAction={() => uwsa(getApproverStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="user-management.approver">
+					<CommonReviewableApproverCards data={data} filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.pendingByRole != null && data.pendingByRole.items.length > 0) ? (
+						<StatisticsCard cardKey="pendingByRole" title="Pending — By Role" defaultSpan={2} skeleton={data == null}>
+							{data?.pendingByRole != null ? (
+								<StatHorizontalBar
+									data={{ ...data.pendingByRole, items: data.pendingByRole.items.map(i => ({ ...i, label: data.relations[`roles:${i.key}`]?.name ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "role" || f.operator != "equals"),
+										{ columnKey: "role", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
 	);
 }

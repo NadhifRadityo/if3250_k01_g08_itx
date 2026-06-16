@@ -18,12 +18,13 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Role } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { searchRelationRolesAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
+import { StatNumber, StatDonut, StatisticsCard, StatisticsLoader, StatisticsSection, CommonReviewableViewerCards, CommonReviewableApproverCards, commonReviewableViewerCardDefinitions, commonReviewableApproverCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, getViewerStatisticsAction, getApproverStatisticsAction } from "./layout.actions";
 import { levelSelectOptions, menusSelectOptions } from "./layout.shared";
 
 export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
@@ -733,5 +734,72 @@ export function RestoreDeletionDialog(
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function ViewerStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "role-management.viewer",
+		cards: [...commonReviewableViewerCardDefinitions, { key: "byLevel" }, { key: "avgMenuCount" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["role-management", "viewer", filters, keys]}
+			queryAction={() => uwsa(getViewerStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="role-management.viewer">
+					<CommonReviewableViewerCards data={data} totalLabel="Total Roles" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.byLevel != null && data.byLevel.items.length > 0) ? (
+						<StatisticsCard cardKey="byLevel" title="By Level" skeleton={data == null}>
+							{data?.byLevel != null ? (
+								<StatDonut
+									data={{ ...data.byLevel, items: data.byLevel.items.map(i => ({ ...i, label: levelSelectOptions.find(o => o.value == i.key)?.label ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "level" || f.operator != "equals"),
+										{ columnKey: "level", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || data.avgMenuCount != null ? (
+						<StatisticsCard cardKey="avgMenuCount" title="Avg Menus per Role" skeleton={data == null}>
+							{data?.avgMenuCount != null ? <StatNumber data={data.avgMenuCount} /> : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ApproverStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "role-management.approver",
+		cards: [...commonReviewableApproverCardDefinitions, { key: "pendingByLevel" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["role-management", "approver", filters, keys]}
+			queryAction={() => uwsa(getApproverStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="role-management.approver">
+					<CommonReviewableApproverCards data={data} filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.pendingByLevel != null && data.pendingByLevel.items.length > 0) ? (
+						<StatisticsCard cardKey="pendingByLevel" title="Pending — By Level" skeleton={data == null}>
+							{data?.pendingByLevel != null ? (
+								<StatDonut
+									data={{ ...data.pendingByLevel, items: data.pendingByLevel.items.map(i => ({ ...i, label: levelSelectOptions.find(o => o.value == i.key)?.label ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "level" || f.operator != "equals"),
+										{ columnKey: "level", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
 	);
 }

@@ -14,7 +14,7 @@ import { Label } from "@/components/radix/Label";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryReportingAction } from "../layout.actions";
-import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+import { ColumnData, DetailsDrawer, ReportingStatistics, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 function getDefaultPeriodStart() {
 	const start = new Date();
@@ -90,6 +90,7 @@ export default function Page() {
 		<MenuPage
 			title="Officer Tracking Reporting"
 			description="View officer locations from GPS log entries within a custom period."
+			beforeChildren={<ReportingStatistics filters={filters} onFiltersChange={setFilters} />}
 		>
 			<RelationNavigationProvider>
 				<div className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-end">

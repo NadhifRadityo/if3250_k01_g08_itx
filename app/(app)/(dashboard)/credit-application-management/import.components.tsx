@@ -19,11 +19,12 @@ import importTemplateLogo from "@/app/_static/favicons/logo.png";
 import { CreditApplicationImport } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { searchRelationCreditApplicationImportsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
+import { StatNumber, StatisticsCard, StatisticsLoader, StatisticsSection, CommonReviewableViewerCards, CommonReviewableApproverCards, commonReviewableViewerCardDefinitions, commonReviewableApproverCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { getDetailsAction, queryViewerAction, parsePreviewAction } from "./import.actions";
+import { getDetailsAction, queryViewerAction, parsePreviewAction, getViewerStatisticsAction, getApproverStatisticsAction } from "./import.actions";
 
 export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export type RelationValues = rwsa<typeof queryViewerAction>["relations"];
@@ -806,5 +807,46 @@ export function RestoreDeletionDialog(
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function ImportViewerStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "credit-application-management.import-viewer",
+		cards: [...commonReviewableViewerCardDefinitions, { key: "avgRecordCount" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["credit-application-management", "import-viewer", filters, keys]}
+			queryAction={() => uwsa(getViewerStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="credit-application-management.import-viewer">
+					<CommonReviewableViewerCards data={data} totalLabel="Total Imports" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || data.avgRecordCount != null ? (
+						<StatisticsCard cardKey="avgRecordCount" title="Avg Records per Import" skeleton={data == null}>
+							{data?.avgRecordCount != null ? <StatNumber data={data.avgRecordCount} /> : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ImportApproverStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "credit-application-management.import-approver",
+		cards: commonReviewableApproverCardDefinitions
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["credit-application-management", "import-approver", filters, keys]}
+			queryAction={() => uwsa(getApproverStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="credit-application-management.import-approver">
+					<CommonReviewableApproverCards data={data} filters={filters} onFiltersChange={onFiltersChange} />
+				</StatisticsSection>
+			)}
+		/>
 	);
 }

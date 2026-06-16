@@ -11,7 +11,7 @@ import { Switch } from "@/components/radix/Switch";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryViewerAction } from "../layout.actions";
-import { ColumnData, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+import { ColumnData, DetailsDrawer, HistoryDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ChangeRequestDrawer, ViewerStatistics, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 export default function Page() {
 	const { user } = useDashboardContext();
@@ -70,6 +70,7 @@ export default function Page() {
 		<MenuPage
 			title="Access Management"
 			description="View access requests across draft, approved, rejected, and deleted states."
+			beforeChildren={<ViewerStatistics filters={filters} onFiltersChange={setFilters} />}
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar

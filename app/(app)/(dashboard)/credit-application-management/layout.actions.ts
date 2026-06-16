@@ -2,7 +2,7 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { Payload, getPayload } from "payload";
+import { Payload, getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
@@ -12,6 +12,12 @@ import type { CreditApplication } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationCreditApplicationImports } from "../relation-navigation.actions";
 import { RelationUser, RelationCreditApplicationImport } from "../relation-navigation.shared";
+import {
+	computeStatsBucketsBySql,
+	computeStatsHistogramBySql,
+	getCommonReviewableViewerStats,
+	getCommonReviewableApproverStats
+} from "../statistics.actions";
 import { FormState } from "./layout.components";
 
 const PAGE_LIMIT = 20;
@@ -106,6 +112,73 @@ export const queryEditorAction = wsa(async (p: Omit<Parameters<typeof queryActio
 export const queryApproverAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "approver" });
 });
+
+export const getViewerStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "credit-applications", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras };
+});
+export const getEditorStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "credit-applications", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras };
+});
+export const getApproverStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableApproverStats)({ collectionSlug: "credit-applications", filters, keys }),
+		computeStatisticExtras({ pendingOnly: true, filters, keys })
+	]);
+	return { ...common, pendingTopVendors: extras.topVendors };
+});
+
+async function computeStatisticExtras(
+	{ pendingOnly = false, filters, keys }:
+	{ pendingOnly?: boolean, filters: MenuFilterState[], keys: string[] }
+) {
+	const pendingExtraWhere: Where | undefined = pendingOnly ?
+		{ and: [{ _status: { equals: "draft" } }, { reviewedAt: { exists: false } }] } :
+		undefined;
+	const [topVendors, plafondHistogram, periodHistogram] = await Promise.all([
+		keys.includes("topVendors") || keys.includes("pendingTopVendors") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "credit-applications",
+			columnExpression: "vendor",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			limit: 10,
+			filterColumnKey: "vendor"
+		}) : undefined,
+		keys.includes("plafondHistogram") ? uwsa(computeStatsHistogramBySql)({
+			collectionSlug: "credit-applications",
+			columnExpression: "plafond",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			binCount: 10,
+			filterColumnKey: "plafond"
+		}) : undefined,
+		keys.includes("periodHistogram") ? uwsa(computeStatsHistogramBySql)({
+			collectionSlug: "credit-applications",
+			columnExpression: "period",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			binCount: 10,
+			filterColumnKey: "period"
+		}) : undefined
+	]);
+	return { topVendors: topVendors, plafondHistogram: plafondHistogram, periodHistogram: periodHistogram };
+}
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();

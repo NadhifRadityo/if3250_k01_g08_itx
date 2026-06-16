@@ -16,11 +16,12 @@ import { Skeleton } from "@/components/radix/Skeleton";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { filterConfigColumns as creditApplicationAssignmentFilterConfigColumns } from "../credit-application-assignment/layout.components";
-import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
+import { StatPendingReview, StatNumber, StatHorizontalBar, StatHistogram, StatisticsCard, StatisticsLoader, StatisticsSection, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { queryAction, RelationValues, getDetailsAction } from "./evaluator.actions";
+import { queryAction, RelationValues, getDetailsAction, getEvaluatorStatisticsAction } from "./evaluator.actions";
 import { officerTaskStatusLabels, computeOfficerTaskStatus, settlementStatusSelectOptions } from "./layout.shared";
 
 export const defaultStatusRenderer = () =>
@@ -149,6 +150,44 @@ export const defaultColumnsShown = Object.freeze([
 export const defaultColumnsSort = Object.freeze([
 	["updatedAt", false]
 ]) as [string, boolean][];
+
+export function EvaluatorStatistics({ filters }: { filters: MenuFilterState[] }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "officer-task.evaluator",
+		cards: [{ key: "pendingEvaluation" }, { key: "evaluatedToday" }, { key: "pendingTopOfficers" }, { key: "pendingSettlementAge" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["officer-task", "evaluator", filters, keys]}
+			queryAction={() => uwsa(getEvaluatorStatisticsAction)({ filters, keys })}
+			refetchInterval={30000}
+			render={data => (
+				<StatisticsSection layoutKey="officer-task.evaluator">
+					{data == null || data.pendingEvaluation != null ? (
+						<StatisticsCard cardKey="pendingEvaluation" title="Pending Evaluation" skeleton={data == null}>
+							{data?.pendingEvaluation != null ? <StatPendingReview data={data.pendingEvaluation} /> : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || data.evaluatedToday != null ? (
+						<StatisticsCard cardKey="evaluatedToday" title="Evaluated Today" skeleton={data == null}>
+							{data?.evaluatedToday != null ? <StatNumber data={data.evaluatedToday} /> : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.pendingTopOfficers != null && data.pendingTopOfficers.items.length > 0) ? (
+						<StatisticsCard cardKey="pendingTopOfficers" title="Pending — By Officer" defaultSpan={2} skeleton={data == null}>
+							{data?.pendingTopOfficers != null ? <StatHorizontalBar data={{ ...data.pendingTopOfficers, items: data.pendingTopOfficers.items.map(i => ({ ...i, label: data.relations[`users:${i.key}`]?.name ?? i.key })) }} /> : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || data.pendingSettlementAge != null ? (
+						<StatisticsCard cardKey="pendingSettlementAge" title="Pending Settlement Age" skeleton={data == null}>
+							{data?.pendingSettlementAge != null ? <StatHistogram data={data.pendingSettlementAge} /> : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
 
 export function DetailsDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext, renderActions, onChainNavigate }:

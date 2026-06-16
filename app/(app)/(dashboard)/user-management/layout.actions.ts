@@ -2,7 +2,7 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { Payload, getPayload } from "payload";
+import { Payload, getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
@@ -13,6 +13,11 @@ import { compileAccesses, executeAccesses } from "../access-management/layout.ac
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationRoles, resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationRole, RelationUser } from "../relation-navigation.shared";
+import {
+	computeStatsBucketsBySql,
+	getCommonReviewableViewerStats,
+	getCommonReviewableApproverStats
+} from "../statistics.actions";
 import { FormState } from "./layout.components";
 
 const PAGE_LIMIT = 20;
@@ -92,9 +97,9 @@ async function queryAction(
 			buildFilterWhere(filters)
 		] }
 	});
-	const masks = await processDocAccesses(result.docs.map(d => d.id));
+	const { docs, masks, editables } = await processDocAccesses(result.docs);
 	const relations = await resolveRelations({ payload, docs: result.docs });
-	return { ...result, masks, relations };
+	return { ...result, docs, masks, editables, relations };
 }
 
 export const queryViewerAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
@@ -106,6 +111,84 @@ export const queryEditorAction = wsa(async (p: Omit<Parameters<typeof queryActio
 export const queryApproverAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "approver" });
 });
+
+export const getViewerStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "staged-users", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras, relations: { ...common.relations, ...extras.relations } };
+});
+export const getEditorStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "staged-users", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras, relations: { ...common.relations, ...extras.relations } };
+});
+export const getApproverStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableApproverStats)({ collectionSlug: "staged-users", filters, keys }),
+		computeStatisticExtras({ pendingOnly: true, filters, keys })
+	]);
+	return { ...common, pendingByRole: extras.byRole, relations: { ...common.relations, ...extras.relations } };
+});
+
+async function computeStatisticExtras(
+	{ pendingOnly = false, filters, keys }:
+	{ pendingOnly?: boolean, filters: MenuFilterState[], keys: string[] }
+) {
+	const payload = await getPayload({ config: payloadConfig });
+	const pendingExtraWhere: Where | undefined = pendingOnly ?
+		{ and: [{ _status: { equals: "draft" } }, { reviewedAt: { exists: false } }] } :
+		undefined;
+	const supervisorCoverageBucket = keys.includes("supervisorCoverage") ? await uwsa(computeStatsBucketsBySql)({
+		collectionSlug: "staged-users",
+		columnExpression: "(supervisor_id IS NOT NULL)::text",
+		filters: filters,
+		extraWhere: pendingExtraWhere,
+		limit: 2
+	}) : undefined;
+	const supervisorCoverage = supervisorCoverageBucket == null ? undefined : {
+		withSupervisor: supervisorCoverageBucket.items.find(i => i.key == "true")?.count ?? 0,
+		withoutSupervisor: supervisorCoverageBucket.items.find(i => i.key == "false")?.count ?? 0
+	};
+	const [byRole, topSupervisors] = await Promise.all([
+		keys.includes("byRole") || keys.includes("pendingByRole") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "staged-users",
+			columnExpression: "role_id",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			limit: 10,
+			filterColumnKey: "role"
+		}) : undefined,
+		keys.includes("topSupervisors") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "staged-users",
+			columnExpression: "supervisor_id",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			limit: 10,
+			filterColumnKey: "supervisor"
+		}) : undefined
+	]);
+	const relations: RelationValues = {};
+	const [roleRelations, supervisorRelations] = await Promise.all([
+		byRole != null ? uwsa(resolveRelationRoles)({ payload, ids: byRole.items.map(i => i.key) }) : null,
+		topSupervisors != null ? uwsa(resolveRelationUsers)({ payload, ids: topSupervisors.items.map(i => i.key) }) : null
+	]);
+	if(roleRelations != null) Object.assign(relations, roleRelations);
+	if(supervisorRelations != null) Object.assign(relations, supervisorRelations);
+	return { supervisorCoverage: supervisorCoverage, byRole: byRole, topSupervisors: topSupervisors, relations: relations };
+}
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();
@@ -148,9 +231,9 @@ export const getDetailsAction = wsa(async (id: string) => {
 		}
 	});
 	if(result.docs.length == 0) return null;
-	const masks = await processDocAccesses(result.docs.map(d => d.id));
+	const { docs, masks, editables } = await processDocAccesses(result.docs);
 	const relations = await resolveRelations({ payload, docs: result.docs });
-	return { row: result.docs[0], masks, relations };
+	return { row: docs[0], masks, editables, relations };
 });
 
 export const getDifferenceAction = wsa(async (id: string) => {

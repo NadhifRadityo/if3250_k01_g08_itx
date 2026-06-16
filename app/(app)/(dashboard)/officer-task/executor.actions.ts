@@ -14,6 +14,10 @@ import { OfficerTask, CreditApplication, CreditApplicationAssignment } from "@/p
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
 import { RelationUser, RelationOfficerTask, RelationCreditApplicationAssignment } from "../relation-navigation.shared";
+import {
+	computeStatsCountBySql,
+	computeStatsBucketsByJoinedColumnSql
+} from "../statistics.actions";
 import { OTP_PERIOD_MS, GEOFENCE_MAX_ACCURACY_METERS, chainAndCreateNextOfficerTask, GEOFENCE_VALIDATION_WINDOW_CLIENT_MS, GEOFENCE_VALIDATION_WINDOW_SERVER_MS, type ActiveOfficerTaskKvData } from "./layout.shared";
 
 const PAGE_LIMIT = 20;
@@ -265,6 +269,75 @@ export const getActiveAction = wsa(async () => {
 	if(user == null) return unauthorized();
 	return await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${user.id}`);
 });
+
+export const getExecutorStatisticsAction = wsa(async (
+	{ filters: _filters, keys: _keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+	// Stats are scoped to the current officer; the filter parameter doesn't apply here because
+	// the executor view always shows tasks belonging to the authenticated user.
+	const activeKv = await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${user.id}`);
+	const extras = await computeStatisticExtras({ userId: user.id });
+	return {
+		hasActiveTask: { active: activeKv != null },
+		...extras
+	};
+});
+
+async function computeStatisticExtras(
+	{ userId }:
+	{ userId: string }
+) {
+	const officerWhere = { "creditApplicationAssignment.officer": { equals: userId } };
+	const [settled, pending, myDueTasksRaw] = await Promise.all([
+		uwsa(computeStatsCountBySql)({
+			collectionSlug: "officer-tasks",
+			extraWhere: { and: [officerWhere, { settledAt: { exists: true } }] },
+			alwaysExcludeDeleted: false
+		}),
+		uwsa(computeStatsCountBySql)({
+			collectionSlug: "officer-tasks",
+			extraWhere: { and: [
+				officerWhere,
+				{ settlementStatus: { equals: "finished" } },
+				{ evaluatedAt: { exists: false } },
+				{ next: { exists: false } }
+			] },
+			alwaysExcludeDeleted: false
+		}),
+		uwsa(computeStatsBucketsByJoinedColumnSql)({
+			collectionSlug: "officer-tasks",
+			joinedTableName: "credit_application_assignments",
+			joinLocalColumn: "credit_application_assignment_id",
+			joinForeignColumn: "id",
+			columnExpression: `CASE
+				WHEN joined.due_date IS NULL THEN 'No due date'
+				WHEN joined.due_date < NOW() THEN 'Overdue'
+				WHEN joined.due_date < NOW() + interval '1 day' THEN 'Today'
+				WHEN joined.due_date < NOW() + interval '7 days' THEN 'This week'
+				ELSE 'Later'
+			END`,
+			extraWhere: { and: [
+				officerWhere,
+				{ settledAt: { exists: false } },
+				{ next: { exists: false } }
+			] },
+			limit: 10,
+			alwaysExcludeDeleted: false
+		})
+	]);
+	const dueOrder = ["Overdue", "Today", "This week", "Later", "No due date"];
+	const myDueTasks = { items: [...myDueTasksRaw.items].sort((a, b) => dueOrder.indexOf(a.key) - dueOrder.indexOf(b.key)) };
+	return {
+		mySettledTotal: { value: settled.count },
+		myPendingEvaluation: { value: pending.count },
+		myDueTasks: myDueTasks
+	};
+}
 
 export const queryAction = wsa(async (
 	{ keyword, filters, columnsSort, pageIndex }:

@@ -12,13 +12,14 @@ import { Dialog, DialogTitle, DialogHeader, DialogContent, DialogDescription } f
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
 
-import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { searchRelationSatisfactionSurveyResultsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationSatisfactionSurveyRenderer } from "../relation-navigation.components";
 import { filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
+import { StatisticsLoader, StatisticsSection, CommonLogMonitoringCards, CommonLogReportingCards, commonLogMonitoringCardDefinitions, commonLogReportingCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, queryMonitoringAction, getMonitoringStatisticsAction, getReportingStatisticsAction } from "./layout.actions";
 
 function isJsonFormDefinition(value: unknown): value is JsonFormDefinition {
 	if(value == null || typeof value != "object")
@@ -199,6 +200,37 @@ export const defaultColumnsShown = Object.freeze([
 export const defaultColumnsSort = Object.freeze([
 	["updatedAt", false]
 ]) as [string, boolean][];
+
+export function MonitoringStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({ layoutKey: "satisfaction-survey-result.monitoring", cards: commonLogMonitoringCardDefinitions });
+	return (
+		<StatisticsLoader
+			queryKey={["satisfaction-survey-result", "monitoring", filters, keys]}
+			queryAction={() => uwsa(getMonitoringStatisticsAction)({ filters, keys })}
+			refetchInterval={30000}
+			render={data => (
+				<StatisticsSection layoutKey="satisfaction-survey-result.monitoring">
+					<CommonLogMonitoringCards data={data} totalLabel="Today's Responses" filters={filters} onFiltersChange={onFiltersChange} />
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ReportingStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({ layoutKey: "satisfaction-survey-result.reporting", cards: commonLogReportingCardDefinitions });
+	return (
+		<StatisticsLoader
+			queryKey={["satisfaction-survey-result", "reporting", filters, keys]}
+			queryAction={() => uwsa(getReportingStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="satisfaction-survey-result.reporting">
+					<CommonLogReportingCards data={data} totalLabel="Total Responses" filters={filters} onFiltersChange={onFiltersChange} />
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
 
 export function DetailsDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext }:

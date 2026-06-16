@@ -64,12 +64,12 @@ export function LoginForm() {
 				<Controller
 					name="email"
 					control={form.control}
-					disabled={form.formState.isSubmitting}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
 							<FieldLabel>Email</FieldLabel>
 							<Input
 								{...field}
+								disabled={field.disabled == true || form.formState.isSubmitting}
 								aria-invalid={fieldState.invalid}
 								placeholder="Enter your email"
 								autoComplete="email"
@@ -84,13 +84,13 @@ export function LoginForm() {
 				<Controller
 					name="password"
 					control={form.control}
-					disabled={form.formState.isSubmitting}
 					render={({ field, fieldState }) => (
 						<Field data-invalid={fieldState.invalid}>
 							<FieldLabel>Password</FieldLabel>
 							<InputGroup>
 								<InputGroupInput
 									{...field}
+									disabled={field.disabled == true || form.formState.isSubmitting}
 									aria-invalid={fieldState.invalid}
 									className="not-noscript:hide-native-password-toggle"
 									type={showPassword ? "text" : "password"}
@@ -99,7 +99,7 @@ export function LoginForm() {
 								<InputGroupAddon align="inline-end" className="noscript:hidden">
 									<InputGroupButton
 										onClick={() => setShowPassword(v => !v)}
-										disabled={field.disabled}
+										disabled={field.disabled == true || form.formState.isSubmitting}
 									>
 										{!showPassword ? (
 											<EyeIcon className="h-4 w-4" aria-hidden="true" />

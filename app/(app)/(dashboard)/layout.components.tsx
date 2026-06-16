@@ -325,16 +325,23 @@ export function DashboardShell(
 }
 
 export function MenuPage(
-	{ title, description, children }:
-	{ title: string, description: string, children: ReactNode }
+	{ title, description, beforeChildren, children }:
+	{ title: string, description: string, beforeChildren?: ReactNode, children: ReactNode }
 ) {
 	return (
 		<RedactProvider>
-			<main className="bg-muted p-4 md:p-6">
-				<div className="mb-4 space-y-1">
+			<main className="bg-muted p-4 md:p-6 space-y-4">
+				<div className="space-y-1">
 					<h1 className="text-2xl font-semibold font-sans">{title}</h1>
 					<p className="text-muted-foreground text-sm">{description}</p>
 				</div>
+				{beforeChildren != null ? (
+					<Card>
+						<CardContent className="space-y-4">
+							{beforeChildren}
+						</CardContent>
+					</Card>
+				) : null}
 				<Card>
 					<CardContent className="space-y-4">
 						{children}
@@ -419,7 +426,22 @@ export function useConfigStorage<T>(
 	{ localStorageKey, updateIfThisSearhParamExists, defaultValue }:
 	{ localStorageKey?: string, updateIfThisSearhParamExists?: string, defaultValue: T | (() => T) }
 ): [T, React.Dispatch<React.SetStateAction<T>>] {
-	return useState<T>(defaultValue);
+	const [value, setValue] = useState<T>(defaultValue);
+	useEffect(() => {
+		if(localStorageKey == null || typeof window == "undefined") return;
+		try {
+			const stored = window.localStorage.getItem(localStorageKey);
+			if(stored != null)
+				setValue(JSON.parse(stored));
+		} catch{}
+	}, [localStorageKey]);
+	useEffect(() => {
+		if(localStorageKey == null || typeof window == "undefined") return;
+		try {
+			window.localStorage.setItem(localStorageKey, JSON.stringify(value));
+		} catch{}
+	}, [localStorageKey, value]);
+	return [value, setValue];
 }
 
 export type MenuColumnConfigColumn = {

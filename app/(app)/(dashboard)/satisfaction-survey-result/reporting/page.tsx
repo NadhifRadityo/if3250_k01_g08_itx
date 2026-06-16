@@ -10,7 +10,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryReportingAction } from "../layout.actions";
-import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+import { ColumnData, DetailsDrawer, ReportingStatistics, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
 
 export default function Page() {
 	const [keyword, setKeyword] = useState("");
@@ -59,6 +59,7 @@ export default function Page() {
 		<MenuPage
 			title="Satisfaction Survey Result Reporting"
 			description="View satisfaction survey result entries through the reporting mode."
+			beforeChildren={<ReportingStatistics filters={filters} onFiltersChange={setFilters} />}
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar

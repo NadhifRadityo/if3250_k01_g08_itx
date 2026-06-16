@@ -15,8 +15,15 @@ import type { User, Access } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationUser } from "../relation-navigation.shared";
+import {
+	computeStatsAvgBySql,
+	computeStatsCountBySql,
+	computeStatsBucketsBySql,
+	getCommonReviewableViewerStats,
+	getCommonReviewableApproverStats
+} from "../statistics.actions";
 import { FormState } from "./layout.components";
-import { collectionMaskFields } from "./layout.shared";
+import { redactField, collectionMaskFields } from "./layout.shared";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
@@ -225,7 +232,9 @@ export const executeAccesses = wsa(async (
 	}
 	if(baseFilter == null)
 		baseFilter = { id: { exists: false } };
-	const defaultMask = Object.fromEntries(Object.keys(collectionMaskFields[accessesCollection]).map(f => [f, "hide"] as [string, string]));
+	const maskFields = collectionMaskFields[accessesCollection];
+	const defaultMask = Object.fromEntries(Object.keys(maskFields).map(f => [f, "hide"] as [string, string]));
+	const defaultEditable = Object.fromEntries(Object.keys(maskFields).map(f => [f, false] as [string, boolean | null]));
 	const adapter = payload.db as PostgresAdapter;
 	const collectionConfig = payload.config.collections.find(c => c.slug == accessesCollection)!;
 	const toSnakeCase = (string: string) => string.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/[\W_]+/g, " ").trim().toLowerCase().replace(/\s+/g, "_");
@@ -233,8 +242,8 @@ export const executeAccesses = wsa(async (
 	const table = adapter.tables[tableName];
 	// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/find/findMany.ts
 	const queryOptions = buildQuery({ adapter: adapter, fields: collectionConfig.flattenedFields, tableName: tableName, where: { or: appliedAccesses.map(a => buildFilterWhere(a.filters)) } });
-	const processDocAccesses = async (ids: string[]) => {
-		if(queryOptions.where == null) return Object.fromEntries(ids.map(id => [id, { ...defaultMask }] as const));
+	const computeAccesses = async (ids: string[]) => {
+		if(queryOptions.where == null) return Object.fromEntries(ids.map(id => [id, { mask: { ...defaultMask }, editable: { ...defaultEditable } }] as const));
 		// getTransaction with shouldReadFromPrimary logic
 		// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/utilities/getTransaction.ts, https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/utilities/readAfterWrite.ts
 		const db = adapter.primaryDrizzle != null && adapter.lastWriteTimestamp != null && (Date.now() - adapter.lastWriteTimestamp < adapter.readReplicasAfterWriteInterval) ? adapter.primaryDrizzle : adapter.drizzle;
@@ -250,6 +259,7 @@ export const executeAccesses = wsa(async (
 			const filterMatches = filterMatchesResults.find(r => r.id == id) ?? (Object.fromEntries(appliedAccesses.map((_, i) => [`filters_${i}`, 0])) as Record<`filters_${number}`, 0 | 1>);
 			let isIncluded = false;
 			let currentMask = { ...defaultMask };
+			let currentEditable = { ...defaultEditable };
 			for(let i = 0; i < appliedAccesses.length; i++) {
 				const appliedAccess = appliedAccesses[i];
 				const filterMatch = filterMatches[`filters_${i}`];
@@ -257,32 +267,61 @@ export const executeAccesses = wsa(async (
 				if(appliedAccess.operation == "union") {
 					isIncluded = true;
 					currentMask = { ...currentMask, ...appliedAccess.masks };
+					currentEditable = { ...currentEditable, ...appliedAccess.editables };
 					continue;
 				}
 				if(appliedAccess.operation == "difference") {
 					if(!isIncluded) continue;
 					isIncluded = false;
 					currentMask = { ...defaultMask };
+					currentEditable = { ...defaultEditable };
 					continue;
 				}
 				if(appliedAccess.operation == "intersect") {
 					if(!isIncluded) continue;
 					currentMask = { ...currentMask, ...appliedAccess.masks };
+					currentEditable = { ...currentEditable, ...appliedAccess.editables };
 					continue;
 				}
 				if(appliedAccess.operation == "exclusion") {
 					if(isIncluded) {
 						isIncluded = false;
 						currentMask = { ...defaultMask };
+						currentEditable = { ...defaultEditable };
 						continue;
 					}
 					isIncluded = true;
 					currentMask = { ...defaultMask, ...appliedAccess.masks };
+					currentEditable = { ...defaultEditable, ...appliedAccess.editables };
 					continue;
 				}
 			}
-			return [id, currentMask] as const;
+			return [id, { mask: currentMask, editable: currentEditable }] as const;
 		}));
+	};
+	const constrainEditable = (mask: string | null | undefined, editable: boolean | null | undefined): boolean | null => {
+		if(mask == null) return editable == false ? false : null;
+		if(mask == "show") return editable == null ? null : editable ? true : false;
+		return false;
+	};
+	const processDocAccesses = async <D extends { id: string } & Record<string, any>>(docs: D[]) => {
+		const accessesById = await computeAccesses(docs.map(d => d.id));
+		const fieldEntries = Object.entries(maskFields);
+		return {
+			docs: docs.map(d => {
+				const docMask = accessesById[d.id].mask;
+				return Object.fromEntries(Object.keys(maskFields).map(f => [f, docMask[f] == "show" ? d[f] : null] as const)) as Partial<D>;
+			}),
+			masks: Object.fromEntries(docs.map(d => {
+				const docMask = accessesById[d.id].mask;
+				return [d.id, Object.fromEntries(fieldEntries.map(([f, t]) => [f, [docMask[f], redactField(t, docMask[f], d[f])]] as const))] as const;
+			})),
+			editables: Object.fromEntries(docs.map(d => {
+				const docMask = accessesById[d.id].mask;
+				const docEditables = accessesById[d.id].editable;
+				return [d.id, Object.fromEntries(fieldEntries.map(([f]) => [f, constrainEditable(docMask[f], docEditables[f])] as const))] as const;
+			}))
+		};
 	};
 	return Object.assign(processDocAccesses, { baseFilter: baseFilter });
 });
@@ -358,6 +397,93 @@ export const queryEditorAction = wsa(async (p: Omit<Parameters<typeof queryActio
 export const queryApproverAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "approver" });
 });
+
+export const getViewerStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "accesses", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras };
+});
+export const getEditorStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "accesses", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras };
+});
+export const getApproverStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableApproverStats)({ collectionSlug: "accesses", filters, keys }),
+		computeStatisticExtras({ pendingOnly: true, filters, keys })
+	]);
+	return {
+		...common,
+		pendingByCollection: extras.byCollection,
+		pendingByOperation: extras.byOperation
+	};
+});
+
+async function computeStatisticExtras(
+	{ pendingOnly = false, filters, keys }:
+	{ pendingOnly?: boolean, filters: MenuFilterState[], keys: string[] }
+) {
+	const pendingExtraWhere: Where | undefined = pendingOnly ?
+		{ and: [{ _status: { equals: "draft" } }, { reviewedAt: { exists: false } }] } :
+		undefined;
+	const [enabledTrueCount, enabledFalseCount, byCollection, byOperation, priority] = await Promise.all([
+		keys.includes("enabled") ? uwsa(computeStatsCountBySql)({
+			collectionSlug: "accesses",
+			filters: filters,
+			extraWhere: pendingExtraWhere != null ?
+				{ and: [pendingExtraWhere, { enabled: { equals: true } }] } :
+				{ enabled: { equals: true } }
+		}) : undefined,
+		keys.includes("enabled") ? uwsa(computeStatsCountBySql)({
+			collectionSlug: "accesses",
+			filters: filters,
+			extraWhere: pendingExtraWhere != null ?
+				{ and: [pendingExtraWhere, { enabled: { equals: false } }] } :
+				{ enabled: { equals: false } }
+		}) : undefined,
+		keys.includes("byCollection") || keys.includes("pendingByCollection") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "accesses",
+			columnExpression: "collection",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			limit: 50,
+			filterColumnKey: "collection"
+		}) : undefined,
+		keys.includes("byOperation") || keys.includes("pendingByOperation") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "accesses",
+			columnExpression: "operation",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			filterColumnKey: "operation"
+		}) : undefined,
+		keys.includes("priority") ? uwsa(computeStatsAvgBySql)({
+			collectionSlug: "accesses",
+			columnExpression: "priority",
+			filters: filters,
+			extraWhere: pendingExtraWhere
+		}) : undefined
+	]);
+	return {
+		enabled: enabledTrueCount != null && enabledFalseCount != null ? { active: enabledTrueCount.count, disabled: enabledFalseCount.count } : undefined,
+		byCollection: byCollection,
+		byOperation: byOperation,
+		priority: priority != null ? { value: priority.avg ?? 0, subtext: "Average priority" } : undefined
+	};
+}
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();

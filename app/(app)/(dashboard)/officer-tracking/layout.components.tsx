@@ -11,12 +11,13 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 import { Skeleton } from "@/components/radix/Skeleton";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 
-import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { filterConfigColumns as officerTaskFilterConfigColumns } from "../officer-task/layout.components";
 import { searchRelationGpsLogsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer } from "../relation-navigation.components";
+import { StatisticsLoader, StatisticsSection, CommonLogMonitoringCards, CommonLogReportingCards, commonLogMonitoringCardDefinitions, commonLogReportingCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, OfficerTrackingRow } from "./layout.actions";
+import { RelationValues, getDetailsAction, OfficerTrackingRow, getMonitoringStatisticsAction, getReportingStatisticsAction } from "./layout.actions";
 
 export type ColumnData = OfficerTrackingRow;
 export const filterConfigColumns = Object.freeze([
@@ -118,6 +119,37 @@ const detailsRowValueRendererConfigColumns = Object.freeze([
 	{ key: "longitude", type: "number" },
 	{ key: "accuracy", type: "number" }
 ] as MenuRowValueRendererConfigColumn<any, RowValueRendererContext>[]);
+
+export function MonitoringStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({ layoutKey: "officer-tracking.monitoring", cards: commonLogMonitoringCardDefinitions });
+	return (
+		<StatisticsLoader
+			queryKey={["officer-tracking", "monitoring", filters, keys]}
+			queryAction={() => uwsa(getMonitoringStatisticsAction)({ filters, keys })}
+			refetchInterval={30000}
+			render={data => (
+				<StatisticsSection layoutKey="officer-tracking.monitoring">
+					<CommonLogMonitoringCards data={data} totalLabel="Today's Points" filters={filters} onFiltersChange={onFiltersChange} />
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ReportingStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({ layoutKey: "officer-tracking.reporting", cards: commonLogReportingCardDefinitions });
+	return (
+		<StatisticsLoader
+			queryKey={["officer-tracking", "reporting", filters, keys]}
+			queryAction={() => uwsa(getReportingStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="officer-tracking.reporting">
+					<CommonLogReportingCards data={data} totalLabel="Total Points" filters={filters} onFiltersChange={onFiltersChange} />
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
 
 export function DetailsDrawer(
 	{ open, onOpenChange, row, periodStart, periodEnd, rowValueRendererContext }:

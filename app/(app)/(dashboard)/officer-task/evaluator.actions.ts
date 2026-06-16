@@ -2,7 +2,7 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { Payload, getPayload } from "payload";
+import { Payload, getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
@@ -12,6 +12,13 @@ import { OfficerTask } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
 import { RelationUser, RelationOfficerTask, RelationCreditApplicationAssignment } from "../relation-navigation.shared";
+import {
+	computeStatsCountBySql,
+	computeStatsBucketsBySql,
+	computeStatsAgeStatsBySql,
+	computeStatsBucketsByJoinedColumnSql,
+	computeStatsRawSeriesByDateBucket
+} from "../statistics.actions";
 import { ActiveOfficerTaskKvData, chainAndCreateNextOfficerTask } from "./layout.shared";
 
 const PAGE_LIMIT = 20;
@@ -159,6 +166,111 @@ export const getDetailsAction = wsa(async (id: string) => {
 	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: annotatedDocs[0], relations };
 });
+
+export const getEvaluatorStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	return await computeStatisticExtras({ filters, keys });
+});
+
+async function computeStatisticExtras(
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) {
+	const payload = await getPayload({ config: payloadConfig });
+	const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+	const tomorrowStart = new Date(todayStart); tomorrowStart.setDate(todayStart.getDate() + 1);
+	const pendingExtraWhere = { and: [
+		{ settlementStatus: { equals: "finished" } },
+		{ evaluatedAt: { exists: false } },
+		{ next: { exists: false } }
+	] } as Where;
+	const evaluatedTodayWhere = { evaluatedAt: { greater_than_equal: todayStart.toISOString(), less_than: tomorrowStart.toISOString() } };
+	const [pendingAge, evaluatedTodayCount, pendingTopOfficers, pendingSettlementAgeBuckets, evaluatedAtSeries] = await Promise.all([
+		keys.includes("pendingEvaluation") ? uwsa(computeStatsAgeStatsBySql)({
+			collectionSlug: "officer-tasks",
+			dateColumn: "settled_at",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			alwaysExcludeDeleted: false
+		}) : undefined,
+		keys.includes("evaluatedToday") ? uwsa(computeStatsCountBySql)({
+			collectionSlug: "officer-tasks",
+			filters: filters,
+			extraWhere: evaluatedTodayWhere,
+			alwaysExcludeDeleted: false
+		}) : undefined,
+		keys.includes("pendingTopOfficers") ? uwsa(computeStatsBucketsByJoinedColumnSql)({
+			collectionSlug: "officer-tasks",
+			filters: filters,
+			joinedTableName: "credit_application_assignments",
+			joinLocalColumn: "credit_application_assignment_id",
+			joinForeignColumn: "id",
+			columnExpression: "joined.officer_id",
+			extraWhere: pendingExtraWhere,
+			limit: 10,
+			alwaysExcludeDeleted: false,
+			filterColumnKey: "creditApplicationAssignment.officer"
+		}) : undefined,
+		keys.includes("pendingSettlementAge") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "officer-tasks",
+			columnExpression: `CASE
+				WHEN NOW() - settled_at < interval '1 day' THEN '<1d'
+				WHEN NOW() - settled_at < interval '3 days' THEN '1-3d'
+				WHEN NOW() - settled_at < interval '7 days' THEN '3-7d'
+				WHEN NOW() - settled_at < interval '14 days' THEN '7-14d'
+				ELSE '>14d'
+			END`,
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			limit: 10,
+			alwaysExcludeDeleted: false
+		}) : undefined,
+		keys.includes("evaluatedAt") ? uwsa(computeStatsRawSeriesByDateBucket)({
+			collectionSlug: "officer-tasks",
+			dateColumn: "evaluated_at",
+			days: 30,
+			filters: filters,
+			extraWhere: { evaluatedAt: { exists: true } },
+			alwaysExcludeDeleted: false
+		}) : undefined
+	]);
+	const pendingEvaluation = pendingAge == null ? undefined : {
+		count: pendingAge.count,
+		oldestAgeMs: pendingAge.oldestAgeMs,
+		avgAgeMs: pendingAge.avgAgeMs
+	};
+	const dayMs = 24 * 60 * 60 * 1000;
+	const ageLabels = [
+		{ binStart: 0, binEnd: 1 * dayMs, label: "<1d" },
+		{ binStart: 1 * dayMs, binEnd: 3 * dayMs, label: "1-3d" },
+		{ binStart: 3 * dayMs, binEnd: 7 * dayMs, label: "3-7d" },
+		{ binStart: 7 * dayMs, binEnd: 14 * dayMs, label: "7-14d" },
+		{ binStart: 14 * dayMs, binEnd: Number.POSITIVE_INFINITY, label: ">14d" }
+	];
+	const ageCounts = pendingSettlementAgeBuckets == null ? null : new Map(pendingSettlementAgeBuckets.items.map(i => [i.key, i.count] as const));
+	const pendingSettlementAge = ageCounts == null ? undefined : {
+		bins: ageLabels.map(b => ({
+			binStart: b.binStart,
+			binEnd: b.binEnd,
+			label: b.label,
+			count: ageCounts.get(b.label) ?? 0
+		})),
+		unit: "age"
+	};
+	const relations: RelationValues = {};
+	if(pendingTopOfficers != null)
+		Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: pendingTopOfficers.items.map(i => i.key) }));
+	return {
+		pendingEvaluation: pendingEvaluation,
+		evaluatedToday: evaluatedTodayCount == null ? undefined : { value: evaluatedTodayCount.count },
+		pendingTopOfficers: pendingTopOfficers,
+		pendingSettlementAge: pendingSettlementAge,
+		evaluatedAt: evaluatedAtSeries == null ? undefined : { points: evaluatedAtSeries.points, intervalLabel: "day", filterColumnKey: "evaluatedAt" },
+		relations: relations
+	};
+}
 
 export const evaluateAction = wsa(async (
 	{ id, decision, evaluationComment }:

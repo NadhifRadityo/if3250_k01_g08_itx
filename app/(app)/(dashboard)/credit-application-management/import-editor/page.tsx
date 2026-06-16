@@ -13,7 +13,7 @@ import { Switch } from "@/components/radix/Switch";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, useDashboardContext, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryEditorAction, requestCreateAction, requestDeleteAction, requestRestoreAction, requestUpdateDescriptionAction } from "../import.actions";
-import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, RestoreDeletionDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../import.components";
+import { ColumnData, FormDrawer, toFormState, DeleteDialog, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, ImportViewerStatistics, columnConfigColumns, defaultColumnsShown, filterConfigColumns, RestoreDeletionDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns, type FormState } from "../import.components";
 
 const columnConfigColumnsWithActions = Object.freeze([
 	...columnConfigColumns,
@@ -130,6 +130,7 @@ export default function Page() {
 		<MenuPage
 			title="Credit Application Import"
 			description="Manage spreadsheet import requests before they reach approver review."
+			beforeChildren={<ImportViewerStatistics filters={filters} onFiltersChange={setFilters} />}
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar

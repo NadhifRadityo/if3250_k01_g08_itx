@@ -11,11 +11,12 @@ import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerD
 import { Skeleton } from "@/components/radix/Skeleton";
 
 import { filterConfigColumns as creditApplicationAssignmentFilterConfigColumns } from "../credit-application-assignment/layout.components";
-import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
+import { StatNumber, StatDonut, StatHorizontalBar, StatisticsCard, StatisticsLoader, StatisticsSection, CommonLogMonitoringCards, CommonLogReportingCards, commonLogMonitoringCardDefinitions, commonLogReportingCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, queryMonitoringAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, queryMonitoringAction, getMonitoringStatisticsAction, getReportingStatisticsAction } from "./layout.actions";
 import { settlementStatusSelectOptions } from "./layout.shared";
 
 export type ColumnData = rwsa<typeof queryMonitoringAction>["docs"][number];
@@ -129,6 +130,87 @@ export const defaultColumnsShown = Object.freeze([
 export const defaultColumnsSort = Object.freeze([
 	["updatedAt", false]
 ]) as [string, boolean][];
+
+export function MonitoringStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "officer-task.monitoring",
+		cards: [...commonLogMonitoringCardDefinitions, { key: "settledToday" }, { key: "evaluatedToday" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["officer-task", "monitoring", filters, keys]}
+			queryAction={() => uwsa(getMonitoringStatisticsAction)({ filters, keys })}
+			refetchInterval={30000}
+			render={data => (
+				<StatisticsSection layoutKey="officer-task.monitoring">
+					<CommonLogMonitoringCards data={data} totalLabel="Today's Tasks" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || data.settledToday != null ? (
+						<StatisticsCard cardKey="settledToday" title="Settled Today" skeleton={data == null}>
+							{data?.settledToday != null ? <StatNumber data={data.settledToday} /> : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || data.evaluatedToday != null ? (
+						<StatisticsCard cardKey="evaluatedToday" title="Evaluated Today" skeleton={data == null}>
+							{data?.evaluatedToday != null ? <StatNumber data={data.evaluatedToday} /> : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ReportingStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "officer-task.reporting",
+		cards: [...commonLogReportingCardDefinitions, { key: "settlementStatus" }, { key: "evaluationStatus" }, { key: "topOfficers" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["officer-task", "reporting", filters, keys]}
+			queryAction={() => uwsa(getReportingStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="officer-task.reporting">
+					<CommonLogReportingCards data={data} totalLabel="Total Tasks" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.settlementStatus != null && data.settlementStatus.items.length > 0) ? (
+						<StatisticsCard cardKey="settlementStatus" title="Settlement Status" skeleton={data == null}>
+							{data?.settlementStatus != null ? (
+								<StatDonut
+									data={data.settlementStatus}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "settlementStatus" || f.operator != "equals"),
+										{ columnKey: "settlementStatus", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.evaluationStatus != null && data.evaluationStatus.items.length > 0) ? (
+						<StatisticsCard cardKey="evaluationStatus" title="Evaluation Status" skeleton={data == null}>
+							{/* The evaluation-status bucket is a synthetic CASE expression — a single equals filter
+							    can't reproduce it (e.g. "Pending" includes two distinct conditions), so we leave
+							    this chart non-interactive. */}
+							{data?.evaluationStatus != null ? <StatDonut data={data.evaluationStatus} /> : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.topOfficers != null && data.topOfficers.items.length > 0) ? (
+						<StatisticsCard cardKey="topOfficers" title="Top Officers" defaultSpan={2} skeleton={data == null}>
+							{data?.topOfficers != null ? (
+								<StatHorizontalBar
+									data={{ ...data.topOfficers, items: data.topOfficers.items.map(i => ({ ...i, label: data.relations[`users:${i.key}`]?.name ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "creditApplicationAssignment.officer" || f.operator != "equals"),
+										{ columnKey: "creditApplicationAssignment.officer", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
 
 export function DetailsDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext }:

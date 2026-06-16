@@ -12,6 +12,7 @@ import type { Survey } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationUser } from "../relation-navigation.shared";
+import { getCommonReviewableViewerStats, getCommonReviewableApproverStats } from "../statistics.actions";
 import { FormState } from "./layout.components";
 
 const PAGE_LIMIT = 20;
@@ -88,6 +89,19 @@ export const queryEditorAction = wsa(async (p: Omit<Parameters<typeof queryActio
 export const queryApproverAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "approver" });
 });
+
+export const getViewerStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => await uwsa(getCommonReviewableViewerStats)({ collectionSlug: "surveys", filters, keys }));
+export const getEditorStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => await uwsa(getCommonReviewableViewerStats)({ collectionSlug: "surveys", filters, keys }));
+export const getApproverStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => await uwsa(getCommonReviewableApproverStats)({ collectionSlug: "surveys", filters, keys }));
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();

@@ -19,13 +19,14 @@ import { Textarea } from "@/components/radix/Textarea";
 import { CreditApplication } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { searchRelationCreditApplicationsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationCreditApplicationImportRenderer } from "../relation-navigation.components";
+import { StatHistogram, StatHorizontalBar, StatisticsCard, StatisticsLoader, StatisticsSection, CommonReviewableViewerCards, CommonReviewableApproverCards, commonReviewableViewerCardDefinitions, commonReviewableApproverCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
 import { filterConfigColumns as creditApplicationImportFilterConfigColumns } from "./import.components";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, getViewerStatisticsAction, getApproverStatisticsAction } from "./layout.actions";
 
 export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -1018,5 +1019,101 @@ export function RestoreDeletionDialog(
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function ViewerStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "credit-application-management.viewer",
+		cards: [...commonReviewableViewerCardDefinitions, { key: "topVendors" }, { key: "plafondHistogram" }, { key: "periodHistogram" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["credit-application-management", "viewer", filters, keys]}
+			queryAction={() => uwsa(getViewerStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="credit-application-management.viewer">
+					<CommonReviewableViewerCards data={data} totalLabel="Total Applications" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.topVendors != null && data.topVendors.items.length > 0) ? (
+						<StatisticsCard cardKey="topVendors" title="Top Vendors" defaultSpan={2} skeleton={data == null}>
+							{data?.topVendors != null ? (
+								<StatHorizontalBar
+									data={data.topVendors}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "vendor" || f.operator != "equals"),
+										{ columnKey: "vendor", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.plafondHistogram != null && data.plafondHistogram.bins.length > 0) ? (
+						<StatisticsCard cardKey="plafondHistogram" title="Plafond Distribution" skeleton={data == null}>
+							{data?.plafondHistogram != null ? (
+								<StatHistogram
+									data={data.plafondHistogram}
+									onBinClick={bin => onFiltersChange(Number.isFinite(bin.binEnd) ? [
+										...filters.filter(f => f.columnKey != "plafond" || (f.operator != "greater_than_equal" && f.operator != "less_than")),
+										{ columnKey: "plafond", operator: "greater_than_equal", combinator: "and", value: bin.binStart },
+										{ columnKey: "plafond", operator: "less_than", combinator: "and", value: bin.binEnd }
+									] : [
+										...filters.filter(f => f.columnKey != "plafond" || f.operator != "greater_than_equal"),
+										{ columnKey: "plafond", operator: "greater_than_equal", combinator: "and", value: bin.binStart }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.periodHistogram != null && data.periodHistogram.bins.length > 0) ? (
+						<StatisticsCard cardKey="periodHistogram" title="Period Distribution" skeleton={data == null}>
+							{data?.periodHistogram != null ? (
+								<StatHistogram
+									data={data.periodHistogram}
+									onBinClick={bin => onFiltersChange(Number.isFinite(bin.binEnd) ? [
+										...filters.filter(f => f.columnKey != "period" || (f.operator != "greater_than_equal" && f.operator != "less_than")),
+										{ columnKey: "period", operator: "greater_than_equal", combinator: "and", value: bin.binStart },
+										{ columnKey: "period", operator: "less_than", combinator: "and", value: bin.binEnd }
+									] : [
+										...filters.filter(f => f.columnKey != "period" || f.operator != "greater_than_equal"),
+										{ columnKey: "period", operator: "greater_than_equal", combinator: "and", value: bin.binStart }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ApproverStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "credit-application-management.approver",
+		cards: [...commonReviewableApproverCardDefinitions, { key: "pendingTopVendors" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["credit-application-management", "approver", filters, keys]}
+			queryAction={() => uwsa(getApproverStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="credit-application-management.approver">
+					<CommonReviewableApproverCards data={data} filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.pendingTopVendors != null && data.pendingTopVendors.items.length > 0) ? (
+						<StatisticsCard cardKey="pendingTopVendors" title="Pending — Top Vendors" defaultSpan={2} skeleton={data == null}>
+							{data?.pendingTopVendors != null ? (
+								<StatHorizontalBar
+									data={data.pendingTopVendors}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "vendor" || f.operator != "equals"),
+										{ columnKey: "vendor", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
 	);
 }

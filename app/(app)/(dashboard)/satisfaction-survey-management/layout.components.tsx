@@ -19,12 +19,13 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { SatisfactionSurvey } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { searchRelationSatisfactionSurveysAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer } from "../relation-navigation.components";
+import { StatisticsLoader, StatisticsSection, CommonReviewableViewerCards, CommonReviewableApproverCards, commonReviewableViewerCardDefinitions, commonReviewableApproverCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, getViewerStatisticsAction, getApproverStatisticsAction } from "./layout.actions";
 
 const defaultSurveyContentRenderer = ({ buttonLabel, dialogTitle }: { buttonLabel: string, dialogTitle: string }) =>
 	(value: unknown) => (
@@ -682,6 +683,36 @@ export function RevertApprovedDialog(
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function ViewerStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({ layoutKey: "satisfaction-survey-management.viewer", cards: commonReviewableViewerCardDefinitions });
+	return (
+		<StatisticsLoader
+			queryKey={["satisfaction-survey-management", "viewer", filters, keys]}
+			queryAction={() => uwsa(getViewerStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="satisfaction-survey-management.viewer">
+					<CommonReviewableViewerCards data={data} totalLabel="Total Satisfaction Surveys" filters={filters} onFiltersChange={onFiltersChange} />
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ApproverStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({ layoutKey: "satisfaction-survey-management.approver", cards: commonReviewableApproverCardDefinitions });
+	return (
+		<StatisticsLoader
+			queryKey={["satisfaction-survey-management", "approver", filters, keys]}
+			queryAction={() => uwsa(getApproverStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="satisfaction-survey-management.approver">
+					<CommonReviewableApproverCards data={data} filters={filters} onFiltersChange={onFiltersChange} />
+				</StatisticsSection>
+			)}
+		/>
 	);
 }
 

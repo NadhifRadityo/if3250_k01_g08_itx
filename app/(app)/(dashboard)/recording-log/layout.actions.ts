@@ -12,6 +12,7 @@ import { RecordingLog } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationOfficerTasks } from "../relation-navigation.actions";
 import { RelationOfficerTask } from "../relation-navigation.shared";
+import { getCommonLogMonitoringStats, getCommonLogReportingStats } from "../statistics.actions";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`officer-tasks:${string}`, RelationOfficerTask>>;
@@ -76,6 +77,13 @@ export const queryReportingAction = wsa(async (p: Omit<Parameters<typeof queryAc
 export const queryMonitoringAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "monitoring" });
 });
+
+export const getMonitoringStatisticsAction = wsa(async (
+	{ filters, keys }: { filters: MenuFilterState[], keys: string[] }
+) => await uwsa(getCommonLogMonitoringStats)({ collectionSlug: "recording-logs", filters, keys }));
+export const getReportingStatisticsAction = wsa(async (
+	{ filters, keys }: { filters: MenuFilterState[], keys: string[] }
+) => await uwsa(getCommonLogReportingStats)({ collectionSlug: "recording-logs", filters, keys }));
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();

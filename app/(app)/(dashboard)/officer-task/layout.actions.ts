@@ -2,7 +2,7 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { Payload, getPayload } from "payload";
+import { Payload, getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
@@ -12,6 +12,13 @@ import { OfficerTask } from "@/payload-types";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
 import { RelationUser, RelationOfficerTask, RelationCreditApplicationAssignment } from "../relation-navigation.shared";
+import {
+	computeStatsCountBySql,
+	computeStatsBucketsBySql,
+	computeStatsBucketsByJoinedColumnSql,
+	getCommonLogMonitoringStats,
+	getCommonLogReportingStats
+} from "../statistics.actions";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
@@ -93,6 +100,94 @@ export const queryReportingAction = wsa(async (p: Omit<Parameters<typeof queryAc
 export const queryMonitoringAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "monitoring" });
 });
+
+export const getMonitoringStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonLogMonitoringStats)({ collectionSlug: "officer-tasks", filters, keys }),
+		computeStatisticMonitoringExtras({ filters, keys })
+	]);
+	return { ...common, ...extras };
+});
+export const getReportingStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonLogReportingStats)({ collectionSlug: "officer-tasks", filters, keys }),
+		computeStatisticReportingExtras({ filters, keys })
+	]);
+	return { ...common, ...extras };
+});
+
+async function computeStatisticMonitoringExtras(
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) {
+	const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+	const tomorrowStart = new Date(todayStart); tomorrowStart.setDate(todayStart.getDate() + 1);
+	const settledTodayWhere = { settledAt: { greater_than_equal: todayStart.toISOString(), less_than: tomorrowStart.toISOString() } };
+	const evaluatedTodayWhere = { evaluatedAt: { greater_than_equal: todayStart.toISOString(), less_than: tomorrowStart.toISOString() } };
+	const [settled, evaluated] = await Promise.all([
+		keys.includes("settledToday") ? uwsa(computeStatsCountBySql)({ collectionSlug: "officer-tasks", filters, extraWhere: settledTodayWhere, alwaysExcludeDeleted: false }) : undefined,
+		keys.includes("evaluatedToday") ? uwsa(computeStatsCountBySql)({ collectionSlug: "officer-tasks", filters, extraWhere: evaluatedTodayWhere, alwaysExcludeDeleted: false }) : undefined
+	]);
+	return {
+		settledToday: settled == null ? undefined : { value: settled.count },
+		evaluatedToday: evaluated == null ? undefined : { value: evaluated.count }
+	};
+}
+
+// Internal: gathers the officer-task reporting extras (settlement-status / evaluation-status /
+// top-officers buckets).
+async function computeStatisticReportingExtras(
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) {
+	const payload = await getPayload({ config: payloadConfig });
+	const [settlementStatus, evaluationStatus, topOfficers] = await Promise.all([
+		keys.includes("settlementStatus") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "officer-tasks",
+			columnExpression: "settlement_status",
+			filters: filters,
+			alwaysExcludeDeleted: false,
+			filterColumnKey: "settlementStatus"
+		}) : undefined,
+		keys.includes("evaluationStatus") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "officer-tasks",
+			columnExpression: `CASE
+				WHEN evaluation_approved IS TRUE THEN 'Approved'
+				WHEN evaluation_approved IS FALSE THEN 'Rejected'
+				WHEN evaluated_at IS NULL AND settlement_status = 'finished' THEN 'Pending'
+				ELSE 'Other'
+			END`,
+			filters: filters,
+			alwaysExcludeDeleted: false
+		}) : undefined,
+		keys.includes("topOfficers") ? uwsa(computeStatsBucketsByJoinedColumnSql)({
+			collectionSlug: "officer-tasks",
+			filters: filters,
+			joinedTableName: "credit_application_assignments",
+			joinLocalColumn: "credit_application_assignment_id",
+			joinForeignColumn: "id",
+			columnExpression: "joined.officer_id",
+			limit: 10,
+			alwaysExcludeDeleted: false,
+			filterColumnKey: "creditApplicationAssignment.officer"
+		}) : undefined
+	]);
+	const relations: RelationValues = {};
+	if(topOfficers != null)
+		Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: topOfficers.items.map(i => i.key) }));
+	return {
+		settlementStatus: settlementStatus,
+		evaluationStatus: evaluationStatus,
+		topOfficers: topOfficers,
+		relations: relations
+	};
+}
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();

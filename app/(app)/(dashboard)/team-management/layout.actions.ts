@@ -2,7 +2,7 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { Payload, getPayload } from "payload";
+import { Payload, getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
@@ -13,7 +13,14 @@ import { compileAccesses } from "../access-management/layout.actions";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationUser } from "../relation-navigation.shared";
+import {
+	computeStatsBucketsBySql,
+	computeStatsRelationAvgChildCountBySql,
+	getCommonReviewableViewerStats,
+	getCommonReviewableApproverStats
+} from "../statistics.actions";
 import { FormState } from "./layout.components";
+import type { StatNumberData } from "../statistics.shared";
 
 const PAGE_LIMIT = 20;
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>>;
@@ -99,6 +106,68 @@ export const queryEditorAction = wsa(async (p: Omit<Parameters<typeof queryActio
 export const queryApproverAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "approver" });
 });
+
+export const getViewerStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "teams", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras, relations: { ...common.relations, ...extras.relations } };
+});
+export const getEditorStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "teams", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras, relations: { ...common.relations, ...extras.relations } };
+});
+export const getApproverStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableApproverStats)({ collectionSlug: "teams", filters, keys }),
+		computeStatisticExtras({ pendingOnly: true, filters, keys })
+	]);
+	return { ...common, pendingTopSupervisors: extras.topSupervisors, relations: { ...common.relations, ...extras.relations } };
+});
+
+async function computeStatisticExtras(
+	{ pendingOnly = false, filters, keys }:
+	{ pendingOnly?: boolean, filters: MenuFilterState[], keys: string[] }
+) {
+	const payload = await getPayload({ config: payloadConfig });
+	const pendingExtraWhere: Where | undefined = pendingOnly ?
+		{ and: [{ _status: { equals: "draft" } }, { reviewedAt: { exists: false } }] } :
+		undefined;
+	const topSupervisors = keys.includes("topSupervisors") || keys.includes("pendingTopSupervisors") ? await uwsa(computeStatsBucketsBySql)({
+		collectionSlug: "teams",
+		columnExpression: "supervisor_id",
+		filters: filters,
+		extraWhere: pendingExtraWhere,
+		limit: 10,
+		filterColumnKey: "supervisor"
+	}) : undefined;
+	const relations: RelationValues = {};
+	if(topSupervisors != null)
+		Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: topSupervisors.items.map(i => i.key) }));
+
+	let avgMembers: StatNumberData | undefined;
+	if(!pendingOnly && (keys.includes("avgMembers"))) {
+		const { avg } = await uwsa(computeStatsRelationAvgChildCountBySql)({
+			relationTableName: "teams_rels",
+			extraSqlCondition: { path: "members" }
+		});
+		avgMembers = { value: avg ?? 0, subtext: "Avg members per team" };
+	}
+	return { topSupervisors: topSupervisors, avgMembers: avgMembers, relations: relations };
+}
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();

@@ -37,11 +37,12 @@ import { defaultRelationUserRenderer } from "../relation-navigation.components";
 import { columnConfigColumns as roleColumnConfigColumns, filterConfigColumns as roleFilterConfigColumns } from "../role-management/layout.components";
 import { columnConfigColumns as satisfactionSurveyColumnConfigColumns, filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
 import { columnConfigColumns as satisfactionSurveyResultColumnConfigColumns, filterConfigColumns as satisfactionSurveyResultFilterConfigColumns } from "../satisfaction-survey-result/layout.components";
+import { StatDonut, StatNumber, StatisticsCard, StatisticsLoader, StatHorizontalBar, StatisticsSection, CommonReviewableViewerCards, CommonReviewableApproverCards, commonReviewableViewerCardDefinitions, commonReviewableApproverCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { columnConfigColumns as surveyColumnConfigColumns, filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
 import { columnConfigColumns as surveyResultColumnConfigColumns, filterConfigColumns as surveyResultFilterConfigColumns } from "../survey-result/layout.components";
 import { columnConfigColumns as teamColumnConfigColumns, filterConfigColumns as teamFilterConfigColumns } from "../team-management/layout.components";
 import { userFilterConfigColumns, columnConfigColumns as userColumnConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, getViewerStatisticsAction, getApproverStatisticsAction } from "./layout.actions";
 import { maskOptionsMap, collectionMaskFields, operationSelectOptions, collectionSelectOptions, collectionNonEditableToggleableFields } from "./layout.shared";
 
 const collectionFilterConfigColumns = {
@@ -1057,5 +1058,114 @@ export function RestoreDeletionDialog(
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function ViewerStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "access-management.viewer",
+		cards: [...commonReviewableViewerCardDefinitions, { key: "enabled" }, { key: "byCollection" }, { key: "byOperation" }, { key: "priority" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["access-management", "viewer", filters, keys]}
+			queryAction={() => uwsa(getViewerStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="access-management.viewer">
+					<CommonReviewableViewerCards data={data} totalLabel="Total Accesses" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || data.enabled != null ? (
+						<StatisticsCard cardKey="enabled" title="Enabled vs Disabled" skeleton={data == null}>
+							{data?.enabled != null ? (
+								<StatDonut
+									data={{ items: [
+										{ key: "active", label: "Enabled", count: data.enabled.active, filterValue: true },
+										{ key: "disabled", label: "Disabled", count: data.enabled.disabled, filterValue: false }
+									] }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "enabled" || f.operator != "equals"),
+										{ columnKey: "enabled", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.byCollection != null && data.byCollection.items.length > 0) ? (
+						<StatisticsCard cardKey="byCollection" title="By Collection" defaultSpan={2} skeleton={data == null}>
+							{data?.byCollection != null ? (
+								<StatHorizontalBar
+									data={data.byCollection}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "collection" || f.operator != "equals"),
+										{ columnKey: "collection", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.byOperation != null && data.byOperation.items.length > 0) ? (
+						<StatisticsCard cardKey="byOperation" title="By Operation" skeleton={data == null}>
+							{data?.byOperation != null ? (
+								<StatDonut
+									data={data.byOperation}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "operation" || f.operator != "equals"),
+										{ columnKey: "operation", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || data.priority != null ? (
+						<StatisticsCard cardKey="priority" title="Avg Priority" skeleton={data == null}>
+							{data?.priority != null ? <StatNumber data={data.priority} /> : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ApproverStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "access-management.approver",
+		cards: [...commonReviewableApproverCardDefinitions, { key: "pendingByCollection" }, { key: "pendingByOperation" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["access-management", "approver", filters, keys]}
+			queryAction={() => uwsa(getApproverStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="access-management.approver">
+					<CommonReviewableApproverCards data={data} filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.pendingByCollection != null && data.pendingByCollection.items.length > 0) ? (
+						<StatisticsCard cardKey="pendingByCollection" title="Pending — By Collection" defaultSpan={2} skeleton={data == null}>
+							{data?.pendingByCollection != null ? (
+								<StatHorizontalBar
+									data={data.pendingByCollection}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "collection" || f.operator != "equals"),
+										{ columnKey: "collection", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.pendingByOperation != null && data.pendingByOperation.items.length > 0) ? (
+						<StatisticsCard cardKey="pendingByOperation" title="Pending — By Operation" skeleton={data == null}>
+							{data?.pendingByOperation != null ? (
+								<StatDonut
+									data={data.pendingByOperation}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "operation" || f.operator != "equals"),
+										{ columnKey: "operation", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
 	);
 }

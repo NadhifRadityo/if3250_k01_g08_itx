@@ -18,11 +18,12 @@ import { Skeleton } from "@/components/radix/Skeleton";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { filterConfigColumns as creditApplicationAssignmentFilterConfigColumns } from "../credit-application-assignment/layout.components";
-import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { searchRelationOfficerTasksAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationOfficerTaskRenderer, defaultRelationCreditApplicationAssignmentRenderer } from "../relation-navigation.components";
+import { StatNumber, StatBar, StatisticsCard, StatisticsLoader, StatisticsSection, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { queryAction, RelationValues, getDetailsAction, appendGpsLogAction } from "./executor.actions";
+import { queryAction, RelationValues, getDetailsAction, appendGpsLogAction, getExecutorStatisticsAction } from "./executor.actions";
 import { officerTaskStatusLabels, computeOfficerTaskStatus, settlementStatusSelectOptions } from "./layout.shared";
 
 export const defaultStatusRenderer = () =>
@@ -160,6 +161,46 @@ export const defaultColumnsShown = Object.freeze([
 export const defaultColumnsSort = Object.freeze([
 	["updatedAt", false]
 ]) as [string, boolean][];
+
+export function ExecutorStatistics({ filters }: { filters: MenuFilterState[] }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "officer-task.executor",
+		cards: [{ key: "hasActiveTask" }, { key: "mySettledTotal" }, { key: "myPendingEvaluation" }, { key: "myDueTasks" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["officer-task", "executor", filters, keys]}
+			queryAction={() => uwsa(getExecutorStatisticsAction)({ filters, keys })}
+			refetchInterval={30000}
+			render={data => (
+				<StatisticsSection layoutKey="officer-task.executor">
+					{data == null || data.hasActiveTask != null ? (
+						<StatisticsCard cardKey="hasActiveTask" title="Active Task" skeleton={data == null}>
+							{data?.hasActiveTask != null ? (
+								<StatNumber data={{ value: data.hasActiveTask.active ? 1 : 0, subtext: data.hasActiveTask.active ? "Currently active" : "None active" }} />
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || data.mySettledTotal != null ? (
+						<StatisticsCard cardKey="mySettledTotal" title="My Settled" skeleton={data == null}>
+							{data?.mySettledTotal != null ? <StatNumber data={data.mySettledTotal} /> : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || data.myPendingEvaluation != null ? (
+						<StatisticsCard cardKey="myPendingEvaluation" title="My Pending Evaluation" skeleton={data == null}>
+							{data?.myPendingEvaluation != null ? <StatNumber data={data.myPendingEvaluation} /> : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.myDueTasks != null && data.myDueTasks.items.length > 0) ? (
+						<StatisticsCard cardKey="myDueTasks" title="My Tasks by Due Date" skeleton={data == null}>
+							{data?.myDueTasks != null ? <StatBar data={data.myDueTasks} /> : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
 
 export function DetailsDrawer(
 	{ open, onOpenChange, row, rowValueRendererContext, renderActions, onChainNavigate }:

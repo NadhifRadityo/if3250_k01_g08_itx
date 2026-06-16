@@ -2,7 +2,7 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { Payload, getPayload } from "payload";
+import { Payload, getPayload, type Where } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
@@ -13,6 +13,11 @@ import { MenuFilterState } from "../layout.components";
 import { chainAndCreateNextOfficerTask, getCurrentChainHeadOfficerTaskId, getLatestPublishedAssignmentVersionId } from "../officer-task/layout.shared";
 import { resolveRelationUsers, resolveRelationSurveys, resolveRelationCreditApplications, resolveRelationSatisfactionSurveys } from "../relation-navigation.actions";
 import { RelationUser, RelationSurvey, RelationCreditApplication, RelationSatisfactionSurvey } from "../relation-navigation.shared";
+import {
+	computeStatsBucketsBySql,
+	getCommonReviewableViewerStats,
+	getCommonReviewableApproverStats
+} from "../statistics.actions";
 import { FormState } from "./layout.components";
 
 async function ensureNoBlockingOfficerTask(
@@ -145,6 +150,77 @@ export const queryEditorAction = wsa(async (p: Omit<Parameters<typeof queryActio
 export const queryApproverAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
 	return await queryAction({ ...p, mode: "approver" });
 });
+
+export const getViewerStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "credit-application-assignments", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras, relations: { ...common.relations, ...extras.relations } };
+});
+export const getEditorStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableViewerStats)({ collectionSlug: "credit-application-assignments", filters, keys }),
+		computeStatisticExtras({ pendingOnly: false, filters, keys })
+	]);
+	return { ...common, ...extras, relations: { ...common.relations, ...extras.relations } };
+});
+export const getApproverStatisticsAction = wsa(async (
+	{ filters, keys }:
+	{ filters: MenuFilterState[], keys: string[] }
+) => {
+	const [common, extras] = await Promise.all([
+		uwsa(getCommonReviewableApproverStats)({ collectionSlug: "credit-application-assignments", filters, keys }),
+		computeStatisticExtras({ pendingOnly: true, filters, keys })
+	]);
+	return { ...common, pendingTopOfficers: extras.topOfficers, relations: { ...common.relations, ...extras.relations } };
+});
+
+async function computeStatisticExtras(
+	{ pendingOnly = false, filters, keys }:
+	{ pendingOnly?: boolean, filters: MenuFilterState[], keys: string[] }
+) {
+	const payload = await getPayload({ config: payloadConfig });
+	const pendingExtraWhere: Where | undefined = pendingOnly ?
+		{ and: [{ _status: { equals: "draft" } }, { reviewedAt: { exists: false } }] } :
+		undefined;
+	const [topOfficers, dueDateBucketsRaw] = await Promise.all([
+		keys.includes("topOfficers") || keys.includes("pendingTopOfficers") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "credit-application-assignments",
+			columnExpression: "officer_id",
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			limit: 10,
+			filterColumnKey: "officer"
+		}) : undefined,
+		keys.includes("dueDateBuckets") ? uwsa(computeStatsBucketsBySql)({
+			collectionSlug: "credit-application-assignments",
+			columnExpression: `CASE
+				WHEN due_date IS NULL THEN 'No due date'
+				WHEN due_date < NOW() THEN 'Overdue'
+				WHEN due_date < NOW() + interval '1 day' THEN 'Today'
+				WHEN due_date < NOW() + interval '7 days' THEN 'This week'
+				WHEN due_date < NOW() + interval '30 days' THEN 'This month'
+				ELSE 'Later'
+			END`,
+			filters: filters,
+			extraWhere: pendingExtraWhere,
+			limit: 10
+		}) : undefined
+	]);
+	const dueOrder = ["Overdue", "Today", "This week", "This month", "Later", "No due date"];
+	const dueDateBuckets = dueDateBucketsRaw == null ? undefined : { ...dueDateBucketsRaw, items: [...dueDateBucketsRaw.items].sort((a, b) => dueOrder.indexOf(a.key) - dueOrder.indexOf(b.key)) };
+	const relations: RelationValues = {};
+	if(topOfficers != null)
+		Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, ids: topOfficers.items.map(i => i.key) }));
+	return { topOfficers: topOfficers, dueDateBuckets: dueDateBuckets, relations: relations };
+}
 
 export const getDetailsAction = wsa(async (id: string) => {
 	const headers = await nextHeaders();

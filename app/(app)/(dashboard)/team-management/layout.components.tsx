@@ -19,12 +19,13 @@ import { Skeleton } from "@/components/radix/Skeleton";
 import { Team } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { searchRelationTeamsAction, searchRelationUsersAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationUsersRenderer } from "../relation-navigation.components";
+import { StatNumber, StatHorizontalBar, StatisticsCard, StatisticsLoader, StatisticsSection, CommonReviewableViewerCards, CommonReviewableApproverCards, commonReviewableViewerCardDefinitions, commonReviewableApproverCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { userFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, getViewerStatisticsAction, getApproverStatisticsAction } from "./layout.actions";
 
 export type ColumnData = rwsa<typeof queryViewerAction>["docs"][number];
 export const filterConfigColumns = Object.freeze([
@@ -728,5 +729,72 @@ export function RestoreDeletionDialog(
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function ViewerStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "team-management.viewer",
+		cards: [...commonReviewableViewerCardDefinitions, { key: "avgMembers" }, { key: "topSupervisors" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["team-management", "viewer", filters, keys]}
+			queryAction={() => uwsa(getViewerStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="team-management.viewer">
+					<CommonReviewableViewerCards data={data} totalLabel="Total Teams" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || data.avgMembers != null ? (
+						<StatisticsCard cardKey="avgMembers" title="Avg Members per Team" skeleton={data == null}>
+							{data?.avgMembers != null ? <StatNumber data={data.avgMembers} /> : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.topSupervisors != null && data.topSupervisors.items.length > 0) ? (
+						<StatisticsCard cardKey="topSupervisors" title="Top Supervisors" defaultSpan={2} skeleton={data == null}>
+							{data?.topSupervisors != null ? (
+								<StatHorizontalBar
+									data={{ ...data.topSupervisors, items: data.topSupervisors.items.map(i => ({ ...i, label: data.relations[`users:${i.key}`]?.name ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "supervisor" || f.operator != "equals"),
+										{ columnKey: "supervisor", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ApproverStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "team-management.approver",
+		cards: [...commonReviewableApproverCardDefinitions, { key: "pendingTopSupervisors" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["team-management", "approver", filters, keys]}
+			queryAction={() => uwsa(getApproverStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="team-management.approver">
+					<CommonReviewableApproverCards data={data} filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.pendingTopSupervisors != null && data.pendingTopSupervisors.items.length > 0) ? (
+						<StatisticsCard cardKey="pendingTopSupervisors" title="Pending — Top Supervisors" defaultSpan={2} skeleton={data == null}>
+							{data?.pendingTopSupervisors != null ? (
+								<StatHorizontalBar
+									data={{ ...data.pendingTopSupervisors, items: data.pendingTopSupervisors.items.map(i => ({ ...i, label: data.relations[`users:${i.key}`]?.name ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "supervisor" || f.operator != "equals"),
+										{ columnKey: "supervisor", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
 	);
 }

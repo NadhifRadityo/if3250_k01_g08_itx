@@ -21,14 +21,15 @@ import { CreditApplicationAssignment } from "@/payload-types";
 
 import { uploadGenericRichtextImage } from "../../editor-x.actions";
 import { filterConfigColumns as creditApplicationFilterConfigColumns } from "../credit-application-management/layout.components";
-import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn } from "../layout.components";
+import { useDashboardContext, defaultStatusRenderer, MenuTableConfigColumn, MenuColumnConfigColumn, MenuFilterConfigColumn, useMenuRowValueRenderer, MenuRowValueRendererContext, defaultChangeRequestRenderer, MenuRowValueRendererConfigColumn, type MenuFilterState } from "../layout.components";
 import { changeRequestTypeSelectOptions } from "../layout.shared";
 import { searchRelationSurveysAction, searchRelationUsersByRoleLevelAction, searchRelationSatisfactionSurveysAction, searchAvailableRelationCreditApplicationsAction, searchRelationCreditApplicationAssignmentsAction } from "../relation-navigation.actions";
 import { defaultRelationUserRenderer, defaultRelationSurveyRenderer, defaultRelationCreditApplicationRenderer, defaultRelationSatisfactionSurveyRenderer } from "../relation-navigation.components";
 import { filterConfigColumns as satisfactionSurveyFilterConfigColumns } from "../satisfaction-survey-management/layout.components";
+import { StatHorizontalBar, StatBar, StatisticsCard, StatisticsLoader, StatisticsSection, CommonReviewableViewerCards, CommonReviewableApproverCards, commonReviewableViewerCardDefinitions, commonReviewableApproverCardDefinitions, useStatisticsVisibleKeys } from "../statistics.components";
 import { filterConfigColumns as surveyFilterConfigColumns } from "../survey-management/layout.components";
 import { userFilterConfigColumns, userByRoleFilterConfigColumns } from "../user-management/layout.components";
-import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction } from "./layout.actions";
+import { RelationValues, getDetailsAction, getHistoryAction, queryViewerAction, getDifferenceAction, getViewerStatisticsAction, getApproverStatisticsAction } from "./layout.actions";
 
 const defaultGeofenceRegionsRenderer = ({ buttonLabel, dialogTitle }: { buttonLabel: string, dialogTitle: string }) =>
 	(value: unknown) => (
@@ -835,5 +836,76 @@ export function RestoreDeletionDialog(
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
+	);
+}
+
+export function ViewerStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "credit-application-assignment.viewer",
+		cards: [...commonReviewableViewerCardDefinitions, { key: "topOfficers" }, { key: "dueDateBuckets" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["credit-application-assignment", "viewer", filters, keys]}
+			queryAction={() => uwsa(getViewerStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="credit-application-assignment.viewer">
+					<CommonReviewableViewerCards data={data} totalLabel="Total Assignments" filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.topOfficers != null && data.topOfficers.items.length > 0) ? (
+						<StatisticsCard cardKey="topOfficers" title="Top Officers" defaultSpan={2} skeleton={data == null}>
+							{data?.topOfficers != null ? (
+								<StatHorizontalBar
+									data={{ ...data.topOfficers, items: data.topOfficers.items.map(i => ({ ...i, label: data.relations[`users:${i.key}`]?.name ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "officer" || f.operator != "equals"),
+										{ columnKey: "officer", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+					{data == null || (data.dueDateBuckets != null && data.dueDateBuckets.items.length > 0) ? (
+						<StatisticsCard cardKey="dueDateBuckets" title="By Due Date" defaultSpan={2} skeleton={data == null}>
+							{/* Bucket keys here are derived from a CASE expression on `dueDate` (e.g. "Today",
+							    "This week"). They don't map cleanly to a single equals filter, so we leave the
+							    chart non-interactive — see the user's "if it cannot be expressed with filter,
+							    do not provide filter interactivity" rule. */}
+							{data?.dueDateBuckets != null ? <StatBar data={data.dueDateBuckets} /> : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
+	);
+}
+
+export function ApproverStatistics({ filters, onFiltersChange }: { filters: MenuFilterState[], onFiltersChange: (v: MenuFilterState[]) => void }) {
+	const keys = useStatisticsVisibleKeys({
+		layoutKey: "credit-application-assignment.approver",
+		cards: [...commonReviewableApproverCardDefinitions, { key: "pendingTopOfficers" }]
+	});
+	return (
+		<StatisticsLoader
+			queryKey={["credit-application-assignment", "approver", filters, keys]}
+			queryAction={() => uwsa(getApproverStatisticsAction)({ filters, keys })}
+			render={data => (
+				<StatisticsSection layoutKey="credit-application-assignment.approver">
+					<CommonReviewableApproverCards data={data} filters={filters} onFiltersChange={onFiltersChange} />
+					{data == null || (data.pendingTopOfficers != null && data.pendingTopOfficers.items.length > 0) ? (
+						<StatisticsCard cardKey="pendingTopOfficers" title="Pending — Top Officers" defaultSpan={2} skeleton={data == null}>
+							{data?.pendingTopOfficers != null ? (
+								<StatHorizontalBar
+									data={{ ...data.pendingTopOfficers, items: data.pendingTopOfficers.items.map(i => ({ ...i, label: data.relations[`users:${i.key}`]?.name ?? i.key })) }}
+									onItemClick={item => onFiltersChange([
+										...filters.filter(f => f.columnKey != "officer" || f.operator != "equals"),
+										{ columnKey: "officer", operator: "equals", combinator: "and", value: item.filterValue }
+									])}
+								/>
+							) : null}
+						</StatisticsCard>
+					) : null}
+				</StatisticsSection>
+			)}
+		/>
 	);
 }

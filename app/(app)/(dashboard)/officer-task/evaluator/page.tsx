@@ -12,7 +12,7 @@ import { Button } from "@/components/radix/Button";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryAction, evaluateAction, getDetailsAction } from "../evaluator.actions";
-import { ColumnData, DetailsDrawer, EvaluateDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../evaluator.components";
+import { ColumnData, DetailsDrawer, EvaluateDrawer, EvaluatorStatistics, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../evaluator.components";
 
 const columnConfigColumnsWithActions = Object.freeze([
 	...columnConfigColumns,
@@ -110,6 +110,7 @@ export default function Page() {
 		<MenuPage
 			title="Officer Task"
 			description="Evaluate officer tasks before they are settled."
+			beforeChildren={<EvaluatorStatistics filters={filters} />}
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar

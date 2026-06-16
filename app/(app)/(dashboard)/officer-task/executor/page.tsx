@@ -12,7 +12,7 @@ import { Button } from "@/components/radix/Button";
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider } from "../../relation-navigation.components";
 import { queryAction, cancelAction, finishAction, activateAction, inputOtpAction, getActiveAction, getDetailsAction, undoFinishAction, clearActiveAction, sendOtpMessageAction, sendSatisfactionSurveyMessageAction } from "../executor.actions";
-import { ColumnData, CancelDialog, FinishDialog, DetailsDrawer, SendOtpDialog, ActivateDialog, InputOtpDialog, UndoFinishDialog, ClearActiveDialog, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, GeofenceWarningDialog, ActivateLocationButton, SendSatisfactionSurveyDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../executor.components";
+import { ColumnData, CancelDialog, FinishDialog, DetailsDrawer, SendOtpDialog, ActivateDialog, InputOtpDialog, UndoFinishDialog, ClearActiveDialog, ExecutorStatistics, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, GeofenceWarningDialog, ActivateLocationButton, SendSatisfactionSurveyDialog, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../executor.components";
 import { computeOfficerTaskStatus } from "../layout.shared";
 
 const columnConfigColumnsWithActions = Object.freeze([
@@ -182,6 +182,7 @@ export default function Page() {
 		<MenuPage
 			title="Officer Task"
 			description="Execute your assigned officer tasks: activate, send OTP, fill surveys, and finish or cancel as needed."
+			beforeChildren={<ExecutorStatistics filters={filters} />}
 		>
 			<RelationNavigationProvider>
 				<MenuToolbar

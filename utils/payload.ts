@@ -1,4 +1,7 @@
-import { Where } from "payload";
+import { sql, PostgresAdapter } from "@payloadcms/db-postgres";
+import { SQL } from "@payloadcms/db-postgres/drizzle";
+import { buildQuery } from "@payloadcms/drizzle";
+import { Payload, type CollectionSlug, Where } from "payload";
 
 export function getRelationshipId(value: unknown): string | null {
 	if(typeof value == "string")
@@ -110,4 +113,115 @@ export function lexicalPlainText(value: string): any {
 			]
 		}
 	};
+}
+
+
+// Generic Payload/Postgres helpers used across server actions ----------------------------------
+
+export function payloadToSnakeCase(value: string) {
+	return value.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/[\W_]+/g, " ").trim().toLowerCase().replace(/\s+/g, "_");
+}
+
+// Mirrors Payload's internal getTransaction logic: when there was a recent write, read from
+// the primary instead of the replica so we don't observe stale data.
+export function getReadDrizzle(adapter: PostgresAdapter) {
+	return adapter.primaryDrizzle != null && adapter.lastWriteTimestamp != null && (Date.now() - adapter.lastWriteTimestamp < adapter.readReplicasAfterWriteInterval) ? adapter.primaryDrizzle : adapter.drizzle;
+}
+
+export function resolveCollection(payload: Payload, collectionSlug: CollectionSlug) {
+	const adapter = payload.db as PostgresAdapter;
+	const collectionConfig = payload.config.collections.find(c => c.slug == collectionSlug);
+	if(collectionConfig == null)
+		throw new Error(`Collection ${collectionSlug} not found in the payload config.`);
+	const tableName = adapter.tableNameMap.get(payloadToSnakeCase(collectionConfig.slug));
+	if(tableName == null)
+		throw new Error(`Could not resolve database table for collection ${collectionSlug}.`);
+	return { adapter: adapter, collectionConfig: collectionConfig, tableName: tableName, table: adapter.tables[tableName] };
+}
+
+
+// SQL aggregate building blocks ----------------------------------------------------------------
+
+export type PayloadAggregateJoin = { type?: string, table: any, condition: SQL };
+
+// Builds an SQL fragment representing the combined filter / base where clause and appends any
+// joins required by the filter to `joinsOut` so the caller can splice them into its FROM list.
+// `extraWhere` is an optional Payload `Where` object that's AND-merged with `filters` —
+// callers can use it to express predicates like `{ _status: { equals: "draft" } }` in JSON
+// form rather than constructing raw SQL.
+export function buildFilterClauseSql(
+	{ payload, collectionSlug, filters, extraWhere, alwaysExcludeDeleted = false, joinsOut = [] }:
+	{
+		payload: Payload;
+		collectionSlug: CollectionSlug;
+		filters?: { columnKey: string, operator: string, combinator: "and" | "or", value: any }[] | null;
+		extraWhere?: Where | null;
+		alwaysExcludeDeleted?: boolean;
+		joinsOut?: PayloadAggregateJoin[];
+	}
+) {
+	const conditions: Where[] = [];
+	if(alwaysExcludeDeleted)
+		conditions.push({ deletedAt: { exists: false } });
+	if(filters != null && filters.length > 0)
+		conditions.push(buildFilterWhere(filters));
+	if(extraWhere != null)
+		conditions.push(extraWhere);
+	if(conditions.length == 0)
+		return sql`TRUE`;
+	const { adapter, collectionConfig, tableName } = resolveCollection(payload, collectionSlug);
+	const built = buildQuery({
+		adapter: adapter,
+		fields: collectionConfig.flattenedFields,
+		tableName: tableName,
+		where: { and: conditions }
+	});
+	for(const join of built.joins)
+		joinsOut.push(join);
+	return built.where ?? sql`TRUE`;
+}
+
+export async function executeAggregate<R extends Record<string, any>>(
+	{ payload, sqlQuery }:
+	{ payload: Payload, sqlQuery: SQL }
+) {
+	const adapter = payload.db as PostgresAdapter;
+	const db = getReadDrizzle(adapter);
+	const result = await payload.db.execute({ db: db, sql: sqlQuery }) as { rows: R[] } | R[];
+	if(Array.isArray(result))
+		return result;
+	return result.rows;
+}
+
+// Composes "SELECT ... FROM <tableName> [JOINs] WHERE (<filter>) [additional] [GROUP BY] [...]"
+// where joins/filter come from buildFilterClauseSql.
+export function composeFilteredSql(
+	{ tableName, joins, whereSql, selectClause, additionalWhere = sql``, groupByClause = sql``, orderByClause = sql``, limitClause = sql`` }:
+	{
+		tableName: string;
+		joins: PayloadAggregateJoin[];
+		whereSql: SQL;
+		selectClause: SQL;
+		additionalWhere?: SQL;
+		groupByClause?: SQL;
+		orderByClause?: SQL;
+		limitClause?: SQL;
+	}
+) {
+	const joinsSql = joins.map(j => {
+		const joinType = j.type ?? "leftJoin";
+		const keyword = joinType == "innerJoin" ? sql.raw("INNER JOIN")
+			: joinType == "rightJoin" ? sql.raw("RIGHT JOIN")
+				: sql.raw("LEFT JOIN");
+		return sql` ${keyword} ${j.table} ON ${j.condition}`;
+	});
+	return sql`
+		${selectClause}
+		FROM ${sql.identifier(tableName)}
+		${sql.join(joinsSql, sql``)}
+		WHERE (${whereSql}) ${additionalWhere}
+		${groupByClause}
+		${orderByClause}
+		${limitClause}
+	`;
 }
