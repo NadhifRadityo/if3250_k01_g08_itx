@@ -8,6 +8,7 @@ import cn from "@/utils/cn";
 import { MapSearchControls, seededRegionColor, useMapGpsTracking, LightPresetControls, MAPBOX_ACCESS_TOKEN, MapNavigationControls, animationDurationToBounds } from "@/components/GeofenceRegionsEditorDialog";
 import { Button } from "@/components/radix/Button";
 import { Slider } from "@/components/radix/Slider";
+import { ToggleGroup, ToggleGroupItem } from "@/components/radix/ToggleGroup";
 
 import "mapbox-gl/dist/mapbox-gl.css";
 
@@ -20,6 +21,7 @@ export type OfficerTrackingPoint = {
 export type OfficerTrackingUser = {
 	id: string;
 	name: string;
+	sessionId: string;
 	points: OfficerTrackingPoint[];
 };
 
@@ -87,6 +89,7 @@ export function OfficerTrackingMap(
 
 	const [sliderTimeMs, setSliderTimeMs] = useState<number | null>(null);
 	const [playing, setPlaying] = useState(false);
+	const [playSpeed, setPlaySpeed] = useState(1);
 	const isLive = sliderTimeMs == null;
 	const currentTimeMs = sliderTimeMs ?? effectiveEndMs;
 	useEffect(() => {
@@ -95,7 +98,7 @@ export function OfficerTrackingMap(
 		const handle = setInterval(() => {
 			setSliderTimeMs(previous => {
 				if(previous == null) return null;
-				const next = previous + 1000;
+				const next = previous + (1000 * playSpeed);
 				if(next >= effectiveEndMs) {
 					setPlaying(false);
 					return null;
@@ -104,7 +107,7 @@ export function OfficerTrackingMap(
 			});
 		}, 50);
 		return () => { clearInterval(handle); };
-	}, [playing, sliderTimeMs, effectiveEndMs]);
+	}, [playing, sliderTimeMs, effectiveEndMs, playSpeed]);
 
 	useMapGpsTracking({
 		enabled: gpsTracking,
@@ -157,18 +160,51 @@ export function OfficerTrackingMap(
 			if(!styleReadyRef.current) { map.once("load", run); return; }
 
 			const currentIds = new Set<string>();
+			const FADE_START_MS = 30 * 60 * 1000;
+			const FADE_DURATION_MS = 30 * 60 * 1000;
 			for(const user of users) {
 				currentIds.add(user.id);
 				const sourceId = `officer-tracking-path-${user.id}`;
 				const lineId = `officer-tracking-line-${user.id}`;
-				const data: GeoJSON.Feature = {
-					type: "Feature",
-					properties: {},
-					geometry: {
-						type: "LineString",
-						coordinates: user.points.map(point => [point.longitude, point.latitude])
+
+				// Create line segments with individual opacity based on point time
+				const features: GeoJSON.Feature[] = [];
+				for(let i = 0; i < user.points.length - 1; i++) {
+					const point = user.points[i];
+					const nextPoint = user.points[i + 1];
+					const pointTime = new Date(point.time).getTime();
+					// Don't render if current time hasn't reached this point yet
+					if(currentTimeMs < pointTime)
+						continue;
+
+					const timeSincePoint = currentTimeMs - pointTime;
+
+					let segmentOpacity = 0.4;
+					if(timeSincePoint > FADE_START_MS) {
+						const fadeProgress = Math.min(1, (timeSincePoint - FADE_START_MS) / FADE_DURATION_MS);
+						segmentOpacity = 0.4 * (1 - fadeProgress);
 					}
+
+					if(segmentOpacity > 0) {
+						features.push({
+							type: "Feature",
+							properties: { opacity: segmentOpacity },
+							geometry: {
+								type: "LineString",
+								coordinates: [
+									[point.longitude, point.latitude],
+									[nextPoint.longitude, nextPoint.latitude]
+								]
+							}
+						});
+					}
+				}
+
+				const data: GeoJSON.FeatureCollection = {
+					type: "FeatureCollection",
+					features: features
 				};
+
 				const source = map.getSource(sourceId);
 				if(source != null && source.type == "geojson")
 					source.setData(data);
@@ -177,7 +213,11 @@ export function OfficerTrackingMap(
 					map.addLayer({
 						id: lineId, type: "line", source: sourceId,
 						layout: { "line-cap": "round", "line-join": "round" },
-						paint: { "line-color": seededRegionColor(user.id), "line-width": 4, "line-opacity": 0.4 }
+						paint: {
+							"line-color": seededRegionColor(user.id),
+							"line-width": 4,
+							"line-opacity": ["get", "opacity"]
+						}
 					});
 				}
 			}
@@ -187,6 +227,9 @@ export function OfficerTrackingMap(
 				const sourceId = `officer-tracking-path-${id}`;
 				if(map.getLayer(lineId) != null) map.removeLayer(lineId);
 				if(map.getSource(sourceId) != null) map.removeSource(sourceId);
+			}
+			for(const id of markersRef.current.keys()) {
+				if(currentIds.has(id)) continue;
 				const marker = markersRef.current.get(id);
 				if(marker != null) {
 					marker.remove();
@@ -223,7 +266,7 @@ export function OfficerTrackingMap(
 		};
 		run();
 		return () => { cancelled = true; };
-	}, [users, styleReadyTick]);
+	}, [users, styleReadyTick, currentTimeMs]);
 
 	useEffect(() => {
 		const map = mapRef.current;
@@ -232,7 +275,31 @@ export function OfficerTrackingMap(
 		for(const user of users) {
 			const interpolated = interpolateUserPosition(user.points, currentTimeMs);
 			const marker = markersRef.current.get(user.id);
-			if(interpolated == null) {
+
+			// Don't render marker if current time hasn't reached the first point yet
+			if(user.points.length > 0) {
+				const firstPointTime = new Date(user.points[0].time).getTime();
+				if(currentTimeMs < firstPointTime) {
+					if(marker != null) {
+						marker.remove();
+						markersRef.current.delete(user.id);
+					}
+					continue;
+				}
+			}
+
+			const lastPoint = user.points[user.points.length - 1];
+			const lastPointTime = new Date(lastPoint.time).getTime();
+			const timeSinceLastPoint = currentTimeMs - lastPointTime;
+			const FADE_START_MS = 30 * 60 * 1000;
+			const FADE_DURATION_MS = 30 * 60 * 1000;
+			const shouldShow = timeSinceLastPoint <= (FADE_START_MS + FADE_DURATION_MS);
+			let markerOpacity = 1;
+			if(timeSinceLastPoint > FADE_START_MS) {
+				const fadeProgress = Math.min(1, (timeSinceLastPoint - FADE_START_MS) / FADE_DURATION_MS);
+				markerOpacity = 1 - fadeProgress;
+			}
+			if(interpolated == null || !shouldShow) {
 				if(marker != null) {
 					marker.remove();
 					markersRef.current.delete(user.id);
@@ -241,10 +308,12 @@ export function OfficerTrackingMap(
 			}
 			if(marker != null) {
 				marker.setLngLat([interpolated.longitude, interpolated.latitude]);
+				const element = marker.getElement();
+				if(element != null) element.style.filter = `opacity(${markerOpacity})`;
 				continue;
 			}
 			const element = document.createElement("div");
-			element.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;";
+			element.style.cssText = `display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;filter:opacity(${markerOpacity});`;
 			element.innerHTML = `
 				<div style="background-color:white;color:#0f172a;border:1px solid ${seededRegionColor(user.id)};border-radius:9999px;padding:2px 8px;font-size:11px;font-weight:500;white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.2);">${user.name}</div>
 				<div style="width:14px;height:14px;border-radius:50%;background-color:${seededRegionColor(user.id)};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);"></div>
@@ -284,7 +353,30 @@ export function OfficerTrackingMap(
 					<span className="font-medium text-foreground" suppressHydrationWarning>
 						{mounted ? formatSliderTime(currentTimeMs) : ""}
 					</span>
-					<div className="flex items-center gap-1">
+					<div className="flex items-center gap-1 flex-wrap">
+						<ToggleGroup
+							type="single"
+							value={String(playSpeed)}
+							onValueChange={value => { if(value != null) setPlaySpeed(Number(value)); }}
+							variant="outline"
+							size="sm"
+							spacing={0}
+							disabled={users.length == 0 || isLoading || isLive}
+							className="h-6"
+						>
+							<ToggleGroupItem value="0.5" className="h-6 px-1.5 text-[10px]">
+								0.5×
+							</ToggleGroupItem>
+							<ToggleGroupItem value="1" className="h-6 px-1.5 text-[10px]">
+								1×
+							</ToggleGroupItem>
+							<ToggleGroupItem value="2" className="h-6 px-1.5 text-[10px]">
+								2×
+							</ToggleGroupItem>
+							<ToggleGroupItem value="4" className="h-6 px-1.5 text-[10px]">
+								4×
+							</ToggleGroupItem>
+						</ToggleGroup>
 						<Button
 							type="button"
 							size="sm"

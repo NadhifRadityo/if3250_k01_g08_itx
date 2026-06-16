@@ -62,6 +62,7 @@ export default function Page() {
 		return {
 			id: mapUser.id,
 			name: relation?.name ?? mapUser.user,
+			sessionId: mapUser.sessionId,
 			points: mapUser.points
 		};
 	}), [query.data?.mapUsers, query.data?.relations]);
@@ -110,7 +111,7 @@ export default function Page() {
 						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
 					</Alert>
 				) : null}
-				<div className="h-[60vh] min-h-120">
+				<div className="relative z-0 h-[60vh] min-h-120">
 					{periodStart != null ? (
 						<OfficerTrackingMap
 							users={mapUsers}

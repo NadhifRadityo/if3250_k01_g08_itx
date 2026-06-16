@@ -41,6 +41,7 @@ export type OfficerTrackingRow = {
 export type OfficerTrackingMapUser = {
 	id: string;
 	user: string;
+	sessionId: string;
 	points: OfficerTrackingPoint[];
 };
 export type RelationValues = Partial<Record<`users:${string}`, RelationUser>> &
@@ -112,24 +113,27 @@ async function queryAction(
 		] }
 	});
 
-	const userBuckets = new Map<string, GpsLog[]>();
+	const sessionBuckets = new Map<string, GpsLog[]>();
 	for(const doc of result.docs) {
 		const userId = getRelationshipId(doc.user);
 		if(userId == null) continue;
-		let bucket = userBuckets.get(userId);
+		const sessionKey = `${userId}::${doc.sessionId}`;
+		let bucket = sessionBuckets.get(sessionKey);
 		if(bucket == null) {
 			bucket = [];
-			userBuckets.set(userId, bucket);
+			sessionBuckets.set(sessionKey, bucket);
 		}
 		bucket.push(doc);
 	}
 
 	const allRows: OfficerTrackingRow[] = [];
-	for(const [userId, docs] of userBuckets) {
+	for(const [sessionKey, docs] of sessionBuckets) {
 		docs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 		const lastDoc = docs[docs.length - 1];
+		const userId = getRelationshipId(lastDoc.user);
+		if(userId == null) continue;
 		allRows.push({
-			id: userId,
+			id: sessionKey,
 			user: userId,
 			firstSeen: docs[0].createdAt,
 			lastSeen: lastDoc.createdAt,
@@ -161,9 +165,10 @@ async function queryAction(
 
 	const mapRows = allRows.slice(0, MAP_USER_LIMIT);
 	const mapUsers: OfficerTrackingMapUser[] = mapRows.map(row => ({
-		id: row.user,
+		id: row.id,
 		user: row.user,
-		points: (userBuckets.get(row.user) ?? []).map(doc => ({
+		sessionId: row.sessionId,
+		points: (sessionBuckets.get(row.id) ?? []).map(doc => ({
 			id: doc.id,
 			time: doc.createdAt,
 			latitude: doc.latitude,
