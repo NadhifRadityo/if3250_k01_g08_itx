@@ -2,29 +2,31 @@
 
 import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
-import { getPayload } from "payload";
+import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
-import { CreditApplication, CreditApplicationAssignment } from "@/payload-types";
+import { User, CreditApplication, CreditApplicationAssignment } from "@/payload-types";
 
 async function ensureOfficerOwnsOfficerTask(
-	{ payload, userId, officerTaskId }:
-	{ payload: any, userId: string, officerTaskId: string }
+	{ payload, user, officerTaskId }:
+	{ payload: Payload, user: User, officerTaskId: string }
 ) {
 	const officerTask = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: officerTaskId,
 		draft: true,
 		trash: true,
 		depth: 1,
-		select: { creditApplicationAssignment: true },
-		populate: { "credit-application-assignments": { officer: true } }
+		select: { creditApplicationAssignment: true, settledAt: true, next: true },
+		populate: { "credit-application-assignments": { officer: true, geofenceRegions: true } }
 	});
-	const officerId = getRelationshipId((officerTask.creditApplicationAssignment as CreditApplicationAssignment).officer);
-	if(officerId != userId)
+	const creditApplicationAssignment = officerTask.creditApplicationAssignment;
+	const officerId = getRelationshipId((creditApplicationAssignment as CreditApplicationAssignment).officer);
+	if(officerId != user.id)
 		throw new Error("This officer task is not assigned to you.");
 	return officerTask;
 }
@@ -38,10 +40,11 @@ export const getContextAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId });
+	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId });
 	const creditApplicationAssignmentId = getRelationshipId(officerTask.creditApplicationAssignment)!;
 	const creditApplicationAssignment = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: creditApplicationAssignmentId,
 		draft: true,
@@ -71,10 +74,11 @@ export const appendRecordingLogsAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId });
+	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId });
 	const creditApplicationAssignmentId = getRelationshipId(officerTask.creditApplicationAssignment)!;
 	const creditApplicationAssignment = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: creditApplicationAssignmentId,
 		draft: true,
@@ -85,7 +89,8 @@ export const appendRecordingLogsAction = wsa(async (
 	});
 	const whatsappNumber = (creditApplicationAssignment.creditApplication as CreditApplication).whatsappNumber;
 	await payload.create({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "recording-logs",
 		data: {
 			officerTask: officerTaskId,

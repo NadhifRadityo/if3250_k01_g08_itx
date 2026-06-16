@@ -54,7 +54,7 @@ async function queryAction(
 	if(user == null) return unauthorized();
 	const result = await payload.find({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		draft: true,
 		trash: true,
@@ -137,7 +137,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 
 	const requestedDoc = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		trash: true,
 		pagination: false,
@@ -167,7 +167,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 		throw new Error("Draft role request could not be found.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		trash: true,
 		pagination: false,
@@ -211,7 +211,7 @@ export const getHistoryAction = wsa(async (id: string) => {
 
 	const versionsResult = await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		trash: true,
 		pagination: false,
@@ -266,7 +266,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 		const created = await payload.create({
 			user: user,
 			collection: "roles",
-			overrideAccess: true,
+			overrideAccess: false,
 			draft: true,
 			data: {
 				_status: "draft",
@@ -293,7 +293,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 		user: user,
 		collection: "roles",
 		id: formState.id,
-		overrideAccess: true,
+		overrideAccess: false,
 		draft: true,
 		trash: true,
 		data: {
@@ -327,7 +327,7 @@ export const requestDeleteAction = wsa(async (
 
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		id: id,
 		draft: true,
@@ -360,7 +360,7 @@ export const cancelRequestAction = wsa(async (
 
 	const role = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		id: id,
 		draft: true,
@@ -371,7 +371,7 @@ export const cancelRequestAction = wsa(async (
 		throw new Error("Cannot restore an approved request.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		trash: true,
 		pagination: false,
@@ -402,7 +402,7 @@ export const cancelRequestAction = wsa(async (
 	if(approvedVersion == null) {
 		await payload.update({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "roles",
 			id: id,
 			draft: true,
@@ -425,7 +425,7 @@ export const cancelRequestAction = wsa(async (
 		user: user,
 		collection: "roles",
 		id: id,
-		overrideAccess: true,
+		overrideAccess: false,
 		trash: true,
 		data: {
 			_status: "published",
@@ -458,7 +458,7 @@ export const requestRestoreAction = wsa(async (
 
 	const role = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		id: id,
 		draft: true,
@@ -469,7 +469,7 @@ export const requestRestoreAction = wsa(async (
 		throw new Error("Role is not deleted.");
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		id: id,
 		draft: true,
@@ -502,7 +502,7 @@ export const reviewAction = wsa(async (
 
 	const role = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		id: id,
 		draft: true,
@@ -514,7 +514,7 @@ export const reviewAction = wsa(async (
 	if(decision == "reject") {
 		await payload.update({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "roles",
 			id: id,
 			draft: true,
@@ -534,7 +534,7 @@ export const reviewAction = wsa(async (
 	}
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		id: id,
 		trash: true,

@@ -351,10 +351,7 @@ export const StagedUsers = (): CollectionConfig => ({
 		{
 			name: "initialPassword",
 			label: "Initial Password",
-			type: "text",
-			access: {
-				read: () => false
-			}
+			type: "text"
 		},
 		{
 			name: "name",

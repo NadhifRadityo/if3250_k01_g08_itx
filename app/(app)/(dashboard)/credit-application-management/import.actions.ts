@@ -225,7 +225,7 @@ async function queryAction(
 	if(user == null) return unauthorized();
 	const result = await payload.find({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-imports",
 		draft: true,
 		trash: true,
@@ -286,7 +286,7 @@ export const getDetailsAction = wsa(async (id: string) => {
 
 	const result = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-imports",
 		draft: true,
 		trash: true,
@@ -338,7 +338,7 @@ export const requestCreateAction = wsa(async (formData: FormData) => {
 
 	const result = await payload.create({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-imports",
 		file: {
 			name: fileName,
@@ -376,7 +376,7 @@ export const parsePreviewAction = wsa(async (formData: FormData) => {
 			throw new Error("Import id is required and must be a string.");
 		const importDoc = await payload.findByID({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "credit-application-imports",
 			id: importId,
 			depth: 0,
@@ -403,7 +403,7 @@ export const requestUpdateDescriptionAction = wsa(async (
 
 	const importDoc = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-imports",
 		id: id,
 		depth: 0,
@@ -416,7 +416,7 @@ export const requestUpdateDescriptionAction = wsa(async (
 		user: user,
 		collection: "credit-application-imports",
 		id: id,
-		overrideAccess: true,
+		overrideAccess: false,
 		trash: true,
 		data: {
 			updatedAt: new Date().toISOString(),
@@ -435,7 +435,7 @@ export const requestDeleteAction = wsa(async (id: string) => {
 
 	const importDoc = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-imports",
 		id: id,
 		depth: 0,
@@ -450,7 +450,7 @@ export const requestDeleteAction = wsa(async (id: string) => {
 		user: user,
 		collection: "credit-application-imports",
 		id: id,
-		overrideAccess: true,
+		overrideAccess: false,
 		trash: true,
 		data: {
 			updatedAt: new Date().toISOString(),
@@ -470,7 +470,7 @@ export const requestRestoreAction = wsa(async (id: string) => {
 
 	const importDoc = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-imports",
 		id: id,
 		depth: 0,
@@ -485,7 +485,7 @@ export const requestRestoreAction = wsa(async (id: string) => {
 		user: user,
 		collection: "credit-application-imports",
 		id: id,
-		overrideAccess: true,
+		overrideAccess: false,
 		trash: true,
 		data: {
 			updatedAt: new Date().toISOString(),
@@ -508,7 +508,7 @@ export const reviewAction = wsa(async (
 
 	const importDoc = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-imports",
 		id: id,
 		depth: 0,
@@ -526,7 +526,7 @@ export const reviewAction = wsa(async (
 			user: user,
 			collection: "credit-application-imports",
 			id: id,
-			overrideAccess: true,
+			overrideAccess: false,
 			trash: true,
 			data: {
 				updatedAt: new Date().toISOString(),
@@ -546,7 +546,7 @@ export const reviewAction = wsa(async (
 		await payload.create({
 			user: user,
 			collection: "credit-applications",
-			overrideAccess: true,
+			overrideAccess: false,
 			data: {
 				_status: "published",
 				createdAt: new Date().toISOString(),
@@ -592,7 +592,7 @@ export const reviewAction = wsa(async (
 		user: user,
 		collection: "credit-application-imports",
 		id: id,
-		overrideAccess: true,
+		overrideAccess: false,
 		trash: true,
 		data: {
 			updatedAt: new Date().toISOString(),

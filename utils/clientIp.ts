@@ -48,16 +48,16 @@ export function normalizeAndValidateIpCandidate(raw: string): string | null {
 }
 
 export function getClientIpFromHeaders(headers: HeaderBag): string {
+	const realIp = headers.get("x-real-ip")?.trim();
+	if(realIp != null && realIp.length > 0) {
+		const normalized = normalizeAndValidateIpCandidate(realIp);
+		if(normalized != null)
+			return normalized;
+	}
 	const forwarded = headers.get("x-forwarded-for");
 	if(forwarded != null && forwarded.trim().length > 0) {
 		const first = forwarded.split(",")[0]?.trim();
 		const normalized = normalizeAndValidateIpCandidate(first ?? "");
-		if(normalized != null)
-			return normalized;
-	}
-	const realIp = headers.get("x-real-ip")?.trim();
-	if(realIp != null && realIp.length > 0) {
-		const normalized = normalizeAndValidateIpCandidate(realIp);
 		if(normalized != null)
 			return normalized;
 	}

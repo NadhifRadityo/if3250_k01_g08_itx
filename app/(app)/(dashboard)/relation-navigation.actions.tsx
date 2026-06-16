@@ -6,7 +6,7 @@ import { headers as nextHeaders } from "next/headers";
 import { unauthorized } from "next/navigation";
 import { Payload, getPayload } from "payload";
 
-import { rwsa, wsa } from "@/utils/actions";
+import { wsa, rwsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
 import payloadConfig from "@/payload.config";
 
@@ -19,7 +19,7 @@ export const resolveRelationUsers = wsa(async (
 ): Promise<Record<`users:${string}`, RelationUser>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "users",
 		pagination: false,
 		where: { id: { in: ids } },
@@ -38,7 +38,7 @@ export const resolveRelationRoles = wsa(async (
 ): Promise<Record<`roles:${string}`, RelationRole>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "roles",
 		trash: true,
 		pagination: false,
@@ -56,7 +56,7 @@ export const resolveRelationSurveys = wsa(async (
 ): Promise<Record<`surveys:${string}`, RelationSurvey>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "surveys",
 		draft: true,
 		trash: true,
@@ -75,7 +75,7 @@ export const resolveRelationSurveyResults = wsa(async (
 ): Promise<Record<`survey-results:${string}`, RelationSurveyResult>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "survey-results",
 		draft: true,
 		trash: true,
@@ -94,7 +94,7 @@ export const resolveRelationSatisfactionSurveys = wsa(async (
 ): Promise<Record<`satisfaction-surveys:${string}`, RelationSatisfactionSurvey>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "satisfaction-surveys",
 		draft: true,
 		trash: true,
@@ -113,7 +113,7 @@ export const resolveRelationSatisfactionSurveyResults = wsa(async (
 ): Promise<Record<`satisfaction-survey-results:${string}`, RelationSatisfactionSurveyResult>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "satisfaction-survey-results",
 		draft: true,
 		trash: true,
@@ -132,7 +132,7 @@ export const resolveRelationCreditApplications = wsa(async (
 ): Promise<Record<`credit-applications:${string}`, RelationCreditApplication>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-applications",
 		pagination: false,
 		where: { id: { in: ids } },
@@ -150,7 +150,7 @@ export const resolveRelationCreditApplicationImports = wsa(async (
 ): Promise<Record<`credit-application-imports:${string}`, RelationCreditApplicationImport>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-imports",
 		pagination: false,
 		where: { id: { in: ids } },
@@ -169,7 +169,7 @@ export const resolveRelationCreditApplicationAssignments = wsa(async (
 ): Promise<Record<`credit-application-assignments:${string}`, RelationCreditApplicationAssignment>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		draft: true,
 		trash: true,
@@ -188,7 +188,7 @@ export const resolveRelationOfficerTasks = wsa(async (
 ): Promise<Record<`officer-tasks:${string}`, RelationOfficerTask>> => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const result = await payload.find({
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		draft: true,
 		trash: true,
@@ -219,10 +219,10 @@ export const getRelationSummaryAction = wsa(async (
 	if(user == null) return null;
 	if(relationType == "users") {
 		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
 			collection: "users",
 			id: relationId,
-			user,
-			overrideAccess: false,
 			depth: 0,
 			select: {
 				name: true,
@@ -235,10 +235,10 @@ export const getRelationSummaryAction = wsa(async (
 		});
 		const roleId = getRelationshipId(doc.role);
 		const roleName = roleId != null ? (await payload.findByID({
+			user: user,
+			overrideAccess: false,
 			collection: "roles",
 			id: roleId,
-			user,
-			overrideAccess: true,
 			trash: true,
 			depth: 0,
 			select: { name: true }
@@ -258,10 +258,10 @@ export const getRelationSummaryAction = wsa(async (
 	}
 	if(relationType == "staged-users") {
 		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
 			collection: "staged-users",
 			id: relationId,
-			user,
-			overrideAccess: false,
 			depth: 0,
 			select: {
 				name: true,
@@ -274,10 +274,10 @@ export const getRelationSummaryAction = wsa(async (
 		});
 		const roleId = getRelationshipId(doc.role);
 		const roleName = roleId != null ? (await payload.findByID({
+			user: user,
+			overrideAccess: false,
 			collection: "roles",
 			id: roleId,
-			user,
-			overrideAccess: true,
 			trash: true,
 			depth: 0,
 			select: { name: true }
@@ -297,10 +297,10 @@ export const getRelationSummaryAction = wsa(async (
 	}
 	if(relationType == "roles") {
 		const doc = await payload.findByID({
+			user: user,
+			overrideAccess: false,
 			collection: "roles",
 			id: relationId,
-			user,
-			overrideAccess: true,
 			trash: true,
 			depth: 0,
 			select: {
@@ -332,8 +332,8 @@ export const getRelationSummaryAction = wsa(async (
 	}
 	if(relationType == "teams") {
 		const doc = await payload.findByID({
-			user,
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "teams",
 			id: relationId,
 			trash: true,
@@ -358,8 +358,8 @@ export const getRelationSummaryAction = wsa(async (
 	}
 	if(relationType == "accesses") {
 		const doc = await payload.findByID({
-			user,
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "accesses",
 			id: relationId,
 			trash: true,
@@ -406,8 +406,8 @@ export const getRelationSummaryAction = wsa(async (
 	}
 	if(relationType == "survey-results") {
 		const doc = await payload.findByID({
-			user,
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "survey-results",
 			id: relationId,
 			trash: true,
@@ -453,8 +453,8 @@ export const getRelationSummaryAction = wsa(async (
 	}
 	if(relationType == "satisfaction-survey-results") {
 		const doc = await payload.findByID({
-			user,
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "satisfaction-survey-results",
 			id: relationId,
 			trash: true,
@@ -530,8 +530,8 @@ export const getRelationSummaryAction = wsa(async (
 	}
 	if(relationType == "credit-application-assignments") {
 		const doc = await payload.findByID({
-			user,
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "credit-application-assignments",
 			id: relationId,
 			trash: true,
@@ -551,8 +551,8 @@ export const getRelationSummaryAction = wsa(async (
 	}
 	if(relationType == "officer-tasks") {
 		const doc = await payload.findByID({
-			user,
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "officer-tasks",
 			id: relationId,
 			trash: true,
@@ -582,7 +582,7 @@ export const searchRelationUsersAction = wsa(async (keyword: string, selectedIds
 	if(user == null) return unauthorized();
 
 	const result = await payload.find({
-		user,
+		user: user,
 		overrideAccess: false,
 		collection: "users",
 		draft: true,
@@ -611,7 +611,7 @@ export const searchRelationUsersByRoleLevelAction = wsa(async (roleLevel: "admin
 	if(user == null) return unauthorized();
 
 	const result = await payload.find({
-		user,
+		user: user,
 		overrideAccess: false,
 		collection: "users",
 		draft: true,
@@ -674,7 +674,7 @@ export const searchRelationRolesAction = wsa(async (keyword: string, selectedIds
 	if(user == null) return unauthorized();
 
 	const result = await payload.find({
-		user,
+		user: user,
 		overrideAccess: false,
 		collection: "roles",
 		draft: true,
@@ -703,7 +703,7 @@ export const searchRelationTeamsAction = wsa(async (keyword: string, selectedIds
 	if(user == null) return unauthorized();
 
 	const result = await payload.find({
-		user,
+		user: user,
 		overrideAccess: false,
 		collection: "teams",
 		draft: true,
@@ -732,7 +732,7 @@ export const searchRelationAccessesAction = wsa(async (keyword: string, selected
 	if(user == null) return unauthorized();
 
 	const result = await payload.find({
-		user,
+		user: user,
 		overrideAccess: false,
 		collection: "accesses",
 		draft: true,

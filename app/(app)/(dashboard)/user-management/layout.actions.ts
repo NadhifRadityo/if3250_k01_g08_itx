@@ -9,7 +9,7 @@ import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
 import type { StagedUser } from "@/payload-types";
 
-import { compileAccesses, executeAccesses } from "../access-management/layout.actions";
+import { compileAccesses } from "../access-management/layout.actions";
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationRoles, resolveRelationUsers } from "../relation-navigation.actions";
 import { RelationRole, RelationUser } from "../relation-navigation.shared";
@@ -60,10 +60,9 @@ async function queryAction(
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
-	const processDocAccesses = await uwsa(executeAccesses)({ payload, user, accessesCollection: "staged-users" });
 	const result = await payload.find({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		draft: true,
 		trash: true,
@@ -88,13 +87,11 @@ async function queryAction(
 				{ "supervisor.name": { like: keyword } },
 				{ "supervisor.email": { like: keyword } }
 			] }] : []),
-			processDocAccesses.baseFilter,
 			buildFilterWhere(filters)
 		] }
 	});
-	const masks = await processDocAccesses(result.docs.map(d => d.id));
 	const relations = await resolveRelations({ payload, docs: result.docs });
-	return { ...result, masks, relations };
+	return { ...result, relations };
 }
 
 export const queryViewerAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
@@ -113,18 +110,14 @@ export const getDetailsAction = wsa(async (id: string) => {
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const processDocAccesses = await uwsa(executeAccesses)({ payload, user, accessesCollection: "staged-users" });
-	const result = await payload.find({
+	const result = await payload.findByID({
 		user: user,
 		overrideAccess: false,
 		collection: "staged-users",
 		draft: true,
 		trash: true,
+		id: id,
 		depth: 0,
-		where: { and: [
-			{ id: { equals: id } },
-			processDocAccesses.baseFilter
-		] },
 		select: {
 			_status: true,
 			createdAt: true,
@@ -147,10 +140,8 @@ export const getDetailsAction = wsa(async (id: string) => {
 			reviewComment: true
 		}
 	});
-	if(result.docs.length == 0) return null;
-	const masks = await processDocAccesses(result.docs.map(d => d.id));
-	const relations = await resolveRelations({ payload, docs: result.docs });
-	return { row: result.docs[0], masks, relations };
+	const relations = await resolveRelations({ payload, docs: [result] });
+	return { row: result, relations };
 });
 
 export const getDifferenceAction = wsa(async (id: string) => {
@@ -161,7 +152,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 
 	const requestedDoc = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		trash: true,
 		pagination: false,
@@ -194,7 +185,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 		throw new Error("Draft staged user request could not be found.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		trash: true,
 		pagination: false,
@@ -241,7 +232,7 @@ export const getHistoryAction = wsa(async (id: string) => {
 
 	const versionsResult = await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		trash: true,
 		pagination: false,
@@ -315,7 +306,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 			throw new Error("Initial password is required for new staged user requests and must be at least 8 characters.");
 		const created = await payload.create({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "staged-users",
 			draft: true,
 			data: {
@@ -345,7 +336,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 
 	const existingStagedUser = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: formState.id,
 		trash: true,
@@ -354,7 +345,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 	});
 	const linkedUser = (await payload.find({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "users",
 		trash: true,
 		pagination: false,
@@ -370,7 +361,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: formState.id,
 		draft: true,
@@ -409,7 +400,7 @@ export const requestDeleteAction = wsa(async (
 
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: id,
 		draft: true,
@@ -442,7 +433,7 @@ export const cancelRequestAction = wsa(async (
 
 	const stagedUser = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: id,
 		draft: true,
@@ -453,7 +444,7 @@ export const cancelRequestAction = wsa(async (
 		throw new Error("Cannot restore an approved request.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		trash: true,
 		pagination: false,
@@ -487,7 +478,7 @@ export const cancelRequestAction = wsa(async (
 	if(approvedVersion == null) {
 		await payload.update({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "staged-users",
 			id: id,
 			draft: true,
@@ -508,7 +499,7 @@ export const cancelRequestAction = wsa(async (
 	}
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: id,
 		trash: true,
@@ -544,7 +535,7 @@ export const requestRestoreAction = wsa(async (
 
 	const stagedUser = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: id,
 		draft: true,
@@ -555,7 +546,7 @@ export const requestRestoreAction = wsa(async (
 		throw new Error("User request is not deleted.");
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: id,
 		draft: true,
@@ -588,7 +579,7 @@ export const reviewAction = wsa(async (
 
 	const stagedUser = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: id,
 		draft: true,
@@ -601,7 +592,7 @@ export const reviewAction = wsa(async (
 	if(decision == "reject") {
 		await payload.update({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "staged-users",
 			id: id,
 			draft: true,
@@ -622,7 +613,7 @@ export const reviewAction = wsa(async (
 
 	const linkedUser = (await payload.find({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "users",
 		trash: true,
 		pagination: false,
@@ -634,7 +625,7 @@ export const reviewAction = wsa(async (
 		if(linkedUser != null) {
 			await payload.update({
 				user: user,
-				overrideAccess: true,
+				overrideAccess: false,
 				collection: "users",
 				id: linkedUser.id,
 				trash: true,
@@ -666,7 +657,7 @@ export const reviewAction = wsa(async (
 				throw new Error("Cannot approve create request without an initial password of at least 8 characters.");
 			await payload.create({
 				user: user,
-				overrideAccess: true,
+				overrideAccess: false,
 				collection: "users",
 				draft: false,
 				data: {
@@ -679,7 +670,7 @@ export const reviewAction = wsa(async (
 		} else {
 			await payload.update({
 				user: user,
-				overrideAccess: true,
+				overrideAccess: false,
 				collection: "users",
 				id: linkedUser.id,
 				trash: true,
@@ -693,7 +684,7 @@ export const reviewAction = wsa(async (
 
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "staged-users",
 		id: id,
 		trash: true,

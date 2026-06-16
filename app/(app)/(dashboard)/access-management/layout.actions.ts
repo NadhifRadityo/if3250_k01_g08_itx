@@ -39,10 +39,7 @@ type CompiledAccess = {
 	editables: any;
 	auditFilters: any;
 };
-export const compileAccesses = wsa(async (
-	{ payload, accessesCollection }:
-	{ payload?: Payload, accessesCollection?: keyof (typeof collectionMaskFields) }
-) => {
+export const compileAccesses = wsa(async ({ payload }: { payload?: Payload }) => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const accesses = await payload.find({
 		overrideAccess: true,
@@ -53,10 +50,7 @@ export const compileAccesses = wsa(async (
 			{ _status: { equals: "published" } },
 			{ reviewedAt: { exists: true } },
 			{ deletedAt: { exists: false } },
-			{ enabled: { equals: true } },
-			...(accessesCollection != null ? [
-				{ collection: { equals: accessesCollection } }
-			] : [])
+			{ enabled: { equals: true } }
 		] },
 		select: {
 			createdAt: true,
@@ -158,14 +152,11 @@ export const compileAccesses = wsa(async (
 			auditFilters: access.auditFilters
 		});
 	}
-	const groupedCompiledAccesses = compiledAccesses.reduce((p, c) => ({ ...p, [c.collection]:
-		[...(p[c.collection] ?? []), c] }), {} as Record<string, CompiledAccess[]>);
-	for(const [collection, compiledAccesses] of Object.entries(groupedCompiledAccesses))
-		await payload.kv.set(`accesses:${collection}`, compiledAccesses);
+	await payload.kv.set("accesses", compiledAccesses);
 });
 export const executeAccesses = wsa(async (
-	{ payload, user, accessesCollection }:
-	{ payload?: Payload, user: User, accessesCollection: keyof (typeof collectionMaskFields) }
+	{ payload, user }:
+	{ payload?: Payload, user: User }
 ) => {
 	payload ??= await getPayload({ config: payloadConfig });
 	const userTeams = (await payload.find({
@@ -184,56 +175,70 @@ export const executeAccesses = wsa(async (
 		] },
 		select: {}
 	})).docs.map(u => u.id);
-	const compiledAccesses = await payload.kv.get<CompiledAccess[]>(`accesses:${accessesCollection}`) ?? [];
-	// Sorted from least important to the most important. The later values will override the earlier ones.
-	const appliedAccesses = compiledAccesses.map(a => a.compiledUsers.includes(user.id) ? [0, a] as const : userTeams.some(t => a.compiledTeams.includes(t)) ? [1, a] as const : a.compiledRoles.includes(getRelationshipId(user.role)!) ? [2, a] as const : [-1, a] as const)
-		.filter(([t]) => t != -1).sort(([at, aa], [bt, ba]) => aa.priority != ba.priority ? aa.priority - ba.priority : bt != at ? bt - at : Date.parse(aa.createdAt) - Date.parse(ba.createdAt)).map(([_, a]) => a);
-	let baseFilter = null as Where | null;
-	for(const appliedAccess of appliedAccesses) {
-		if(baseFilter == null) {
-			baseFilter = buildFilterWhere(appliedAccess.filters);
-			continue;
+	const compiledAccesses = await payload.kv.get<CompiledAccess[]>("accesses") ?? [];
+	const getAppliedAccesses = (collection: string) => compiledAccesses
+		.filter(c => c.collection == collection)
+		.map(a => a.compiledUsers.includes(user.id) ? [0, a] as const :
+			userTeams.some(t => a.compiledTeams.includes(t)) ? [1, a] as const :
+				a.compiledRoles.includes(getRelationshipId(user.role)!) ? [2, a] as const :
+					[-1, a] as const)
+		.filter(([t]) => t != -1)
+		// Sorted from least important to the most important. The later values will override the earlier ones.
+		.sort(([at, aa], [bt, ba]) => aa.priority != ba.priority ? aa.priority - ba.priority :
+			bt != at ? bt - at :
+				Date.parse(aa.createdAt) - Date.parse(ba.createdAt))
+		.map(([_, a]) => a);
+	const getBaseFilter = (collection: string) => {
+		const appliedAccesses = getAppliedAccesses(collection);
+		let baseFilter = null as Where | null;
+		for(const appliedAccess of appliedAccesses) {
+			if(baseFilter == null) {
+				baseFilter = buildFilterWhere(appliedAccess.filters);
+				continue;
+			}
+			if(appliedAccess.operation == "union") {
+				baseFilter = { or: [
+					baseFilter,
+					buildFilterWhere(appliedAccess.filters)
+				] };
+				continue;
+			}
+			if(appliedAccess.operation == "difference") {
+				baseFilter = { and: [
+					baseFilter,
+					negateWhere(buildFilterWhere(appliedAccess.filters))
+				] };
+				continue;
+			}
+			if(appliedAccess.operation == "intersect") {
+				baseFilter = { and: [
+					baseFilter,
+					buildFilterWhere(appliedAccess.filters)
+				] };
+				continue;
+			}
+			if(appliedAccess.operation == "exclusion") {
+				baseFilter = { or: [
+					{ and: [baseFilter, negateWhere(buildFilterWhere(appliedAccess.filters))] },
+					{ and: [negateWhere(baseFilter), buildFilterWhere(appliedAccess.filters)] }
+				] };
+				continue;
+			}
 		}
-		if(appliedAccess.operation == "union") {
-			baseFilter = { or: [
-				baseFilter,
-				buildFilterWhere(appliedAccess.filters)
-			] };
-			continue;
-		}
-		if(appliedAccess.operation == "difference") {
-			baseFilter = { and: [
-				baseFilter,
-				negateWhere(buildFilterWhere(appliedAccess.filters))
-			] };
-			continue;
-		}
-		if(appliedAccess.operation == "intersect") {
-			baseFilter = { and: [
-				baseFilter,
-				buildFilterWhere(appliedAccess.filters)
-			] };
-			continue;
-		}
-		if(appliedAccess.operation == "exclusion") {
-			baseFilter = { or: [
-				{ and: [baseFilter, negateWhere(buildFilterWhere(appliedAccess.filters))] },
-				{ and: [negateWhere(baseFilter), buildFilterWhere(appliedAccess.filters)] }
-			] };
-			continue;
-		}
-	}
-	if(baseFilter == null)
-		baseFilter = { id: { exists: false } };
-	const defaultMask = Object.fromEntries(Object.keys(collectionMaskFields[accessesCollection]).map(f => [f, "hide"] as [string, string]));
-	const adapter = payload.db as PostgresAdapter;
-	const collectionConfig = payload.config.collections.find(c => c.slug == accessesCollection)!;
-	const toSnakeCase = (string: string) => string.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/[\W_]+/g, " ").trim().toLowerCase().replace(/\s+/g, "_");
-	const tableName = adapter.tableNameMap.get(toSnakeCase(collectionConfig.slug))!;
-	const table = adapter.tables[tableName];
-	// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/find/findMany.ts
-	const queryOptions = buildQuery({ adapter: adapter, fields: collectionConfig.flattenedFields, tableName: tableName, where: { or: appliedAccesses.map(a => buildFilterWhere(a.filters)) } });
-	const processDocAccesses = async (ids: string[]) => {
+		if(baseFilter == null)
+			baseFilter = { id: { exists: false } };
+		return baseFilter;
+	};
+	const processDocs = async (collection: string, ids: string[]) => {
+		const appliedAccesses = getAppliedAccesses(collection);
+		const defaultMask = Object.fromEntries(Object.keys(collectionMaskFields[collection]).map(f => [f, "hide"] as [string, string]));
+		const adapter = payload.db as PostgresAdapter;
+		const collectionConfig = payload.config.collections.find(c => c.slug == collection)!;
+		const toSnakeCase = (string: string) => string.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2").replace(/[\W_]+/g, " ").trim().toLowerCase().replace(/\s+/g, "_");
+		const tableName = adapter.tableNameMap.get(toSnakeCase(collectionConfig.slug))!;
+		const table = adapter.tables[tableName];
+		// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/find/findMany.ts
+		const queryOptions = buildQuery({ adapter: adapter, fields: collectionConfig.flattenedFields, tableName: tableName, where: { or: appliedAccesses.map(a => buildFilterWhere(a.filters)) } });
 		if(queryOptions.where == null) return Object.fromEntries(ids.map(id => [id, { ...defaultMask }] as const));
 		// getTransaction with shouldReadFromPrimary logic
 		// https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/utilities/getTransaction.ts, https://github.com/payloadcms/payload/blob/0dfd31ef89f961a7ef2940c5f3f49c0d8538b1d0/packages/drizzle/src/utilities/readAfterWrite.ts
@@ -247,7 +252,7 @@ export const executeAccesses = wsa(async (
 			query = query[join.type ?? "leftJoin"](join.table as any, join.condition) as any;
 		const filterMatchesResults = await query;
 		return Object.fromEntries(ids.map(id => {
-			const filterMatches = filterMatchesResults.find(r => r.id == id) ?? (Object.fromEntries(appliedAccesses.map((_, i) => [`filters_${i}`, 0])) as Record<`filters_${number}`, 0 | 1>);
+			const filterMatches = filterMatchesResults.find(r => r.id == id) ?? (Object.fromEntries(appliedAccesses.map((_, i) => [`filters_${i}`, 0])));
 			let isIncluded = false;
 			let currentMask = { ...defaultMask };
 			for(let i = 0; i < appliedAccesses.length; i++) {
@@ -284,7 +289,12 @@ export const executeAccesses = wsa(async (
 			return [id, currentMask] as const;
 		}));
 	};
-	return Object.assign(processDocAccesses, { baseFilter: baseFilter });
+	return {
+		compiledAccesses,
+		getAppliedAccesses,
+		getBaseFilter,
+		processDocs
+	};
 });
 
 async function resolveRelations(
@@ -322,7 +332,7 @@ async function queryAction(
 	if(user == null) return unauthorized();
 	const result = await payload.find({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		draft: true,
 		trash: true,
@@ -415,7 +425,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 
 	const requestedDoc = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		trash: true,
 		pagination: false,
@@ -455,7 +465,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 		throw new Error("Draft access request could not be found.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		trash: true,
 		pagination: false,
@@ -509,7 +519,7 @@ export const getHistoryAction = wsa(async (id: string) => {
 
 	const versionsResult = await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		trash: true,
 		pagination: false,
@@ -580,7 +590,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 		const created = await payload.create({
 			user: user,
 			collection: "accesses",
-			overrideAccess: true,
+			overrideAccess: false,
 			draft: true,
 			data: {
 				_status: "draft",
@@ -617,7 +627,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 		user: user,
 		collection: "accesses",
 		id: formState.id,
-		overrideAccess: true,
+		overrideAccess: false,
 		draft: true,
 		trash: true,
 		data: {
@@ -661,7 +671,7 @@ export const requestDeleteAction = wsa(async (
 
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		id: id,
 		draft: true,
@@ -694,7 +704,7 @@ export const cancelRequestAction = wsa(async (
 
 	const access = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		id: id,
 		draft: true,
@@ -705,7 +715,7 @@ export const cancelRequestAction = wsa(async (
 		throw new Error("Cannot restore an approved request.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		trash: true,
 		pagination: false,
@@ -746,7 +756,7 @@ export const cancelRequestAction = wsa(async (
 	if(approvedVersion == null) {
 		await payload.update({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "accesses",
 			id: id,
 			draft: true,
@@ -769,7 +779,7 @@ export const cancelRequestAction = wsa(async (
 		user: user,
 		collection: "accesses",
 		id: id,
-		overrideAccess: true,
+		overrideAccess: false,
 		trash: true,
 		data: {
 			_status: "published",
@@ -812,7 +822,7 @@ export const requestRestoreAction = wsa(async (
 
 	const access = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		id: id,
 		draft: true,
@@ -823,7 +833,7 @@ export const requestRestoreAction = wsa(async (
 		throw new Error("Access is not deleted.");
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		id: id,
 		draft: true,
@@ -856,7 +866,7 @@ export const reviewAction = wsa(async (
 
 	const access = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		id: id,
 		draft: true,
@@ -868,7 +878,7 @@ export const reviewAction = wsa(async (
 	if(decision == "reject") {
 		await payload.update({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "accesses",
 			id: id,
 			draft: true,
@@ -883,12 +893,12 @@ export const reviewAction = wsa(async (
 				reviewComment: reviewComment
 			}
 		});
-		await uwsa(compileAccesses)({ payload, accessesCollection: access.collection });
+		await uwsa(compileAccesses)({ payload });
 		return { id: id };
 	}
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "accesses",
 		id: id,
 		trash: true,
@@ -902,6 +912,6 @@ export const reviewAction = wsa(async (
 			reviewComment: reviewComment
 		}
 	});
-	await uwsa(compileAccesses)({ payload, accessesCollection: access.collection });
+	await uwsa(compileAccesses)({ payload });
 	return { id: id };
 });

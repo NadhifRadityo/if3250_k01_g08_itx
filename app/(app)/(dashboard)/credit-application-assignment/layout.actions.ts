@@ -7,7 +7,7 @@ import { Payload, getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId, leixcalPreprendPlainText } from "@/utils/payload";
-import type { CreditApplicationAssignment } from "@/payload-types";
+import type { CreditApplicationAssignment, User } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { chainAndCreateNextOfficerTask, getCurrentChainHeadOfficerTaskId, getLatestPublishedAssignmentVersionId } from "../officer-task/layout.shared";
@@ -16,11 +16,12 @@ import { RelationUser, RelationSurvey, RelationCreditApplication, RelationSatisf
 import { FormState } from "./layout.components";
 
 async function ensureNoBlockingOfficerTask(
-	{ payload, creditApplicationAssignmentId }:
-	{ payload: Payload, creditApplicationAssignmentId: string }
+	{ payload, user, creditApplicationAssignmentId }:
+	{ payload: Payload, user: User, creditApplicationAssignmentId: string }
 ): Promise<void> {
 	const tasks = await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		trash: true,
 		pagination: false,
@@ -104,7 +105,7 @@ async function queryAction(
 	if(user == null) return unauthorized();
 	const result = await payload.find({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		draft: true,
 		trash: true,
@@ -195,7 +196,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 
 	const requestedDoc = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		trash: true,
 		pagination: false,
@@ -229,7 +230,7 @@ export const getDifferenceAction = wsa(async (id: string) => {
 		throw new Error("Draft credit application assignment request could not be found.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		trash: true,
 		pagination: false,
@@ -277,7 +278,7 @@ export const getHistoryAction = wsa(async (id: string) => {
 
 	const versionsResult = await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		trash: true,
 		pagination: false,
@@ -322,7 +323,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 	if(user == null) return unauthorized();
 
 	if(formState.id != null)
-		await ensureNoBlockingOfficerTask({ payload, creditApplicationAssignmentId: formState.id });
+		await ensureNoBlockingOfficerTask({ payload, user, creditApplicationAssignmentId: formState.id });
 
 	formState.creditApplications ??= [];
 	if(formState.creditApplications.length == 0)
@@ -424,7 +425,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 				const created = await payload.create({
 					user: user,
 					collection: "credit-application-assignments",
-					overrideAccess: true,
+					overrideAccess: false,
 					draft: true,
 					data: {
 						_status: "draft",
@@ -452,7 +453,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 				user: user,
 				collection: "credit-application-assignments",
 				id: existingAssignment.id,
-				overrideAccess: true,
+				overrideAccess: false,
 				draft: true,
 				trash: true,
 				data: {
@@ -482,7 +483,7 @@ export const requestUpsertAction = wsa(async (formState: FormState) => {
 		user: user,
 		collection: "credit-application-assignments",
 		id: formState.id,
-		overrideAccess: true,
+		overrideAccess: false,
 		draft: true,
 		trash: true,
 		data: {
@@ -516,11 +517,11 @@ export const requestDeleteAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	await ensureNoBlockingOfficerTask({ payload, creditApplicationAssignmentId: id });
+	await ensureNoBlockingOfficerTask({ payload, user, creditApplicationAssignmentId: id });
 
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: id,
 		draft: true,
@@ -553,7 +554,7 @@ export const cancelRequestAction = wsa(async (
 
 	const creditApplicationAssignment = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: id,
 		draft: true,
@@ -564,7 +565,7 @@ export const cancelRequestAction = wsa(async (
 		throw new Error("Cannot restore an approved request.");
 	const approvedVersion = (await payload.findVersions({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		trash: true,
 		pagination: false,
@@ -599,7 +600,7 @@ export const cancelRequestAction = wsa(async (
 	if(approvedVersion == null) {
 		await payload.update({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "credit-application-assignments",
 			id: id,
 			draft: true,
@@ -622,7 +623,7 @@ export const cancelRequestAction = wsa(async (
 		user: user,
 		collection: "credit-application-assignments",
 		id: id,
-		overrideAccess: true,
+		overrideAccess: false,
 		trash: true,
 		data: {
 			_status: "published",
@@ -659,7 +660,7 @@ export const requestRestoreAction = wsa(async (
 
 	const creditApplicationAssignment = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: id,
 		draft: true,
@@ -670,7 +671,7 @@ export const requestRestoreAction = wsa(async (
 		throw new Error("Credit application assignment is not deleted.");
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: id,
 		draft: true,
@@ -703,7 +704,7 @@ export const reviewAction = wsa(async (
 
 	const creditApplicationAssignment = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: id,
 		draft: true,
@@ -713,11 +714,11 @@ export const reviewAction = wsa(async (
 	if(creditApplicationAssignment.reviewedAt != null)
 		throw new Error("This request has already been reviewed.");
 	if(decision == "approve")
-		await ensureNoBlockingOfficerTask({ payload, creditApplicationAssignmentId: id });
+		await ensureNoBlockingOfficerTask({ payload, user, creditApplicationAssignmentId: id });
 	if(decision == "reject") {
 		await payload.update({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "credit-application-assignments",
 			id: id,
 			draft: true,
@@ -736,7 +737,7 @@ export const reviewAction = wsa(async (
 	}
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: id,
 		trash: true,
@@ -751,14 +752,14 @@ export const reviewAction = wsa(async (
 		}
 	});
 	if(creditApplicationAssignment.deletedAt == null) {
-		const previousChainHeadId = await getCurrentChainHeadOfficerTaskId({ payload, creditApplicationAssignmentId: id });
+		const previousChainHeadId = await getCurrentChainHeadOfficerTaskId({ payload, user, creditApplicationAssignmentId: id });
 		if(previousChainHeadId == null) {
-			const versionId = await getLatestPublishedAssignmentVersionId({ payload, creditApplicationAssignmentId: id });
+			const versionId = await getLatestPublishedAssignmentVersionId({ payload, user, creditApplicationAssignmentId: id });
 			if(versionId == null)
 				throw new Error("Credit application assignment has no published version.");
 			await payload.create({
 				user: user,
-				overrideAccess: true,
+				overrideAccess: false,
 				collection: "officer-tasks",
 				data: {
 					_status: "published",
@@ -782,7 +783,7 @@ export const reviewAction = wsa(async (
 		}
 		const previousChainHead = await payload.findByID({
 			user: user,
-			overrideAccess: true,
+			overrideAccess: false,
 			collection: "officer-tasks",
 			id: previousChainHeadId,
 			draft: true,
@@ -792,7 +793,7 @@ export const reviewAction = wsa(async (
 		if(previousChainHead.settledAt == null) {
 			await payload.update({
 				user: user,
-				overrideAccess: true,
+				overrideAccess: false,
 				collection: "officer-tasks",
 				id: previousChainHeadId,
 				trash: true,
@@ -812,7 +813,7 @@ export const reviewAction = wsa(async (
 					{ "data.id": { equals: previousChainHeadId } }
 				] }
 			});
-			await chainAndCreateNextOfficerTask({ payload, previousOfficerTaskId: previousChainHeadId, userId: user.id });
+			await chainAndCreateNextOfficerTask({ payload, user, previousOfficerTaskId: previousChainHeadId });
 		}
 	}
 	return { id: id };

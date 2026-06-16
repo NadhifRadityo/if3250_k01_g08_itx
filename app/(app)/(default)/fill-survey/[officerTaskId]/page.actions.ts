@@ -7,16 +7,18 @@ import { Payload, getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { getRelationshipId } from "@/utils/payload";
+import { User } from "@/payload-types";
 
-import { isOfficerInsideGeofenceRegions } from "../../../(dashboard)/officer-task/executor.actions";
+import { isUserInsideGeofenceRegions } from "../../../(dashboard)/officer-task/executor.actions";
 import { GEOFENCE_VALIDATION_WINDOW_CLIENT_MS, GEOFENCE_VALIDATION_WINDOW_SERVER_MS, type ActiveOfficerTaskKvData } from "../../../(dashboard)/officer-task/layout.shared";
 
 async function ensureOfficerOwnsAndOtpEntered(
-	{ payload, userId, officerTaskId, windowMs }:
-	{ payload: Payload, userId: string, officerTaskId: string, windowMs: number }
+	{ payload, user, officerTaskId, windowMs }:
+	{ payload: Payload, user: User, officerTaskId: string, windowMs: number }
 ) {
 	const officerTask = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: officerTaskId,
 		draft: true,
@@ -32,22 +34,22 @@ async function ensureOfficerOwnsAndOtpEntered(
 	});
 	const creditApplicationAssignment = officerTask.creditApplicationAssignment;
 	const officerId = getRelationshipId((creditApplicationAssignment as any).officer);
-	if(officerId != userId)
+	if(officerId != user.id)
 		throw new Error("This officer task is not assigned to you.");
 	if(officerTask.settledAt != null)
 		throw new Error("Officer task is already settled.");
 	if(getRelationshipId(officerTask.next) != null)
 		throw new Error("Cannot fill survey for an officer task that is not the latest in the chain.");
-	const activeKv = await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${userId}`);
+	const activeKv = await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${user.id}`);
 	if(activeKv?.id != officerTaskId)
 		throw new Error("This officer task is not active.");
 	if(!activeKv.otpEntered)
 		throw new Error("OTP has not been entered for this officer task.");
 	const geofenceRegions = (creditApplicationAssignment as any).geofenceRegions ?? null;
 	if(geofenceRegions != null) {
-		const inside = await uwsa(isOfficerInsideGeofenceRegions)({
+		const inside = await uwsa(isUserInsideGeofenceRegions)({
 			payload: payload,
-			officerId: userId,
+			user: user,
 			geofenceRegions: geofenceRegions,
 			windowMs: windowMs
 		});
@@ -67,7 +69,8 @@ export const getContextAction = wsa(async (
 	if(user == null) return unauthorized();
 
 	const officerTask = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: officerTaskId,
 		draft: true,
@@ -87,7 +90,8 @@ export const getContextAction = wsa(async (
 		throw new Error("This officer task is not assigned to you.");
 	const surveyId = getRelationshipId((creditApplicationAssignment as any).survey)!;
 	const survey = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "surveys",
 		id: surveyId,
 		draft: true,
@@ -96,7 +100,8 @@ export const getContextAction = wsa(async (
 		select: { id: true, title: true, content: true }
 	});
 	const surveyVersion = (await payload.findVersions({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "surveys",
 		pagination: false,
 		limit: 1,
@@ -111,7 +116,8 @@ export const getContextAction = wsa(async (
 	if(surveyVersion == null)
 		throw new Error("Survey has no published version.");
 	const existing = await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "survey-results",
 		pagination: false,
 		limit: 1,
@@ -140,7 +146,8 @@ export const checkGeofenceAction = wsa(async (
 	if(user == null) return unauthorized();
 
 	const officerTask = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: officerTaskId,
 		draft: true,
@@ -156,9 +163,9 @@ export const checkGeofenceAction = wsa(async (
 	const geofenceRegions = (creditApplicationAssignment as any).geofenceRegions ?? null;
 	if(geofenceRegions == null)
 		return { isInsideGeofence: true };
-	const isInsideGeofence = await uwsa(isOfficerInsideGeofenceRegions)({
+	const isInsideGeofence = await uwsa(isUserInsideGeofenceRegions)({
 		payload: payload,
-		officerId: user.id,
+		user: user,
 		geofenceRegions: geofenceRegions,
 		windowMs: GEOFENCE_VALIDATION_WINDOW_CLIENT_MS
 	});
@@ -174,10 +181,11 @@ export const partialSubmitAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const officerTask = await ensureOfficerOwnsAndOtpEntered({ payload, userId: user.id, officerTaskId, windowMs: GEOFENCE_VALIDATION_WINDOW_SERVER_MS });
+	const officerTask = await ensureOfficerOwnsAndOtpEntered({ payload, user, officerTaskId, windowMs: GEOFENCE_VALIDATION_WINDOW_SERVER_MS });
 	const surveyId = getRelationshipId((officerTask.creditApplicationAssignment as any).survey)!;
 	const surveyVersion = (await payload.findVersions({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "surveys",
 		pagination: false,
 		limit: 1,
@@ -192,7 +200,8 @@ export const partialSubmitAction = wsa(async (
 	if(surveyVersion == null)
 		throw new Error("Survey has no published version.");
 	const existing = await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "survey-results",
 		pagination: false,
 		limit: 1,
@@ -202,7 +211,8 @@ export const partialSubmitAction = wsa(async (
 	});
 	if(existing.docs.length > 0) {
 		await payload.update({
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "survey-results",
 			id: existing.docs[0].id,
 			draft: true,
@@ -212,7 +222,8 @@ export const partialSubmitAction = wsa(async (
 		return { id: existing.docs[0].id };
 	}
 	const created = await payload.create({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "survey-results",
 		draft: true,
 		data: {
@@ -239,10 +250,11 @@ export const submitAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const officerTask = await ensureOfficerOwnsAndOtpEntered({ payload, userId: user.id, officerTaskId, windowMs: GEOFENCE_VALIDATION_WINDOW_SERVER_MS });
+	const officerTask = await ensureOfficerOwnsAndOtpEntered({ payload, user, officerTaskId, windowMs: GEOFENCE_VALIDATION_WINDOW_SERVER_MS });
 	const surveyId = getRelationshipId((officerTask.creditApplicationAssignment as any).survey)!;
 	const surveyVersion = (await payload.findVersions({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "surveys",
 		pagination: false,
 		limit: 1,
@@ -257,7 +269,8 @@ export const submitAction = wsa(async (
 	if(surveyVersion == null)
 		throw new Error("Survey has no published version.");
 	const existing = await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "survey-results",
 		pagination: false,
 		limit: 1,
@@ -267,7 +280,8 @@ export const submitAction = wsa(async (
 	});
 	if(existing.docs.length > 0) {
 		await payload.update({
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "survey-results",
 			id: existing.docs[0].id,
 			trash: true,
@@ -276,7 +290,8 @@ export const submitAction = wsa(async (
 		return { id: existing.docs[0].id };
 	}
 	const created = await payload.create({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "survey-results",
 		data: {
 			_status: "published",

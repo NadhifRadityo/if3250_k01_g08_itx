@@ -115,7 +115,7 @@ function DashboardMenuKey(
 									<SidebarMenuSubButton asChild isActive={pathname == mode.href}>
 										<Link href={mode.href}>
 											<span className="whitespace-nowrap line-clamp-1 text-clip">
-												{mode.shortLabel}
+												{mode.subLabel}
 											</span>
 										</Link>
 									</SidebarMenuSubButton>
@@ -140,7 +140,7 @@ function DashboardMenuKey(
 				<p className="p-1 brightness-80 text-xs text-sidebar-foreground">{menu.label}</p>
 				{menuModes.map(([modeKey, mode]) => (
 					<Link key={modeKey} href={mode.href} data-active={pathname == mode.href} className="brightness-[66.6%] text-sidebar-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:bg-sidebar-accent active:text-sidebar-accent-foreground [&>svg]:text-sidebar-accent-foreground data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground h-7 gap-2 rounded-md px-2 focus-visible:ring-2 data-[size=md]:text-sm data-[size=sm]:text-xs [&>svg]:size-4 flex min-w-0 -translate-x-px items-center overflow-hidden outline-hidden group-data-[collapsible=icon]:hidden disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&>span:last-child]:truncate [&>svg]:shrink-0">
-						<span className="whitespace-nowrap line-clamp-1 text-clip">{mode.shortLabel}</span>
+						<span className="whitespace-nowrap line-clamp-1 text-clip">{mode.subLabel}</span>
 					</Link>
 				))}
 			</HoverCardContent>
@@ -300,11 +300,15 @@ export function DashboardShell(
 												</BreadcrumbItem>
 												<BreadcrumbSeparator />
 												<BreadcrumbItem>
-													{activeMenu.label}
+													<BreadcrumbPage>
+														{activeMenu.label}
+													</BreadcrumbPage>
 												</BreadcrumbItem>
 												<BreadcrumbSeparator />
 												<BreadcrumbItem>
-													{activeMode.shortLabel}
+													<BreadcrumbPage>
+														{activeMode.subLabel}
+													</BreadcrumbPage>
 												</BreadcrumbItem>
 											</>
 										) : (

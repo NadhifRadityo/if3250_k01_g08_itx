@@ -1,6 +1,7 @@
 import { Payload } from "payload";
 
 import { getRelationshipId } from "@/utils/payload";
+import { User } from "@/payload-types";
 
 export const settlementStatusSelectOptions = Object.freeze([
 	{ value: "finished", label: "Finished" },
@@ -20,11 +21,12 @@ export type ActiveOfficerTaskKvData = {
 };
 
 export async function getCurrentChainHeadOfficerTaskId(
-	{ payload, creditApplicationAssignmentId }:
-	{ payload: Payload, creditApplicationAssignmentId: string }
+	{ payload, user, creditApplicationAssignmentId }:
+	{ payload: Payload, user: User, creditApplicationAssignmentId: string }
 ): Promise<string | null> {
 	const result = await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		trash: true,
 		pagination: false,
@@ -40,11 +42,12 @@ export async function getCurrentChainHeadOfficerTaskId(
 }
 
 export async function getLatestPublishedAssignmentVersionId(
-	{ payload, creditApplicationAssignmentId }:
-	{ payload: Payload, creditApplicationAssignmentId: string }
+	{ payload, user, creditApplicationAssignmentId }:
+	{ payload: Payload, user: User, creditApplicationAssignmentId: string }
 ): Promise<string | null> {
 	const versions = await payload.findVersions({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		pagination: false,
 		limit: 1,
@@ -60,11 +63,12 @@ export async function getLatestPublishedAssignmentVersionId(
 }
 
 export async function chainAndCreateNextOfficerTask(
-	{ payload, previousOfficerTaskId, userId }:
-	{ payload: Payload, previousOfficerTaskId: string, userId?: string | null }
+	{ payload, user, previousOfficerTaskId }:
+	{ payload: Payload, user: User, previousOfficerTaskId: string }
 ): Promise<{ id: string }> {
 	const previous = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: previousOfficerTaskId,
 		draft: true,
@@ -74,19 +78,19 @@ export async function chainAndCreateNextOfficerTask(
 	const creditApplicationAssignmentId = getRelationshipId(previous.creditApplicationAssignment)!;
 	if(previous.settledAt == null)
 		throw new Error("Cannot create chained next officer task while previous is still pending.");
-	const versionId = await getLatestPublishedAssignmentVersionId({ payload, creditApplicationAssignmentId });
+	const versionId = await getLatestPublishedAssignmentVersionId({ payload, user, creditApplicationAssignmentId });
 	if(versionId == null)
 		throw new Error("Credit application assignment has no published version.");
 	const created = await payload.create({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
-		...(userId != null ? { user: { id: userId, collection: "users" } as any } : {}),
 		data: {
 			_status: "published",
 			createdAt: new Date().toISOString(),
-			createdBy: userId ?? null,
+			createdBy: user.id,
 			updatedAt: new Date().toISOString(),
-			updatedBy: userId ?? null,
+			updatedBy: user.id,
 			creditApplicationAssignment: creditApplicationAssignmentId,
 			creditApplicationAssignmentVersion: versionId,
 			next: null,
@@ -100,14 +104,14 @@ export async function chainAndCreateNextOfficerTask(
 		}
 	});
 	await payload.update({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: previousOfficerTaskId,
 		trash: true,
-		...(userId != null ? { user: { id: userId, collection: "users" } as any } : {}),
 		data: {
 			updatedAt: new Date().toISOString(),
-			updatedBy: userId ?? null,
+			updatedBy: user.id,
 			next: created.id
 		}
 	});

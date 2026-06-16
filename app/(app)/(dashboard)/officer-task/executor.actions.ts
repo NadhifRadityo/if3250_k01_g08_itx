@@ -9,7 +9,7 @@ import * as turf from "@turf/turf";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, lexicalPlainText, getRelationshipId } from "@/utils/payload";
-import { OfficerTask, CreditApplication, CreditApplicationAssignment } from "@/payload-types";
+import { OfficerTask, CreditApplication, CreditApplicationAssignment, User } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
@@ -104,21 +104,22 @@ function isPointInGeofenceRegions(
 	return turf.booleanPointInPolygon([longitude, latitude], combined);
 }
 
-export const isOfficerInsideGeofenceRegions = wsa(async (
-	{ payload, officerId, geofenceRegions, windowMs, at = Date.now() }:
-	{ payload: Payload, officerId: string, geofenceRegions: GeofenceRegion[] | null | undefined, windowMs: number, at?: number }
+export const isUserInsideGeofenceRegions = wsa(async (
+	{ payload, user, geofenceRegions, windowMs, at = Date.now() }:
+	{ payload: Payload, user: User, geofenceRegions: GeofenceRegion[] | null | undefined, windowMs: number, at?: number }
 ): Promise<boolean> => {
 	if(geofenceRegions == null || geofenceRegions.length == 0)
 		return true;
 	const since = new Date(at - windowMs).toISOString();
 	const result = await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "gps-logs",
 		pagination: false,
 		depth: 0,
 		sort: "-createdAt",
 		where: { and: [
-			{ user: { equals: officerId } },
+			{ user: { equals: user.id } },
 			{ createdAt: { greater_than_equal: since } },
 			{ accuracy: { less_than_equal: GEOFENCE_MAX_ACCURACY_METERS } }
 		] },
@@ -129,11 +130,7 @@ export const isOfficerInsideGeofenceRegions = wsa(async (
 			continue;
 		if(typeof log.accuracy == "number" && log.accuracy > GEOFENCE_MAX_ACCURACY_METERS)
 			continue;
-		if(isPointInGeofenceRegions({
-			latitude: log.latitude,
-			longitude: log.longitude,
-			geofenceRegions: geofenceRegions
-		}))
+		if(isPointInGeofenceRegions({ latitude: log.latitude, longitude: log.longitude, geofenceRegions: geofenceRegions }))
 			return true;
 	}
 	return false;
@@ -196,11 +193,12 @@ async function resolveRelations(
 }
 
 async function annotateRows(
-	{ payload, docs }:
-	{ payload: Payload, docs: OfficerTask[] }
+	{ payload, user, docs }:
+	{ payload: Payload, user: User, docs: OfficerTask[] }
 ) {
 	const previousDocs = (await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		trash: true,
 		pagination: false,
@@ -209,7 +207,8 @@ async function annotateRows(
 		select: { next: true }
 	})).docs.map(d => ({ ...d, next: getRelationshipId(d.next) }));
 	const creditApplicationAssignments = (await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		draft: true,
 		trash: true,
@@ -219,7 +218,8 @@ async function annotateRows(
 		select: { dueDate: true, creditApplication: true }
 	})).docs;
 	const creditApplications = (await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-applications",
 		draft: true,
 		trash: true,
@@ -229,7 +229,8 @@ async function annotateRows(
 		select: { addresses: true }
 	})).docs;
 	const surveyResults = (await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "survey-results",
 		pagination: false,
 		depth: 0,
@@ -237,7 +238,8 @@ async function annotateRows(
 		select: { officerTask: true }
 	})).docs.map(d => getRelationshipId(d.officerTask));
 	const satisfactionSurveyResults = (await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "satisfaction-survey-results",
 		pagination: false,
 		depth: 0,
@@ -299,7 +301,7 @@ export const queryAction = wsa(async (
 			buildFilterWhere(filters)
 		] }
 	});
-	const annotatedDocs = await annotateRows({ payload, docs: result.docs });
+	const annotatedDocs = await annotateRows({ payload, user, docs: result.docs });
 	const relations = await resolveRelations({ payload, docs: result.docs });
 	return { ...result, docs: annotatedDocs, relations };
 });
@@ -333,17 +335,18 @@ export const getDetailsAction = wsa(async (id: string) => {
 			evaluationComment: true
 		}
 	});
-	const annotatedDocs = await annotateRows({ payload, docs: [result] });
+	const annotatedDocs = await annotateRows({ payload, user, docs: [result] });
 	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: annotatedDocs[0], relations };
 });
 
 async function ensureOfficerOwnsOfficerTask(
-	{ payload, userId, officerTaskId }:
-	{ payload: Payload, userId: string, officerTaskId: string }
+	{ payload, user, officerTaskId }:
+	{ payload: Payload, user: User, officerTaskId: string }
 ) {
 	const officerTask = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: officerTaskId,
 		draft: true,
@@ -354,7 +357,7 @@ async function ensureOfficerOwnsOfficerTask(
 	});
 	const creditApplicationAssignment = officerTask.creditApplicationAssignment;
 	const officerId = getRelationshipId((creditApplicationAssignment as CreditApplicationAssignment).officer);
-	if(officerId != userId)
+	if(officerId != user.id)
 		throw new Error("This officer task is not assigned to you.");
 	return officerTask;
 }
@@ -368,7 +371,7 @@ export const activateAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
+	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId: id });
 	if(officerTask.settledAt != null)
 		throw new Error("Cannot activate a settled officer task.");
 	if(getRelationshipId(officerTask.next) != null)
@@ -403,7 +406,8 @@ export const appendGpsLogAction = wsa(async (
 	const sessionId = JSON.parse(Buffer.from(extractJWT({ payload, headers })!.split(".")[1], "base64url").toString("utf-8")).sid;
 	const activeKv = await payload.kv.get<ActiveOfficerTaskKvData>(`officer-task:${user.id}`);
 	await payload.create({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "gps-logs",
 		data: {
 			user: user.id,
@@ -417,7 +421,8 @@ export const appendGpsLogAction = wsa(async (
 	let isInsideGeofence = true;
 	if(activeKv?.id != null) {
 		const officerTask = await payload.findByID({
-			overrideAccess: true,
+			user: user,
+			overrideAccess: false,
 			collection: "officer-tasks",
 			id: activeKv.id,
 			trash: true,
@@ -427,9 +432,9 @@ export const appendGpsLogAction = wsa(async (
 		});
 		const geofenceRegions = (officerTask.creditApplicationAssignment as CreditApplicationAssignment)?.geofenceRegions;
 		if(geofenceRegions != null) {
-			isInsideGeofence = await uwsa(isOfficerInsideGeofenceRegions)({
+			isInsideGeofence = await uwsa(isUserInsideGeofenceRegions)({
 				payload: payload,
-				officerId: user.id,
+				user: user,
 				geofenceRegions: geofenceRegions as any,
 				windowMs: GEOFENCE_VALIDATION_WINDOW_CLIENT_MS
 			});
@@ -452,9 +457,10 @@ export const sendOtpMessageAction = wsa(async (
 		throw new Error("This officer task is not active.");
 	if(activeKv.otpEntered)
 		throw new Error("OTP has already been entered for this officer task.");
-	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
+	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId: id });
 	const creditApplicationAssignment = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: getRelationshipId(officerTask.creditApplicationAssignment)!,
 		draft: true,
@@ -484,7 +490,8 @@ export const sendOtpMessageAction = wsa(async (
 		deliveryStatus = "failed";
 	}
 	await payload.create({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "message-logs",
 		data: {
 			officerTask: id,
@@ -510,12 +517,12 @@ export const inputOtpAction = wsa(async (
 		throw new Error("This officer task is not active.");
 	if(activeKv.otpEntered)
 		throw new Error("OTP has already been entered for this officer task.");
-	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
+	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId: id });
 	const geofenceRegions = (officerTask.creditApplicationAssignment as CreditApplicationAssignment).geofenceRegions;
 	if(geofenceRegions != null) {
-		const inside = await uwsa(isOfficerInsideGeofenceRegions)({
+		const inside = await uwsa(isUserInsideGeofenceRegions)({
 			payload: payload,
-			officerId: user.id,
+			user: user,
 			geofenceRegions: geofenceRegions as any,
 			windowMs: GEOFENCE_VALIDATION_WINDOW_SERVER_MS
 		});
@@ -541,13 +548,14 @@ export const finishAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
+	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId: id });
 	if(officerTask.settledAt != null)
 		throw new Error("Officer task is already settled.");
 	if(getRelationshipId(officerTask.next) != null)
 		throw new Error("Cannot finish an officer task that is not the latest in the chain.");
 	const surveyResult = await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "survey-results",
 		pagination: false,
 		limit: 1,
@@ -558,7 +566,8 @@ export const finishAction = wsa(async (
 	if(surveyResult.docs.length == 0)
 		throw new Error("Officer task has no submitted survey result.");
 	await payload.update({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: id,
 		trash: true,
@@ -590,9 +599,10 @@ export const undoFinishAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
+	await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId: id });
 	const fullOfficerTask = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: id,
 		trash: true,
@@ -603,7 +613,8 @@ export const undoFinishAction = wsa(async (
 	if(fullOfficerTask.evaluatedAt != null)
 		throw new Error("Cannot undo finish on an evaluated officer task.");
 	await payload.update({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: id,
 		trash: true,
@@ -626,13 +637,14 @@ export const cancelAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
+	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId: id });
 	if(officerTask.settledAt != null)
 		throw new Error("Officer task is already settled.");
 	if(getRelationshipId(officerTask.next) != null)
 		throw new Error("Cannot cancel an officer task that is not the latest in the chain.");
 	await payload.update({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: id,
 		trash: true,
@@ -652,7 +664,7 @@ export const cancelAction = wsa(async (
 			{ "data.id": { equals: id } }
 		] }
 	});
-	await chainAndCreateNextOfficerTask({ payload, previousOfficerTaskId: id, userId: user.id });
+	await chainAndCreateNextOfficerTask({ payload, user, previousOfficerTaskId: id });
 	return { id: id };
 });
 
@@ -665,9 +677,10 @@ export const sendSatisfactionSurveyMessageAction = wsa(async (
 	const { user } = await payload.auth({ headers });
 	if(user == null) return unauthorized();
 
-	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, userId: user.id, officerTaskId: id });
+	const officerTask = await ensureOfficerOwnsOfficerTask({ payload, user, officerTaskId: id });
 	const fullOfficerTask = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: id,
 		trash: true,
@@ -677,7 +690,8 @@ export const sendSatisfactionSurveyMessageAction = wsa(async (
 	if(fullOfficerTask.settlementStatus != "finished")
 		throw new Error("Officer task is not in 'finished' settlement status.");
 	const existingSatisfaction = await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "satisfaction-survey-results",
 		pagination: false,
 		limit: 1,
@@ -688,7 +702,8 @@ export const sendSatisfactionSurveyMessageAction = wsa(async (
 	if(existingSatisfaction.docs.length > 0)
 		throw new Error("Satisfaction survey has already been submitted for this officer task.");
 	const creditApplicationAssignment = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		id: getRelationshipId(officerTask.creditApplicationAssignment)!,
 		draft: true,
@@ -718,7 +733,8 @@ export const sendSatisfactionSurveyMessageAction = wsa(async (
 		deliveryStatus = "failed";
 	}
 	await payload.create({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "message-logs",
 		data: {
 			officerTask: id,

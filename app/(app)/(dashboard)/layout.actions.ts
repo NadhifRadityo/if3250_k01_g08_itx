@@ -20,7 +20,7 @@ function getDashboardMenus(roles: string[]) {
 		menuKey,
 		Object.fromEntries(roles
 			.filter(role => role.startsWith(`${menuKey}#`) && dashboardRoleHrefs[role] != null)
-			.map(role => [role.slice(`${menuKey}#`.length), { label: dashboardRoleLabels[role] as string, shortLabel: dashboardRoleSubLabels[role], href: dashboardRoleHrefs[role] as string }]))
+			.map(role => [role.slice(`${menuKey}#`.length), { label: dashboardRoleLabels[role] as string, subLabel: dashboardRoleSubLabels[role], href: dashboardRoleHrefs[role] as string }]))
 	] as const)
 		.filter(([_, modes]) => Object.keys(modes).length > 0)
 		.map(([menuKey, modes]) => ({
@@ -39,10 +39,10 @@ async function resolveRoleMenus(payload: Payload, user: User) {
 	if(roleId == null)
 		return [];
 	const role = await payload.findByID({
+		user: user,
+		overrideAccess: false,
 		collection: "roles",
 		id: roleId,
-		user,
-		overrideAccess: true,
 		trash: true,
 		depth: 0,
 		select: {
@@ -83,8 +83,8 @@ export const logoutAction = wsa(async () => {
 		const ipAddress = getClientIpFromHeaders(headers);
 		try {
 			await payload.create({
-				collection: "login-logs",
 				overrideAccess: true,
+				collection: "login-logs",
 				depth: 0,
 				data: {
 					event: "login",

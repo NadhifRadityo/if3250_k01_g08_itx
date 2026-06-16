@@ -16,12 +16,6 @@ export const loginAction = wsa(async (email: string, password: string) => {
 	if(loggedInuser != null)
 		throw new Error("Already logged in");
 	const ipAddress = getClientIpFromHeaders(headers);
-	const userSessions = (await payload.find({
-		collection: "users",
-		overrideAccess: true,
-		limit: 1,
-		where: { email: { equals: email } }
-	})).docs[0]?.sessions;
 	try {
 		const { user, token } = await payloadLogin({
 			config: payloadConfig,
@@ -31,11 +25,11 @@ export const loginAction = wsa(async (email: string, password: string) => {
 		});
 		if(user == null || token == null)
 			throw new Error("Login failed");
-		if(userSessions != null && userSessions.length > 0) {
+		if(user.sessions.length > 1) {
 			try {
 				await payload.create({
-					collection: "login-logs",
 					overrideAccess: true,
+					collection: "login-logs",
 					depth: 0,
 					data: {
 						event: "login",
@@ -60,8 +54,8 @@ export const loginAction = wsa(async (email: string, password: string) => {
 		}
 		try {
 			await payload.create({
-				collection: "login-logs",
 				overrideAccess: true,
+				collection: "login-logs",
 				depth: 0,
 				data: {
 					event: "login",
@@ -75,15 +69,15 @@ export const loginAction = wsa(async (email: string, password: string) => {
 	} catch(error) {
 		try {
 			const found = await payload.find({
+				overrideAccess: true,
 				collection: "users",
 				where: { email: { equals: email.trim() } },
 				limit: 1,
-				depth: 0,
-				overrideAccess: true
+				depth: 0
 			});
 			await payload.create({
-				collection: "login-logs",
 				overrideAccess: true,
+				collection: "login-logs",
 				depth: 0,
 				data: {
 					event: "login",

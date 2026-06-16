@@ -7,7 +7,7 @@ import { Payload, getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
-import { OfficerTask } from "@/payload-types";
+import { User, OfficerTask } from "@/payload-types";
 
 import { MenuFilterState } from "../layout.components";
 import { resolveRelationUsers, resolveRelationOfficerTasks, resolveRelationCreditApplicationAssignments } from "../relation-navigation.actions";
@@ -53,11 +53,12 @@ async function resolveRelations(
 }
 
 async function annotateRows(
-	{ payload, docs }:
-	{ payload: Payload, docs: OfficerTask[] }
+	{ payload, user, docs }:
+	{ payload: Payload, user: User, docs: OfficerTask[] }
 ) {
 	const previousDocs = (await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		trash: true,
 		pagination: false,
@@ -66,7 +67,8 @@ async function annotateRows(
 		select: { next: true }
 	})).docs.map(d => ({ ...d, next: getRelationshipId(d.next) }));
 	const creditApplicationAssignments = (await payload.find({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		draft: true,
 		trash: true,
@@ -114,7 +116,7 @@ export const queryAction = wsa(async (
 			buildFilterWhere(filters)
 		] }
 	});
-	const annotatedDocs = await annotateRows({ payload, docs: result.docs });
+	const annotatedDocs = await annotateRows({ payload, user, docs: result.docs });
 	const relations = await resolveRelations({ payload, docs: result.docs });
 	const activeIds = (await payload.find({
 		overrideAccess: true,
@@ -155,7 +157,7 @@ export const getDetailsAction = wsa(async (id: string) => {
 			evaluationComment: true
 		}
 	});
-	const annotatedDocs = await annotateRows({ payload, docs: [result] });
+	const annotatedDocs = await annotateRows({ payload, user, docs: [result] });
 	const relations = await resolveRelations({ payload, docs: [result] });
 	return { row: annotatedDocs[0], relations };
 });
@@ -171,7 +173,7 @@ export const evaluateAction = wsa(async (
 
 	const officerTask = await payload.findByID({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: id,
 		draft: true,
@@ -187,7 +189,8 @@ export const evaluateAction = wsa(async (
 	if(officerTask.settlementStatus != "finished")
 		throw new Error("Officer task must be in 'finished' settlement status before it can be evaluated.");
 	const creditApplicationAssignment = await payload.findByID({
-		overrideAccess: true,
+		user: user,
+		overrideAccess: false,
 		collection: "credit-application-assignments",
 		draft: true,
 		trash: true,
@@ -199,7 +202,7 @@ export const evaluateAction = wsa(async (
 		throw new Error("Officer task is already past its due date.");
 	await payload.update({
 		user: user,
-		overrideAccess: true,
+		overrideAccess: false,
 		collection: "officer-tasks",
 		id: id,
 		trash: true,
@@ -213,7 +216,7 @@ export const evaluateAction = wsa(async (
 		}
 	});
 	if(decision == "reject")
-		await chainAndCreateNextOfficerTask({ payload, previousOfficerTaskId: id, userId: user.id });
+		await chainAndCreateNextOfficerTask({ payload, user, previousOfficerTaskId: id });
 	await payload.delete({
 		overrideAccess: true,
 		collection: "payload-kv",
