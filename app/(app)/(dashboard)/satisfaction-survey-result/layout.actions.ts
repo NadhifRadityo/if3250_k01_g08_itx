@@ -51,6 +51,27 @@ async function resolveRelations(
 	return relations;
 }
 
+async function annotateRows(
+	{ payload, user, docs }:
+	{ payload: Payload, user: User, docs: SatisfactionSurveyResult[] }
+) {
+	const satisfactionSurveys = (await payload.findVersions({
+		user: user,
+		overrideAccess: false,
+		collection: "satisfaction-surveys",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		where: { id: { in: [...new Set(docs.map(d => d.satisfactionSurveyVersion))] } },
+		select: { version: { content: true } }
+	})).docs;
+	return docs.map(doc => ({
+		...doc,
+		_surveyContent: satisfactionSurveys.find(s => s.id == doc.satisfactionSurveyVersion)?.version.content
+	}));
+}
+
 async function queryAction(
 	{ mode, keyword, filters, columnsSort, pageIndex }:
 	{ mode: "monitoring" | "reporting", keyword: string, filters: MenuFilterState[], columnsSort: [string, boolean][], pageIndex: number }
@@ -83,8 +104,9 @@ async function queryAction(
 			buildFilterWhere(filters)
 		] }
 	});
+	const annotatedDocs = await annotateRows({ payload, user, docs: result.docs });
 	const relations = await resolveRelations({ payload, user, docs: result.docs });
-	return { ...result, relations };
+	return { ...result, docs: annotatedDocs, relations };
 }
 
 export const queryReportingAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
@@ -119,6 +141,7 @@ export const getDetailsAction = wsa(async (id: string) => {
 			answers: true
 		}
 	});
+	const annotatedDocs = await annotateRows({ payload, user, docs: [result] });
 	const relations = await resolveRelations({ payload, user, docs: [result] });
-	return { row: result, relations };
+	return { row: annotatedDocs[0], relations };
 });

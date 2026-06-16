@@ -61,16 +61,14 @@ function getPreviewInitialValues(answers: unknown): Record<string, unknown> {
 	return {};
 }
 function SurveyResultAnswersDialog(
-	{ buttonLabel, dialogTitle, value }:
-	{ buttonLabel: string, dialogTitle: string, value: unknown }
+	{ buttonLabel, dialogTitle, value, surveyContent }:
+	{ buttonLabel: string, dialogTitle: string, value: unknown, surveyContent: unknown }
 ) {
 	const [open, setOpen] = useState(false);
 	const formPreview = useMemo(() => {
-		if(value == null || typeof value != "object") return null;
-		const template = (value as any)._surveyTemplate;
-		if(!isJsonFormDefinition(template?.content)) return null;
-		return sanitizeFormDefinitionForReadOnlyPreview(template.content);
-	}, [value]);
+		if(!isJsonFormDefinition(surveyContent)) return null;
+		return sanitizeFormDefinitionForReadOnlyPreview(surveyContent);
+	}, [surveyContent]);
 	const formPreviewInitialValues = useMemo(() => getPreviewInitialValues(value), [value]);
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
@@ -109,8 +107,8 @@ function SurveyResultAnswersDialog(
 	);
 }
 const defaultSurveyResultAnswersRenderer = ({ buttonLabel, dialogTitle }: { buttonLabel: string, dialogTitle: string }) =>
-	(value: unknown) => (
-		<SurveyResultAnswersDialog buttonLabel={buttonLabel} dialogTitle={dialogTitle} value={value} />
+	(value: unknown, { _surveyContent }) => (
+		<SurveyResultAnswersDialog buttonLabel={buttonLabel} dialogTitle={dialogTitle} value={value} surveyContent={_surveyContent} />
 	);
 
 export type ColumnData = rwsa<typeof queryMonitoringAction>["docs"][number];
