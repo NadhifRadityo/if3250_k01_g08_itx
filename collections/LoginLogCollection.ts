@@ -71,6 +71,22 @@ export const LoginLogs = (): CollectionConfig => ({
 				{ value: "success", label: "Success" },
 				{ value: "failure", label: "Failure" }
 			]
+		},
+		{
+			name: "sessionId",
+			label: "Session Id",
+			type: "text"
+		},
+		{
+			name: "forcedLogoutBy",
+			label: "Forced Logout By",
+			type: "relationship",
+			relationTo: "users"
+		},
+		{
+			name: "description",
+			label: "Description",
+			type: "text"
 		}
 	]
 });

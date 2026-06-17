@@ -3,7 +3,7 @@
 import { headers as nextHeaders } from "next/headers";
 import { redirect, RedirectType } from "next/navigation";
 import { logout as payloadLogout } from "@payloadcms/next/auth";
-import { getPayload, Payload } from "payload";
+import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa } from "@/utils/actions";
@@ -87,10 +87,12 @@ export const logoutAction = wsa(async () => {
 				collection: "login-logs",
 				depth: 0,
 				data: {
-					event: "login",
-					user: user.id,
+					createdAt: new Date().toISOString(),
 					ipAddress: ipAddress,
-					outcome: "success"
+					user: user.id,
+					event: "logout",
+					outcome: "success",
+					sessionId: (user as any)._sid
 				}
 			});
 		} catch(_) {}

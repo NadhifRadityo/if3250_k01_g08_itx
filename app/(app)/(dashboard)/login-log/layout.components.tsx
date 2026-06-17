@@ -6,6 +6,7 @@ import { CircleAlertIcon } from "lucide-react";
 
 import { rwsa, uwsa } from "@/utils/actions";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogCancel, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Button } from "@/components/radix/Button";
 import { Drawer, DrawerTitle, DrawerFooter, DrawerHeader, DrawerContent, DrawerDescription } from "@/components/radix/Drawer";
 import { Skeleton } from "@/components/radix/Skeleton";
@@ -31,7 +32,10 @@ export const filterConfigColumns = Object.freeze([
 	{ key: "user", label: "User", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
 	{ key: "ipAddress", label: "IP Address", type: "text" },
 	{ key: "event", label: "Event", type: "select", selectOptions: eventSelectOptions },
-	{ key: "outcome", label: "Outcome", type: "select", selectOptions: outcomeSelectOptions }
+	{ key: "outcome", label: "Outcome", type: "select", selectOptions: outcomeSelectOptions },
+	{ key: "sessionId", label: "Session Id", type: "text" },
+	{ key: "forcedLogoutBy", label: "Forced Logout By", type: "relation", relationFilterConfigColumn: () => ["User", userFilterConfigColumns] },
+	{ key: "description", label: "Description", type: "text" }
 ] as MenuFilterConfigColumn[]);
 export const columnConfigColumns = Object.freeze([
 	{ key: "id", label: "Id" },
@@ -39,7 +43,10 @@ export const columnConfigColumns = Object.freeze([
 	{ key: "user", label: "User" },
 	{ key: "ipAddress", label: "IP Address" },
 	{ key: "event", label: "Event" },
-	{ key: "outcome", label: "Outcome" }
+	{ key: "outcome", label: "Outcome" },
+	{ key: "sessionId", label: "Session Id" },
+	{ key: "forcedLogoutBy", label: "Forced Logout By" },
+	{ key: "description", label: "Description" }
 ] as MenuColumnConfigColumn[]);
 export const tableConfigColumns = Object.freeze([
 	{ key: "id", label: "Id", sortable: true, className: "text-xs" },
@@ -47,25 +54,35 @@ export const tableConfigColumns = Object.freeze([
 	{ key: "user", label: "User", sortable: false },
 	{ key: "ipAddress", label: "IP Address", sortable: true },
 	{ key: "event", label: "Event", sortable: true },
-	{ key: "outcome", label: "Outcome", sortable: true }
+	{ key: "outcome", label: "Outcome", sortable: true },
+	{ key: "sessionId", label: "Session Id", sortable: true },
+	{ key: "forcedLogoutBy", label: "Forced Logout By", sortable: false },
+	{ key: "description", label: "Description", sortable: true }
 ] as MenuTableConfigColumn[]);
 export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "id", type: "text", render: v => (<span className="font-mono">{v}</span>) },
 	{ key: "createdAt", type: "date" },
 	{ key: "user", type: "relation", render: defaultRelationUserRenderer({ description: "User", relationSource: "login-logs.user" }) },
 	{ key: "ipAddress", type: "text" },
-	{ key: "event", type: "select" },
-	{ key: "outcome", type: "select" }
+	{ key: "event", type: "select", selectOptions: eventSelectOptions },
+	{ key: "outcome", type: "select", selectOptions: outcomeSelectOptions },
+	{ key: "sessionId", type: "text" },
+	{ key: "forcedLogoutBy", type: "relation", render: defaultRelationUserRenderer({ description: "Forced Logout By", relationSource: "login-logs.forcedLogoutBy" }) },
+	{ key: "description", type: "text" }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;
+	isMutating?: boolean;
+	setForceLogoutTargetRow?: (v: ColumnData | null) => void;
 } & MenuRowValueRendererContext;
 export const eligibleDetailsTriggerColumns = Object.freeze([
 	"id",
 	"createdAt",
 	"ipAddress",
 	"event",
-	"outcome"
+	"outcome",
+	"sessionId",
+	"description"
 ]);
 export const drawerValueRendererConfigColumns = rowValueRendererConfigColumns;
 export const defaultColumnOrder = Object.freeze([
@@ -74,22 +91,28 @@ export const defaultColumnOrder = Object.freeze([
 	"user",
 	"ipAddress",
 	"event",
-	"outcome"
+	"outcome",
+	"sessionId",
+	"forcedLogoutBy",
+	"description"
 ]) as string[];
 export const defaultColumnsShown = Object.freeze([
 	"createdAt",
 	"user",
 	"ipAddress",
 	"event",
-	"outcome"
+	"outcome",
+	"sessionId",
+	"forcedLogoutBy",
+	"description"
 ]) as string[];
 export const defaultColumnsSort = Object.freeze([
 	["createdAt", false]
 ]) as [string, boolean][];
 
 export function DetailsDrawer(
-	{ open, onOpenChange, row, rowValueRendererContext }:
-	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext }
+	{ open, onOpenChange, row, rowValueRendererContext, renderActions }:
+	{ open: boolean, onOpenChange: (v: boolean) => void, row: ColumnData | null, rowValueRendererContext: RowValueRendererContext, renderActions?: (r: ColumnData) => React.ReactNode }
 ) {
 	const query = useQuery({
 		queryKey: ["login-log", "details", row?.id ?? null],
@@ -150,8 +173,33 @@ export function DetailsDrawer(
 					<Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
 						Close
 					</Button>
+					{row != null && renderActions != null ? (
+						renderActions(row)
+					) : null}
 				</DrawerFooter>
 			</DrawerContent>
 		</Drawer>
+	);
+}
+
+export function ForceLogoutDialog(
+	{ open, onOpenChange, onConfirm, isMutating }:
+	{ open: boolean, onOpenChange: (open: boolean) => void, onConfirm: () => void, isMutating?: boolean }
+) {
+	return (
+		<AlertDialog open={open} onOpenChange={onOpenChange}>
+			<AlertDialogContent className="md:min-w-[520px]">
+				<AlertDialogHeader>
+					<AlertDialogTitle>Force Logout</AlertDialogTitle>
+					<AlertDialogDescription>
+						Are you sure you want to force logout this user?
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
+					<AlertDialogAction variant="destructive" onClick={onConfirm} disabled={isMutating}>Force Logout</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
 	);
 }

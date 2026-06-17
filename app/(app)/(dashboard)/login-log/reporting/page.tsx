@@ -1,21 +1,54 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { CircleAlertIcon } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LogOutIcon, CircleAlertIcon } from "lucide-react";
 
 import { uwsa } from "@/utils/actions";
+import { getRelationshipId } from "@/utils/payload";
 import { Alert, AlertTitle, AlertDescription } from "@/components/radix/Alert";
+import { Button } from "@/components/radix/Button";
 
 import { MenuPage, MenuToolbar, MenuPagination, MenuFilterState, useConfigStorage, MenuFilterSummary, DashboardMenuTable, MenuColumnConfigCard, MenuFilterConfigCard, useMenuRowValueRenderer } from "../../layout.components";
 import { RelationNavigationProvider, relationNavigationFilterConfigProvider } from "../../relation-navigation.components";
-import { queryReportingAction } from "../layout.actions";
-import { ColumnData, DetailsDrawer, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+import { forceLogoutAction, queryReportingAction } from "../layout.actions";
+import { ColumnData, DetailsDrawer, ForceLogoutDialog, defaultColumnOrder, defaultColumnsSort, tableConfigColumns, columnConfigColumns, defaultColumnsShown, filterConfigColumns, eligibleDetailsTriggerColumns, rowValueRendererConfigColumns } from "../layout.components";
+
+const columnConfigColumnsWithActions = Object.freeze([
+	...columnConfigColumns,
+	{ key: "#actions", label: "Actions" }
+]);
+const tableConfigColumnsWithActions = Object.freeze([
+	...tableConfigColumns,
+	{ key: "#actions", label: "Actions", sortable: false, className: "flex flex-wrap gap-2" }
+]);
+const rowValueRendererConfigColumnsWithActions = Object.freeze([
+	...rowValueRendererConfigColumns,
+	{ key: "#actions", type: "null", render: (_, row, { isMutating, setForceLogoutTargetRow }) => (
+		<>
+			{row._sessionActive == true ? (
+				<Button type="button" size="sm" variant="destructive" onClick={() => setForceLogoutTargetRow!(row)} disabled={isMutating}>
+					<LogOutIcon />
+					Force Logout
+				</Button>
+			) : null}
+		</>
+	) } satisfies (typeof rowValueRendererConfigColumns)[number]
+]);
+const defaultColumnOrderWithActions = Object.freeze([
+	...defaultColumnOrder,
+	"#actions"
+]) as string[];
+const defaultColumnsShownWithActions = Object.freeze([
+	...defaultColumnsShown,
+	"#actions"
+]) as string[];
 
 export default function Page() {
+	const queryClient = useQueryClient();
 	const [keyword, setKeyword] = useState("");
-	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "login-log.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrder });
-	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "login-log.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShown });
+	const [columnOrder, setColumnOrder] = useConfigStorage({ localStorageKey: "login-log.column-order", updateIfThisSearhParamExists: "columnOrder", defaultValue: defaultColumnOrderWithActions });
+	const [columnsShown, setColumnsShown] = useConfigStorage({ localStorageKey: "login-log.columns-shown", updateIfThisSearhParamExists: "columnsShown", defaultValue: defaultColumnsShownWithActions });
 	const [columnConfigCardOpen, setColumnConfigCardOpen] = useState(false);
 	const [filters, setFilters] = useConfigStorage({ localStorageKey: "login-log.filters", customConfigProvider: relationNavigationFilterConfigProvider("login-logs"), updateIfThisSearhParamExists: "filters", defaultValue: [] as MenuFilterState[] });
 	const [filterConfigCardOpen, setFilterConfigCardOpen] = useState(filters.length > 0);
@@ -37,11 +70,16 @@ export default function Page() {
 	});
 	const [detailsDrawerRow, setDetailsDrawerRow] = useState(null as ColumnData | null);
 	const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+	const [forceLogoutTargetRow, setForceLogoutTargetRow] = useState(null as ColumnData | null);
+	const [isMutating, startMutationTransition] = useTransition();
+	const [genericMutationError, setGenericMutationError] = useState(null as any);
 	const rowValueRendererContext = {
-		relationValues: query.data?.relations
+		relationValues: query.data?.relations,
+		isMutating: isMutating,
+		setForceLogoutTargetRow: setForceLogoutTargetRow
 	};
 	const renderCell = useMenuRowValueRenderer({
-		columns: rowValueRendererConfigColumns,
+		columns: rowValueRendererConfigColumnsWithActions,
 		context: {
 			...rowValueRendererContext,
 			richTextCard: false,
@@ -81,13 +119,13 @@ export default function Page() {
 				<MenuColumnConfigCard
 					open={columnConfigCardOpen}
 					onOpenChange={setColumnConfigCardOpen}
-					columns={columnConfigColumns}
+					columns={columnConfigColumnsWithActions}
 					columnOrder={columnOrder}
 					onColumnOrderChange={setColumnOrder}
 					columnsShown={columnsShown}
 					onColumnsShownChange={setColumnsShown}
-					defaultColumnOrder={defaultColumnOrder}
-					defaultColumnsShown={defaultColumnsShown}
+					defaultColumnOrder={defaultColumnOrderWithActions}
+					defaultColumnsShown={defaultColumnsShownWithActions}
 				/>
 				<MenuFilterSummary columns={filterConfigColumns} filters={filters} />
 				{query.error != null ? (
@@ -97,8 +135,15 @@ export default function Page() {
 						<AlertDescription>{`${query.error?.message ?? "An error occured while querying data."}`}</AlertDescription>
 					</Alert>
 				) : null}
+				{genericMutationError != null ? (
+					<Alert variant="destructive">
+						<CircleAlertIcon />
+						<AlertTitle>{`${genericMutationError?.name ?? "Error"}`}</AlertTitle>
+						<AlertDescription>{`${genericMutationError?.message ?? "An error occured while querying data."}`}</AlertDescription>
+					</Alert>
+				) : null}
 				<DashboardMenuTable
-					columns={tableConfigColumns}
+					columns={tableConfigColumnsWithActions}
 					columnsSort={columnsSort}
 					onColumnsSortChange={setColumnsSort}
 					columnOrder={columnOrder}
@@ -122,6 +167,26 @@ export default function Page() {
 					onOpenChange={setDetailsDrawerOpen}
 					row={detailsDrawerRow}
 					rowValueRendererContext={rowValueRendererContext}
+					renderActions={r => renderCell(r, "#actions")}
+				/>
+				<ForceLogoutDialog
+					open={forceLogoutTargetRow != null}
+					onOpenChange={v => { if(v) return; setForceLogoutTargetRow(null); }}
+					isMutating={isMutating}
+					onConfirm={() => startMutationTransition(async () => {
+						setGenericMutationError(null);
+						try {
+							await uwsa(forceLogoutAction)({
+								userId: getRelationshipId(forceLogoutTargetRow!.user)!,
+								sessionId: forceLogoutTargetRow!.sessionId!
+							});
+						} catch(error) {
+							setGenericMutationError(error);
+						} finally {
+							setForceLogoutTargetRow(null);
+							await queryClient.invalidateQueries({ queryKey: ["login-log"] });
+						}
+					})}
 				/>
 			</RelationNavigationProvider>
 		</MenuPage>

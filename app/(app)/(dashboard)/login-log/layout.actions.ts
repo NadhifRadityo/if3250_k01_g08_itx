@@ -6,6 +6,7 @@ import { Payload, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa, uwsa } from "@/utils/actions";
+import { getClientIpFromHeaders } from "@/utils/clientIp";
 import { buildFilterWhere, getRelationshipId } from "@/utils/payload";
 import { User, LoginLog } from "@/payload-types";
 
@@ -24,12 +25,37 @@ async function resolveRelations(
 	const userIds = new Set<string>();
 	for(const doc of docs) {
 		const userId = getRelationshipId(doc.user);
+		const forcedLogoutBy = getRelationshipId(doc.forcedLogoutBy);
 		if(userId != null)
 			userIds.add(userId);
+		if(forcedLogoutBy != null)
+			userIds.add(forcedLogoutBy);
 	}
 	const relations = {} as RelationValues;
 	Object.assign(relations, await uwsa(resolveRelationUsers)({ payload, user, ids: [...userIds] }));
 	return relations;
+}
+
+async function annotateRows(
+	{ payload, user, docs }:
+	{ payload: Payload, user: User, docs: LoginLog[] }
+) {
+	const users = (await payload.find({
+		user: user,
+		overrideAccess: false,
+		collection: "users",
+		draft: true,
+		trash: true,
+		pagination: false,
+		depth: 0,
+		where: { id: { in: [...new Set(docs.map(d => getRelationshipId(d.user)).filter(u => u != null))] } },
+		select: { sessions: true }
+	})).docs;
+	return docs.map(doc => ({
+		...doc,
+		...(getRelationshipId(doc.user) != null && doc.sessionId != null ?
+			{ _sessionActive: users.find(u => u.id == getRelationshipId(doc.user))?.sessions.some(s => s.id == doc.sessionId) ?? false } : {})
+	}));
 }
 
 async function queryAction(
@@ -59,13 +85,18 @@ async function queryAction(
 				{ "user.email": { like: keyword } },
 				{ ipAddress: { like: keyword } },
 				{ event: { equals: keyword } },
-				{ outcome: { equals: keyword } }
+				{ outcome: { equals: keyword } },
+				{ sessionId: { equals: keyword } },
+				{ "forcedLogoutBy.name": { like: keyword } },
+				{ "forcedLogoutBy.email": { like: keyword } },
+				{ description: { equals: keyword } }
 			] }] : []),
 			buildFilterWhere(filters)
 		] }
 	});
+	const annotatedDocs = await annotateRows({ payload, user, docs: result.docs });
 	const relations = await resolveRelations({ payload, user, docs: result.docs });
-	return { ...result, relations };
+	return { ...result, docs: annotatedDocs, relations };
 }
 
 export const queryReportingAction = wsa(async (p: Omit<Parameters<typeof queryAction>[0], "mode">) => {
@@ -92,9 +123,53 @@ export const getDetailsAction = wsa(async (id: string) => {
 			user: true,
 			ipAddress: true,
 			event: true,
-			outcome: true
+			outcome: true,
+			sessionId: true,
+			forcedLogoutBy: true,
+			description: true
 		}
 	});
+	const annotatedDocs = await annotateRows({ payload, user, docs: [result] });
 	const relations = await resolveRelations({ payload, user, docs: [result] });
-	return { row: result, relations };
+	return { row: annotatedDocs[0], relations };
+});
+
+export const forceLogoutAction = wsa(async (
+	{ userId, sessionId }:
+	{ userId: string, sessionId: string }
+) => {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const userSessions = (await payload.find({
+		collection: "users",
+		overrideAccess: true,
+		limit: 1,
+		where: { id: { equals: userId } }
+	})).docs[0]?.sessions;
+	if(userSessions.every(s => s.id != sessionId))
+		return;
+	const ipAddress = getClientIpFromHeaders(headers);
+	await payload.create({
+		overrideAccess: true,
+		collection: "login-logs",
+		depth: 0,
+		data: {
+			createdAt: new Date().toISOString(),
+			ipAddress: ipAddress,
+			user: userId,
+			event: "logout",
+			outcome: "success",
+			sessionId: sessionId,
+			forcedLogoutBy: user.id
+		}
+	});
+	await payload.db.updateOne({
+		id: userId,
+		collection: "users",
+		data: { ...user, sessions: userSessions.filter(s => s.id != sessionId) },
+		returning: false
+	});
 });

@@ -410,6 +410,7 @@ export const appendGpsLogAction = wsa(async (
 		overrideAccess: false,
 		collection: "gps-logs",
 		data: {
+			createdAt: new Date().toISOString(),
 			user: user.id,
 			sessionId: sessionId,
 			officerTask: activeKv?.id,
@@ -494,6 +495,7 @@ export const sendOtpMessageAction = wsa(async (
 		overrideAccess: false,
 		collection: "message-logs",
 		data: {
+			createdAt: new Date().toISOString(),
 			officerTask: id,
 			content: content,
 			whatsappNumber: whatsappNumber,
@@ -737,6 +739,7 @@ export const sendSatisfactionSurveyMessageAction = wsa(async (
 		overrideAccess: false,
 		collection: "message-logs",
 		data: {
+			createdAt: new Date().toISOString(),
 			officerTask: id,
 			content: content,
 			whatsappNumber: whatsappNumber,

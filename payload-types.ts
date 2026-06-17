@@ -1089,6 +1089,9 @@ export interface LoginLog {
   user?: (string | null) | User;
   event: 'login' | 'logout';
   outcome?: ('success' | 'failure') | null;
+  sessionId?: string | null;
+  forcedLogoutBy?: (string | null) | User;
+  description?: string | null;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1760,6 +1763,9 @@ export interface LoginLogsSelect<T extends boolean = true> {
   user?: T;
   event?: T;
   outcome?: T;
+  sessionId?: T;
+  forcedLogoutBy?: T;
+  description?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

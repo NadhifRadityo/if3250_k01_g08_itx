@@ -66,9 +66,9 @@ export const rowValueRendererConfigColumns = Object.freeze([
 	{ key: "email", type: "text" },
 	{ key: "whatsappNumber", type: "text" },
 	{ key: "smsNumber", type: "text" },
-	{ key: "emailDeliveryStatus", type: "select" },
-	{ key: "whatsappDeliveryStatus", type: "select" },
-	{ key: "smsDeliveryStatus", type: "select" }
+	{ key: "emailDeliveryStatus", type: "select", selectOptions: deliveryStatusSelectOptions },
+	{ key: "whatsappDeliveryStatus", type: "select", selectOptions: deliveryStatusSelectOptions },
+	{ key: "smsDeliveryStatus", type: "select", selectOptions: deliveryStatusSelectOptions }
 ] as MenuRowValueRendererConfigColumn<ColumnData, RowValueRendererContext>[]);
 export type RowValueRendererContext = {
 	relationValues?: RelationValues;

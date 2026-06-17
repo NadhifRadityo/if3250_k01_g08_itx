@@ -93,6 +93,7 @@ export const appendRecordingLogsAction = wsa(async (
 		overrideAccess: false,
 		collection: "recording-logs",
 		data: {
+			createdAt: new Date().toISOString(),
 			officerTask: officerTaskId,
 			phoneNumber: whatsappNumber,
 			recordingUrl: recordingUrls.join("\n")
