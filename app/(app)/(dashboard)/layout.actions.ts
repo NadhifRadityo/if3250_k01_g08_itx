@@ -1,9 +1,9 @@
 "use server";
 
-import { headers as nextHeaders } from "next/headers";
-import { redirect, RedirectType } from "next/navigation";
+import { cookies as nextCookies, headers as nextHeaders } from "next/headers";
+import { redirect, RedirectType, unauthorized } from "next/navigation";
 import { logout as payloadLogout } from "@payloadcms/next/auth";
-import { Payload, getPayload } from "payload";
+import { jwtSign, Payload, extractJWT, getPayload } from "payload";
 
 import payloadConfig from "@payload-config";
 import { wsa } from "@/utils/actions";
@@ -74,7 +74,45 @@ export const getDashboardContextAction = wsa(async () => {
 	};
 });
 
-export const logoutAction = wsa(async () => {
+export const refreshSessionAction = wsa(async () => {
+	const headers = await nextHeaders();
+	const payload = await getPayload({ config: payloadConfig });
+	const { user } = await payload.auth({ headers });
+	if(user == null) return unauthorized();
+
+	const jwt = extractJWT({ payload, headers });
+	if(jwt == null) return unauthorized();
+	const jwtSession = (() => { try { return JSON.parse(Buffer.from(jwt.split(".")[1], "base64url").toString("utf-8")); } catch{ return null; } })();
+	const sessionId = (user as any)._sid as string;
+	if(jwtSession == null || sessionId != jwtSession.sid) return unauthorized();
+	const session = { ...user.sessions.find(s => s.id == sessionId)! };
+	session.expiresAt = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+	await payload.db.updateOne({
+		id: user.id,
+		collection: "users",
+		data: { ...user, sessions: [...user.sessions.filter(s => s.id != sessionId), session] },
+		returning: false
+	});
+	const { token } = await jwtSign({
+		fieldsToSign: { ...jwtSession },
+		secret: payload.secret,
+		tokenExpiration: 20 * 60
+	});
+	const collectionAuthConfig = payload.collections[jwtSession.collection].config.auth;
+	const cookies = await nextCookies();
+	cookies.set({
+		domain: collectionAuthConfig.cookies.domain,
+		secure: collectionAuthConfig.cookies.secure,
+		name: `${payload.config.cookiePrefix}-token`,
+		value: token,
+		expires: new Date(session.expiresAt),
+		path: "/",
+		httpOnly: true,
+		sameSite: "lax"
+	});
+});
+
+export const logoutAction = wsa(async ({ inactivity = false }: { inactivity?: boolean } = {}) => {
 	const headers = await nextHeaders();
 	const payload = await getPayload({ config: payloadConfig });
 	const { user } = await payload.auth({ headers });
@@ -92,7 +130,8 @@ export const logoutAction = wsa(async () => {
 					user: user.id,
 					event: "logout",
 					outcome: "success",
-					sessionId: (user as any)._sid
+					sessionId: (user as any)._sid,
+					...(inactivity ? { description: "Logged out due to inactivity." } : {})
 				}
 			});
 		} catch(_) {}

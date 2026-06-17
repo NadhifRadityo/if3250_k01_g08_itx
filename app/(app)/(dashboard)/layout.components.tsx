@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useRef, useMemo, useState, useEffect, useContext, useCallback, createContext, useLayoutEffect } from "react";
+import React, { memo, useRef, useMemo, useState, useEffect, useContext, useCallback, createContext, useTransition, useLayoutEffect } from "react";
 import { redirect, usePathname, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { XIcon, PlusIcon, SmileIcon, UsersIcon, FilterIcon, LogOutIcon, SearchIcon, ArrowUpIcon, HistoryIcon, LucideProps, UserCogIcon, Columns3Icon, KeyRoundIcon, ArrowDownIcon, BarChart3Icon, FileCheckIcon, MapPinnedIcon, UserCheckIcon, AudioLinesIcon, TrendingUpIcon, ArrowUpDownIcon, LocateFixedIcon, LockKeyholeIcon, ShieldCheckIcon, ChevronRightIcon, GripVerticalIcon, ClipboardListIcon, ChevronsUpDownIcon, ClipboardCheckIcon } from "lucide-react";
@@ -14,6 +14,7 @@ import { Link } from "@/components/Link";
 import { RedactProvider } from "@/components/Redact";
 import { RichTextPreview } from "@/components/RichText";
 import { SearchableSelect, SearchableMultiSelect } from "@/components/SearchableSelect";
+import { AlertDialog, AlertDialogTitle, AlertDialogAction, AlertDialogFooter, AlertDialogHeader, AlertDialogContent, AlertDialogDescription } from "@/components/radix/AlertDialog";
 import { Avatar, AvatarFallback } from "@/components/radix/Avatar";
 import { Badge } from "@/components/radix/Badge";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/radix/Breadcrumb";
@@ -31,7 +32,7 @@ import { Switch } from "@/components/radix/Switch";
 import { Table, TableRow, TableBody, TableCell, TableHead, TableHeader } from "@/components/radix/Table";
 
 import logoEcentrix from "../../_static/favicons/logo.png";
-import { logoutAction } from "./layout.actions";
+import { logoutAction, refreshSessionAction } from "./layout.actions";
 import { DashboardMenu, getDashboardContextAction } from "./layout.actions";
 import { dashboardRoleKeys, dashboardMenuGroups, changeRequestTypeSelectOptions } from "./layout.shared";
 
@@ -151,6 +152,81 @@ function DashboardMenuKey(
 		</HoverCard>
 	);
 }
+function DashboardUserSession() {
+	const pathname = usePathname();
+	const [showDialog, setShowDialog] = useState(false);
+	const showDialogRef = useRef(showDialog);
+	showDialogRef.current = showDialog;
+	const [isPending, startTransition] = useTransition();
+	const isPendingRef = useRef(isPending);
+	isPendingRef.current = isPending;
+	const lastRefreshRef = useRef(Date.now());
+	const lastActivityRef = useRef(Date.now());
+	const dialogTimerRef = useRef(null as TimerHandle | null);
+	const logoutTimerRef = useRef(null as TimerHandle | null);
+	const resetTimers = useCallback(() => {
+		lastActivityRef.current = Date.now();
+		setShowDialog(false);
+		if(dialogTimerRef.current != null)
+			clearTimeout(dialogTimerRef.current);
+		if(logoutTimerRef.current != null)
+			clearTimeout(logoutTimerRef.current);
+		dialogTimerRef.current = setTimeout(() => setShowDialog(true), 15 * 60 * 1000);
+		logoutTimerRef.current = setTimeout(() => startTransition(async () => await uwsa(logoutAction)({ inactivity: true })), 18 * 60 * 1000);
+	}, []);
+	const onActivity = useCallback(() => {
+		const now = Date.now();
+		if(now - lastRefreshRef.current >= 5 * 60 * 1000 && !isPendingRef.current) {
+			lastRefreshRef.current = now;
+			startTransition(async () => await uwsa(refreshSessionAction)());
+			resetTimers();
+		} else if(now - lastActivityRef.current >= 5 * 1000)
+			resetTimers();
+	}, []);
+	useEffect(() => {
+		setShowDialog(false);
+		onActivity();
+	}, [pathname]);
+	useEffect(() => {
+		resetTimers();
+		const onClick = () => {
+			if(showDialogRef.current) return;
+			onActivity();
+		};
+		document.addEventListener("click", onClick);
+		return () => {
+			document.removeEventListener("click", onClick);
+			if(dialogTimerRef.current != null)
+				clearTimeout(dialogTimerRef.current);
+			if(logoutTimerRef.current != null)
+				clearTimeout(logoutTimerRef.current);
+		};
+	}, []);
+	return (
+		<AlertDialog open={showDialog}>
+			<AlertDialogContent onFocusOutside={e => e.preventDefault()} onEscapeKeyDown={e => e.preventDefault()}>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Are you still there?</AlertDialogTitle>
+					<AlertDialogDescription>
+						Your session will expire soon due to inactivity. Click "Continue" to stay logged in.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<AlertDialogFooter>
+					<AlertDialogAction
+						onClick={() => {
+							if(isPendingRef.current) return;
+							lastRefreshRef.current = Date.now();
+							startTransition(async () => await uwsa(refreshSessionAction)());
+							resetTimers();
+						}}
+					>
+						Continue
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
+	);
+}
 export function DashboardShell(
 	{ initialContext, children }:
 	{ initialContext: rwsa<typeof getDashboardContextAction>, children: React.ReactNode }
@@ -193,6 +269,7 @@ export function DashboardShell(
 	return (
 		<RedactProvider canvasClassName="z-51">
 			<DashboardContext.Provider value={context}>
+				<DashboardUserSession />
 				<SidebarProvider className="[--sidebar-width:20rem]!">
 					<Sidebar collapsible="icon" variant="inset" className="bg-sidebar h-lvh pb-[calc(100lvh-100dvh)] [anchor-name:--sidebar-anchor]">
 						<SidebarHeader>

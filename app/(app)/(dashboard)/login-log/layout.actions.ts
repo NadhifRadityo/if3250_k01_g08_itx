@@ -53,7 +53,7 @@ async function annotateRows(
 	})).docs;
 	return docs.map(doc => ({
 		...doc,
-		...(getRelationshipId(doc.user) != null && doc.sessionId != null ?
+		...(doc.event == "login" && getRelationshipId(doc.user) != null && doc.sessionId != null ?
 			{ _sessionActive: users.find(u => u.id == getRelationshipId(doc.user))?.sessions.some(s => s.id == doc.sessionId) ?? false } : {})
 	}));
 }
